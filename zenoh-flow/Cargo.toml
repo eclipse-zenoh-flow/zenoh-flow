@@ -1,0 +1,38 @@
+[package]
+name = "zenoh-flow"
+version = "0.1.0"
+repository = "https://github.com/eclipse-zenoh/zenoh"
+homepage = "http://zenoh.io"
+authors = ["kydos <angelo@icorsaro.net>",
+           "gabrik <gabriele.baldoni@gmail.com>",
+           "Julien Loudet <julien.loudet@adlinktech.com>",]
+edition = "2018"
+license = " EPL-2.0 OR Apache-2.0"
+categories = ["network-programming"]
+description = "Zenoh-Flow: zenoh-based data-flow programming framework for computations that span from the cloud to the device."
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+env_logger = "0.8.3"
+serde_derive = "1.0.55"
+serde = { version = "1.0.55", features = ["derive"] }
+serde_yaml = {version = "0.8.13"}
+derive_more = "0.99.10"
+petgraph = "0.5.1"
+structopt = "0.3.21"
+libloading = "0.7.0"
+
+async-std = { version = "=1.9.0", features = ["attributes"] }
+async-trait = "0.1.50"
+event-listener = "2.5.1"
+paste = "1.0"
+bincode = "1.3.3"
+
+[build-dependencies]
+rustc_version = "0.3.3"
+
+
+[[example]]
+name = "example-op"
