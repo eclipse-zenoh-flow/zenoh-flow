@@ -17,7 +17,7 @@ struct ExampleOperator {
     pub x: u128,
     pub y: String,
 }
-// Operator should have access to the context
+// Operator should have access to the context, maybe add a Weak<ZFContext>? -> https://users.rust-lang.org/t/solved-derive-and-proc-macro-add-field-to-an-existing-struct/52307/3
 
 // #[derive(ZFOperator)]
 // #[inputs(u128, String)]

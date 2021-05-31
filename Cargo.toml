@@ -15,6 +15,7 @@
 
 members = [
   "zenoh-flow",
+  "zenoh-flow-macros",
 ]
 
 [profile.dev]
