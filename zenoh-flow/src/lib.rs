@@ -2,10 +2,13 @@ pub use ::bincode;
 pub use ::paste;
 pub use ::serde;
 
+pub mod loader;
 pub mod message;
 pub mod stream;
 
 use message::{Message, ZFCtrlMessage};
+
+pub type ZFOperatorId = String;
 
 pub enum InputRuleResult {
     Consume,
@@ -52,4 +55,18 @@ pub type ZFSinkRun =
 
 pub trait ZFSink {
     fn make_sink(&self, ctx: &mut ZFContext) -> Box<ZFSinkRun>;
+}
+
+#[macro_export]
+macro_rules! export_operator {
+    ($register:expr) => {
+        #[doc(hidden)]
+        #[no_mangle]
+        pub static zfoperator_declaration: $crate::loader::ZFOperatorDeclaration =
+            $crate::loader::ZFOperatorDeclaration {
+                rustc_version: $crate::loader::RUSTC_VERSION,
+                core_version: $crate::loader::CORE_VERSION,
+                register: $register,
+            };
+    };
 }

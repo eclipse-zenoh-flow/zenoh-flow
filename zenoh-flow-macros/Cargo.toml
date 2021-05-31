@@ -38,6 +38,3 @@ env_logger = "0.8.3"
 proc-macro = true
 
 
-[[example]]
-name = "noop"
-
