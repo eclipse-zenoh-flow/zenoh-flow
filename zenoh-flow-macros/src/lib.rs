@@ -13,8 +13,8 @@ use inflector::cases::snakecase::to_snake_case;
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote, quote_spanned, ToTokens};
-use std::str::FromStr;
 use std::collections::HashMap;
+use std::str::FromStr;
 use syn::visit_mut::VisitMut;
 use syn::{
     braced,
@@ -24,20 +24,18 @@ use syn::{
     parse_macro_input, parse_quote,
     spanned::Spanned,
     token::Comma,
-    Attribute, AttributeArgs, Block, FnArg, Ident, ImplItem, ImplItemMethod, ImplItemType,
-    ItemImpl, Pat, PatIdent, PatType, Receiver, ReturnType, Signature, Token, Type, Visibility,
-    DeriveInput,
+    Attribute, AttributeArgs, Block, DeriveInput, FnArg, Ident, ImplItem, ImplItemMethod,
+    ImplItemType, ItemImpl, Pat, PatIdent, PatType, Receiver, ReturnType, Signature, Token, Type,
+    Visibility,
 };
 use syn_serde::json;
 
-
 use proc_macro_error::proc_macro_error;
-
 
 #[derive(Debug, FromDeriveInput)]
 struct ZFOperatorMacroArgs {
-    modes : HashMap<String,HashMap<String, Ident>>,
-    inputs : Vec<Type>,
+    modes: HashMap<String, HashMap<String, Ident>>,
+    inputs: Vec<Type>,
     outputs: Vec<Type>,
 }
 
@@ -85,9 +83,8 @@ struct ZFOperatorMacroArgs {
 pub fn derive_zfoperator(input: TokenStream) -> TokenStream {
     let DeriveInput { ident, attrs, .. } = parse_macro_input!(input);
 
-
     // let inputs : Vec<Ident> = attrs
-    let x : Vec<()>= attrs
+    let x: Vec<()> = attrs
         .iter()
         .filter(|attr| attr.path.is_ident("input"))
         .map(|attr| parse_input_attribute(&attr))
@@ -106,12 +103,12 @@ pub fn derive_zfoperator(input: TokenStream) -> TokenStream {
 }
 
 //TODO remove unwrap
-fn parse_input_attribute(attr : &Attribute) {
+fn parse_input_attribute(attr: &Attribute) {
     println!("### Attr: {:?}", attr);
 
     let x = &attr.tokens;
     println!("### Inner: {:?}", x);
-    let list : syn::Meta = attr.parse_meta().unwrap();
+    let list: syn::Meta = attr.parse_meta().unwrap();
     println!("### List: {:?}", list);
     let ident = list.path().get_ident().unwrap();
     println!("### Ident: {:?}", ident);
@@ -120,5 +117,4 @@ fn parse_input_attribute(attr : &Attribute) {
     println!("### ts: {:?}", ts);
     // let t : Type = parse_macro_input!(ts as Type);
     // t
-
 }

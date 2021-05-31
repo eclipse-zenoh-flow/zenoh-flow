@@ -36,3 +36,20 @@ rustc_version = "0.3.3"
 
 [[example]]
 name = "example-op"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "example-source"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "example-sink"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "example-fizz"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "example-buzz"
+crate-type = ["cdylib"]
