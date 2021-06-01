@@ -1,7 +1,7 @@
 use crate::{OperatorRun, ZFContext, ZFOperator, ZFOperatorId};
+use async_std::sync::Arc;
 use libloading::Library;
 use std::io;
-use std::sync::Arc;
 
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
