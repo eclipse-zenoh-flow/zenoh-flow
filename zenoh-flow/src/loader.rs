@@ -6,7 +6,8 @@ use std::sync::Arc;
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
-pub unsafe fn load_operator(path: String) -> Result<(ZFOperatorId, ZFOperatorRunner), io::Error> { // This is unsafe because has to dynamically load a library
+pub unsafe fn load_operator(path: String) -> Result<(ZFOperatorId, ZFOperatorRunner), io::Error> {
+    // This is unsafe because has to dynamically load a library
     let library = Arc::new(Library::new(path.clone()).unwrap());
     let decl = library
         .get::<*mut ZFOperatorDeclaration>(b"zfoperator_declaration\0")
