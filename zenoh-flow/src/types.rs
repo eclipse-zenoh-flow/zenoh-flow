@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use crate::message::{Message, ZFCtrlMessage};
 
 pub type ZFOperatorId = String;
+pub type ZFTimestamp = u128;
 
 pub enum InputRuleResult {
     Consume,
@@ -86,3 +87,31 @@ pub struct DataFlowDescription {
     pub operators: Vec<ZFOperatorDescription>,
     pub connections: Vec<ZFOperatorConnection>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum TokenAction {
+    Consume, //Default, data is passed to the run and consumed from the "thing"
+    Drop, //Data is dropped
+    KeepRun, //Data is passed to the run and kept in the "thing"
+    Keep, //Data is kept in the "thing"
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NotReadyToken {
+    pub ts : ZFTimestamp
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ReadyToken<T> {
+    pub ts : ZFTimestamp,
+    pub data : T,
+    pub action : TokenAction,
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum Token<T> {
+    NotReady(NotReadyToken),
+    Ready(ReadyToken<T>),
+}
+
