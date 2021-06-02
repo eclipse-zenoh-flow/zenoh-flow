@@ -1,3 +1,17 @@
+//
+// Copyright (c) 2017, 2021 ADLINK Technology Inc.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+// which is available at https://www.apache.org/licenses/LICENSE-2.0.
+//
+// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+//
+// Contributors:
+//   ADLINK zenoh team, <zenoh@adlink-labs.tech>
+//
+
 use zenoh_flow::InputRuleResult;
 use zenoh_flow::{
     message::ZFCtrlMessage,
@@ -41,13 +55,29 @@ impl BuzzOperator {
     fn ir_1(
         &self,
         _ctx: &mut ZFContext,
-        data: &(Option<String>, Option<u128>),
+        data: &(Option<String>, Option<u128>), //Pass the "box" with the data that you may need, the user can drop them if not needed
     ) -> (bool, (InputRuleResult, InputRuleResult)) {
+
+        /*
+            enum Sample {
+                NotReady(NotReadySample)
+                Ready(ReadySample)
+            }
+
+            eg. impl NotReadySample<T> {
+            fn wait(&mut self) ....
+        }
+
+            eg. impl ReadySample<T> {
+            fn drop(&mut self) ....
+        }
+
+        */
         match data {
             (Some(_), Some(_)) => (true, (InputRuleResult::Consume, InputRuleResult::Consume)),
-            (None, Some(_)) => (true, (InputRuleResult::Wait, InputRuleResult::Consume)),
+            (None, Some(_)) => (false, (InputRuleResult::Wait, InputRuleResult::Consume)),
             (Some(_), None) => (false, (InputRuleResult::Consume, InputRuleResult::Wait)),
-            (None, None) => (false, (InputRuleResult::Wait, InputRuleResult::Wait)),
+            (None, None) => (true, (InputRuleResult::Consume, InputRuleResult::Drop)),
         }
     }
 
