@@ -14,17 +14,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::message::{Message, ZFCtrlMessage};
+use crate::message::{Message,ZFMessage, ZFCtrlMessage};
 
 pub type ZFOperatorId = String;
 pub type ZFTimestamp = u128;
 
-pub enum InputRuleResult {
-    Consume,
-    Drop,
-    Ignore, //To be removed
-    Wait,
-}
 
 pub enum ZFError {
     GenericError,
@@ -37,21 +31,23 @@ pub struct ZFContext {
     pub mode: u8,
 }
 
+pub type ZFResult<T> = Result<T,ZFError>;
+
 pub enum OperatorResult {
-    InResult(Result<(bool, Vec<InputRuleResult>), ZFError>),
+    InResult(Result<(bool, Vec<TokenAction>), ZFError>),
     RunResult(Result<(), ZFError>),
     OutResult(Result<(Vec<Message>, Vec<Option<ZFCtrlMessage>>), ZFError>), // Data, Control
 }
 
 pub type OperatorRun =
-    dyn Fn(&mut ZFContext, Vec<Option<&Message>>) -> OperatorResult + Send + Sync + 'static;
+    dyn Fn(&mut ZFContext, Vec<&ZFMessage>) -> OperatorResult + Send + Sync + 'static;
 
 pub type ZFSourceResult = Result<Vec<Message>, ZFError>;
 pub type ZFSourceRun = dyn Fn(&mut ZFContext) -> ZFSourceResult + Send + Sync + 'static; // This should be a future, Sources can do I/O
 
 pub type ZFSinkResult = Result<(), ZFError>;
 pub type ZFSinkRun =
-    dyn Fn(&mut ZFContext, Vec<Option<&Message>>) -> ZFSinkResult + Send + Sync + 'static; // This should be a future, Sinks can do I/O
+    dyn Fn(&mut ZFContext, Vec<&ZFMessage>) -> ZFSinkResult + Send + Sync + 'static; // This should be a future, Sinks can do I/O
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ZFOperatorKind {
@@ -94,6 +90,7 @@ pub enum TokenAction {
     Drop, //Data is dropped
     KeepRun, //Data is passed to the run and kept in the "thing"
     Keep, //Data is kept in the "thing"
+    Wait, //Waits the Data, this is applicable only to NotReadyToken
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -115,3 +112,94 @@ pub enum Token<T> {
     Ready(ReadyToken<T>),
 }
 
+impl<T> Token<T> {
+    pub fn new_ready(ts : ZFTimestamp, data : T) -> Self {
+        Self::Ready(ReadyToken::<T> {
+            ts,
+            data,
+            action : TokenAction::Consume,
+        })
+    }
+
+    pub fn new_not_ready(ts : ZFTimestamp, ) -> Self {
+        Self::NotReady(NotReadyToken {
+            ts,
+        })
+    }
+
+    pub fn is_ready(&self) -> bool {
+        match self {
+            Self::Ready(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_not_ready(&self) -> bool {
+        match self {
+            Self::NotReady(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn consume(&mut self) -> ZFResult<()> {
+        match self {
+            Self::Ready(ref mut ready) => {
+                ready.action = TokenAction::Consume;
+                Ok(())
+            },
+            _ => Err(ZFError::GenericError)
+        }
+    }
+
+    pub fn drop(&mut self) -> ZFResult<()> {
+        match self {
+            Self::Ready(ref mut ready) => {
+                ready.action = TokenAction::Drop;
+                Ok(())
+            },
+            _ => Err(ZFError::GenericError)
+        }
+    }
+
+    pub fn keep_run(&mut self) -> ZFResult<()> {
+        match self {
+            Self::Ready(ref mut ready) => {
+                ready.action = TokenAction::KeepRun;
+                Ok(())
+            },
+            _ => Err(ZFError::GenericError)
+        }
+    }
+
+    pub fn keep(&mut self) -> ZFResult<()> {
+        match self {
+            Self::Ready(ref mut ready) => {
+                ready.action = TokenAction::Keep;
+                Ok(())
+            },
+            _ => Err(ZFError::GenericError)
+        }
+    }
+
+    pub fn data<'a>(&'a self) -> ZFResult<&'a T> {
+        match self {
+            Self::Ready(ready) => Ok(&ready.data),
+            _ => Err(ZFError::GenericError)
+        }
+    }
+
+    pub fn action<'a>(&'a self) -> &'a TokenAction {
+        match self {
+            Self::Ready(ready) => &ready.action,
+            Self::NotReady(_) => &TokenAction::Wait,
+        }
+    }
+
+    pub fn split(self) -> (Option<T>, TokenAction) {
+        match self {
+            Self::Ready(ready) =>(Some(ready.data), ready.action),
+            Self::NotReady(_) => (None, TokenAction::Wait),
+        }
+    }
+
+}

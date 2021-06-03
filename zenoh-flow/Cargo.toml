@@ -24,6 +24,7 @@ petgraph = "0.5.1"
 structopt = "0.3.21"
 libloading = "0.7.0"
 
+futures = "0.3.15"
 async-std = { version = "=1.9.0", features = ["attributes"] }
 async-trait = "0.1.50"
 event-listener = "2.5.1"
@@ -53,3 +54,7 @@ crate-type = ["cdylib"]
 [[example]]
 name = "example-buzz"
 crate-type = ["cdylib"]
+
+
+[[example]]
+name = "example-select"
