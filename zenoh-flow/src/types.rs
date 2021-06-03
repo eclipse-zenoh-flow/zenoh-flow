@@ -14,16 +14,29 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::message::{Message,ZFMessage, ZFCtrlMessage};
+use crate::message::{Message, ZFCtrlMessage, ZFMessage};
 
 pub type ZFOperatorId = String;
 pub type ZFTimestamp = u128;
-
 
 pub enum ZFError {
     GenericError,
     SerializationError,
     DeseralizationError,
+    RecvError(flume::RecvError),
+    SendError(String),
+}
+
+impl From<flume::RecvError> for ZFError {
+    fn from(err: flume::RecvError) -> Self {
+        Self::RecvError(err)
+    }
+}
+
+impl<T> From<flume::SendError<T>> for ZFError {
+    fn from(err: flume::SendError<T>) -> Self {
+        Self::SendError(format!("{:?}", err))
+    }
 }
 
 pub struct ZFContext {
@@ -31,7 +44,7 @@ pub struct ZFContext {
     pub mode: u8,
 }
 
-pub type ZFResult<T> = Result<T,ZFError>;
+pub type ZFResult<T> = Result<T, ZFError>;
 
 pub enum OperatorResult {
     InResult(Result<(bool, Vec<TokenAction>), ZFError>),
@@ -86,25 +99,31 @@ pub struct DataFlowDescription {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum TokenAction {
-    Consume, //Default, data is passed to the run and consumed from the "thing"
-    Drop, //Data is dropped
-    KeepRun, //Data is passed to the run and kept in the "thing"
-    Keep, //Data is kept in the "thing"
-    Wait, //Waits the Data, this is applicable only to NotReadyToken
+    Consume, // Default, data is passed to the run and consumed from the "thing"
+    Drop,    // Data is dropped
+    KeepRun, // Data is passed to the run and kept in the "thing"
+    Keep,    // Data is kept in the "thing"
+    Wait,    //Waits the Data, this is applicable only to NotReadyToken
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct NotReadyToken {
-    pub ts : ZFTimestamp
+    pub ts: ZFTimestamp,
+}
+
+impl NotReadyToken {
+    /// Creates a `NotReadyToken` with its timestamp set to 0.
+    pub fn new() -> Self {
+        NotReadyToken { ts: 0 }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ReadyToken<T> {
-    pub ts : ZFTimestamp,
-    pub data : T,
-    pub action : TokenAction,
+    pub ts: ZFTimestamp,
+    pub data: T,
+    pub action: TokenAction,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Token<T> {
@@ -113,18 +132,16 @@ pub enum Token<T> {
 }
 
 impl<T> Token<T> {
-    pub fn new_ready(ts : ZFTimestamp, data : T) -> Self {
+    pub fn new_ready(ts: ZFTimestamp, data: T) -> Self {
         Self::Ready(ReadyToken::<T> {
             ts,
             data,
-            action : TokenAction::Consume,
+            action: TokenAction::Consume,
         })
     }
 
-    pub fn new_not_ready(ts : ZFTimestamp, ) -> Self {
-        Self::NotReady(NotReadyToken {
-            ts,
-        })
+    pub fn new_not_ready(ts: ZFTimestamp) -> Self {
+        Self::NotReady(NotReadyToken { ts })
     }
 
     pub fn is_ready(&self) -> bool {
@@ -146,8 +163,8 @@ impl<T> Token<T> {
             Self::Ready(ref mut ready) => {
                 ready.action = TokenAction::Consume;
                 Ok(())
-            },
-            _ => Err(ZFError::GenericError)
+            }
+            _ => Err(ZFError::GenericError),
         }
     }
 
@@ -156,8 +173,8 @@ impl<T> Token<T> {
             Self::Ready(ref mut ready) => {
                 ready.action = TokenAction::Drop;
                 Ok(())
-            },
-            _ => Err(ZFError::GenericError)
+            }
+            _ => Err(ZFError::GenericError),
         }
     }
 
@@ -166,8 +183,8 @@ impl<T> Token<T> {
             Self::Ready(ref mut ready) => {
                 ready.action = TokenAction::KeepRun;
                 Ok(())
-            },
-            _ => Err(ZFError::GenericError)
+            }
+            _ => Err(ZFError::GenericError),
         }
     }
 
@@ -176,15 +193,15 @@ impl<T> Token<T> {
             Self::Ready(ref mut ready) => {
                 ready.action = TokenAction::Keep;
                 Ok(())
-            },
-            _ => Err(ZFError::GenericError)
+            }
+            _ => Err(ZFError::GenericError),
         }
     }
 
     pub fn data<'a>(&'a self) -> ZFResult<&'a T> {
         match self {
             Self::Ready(ready) => Ok(&ready.data),
-            _ => Err(ZFError::GenericError)
+            _ => Err(ZFError::GenericError),
         }
     }
 
@@ -197,9 +214,8 @@ impl<T> Token<T> {
 
     pub fn split(self) -> (Option<T>, TokenAction) {
         match self {
-            Self::Ready(ready) =>(Some(ready.data), ready.action),
+            Self::Ready(ready) => (Some(ready.data), ready.action),
             Self::NotReady(_) => (None, TokenAction::Wait),
         }
     }
-
 }

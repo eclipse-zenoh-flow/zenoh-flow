@@ -16,11 +16,10 @@ pub use ::bincode;
 pub use ::paste;
 pub use ::serde;
 
-pub mod fifo;
 pub mod graph;
+pub mod link;
 pub mod loader;
 pub mod message;
-pub mod stream;
 
 pub mod types;
 pub use types::*;
