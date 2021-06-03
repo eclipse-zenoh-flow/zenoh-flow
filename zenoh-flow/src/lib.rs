@@ -27,6 +27,11 @@ pub use types::*;
 /// This trait will be implemented by the zfoperator proc_macro
 pub trait ZFOperator {
     fn make_run(&self, ctx: &mut ZFContext) -> Box<OperatorRun>;
+
+    // TODO Add function to get the name of the ports.
+    // TODO Add function to get the port by name.
+
+    // TODO Inputs and Outputs become HashMaps<String, T>
 }
 
 pub trait ZFSource {
