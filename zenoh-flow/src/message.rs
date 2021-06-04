@@ -35,8 +35,8 @@ impl Message {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ZFCtrlMessage {
     ReadyToMigrate,
-    ChangeMode(String, u128),
-    Watermark(u128),
+    ChangeMode(u8, u128),
+    Watermark,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -56,6 +56,13 @@ impl ZFMessage {
         Self {
             ts,
             msg: ZFMsg::Data(Message { data }),
+        }
+    }
+
+    pub fn from_message(msg: Message) -> Self {
+        Self {
+            ts: 0, //placeholder
+            msg: ZFMsg::Data(msg),
         }
     }
 

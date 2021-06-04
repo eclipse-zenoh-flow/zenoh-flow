@@ -57,7 +57,6 @@ impl BuzzOperator {
         _ctx: &mut ZFContext,
         data: &(Option<String>, Option<u128>), //Pass the "box" with the data that you may need, the user can drop them if not needed
     ) -> (bool, (InputRuleResult, InputRuleResult)) {
-
         /*
             enum Sample {
                 NotReady(NotReadySample)

@@ -15,7 +15,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::message::{Message, ZFCtrlMessage, ZFMessage};
-
+use async_std::sync::Arc;
+use std::collections::HashMap;
 
 // Placeholder types
 pub type ZFOperatorId = String;
@@ -50,14 +51,18 @@ pub struct ZFContext {
 
 pub type ZFResult<T> = Result<T, ZFError>;
 
+// Maybe TokenActions should be always sent back to the OperatorRunner,
+// to allow it the management of the data in the links.
 pub enum OperatorResult {
-    InResult(Result<(bool, Vec<TokenAction>), ZFError>),
-    RunResult(Result<(), ZFError>),
-    OutResult(Result<(Vec<Message>, Vec<Option<ZFCtrlMessage>>), ZFError>), // Data, Control
+    InResult(Result<(bool, HashMap<ZFLinkId, TokenAction>), ZFError>),
+    RunResult(ZFError), // This may be just ZFError
+    OutResult(Result<HashMap<ZFLinkId, ZFMessage>, ZFError>),
 }
 
-pub type OperatorRun =
-    dyn Fn(&mut ZFContext, Vec<&ZFMessage>) -> OperatorResult + Send + Sync + 'static;
+pub type OperatorRun = dyn Fn(&mut ZFContext, &HashMap<ZFLinkId, Option<Arc<ZFMessage>>>) -> OperatorResult
+    + Send
+    + Sync
+    + 'static;
 
 pub type ZFSourceResult = Result<Vec<Message>, ZFError>;
 pub type ZFSourceRun = dyn Fn(&mut ZFContext) -> ZFSourceResult + Send + Sync + 'static; // This should be a future, Sources can do I/O

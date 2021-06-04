@@ -19,8 +19,8 @@
 use zenoh_flow::{
     message::ZFCtrlMessage,
     serde::{Deserialize, Serialize},
+    types::{NotReadyToken, ReadyToken, Token},
     ZFContext,
-    types::{Token, NotReadyToken, ReadyToken},
 };
 //use zenoh_flow_macros::ZFOperator;
 
@@ -42,11 +42,10 @@ struct ExampleOperator {
 // struct ExampleOperator{}
 
 impl ExampleOperator {
-
     pub fn new() -> Self {
         Self {
-            x : 0,
-            y : "".to_string(),
+            x: 0,
+            y: "".to_string(),
         }
     }
 
@@ -67,11 +66,7 @@ impl ExampleOperator {
         }
     }
 
-    fn ir_1(
-        &self,
-        _ctx: &mut ZFContext,
-        data: &mut (Token<u128>, Token<String>),
-    ) -> bool {
+    fn ir_1(&self, _ctx: &mut ZFContext, data: &mut (Token<u128>, Token<String>)) -> bool {
         match data {
             (Token::Ready(_), Token::Ready(_)) => true,
             (Token::NotReady(_), Token::Ready(_)) => false,
@@ -119,11 +114,7 @@ impl ExampleOperator {
     }
 
     //KPN-like default Input Rule
-    fn default_ir(
-        &self,
-        _ctx: &mut ZFContext,
-        data: &mut (Token<u128>, Token<String>),
-    ) -> bool {
+    fn default_ir(&self, _ctx: &mut ZFContext, data: &mut (Token<u128>, Token<String>)) -> bool {
         match data {
             (Token::Ready(_), Token::Ready(_)) => true,
             (Token::NotReady(_), Token::Ready(_)) => false,
@@ -152,16 +143,23 @@ impl zenoh_flow::ZFOperator for ExampleOperator {
             0 => {
                 Box::new(
                     |ctx: &mut zenoh_flow::ZFContext,
-                     data: Vec<&zenoh_flow::message::ZFMessage>|
+                     data: &HashMap<ZFLinkId, Option<Arc<ZFMessage>>>|
                      -> zenoh_flow::OperatorResult {
+
+                        // to vec, maybe not needed
+                        let vec_data = data.values().cloned().collect();
                         // Zenoh Flow Ctrl IR - Inner
+
+                        // this should match the ZFMessage to create either Ready or NotReady token
                         let mut inputs = (
-                            zenoh_flow::types::Token::<u128>::new_ready(0u128, ExampleOperator::deserialize_input_0(
-                                data[0].data(),
-                            )),
-                            zenoh_flow::types::Token::<String>::new_ready(0u128, ExampleOperator::deserialize_input_1(
-                                data[1].data(),
-                            )),
+                            zenoh_flow::types::Token::<u128>::new_ready(
+                                0u128,
+                                ExampleOperator::deserialize_input_0(vec_data[0].data()),
+                            ),
+                            zenoh_flow::types::Token::<String>::new_ready(
+                                0u128,
+                                ExampleOperator::deserialize_input_1(vec_data[1].data()),
+                            ),
                         );
                         let mut state = ExampleOperator::deserialize_state(&ctx.state);
 
@@ -175,11 +173,7 @@ impl zenoh_flow::ZFOperator for ExampleOperator {
                                 )));
                             }
                             _ => {
-
-                                let run_inputs = (
-                                    inputs.0.split().0,
-                                    inputs.1.split().0,
-                                );
+                                let run_inputs = (inputs.0.split().0, inputs.1.split().0);
 
                                 // User Run
                                 let run_res = ExampleOperator::run_1(&mut state, ctx, run_inputs);
@@ -208,6 +202,10 @@ impl zenoh_flow::ZFOperator for ExampleOperator {
             }
             _ => panic!("Mode not found!"),
         }
+    }
+
+    fn get_serialized_state(&self) -> Vec<u8> {
+        ExampleOperator::serialize_state(self)
     }
 }
 

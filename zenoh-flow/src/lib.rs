@@ -32,6 +32,8 @@ pub trait ZFOperator {
     // TODO Add function to get the port by name.
 
     // TODO Inputs and Outputs become HashMaps<String, T>
+
+    fn get_serialized_state(&self) -> Vec<u8>;
 }
 
 pub trait ZFSource {

@@ -11,8 +11,12 @@
 // Contributors:
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
+
+use crate::link::{link, ZFLinkReceiver, ZFLinkSender};
+use crate::message::{ZFMessage, ZFMsg};
 use crate::{OperatorRun, ZFContext, ZFOperator, ZFOperatorId};
 use async_std::sync::Arc;
+use futures::future;
 use libloading::Library;
 use std::io;
 
@@ -60,6 +64,10 @@ impl ZFOperator for ZFOperatorProxy {
     fn make_run(&self, ctx: &mut ZFContext) -> Box<OperatorRun> {
         self.operator.make_run(ctx)
     }
+
+    fn get_serialized_state(&self) -> Vec<u8> {
+        self.get_serialized_state()
+    }
 }
 
 pub struct ZFOperatorRegistrar {
@@ -89,8 +97,8 @@ impl ZFOperatorRegistrarTrait for ZFOperatorRegistrar {
 pub struct ZFOperatorRunner {
     pub operator: ZFOperatorProxy,
     pub lib: Arc<Library>,
-    // pub inputs: Vec<InputStream>,
-    // pub outputs: Vec<OutputStream>,
+    pub inputs: Vec<ZFLinkReceiver>,
+    pub outputs: Vec<ZFLinkSender>,
     // pub kind: OperatorKind,
 }
 
@@ -99,40 +107,119 @@ impl ZFOperatorRunner {
         Self {
             operator,
             lib,
-            // inputs: vec![],
-            // outputs: vec![],
+            inputs: vec![],
+            outputs: vec![],
             // kind,
         }
     }
 }
 
-// impl ZFOperatorRunner {
-//     pub fn run(&self) {
-//         // waiting all inputs blocking
+impl ZFOperatorRunner {
+    pub fn run(&self) {
+        // WIP empty context
+        let mut ctx = ZFContext {
+            mode: 0,
+            state: self.operator.get_serialized_state(),
+        };
 
-//         loop {
-//             //println!("Op Runner Self: {:?}", self);
+        // we should start from an HashMap with all ZFLinkId and None
+        let mut msgs: Hashmap<ZFLinkId, ZFMessage> = Hashmap::new();
 
-//             let mut data = Vec::new();
-//             for rx in &self.inputs {
-//                 //println!("Rx: {:?} Receivers: {:?}", rx.inner.rx, rx.inner.rx.sender_count());
-//                 data.push(rx.read());
-//             }
+        for k in self.inputs.keys() {
+            msgs.insert(k, None);
+        }
 
-//             let mut result = self.operator.run(data).unwrap();
 
-//             for tx in &self.outputs {
-//                 //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
-//                 tx.write(result.remove(0));
-//             }
-//         }
-//     }
+        loop {
+            // here we should get the run function from the proxy
+            let run_function = self.operator.make_run(&ctx);
 
-//     pub fn add_input(&mut self, input: InputStream) {
-//         self.inputs.push(input);
-//     }
+            //println!("Op Runner Self: {:?}", self);
 
-//     pub fn add_output(&mut self, output: OutputStream) {
-//         self.outputs.push(output);
-//     }
-// }
+            let mut futs = Vec::new();
+
+            for mut rx in &self.inputs {
+                //println!("Rx: {:?} Receivers: {:?}", rx.inner.rx, rx.inner.rx.sender_count());
+                futs.push(rx.peek());
+            }
+
+            while !futs.is_empty() {
+                match future::select_all(futs).await {
+                    //this could be "slow" as suggested by LC
+                    (Ok((id, msg)), _i, remaining) => {
+                        // store the message in the hashmap
+                        msgs.insert(id, msg);
+
+                        // should operator run take an hashmap of inputs?
+
+                        match run_function(&ctx, msgs) {
+                            OperatorResult::InResult(Ok(exec, actions)) => {
+                                match exec {
+                                    true => {
+                                        // If it is true it will not leave the run_function
+                                        unreachable!(
+                                            "Why you are here?? This should never happen!!!"
+                                        )
+                                    }
+                                    false => {
+                                        // here we should verify the tokens and change the futures
+                                        ()
+                                    }
+                                }
+                            }
+                            OperatorResult::InResult(Err(e)) => {
+                                panic!(e)
+                            }
+                            OperatorResult::RunResult(e) => {
+                                panic!(e)
+                            }
+                            OperatorResult::OutResult(Ok(outputs)) => {
+                                // here we should send downstream
+
+                                for tx in &self.outputs {
+                                    //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
+                                    let zf_msg = outputs.remove(0);
+                                    match zf_msg.msg {
+                                        ZFMsg::Data(_) => {
+                                            tx.send(zf_msg);
+                                        }
+                                        ZFMsg::Ctrl(_) => {
+                                            // here we process should process control messages (eg. change mode)
+                                            //tx.send(zf_msg);
+                                        }
+                                    }
+                                }
+
+                                // tokens are consumed only after the outputs have been sent
+                            }
+                            OperatorResult::OutResult(Err(e)) => {
+                                panic!(e)
+                            }
+                        }
+
+                        futs = remaining;
+                    }
+                    (Err(e), i, remaining) => {
+                        println!("Link index {:?} has got error {:?}", i, e);
+                        futs = remaining;
+                    }
+                }
+            }
+
+            // let mut result = self.operator.run(data).unwrap();
+
+            // for tx in &self.outputs {
+            //     //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
+            //     tx.write(result.remove(0));
+            // }
+        }
+    }
+
+    pub fn add_input(&mut self, input: ZFLinkReceiver) {
+        self.inputs.push(input);
+    }
+
+    pub fn add_output(&mut self, output: ZFLinkSender) {
+        self.outputs.push(output);
+    }
+}
