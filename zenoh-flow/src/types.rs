@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::message::{Message, ZFCtrlMessage, ZFMessage};
 use crate::operator::StateTrait;
-use async_std::sync::Arc;
+use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
 // Placeholder types
@@ -48,7 +48,8 @@ impl<T> From<flume::SendError<T>> for ZFError {
 }
 
 pub struct ZFContext {
-    pub state: Arc<dyn StateTrait>,
+    // pub state: Arc<Mutex<dyn StateTrait>>,
+    pub state: Box<dyn StateTrait>,
     pub mode: u128,
 }
 

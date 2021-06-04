@@ -12,15 +12,17 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use zenoh_flow::{downcast, downcast_mut};
-use zenoh_flow::operator::{InputRuleResult, OperatorTrait, FnRun, FnOutputRule, FnInputRule, OutputRuleResult, RunResult};
-use zenoh_flow::types::{NotReadyToken, ReadyToken, Token, ZFError, ZFLinkId, ZFContext};
-use zenoh_flow::message::{ZFMessage};
-use zenoh_flow::operator::{DataTrait, StateTrait};
-use std::collections::HashMap;
 use std::any::Any;
+use std::collections::HashMap;
+use zenoh_flow::message::ZFMessage;
+use zenoh_flow::operator::{DataTrait, StateTrait};
+use zenoh_flow::operator::{
+    FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult, RunResult,
+};
+use zenoh_flow::types::{NotReadyToken, ReadyToken, Token, ZFContext, ZFError, ZFLinkId};
+use zenoh_flow::{downcast, downcast_mut, zf_spin_lock};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use async_std::sync::Arc;
 
@@ -42,6 +44,10 @@ impl StateTrait for SendAndStore {
     fn as_any(&self) -> &dyn Any {
         self
     }
+
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 pub enum SendAndStoreModes {
@@ -56,7 +62,7 @@ impl SendAndStore {
     pub fn ir_1(
         ctx: &mut ZFContext,
         inputs: &mut HashMap<ZFLinkId, Token<dyn DataTrait>>,
-    ) -> InputRuleResult  {
+    ) -> InputRuleResult {
         if let Some(token) = inputs.get(&0) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -68,14 +74,16 @@ impl SendAndStore {
     }
 
     pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> RunResult {
-        let mut results : HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
 
-        //let mut _self = downcast_mut!(Self, ctx.state).unwrap(); //getting state
+        // let mut guard = zf_spin_lock!(ctx.state);
+        // let mut _self = downcast_mut!(Self, guard).unwrap(); //getting state
 
+        let mut _self = downcast_mut!(Self, ctx.state).unwrap(); //getting state
         if let Some(data) = inputs.get(&0) {
             match downcast!(MyU128, data) {
                 Some(d) => {
-                    // _self.x = d.0;
+                    _self.x = d.0;
                     results.insert(0u128, data.clone());
                     Ok(results)
                 }
@@ -92,7 +100,7 @@ impl SendAndStore {
     ) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {
-            results.insert(k, Arc::new(ZFMessage::new_deserialized(0,v)));
+            results.insert(k, Arc::new(ZFMessage::new_deserialized(0, v)));
         }
         Ok(results)
     }

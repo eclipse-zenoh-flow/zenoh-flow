@@ -58,3 +58,15 @@ macro_rules! export_operator {
             };
     };
 }
+
+#[macro_export]
+macro_rules! zf_spin_lock {
+    ($val : expr) => {
+        loop {
+            match $val.try_lock() {
+                Some(x) => break x,
+                None => std::hint::spin_loop(),
+            }
+        }
+    };
+}

@@ -15,9 +15,9 @@
 extern crate serde;
 
 use crate::operator::DataTrait;
+use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use async_std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub enum Message {
