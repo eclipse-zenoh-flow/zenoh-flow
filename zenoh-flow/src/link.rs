@@ -15,39 +15,59 @@
 use async_std::sync::Arc;
 
 use crate::ZFResult;
+use crate::types::ZFLinkId;
 
 pub struct ZFLinkSender<T> {
+    pub id : ZFLinkId,
     pub sender: flume::Sender<Arc<T>>,
 }
 
 pub struct ZFLinkReceiver<T> {
+    pub id : ZFLinkId,
     pub receiver: flume::Receiver<Arc<T>>,
     pub last_message: Option<Arc<T>>,
 }
 
 impl<T> ZFLinkReceiver<T> {
-    pub async fn peek(&mut self) -> ZFResult<Arc<T>> {
+    pub async fn peek(&mut self) -> ZFResult<(ZFLinkId, Arc<T>)> {
         match &self.last_message {
-            Some(message) => Ok(message.clone()),
+            Some(message) => Ok((self.id, message.clone())),
             None => {
                 let last_message = self.receiver.recv_async().await?;
                 self.last_message = Some(last_message.clone());
 
-                Ok(last_message)
+                Ok((self.id, last_message))
             }
         }
     }
 
-    pub async fn recv(&mut self) -> ZFResult<Arc<T>> {
-        match &self.last_message {
-            Some(message) => {
-                let msg = message.clone();
-                self.last_message = None;
+    // pub async fn recv(&mut self) -> ZFResult<Arc<T>> {
+    //     match &self.last_message {
+    //         Some(message) => {
+    //             let msg = message.clone();
+    //             self.last_message = None;
 
-                Ok(msg)
-            }
-            None => Ok(self.receiver.recv_async().await?),
+    //             Ok(msg)
+    //         }
+    //         None => Ok(self.receiver.recv_async().await?),
+    //     }
+    // }
+
+    pub fn recv(&mut self) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFResult<(ZFLinkId, Arc<T>)>> + '_>> {
+        async fn __recv<T>(_self : &mut ZFLinkReceiver<T>) -> ZFResult<(ZFLinkId, Arc<T>)> {
+            match &_self.last_message {
+                        Some(message) => {
+                            let msg = message.clone();
+                            _self.last_message = None;
+
+                            Ok((_self.id, msg))
+                        }
+                        None => Ok((_self.id, _self.receiver.recv_async().await?)),
+                    }
         }
+
+        Box::pin(__recv(self))
+
     }
 
     pub fn drop(&mut self) -> ZFResult<()> {
@@ -74,11 +94,12 @@ impl<T> ZFLinkSender<T> {
     }
 }
 
-pub fn link<T>(capacity: usize) -> (ZFLinkSender<T>, ZFLinkReceiver<T>) {
+pub fn link<T>(capacity: usize, id : ZFLinkId) -> (ZFLinkSender<T>, ZFLinkReceiver<T>) {
     let (sender, receiver) = flume::bounded(capacity);
     (
-        ZFLinkSender { sender },
+        ZFLinkSender { id, sender },
         ZFLinkReceiver {
+            id,
             receiver,
             last_message: None,
         },

@@ -16,9 +16,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::message::{Message, ZFCtrlMessage, ZFMessage};
 
+
+// Placeholder types
 pub type ZFOperatorId = String;
 pub type ZFTimestamp = u128;
+pub type ZFLinkId = u128;
 
+#[derive(Debug)]
 pub enum ZFError {
     GenericError,
     SerializationError,
