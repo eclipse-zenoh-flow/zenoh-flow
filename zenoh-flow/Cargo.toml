@@ -56,6 +56,10 @@ crate-type = ["cdylib"]
 name = "example-buzz"
 crate-type = ["cdylib"]
 
+[[example]]
+name = "send-and-store"
+crate-type = ["cdylib"]
+
 
 [[example]]
 name = "example-select"

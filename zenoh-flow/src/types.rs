@@ -15,6 +15,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::message::{Message, ZFCtrlMessage, ZFMessage};
+use crate::operator::StateTrait;
 use async_std::sync::Arc;
 use std::collections::HashMap;
 
@@ -30,6 +31,8 @@ pub enum ZFError {
     DeseralizationError,
     RecvError(flume::RecvError),
     SendError(String),
+    MissingInput(ZFLinkId),
+    InvalidData(ZFLinkId),
 }
 
 impl From<flume::RecvError> for ZFError {
@@ -45,8 +48,8 @@ impl<T> From<flume::SendError<T>> for ZFError {
 }
 
 pub struct ZFContext {
-    pub state: Vec<u8>,
-    pub mode: u8,
+    pub state: Arc<dyn StateTrait>,
+    pub mode: u128,
 }
 
 pub type ZFResult<T> = Result<T, ZFError>;
@@ -115,7 +118,7 @@ pub enum TokenAction {
     Wait,    //Waits the Data, this is applicable only to NotReadyToken
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct NotReadyToken {
     pub ts: ZFTimestamp,
 }
@@ -127,21 +130,21 @@ impl NotReadyToken {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ReadyToken<T> {
+#[derive(Debug, Clone)]
+pub struct ReadyToken<T: ?Sized> {
     pub ts: ZFTimestamp,
-    pub data: T,
+    pub data: Arc<T>,
     pub action: TokenAction,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum Token<T> {
+#[derive(Debug, Clone)]
+pub enum Token<T: ?Sized> {
     NotReady(NotReadyToken),
     Ready(ReadyToken<T>),
 }
 
 impl<T> Token<T> {
-    pub fn new_ready(ts: ZFTimestamp, data: T) -> Self {
+    pub fn new_ready(ts: ZFTimestamp, data: Arc<T>) -> Self {
         Self::Ready(ReadyToken::<T> {
             ts,
             data,
@@ -221,7 +224,7 @@ impl<T> Token<T> {
         }
     }
 
-    pub fn split(self) -> (Option<T>, TokenAction) {
+    pub fn split(self) -> (Option<Arc<T>>, TokenAction) {
         match self {
             Self::Ready(ready) => (Some(ready.data), ready.action),
             Self::NotReady(_) => (None, TokenAction::Wait),

@@ -14,21 +14,38 @@
 
 extern crate serde;
 
+use crate::operator::DataTrait;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use async_std::sync::Arc;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Message {
-    pub data: Vec<u8>,
+#[derive(Clone, Debug)]
+pub enum Message {
+    Serialized(Vec<u8>),
+    Deserialized(Arc<dyn DataTrait>),
 }
 
 impl Message {
-    pub fn new(data: Vec<u8>) -> Self {
-        Self { data }
+    pub fn new_serialized(data: Vec<u8>) -> Self {
+        Self::Serialized(data)
     }
 
-    pub fn data(&self) -> &[u8] {
-        &self.data
+    pub fn serialized_data(&self) -> &[u8] {
+        match self {
+            Self::Serialized(data) => &data,
+            _ => panic!(),
+        }
+    }
+
+    pub fn new_deserialized(data: Arc<dyn DataTrait>) -> Self {
+        Self::Deserialized(data)
+    }
+
+    pub fn deserialized_data(&self) -> Arc<dyn DataTrait> {
+        match self {
+            Self::Deserialized(data) => data.clone(),
+            _ => panic!(),
+        }
     }
 }
 
@@ -39,23 +56,23 @@ pub enum ZFCtrlMessage {
     Watermark,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub enum ZFMsg {
     Data(Message),
     Ctrl(ZFCtrlMessage),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub struct ZFMessage {
     pub ts: u128,
     pub msg: ZFMsg,
 }
 
 impl ZFMessage {
-    pub fn new_data(ts: u128, data: Vec<u8>) -> Self {
+    pub fn new_deserialized(ts: u128, data: Arc<dyn DataTrait>) -> Self {
         Self {
             ts,
-            msg: ZFMsg::Data(Message { data }),
+            msg: ZFMsg::Data(Message::new_deserialized(data)),
         }
     }
 
@@ -66,12 +83,12 @@ impl ZFMessage {
         }
     }
 
-    pub fn data(&self) -> &[u8] {
-        match &self.msg {
-            ZFMsg::Data(m) => m.data(),
-            _ => panic!("Nope"),
-        }
-    }
+    // pub fn data(&self) -> &[u8] {
+    //     match &self.msg {
+    //         ZFMsg::Data(m) => m.data(),
+    //         _ => panic!("Nope"),
+    //     }
+    // }
 
     pub fn timestamp(&self) -> &u128 {
         &self.ts

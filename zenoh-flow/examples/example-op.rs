@@ -19,9 +19,12 @@
 use zenoh_flow::{
     message::ZFCtrlMessage,
     serde::{Deserialize, Serialize},
-    types::{NotReadyToken, ReadyToken, Token},
+    types::{NotReadyToken, ReadyToken, Token, ZFLinkId, ZFMessage},
     ZFContext,
 };
+
+use async_std::sync::Arc;
+use std::collections::HashMap;
 //use zenoh_flow_macros::ZFOperator;
 
 // #[zfoperator(
@@ -145,7 +148,6 @@ impl zenoh_flow::ZFOperator for ExampleOperator {
                     |ctx: &mut zenoh_flow::ZFContext,
                      data: &HashMap<ZFLinkId, Option<Arc<ZFMessage>>>|
                      -> zenoh_flow::OperatorResult {
-
                         // to vec, maybe not needed
                         let vec_data = data.values().cloned().collect();
                         // Zenoh Flow Ctrl IR - Inner

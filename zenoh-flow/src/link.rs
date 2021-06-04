@@ -46,7 +46,7 @@ impl<T> ZFLinkReceiver<T> {
     ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFResult<(ZFLinkId, Arc<T>)>> + '_>>
     {
         async fn __peek<T>(_self: &mut ZFLinkReceiver<T>) -> ZFResult<(ZFLinkId, Arc<T>)> {
-            match &self.last_message {
+            match &_self.last_message {
                 Some(message) => Ok((_self.id, message.clone())),
                 None => {
                     let last_message = _self.receiver.recv_async().await?;

@@ -20,6 +20,7 @@ pub mod graph;
 pub mod link;
 pub mod loader;
 pub mod message;
+pub mod operator;
 
 pub mod types;
 pub use types::*;
