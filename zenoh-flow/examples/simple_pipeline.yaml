@@ -1,0 +1,17 @@
+operators:
+  - id : sender
+    kind: SOURCE
+    name : SenderOperator
+    lib: ./target/debug/examples/libexample_random_source.dylib
+    inputs : []
+    outputs: [0]
+  - id : receiver
+    kind: SINK
+    name : ReceiverOperator
+    lib: ./target/debug/examples/libexample_generic_sink.dylib
+    inputs: [0]
+    outputs: []
+
+connections:
+  - from: [sender, 0]
+    to: [receiver, 0]

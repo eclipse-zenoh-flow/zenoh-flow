@@ -33,8 +33,13 @@ bincode = "1.3.3"
 flume = "0.10"
 
 [build-dependencies]
-rustc_version = "0.3.3"
+rustc_version = "0.4.0"
 
+[[bin]]
+name = "runtime"
+
+[dev-dependencies]
+rand = "0.8.0"
 
 [[example]]
 name = "example-op"
@@ -60,6 +65,13 @@ crate-type = ["cdylib"]
 name = "send-and-store"
 crate-type = ["cdylib"]
 
+[[example]]
+name = "example-random-source"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "example-generic-sink"
+crate-type = ["cdylib"]
 
 [[example]]
 name = "example-select"

@@ -15,7 +15,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::message::{Message, ZFCtrlMessage, ZFMessage};
-use crate::operator::StateTrait;
+use crate::operator::{StateTrait, DataTrait};
 use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
@@ -76,6 +76,7 @@ pub type ZFSinkRun =
     dyn Fn(&mut ZFContext, Vec<&ZFMessage>) -> ZFSinkResult + Send + Sync + 'static; // This should be a future, Sinks can do I/O
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum ZFOperatorKind {
     Source,
     Sink,
@@ -86,22 +87,22 @@ pub enum ZFOperatorKind {
 pub struct ZFOperatorDescription {
     pub id: ZFOperatorId,
     pub name: String,
-    pub inputs: u8,
-    pub outputs: u8,
+    pub inputs: Vec<ZFLinkId>,
+    pub outputs: Vec<ZFLinkId>,
     pub lib: String,
     pub kind: ZFOperatorKind,
 }
 
 impl std::fmt::Display for ZFOperatorDescription {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.id)
+        write!(f, "{} - Kind: {:?}", self.id, self.kind)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFOperatorConnection {
-    pub from: ZFOperatorId,
-    pub to: ZFOperatorId,
+    pub from: (ZFOperatorId, ZFLinkId),
+    pub to: (ZFOperatorId, ZFLinkId),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -132,21 +133,21 @@ impl NotReadyToken {
 }
 
 #[derive(Debug, Clone)]
-pub struct ReadyToken<T: ?Sized> {
+pub struct ReadyToken {
     pub ts: ZFTimestamp,
-    pub data: Arc<T>,
+    pub data: Arc<dyn DataTrait>,
     pub action: TokenAction,
 }
 
 #[derive(Debug, Clone)]
-pub enum Token<T: ?Sized> {
+pub enum Token {
     NotReady(NotReadyToken),
-    Ready(ReadyToken<T>),
+    Ready(ReadyToken),
 }
 
-impl<T> Token<T> {
-    pub fn new_ready(ts: ZFTimestamp, data: Arc<T>) -> Self {
-        Self::Ready(ReadyToken::<T> {
+impl Token {
+    pub fn new_ready(ts: ZFTimestamp, data: Arc<dyn DataTrait>) -> Self {
+        Self::Ready(ReadyToken {
             ts,
             data,
             action: TokenAction::Consume,
@@ -211,9 +212,9 @@ impl<T> Token<T> {
         }
     }
 
-    pub fn data<'a>(&'a self) -> ZFResult<&'a T> {
+    pub fn data(&self) -> ZFResult<Arc<dyn DataTrait>> {
         match self {
-            Self::Ready(ready) => Ok(&ready.data),
+            Self::Ready(ready) => Ok(ready.data.clone()),
             _ => Err(ZFError::GenericError),
         }
     }
@@ -225,7 +226,7 @@ impl<T> Token<T> {
         }
     }
 
-    pub fn split(self) -> (Option<Arc<T>>, TokenAction) {
+    pub fn split(self) -> (Option<Arc<dyn DataTrait>>, TokenAction) {
         match self {
             Self::Ready(ready) => (Some(ready.data), ready.action),
             Self::NotReady(_) => (None, TokenAction::Wait),

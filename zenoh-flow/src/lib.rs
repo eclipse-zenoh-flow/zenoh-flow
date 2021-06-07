@@ -59,6 +59,35 @@ macro_rules! export_operator {
     };
 }
 
+
+#[macro_export]
+macro_rules! export_source {
+    ($register:expr) => {
+        #[doc(hidden)]
+        #[no_mangle]
+        pub static zfsource_declaration: $crate::loader::ZFSourceDeclaration =
+            $crate::loader::ZFSourceDeclaration {
+                rustc_version: $crate::loader::RUSTC_VERSION,
+                core_version: $crate::loader::CORE_VERSION,
+                register: $register,
+            };
+    };
+}
+
+#[macro_export]
+macro_rules! export_sink {
+    ($register:expr) => {
+        #[doc(hidden)]
+        #[no_mangle]
+        pub static zfsink_declaration: $crate::loader::ZFSinkDeclaration =
+            $crate::loader::ZFSinkDeclaration {
+                rustc_version: $crate::loader::RUSTC_VERSION,
+                core_version: $crate::loader::CORE_VERSION,
+                register: $register,
+            };
+    };
+}
+
 #[macro_export]
 macro_rules! zf_spin_lock {
     ($val : expr) => {
