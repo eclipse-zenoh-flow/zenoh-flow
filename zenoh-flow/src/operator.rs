@@ -50,12 +50,7 @@ pub trait OperatorTrait {
     fn get_run(&self, ctx: &ZFContext) -> Box<FnRun>;
 
     fn get_state(&self) -> Box<dyn StateTrait>;
-
-    fn serialize_state(&self) -> Vec<u8>;
-
-    // fn deserialize_state() -> Arc<dyn StateTrait>;
 }
-
 
 
 pub type FnSourceRun = dyn Fn(&mut ZFContext) -> RunResult
@@ -68,11 +63,6 @@ pub trait SourceTrait {
 
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun>;
 
-    fn get_state(&self) -> Box<dyn StateTrait>;
-
-    fn serialize_state(&self) -> Vec<u8>;
-
-    // fn deserialize_state() -> Arc<dyn StateTrait>;
 }
 
 
@@ -88,11 +78,6 @@ pub trait SinkTrait {
 
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSinkRun>;
 
-    fn get_state(&self) -> Box<dyn StateTrait>;
-
-    fn serialize_state(&self) -> Vec<u8>;
-
-    // fn deserialize_state() -> Arc<dyn StateTrait>;
 }
 
 

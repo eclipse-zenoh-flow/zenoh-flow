@@ -17,11 +17,13 @@ use async_std::sync::Arc;
 use crate::types::ZFLinkId;
 use crate::ZFResult;
 
+#[derive(Debug)]
 pub struct ZFLinkSender<T> {
     pub id: ZFLinkId,
     pub sender: flume::Sender<Arc<T>>,
 }
 
+#[derive(Debug)]
 pub struct ZFLinkReceiver<T> {
     pub id: ZFLinkId,
     pub receiver: flume::Receiver<Arc<T>>,

@@ -152,7 +152,6 @@ impl DataFlowGraph {
     pub fn load(&mut self) -> std::io::Result<()> {
         unsafe {
             for (_, op) in &self.operators {
-
                 match op.kind {
                     ZFOperatorKind::Compute => {
                         let (operator_id, runner) = load_operator(op.lib.clone())?;
@@ -224,9 +223,10 @@ impl DataFlowGraph {
 
     pub fn get_runners(&self) -> Vec<Arc<Mutex<Runner>>> {
         let mut runners = vec![];
-        for (_, op) in &self.operators {
+
+        for (_,runner) in &self.operators_runners {
             runners.push(
-                self.operators_runners.get(&op.id).unwrap().clone(),
+                runner.clone(),
             );
         }
         runners

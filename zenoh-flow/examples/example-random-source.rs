@@ -55,6 +55,7 @@ impl ExampleRandomSource {
         let mut rng = rand::thread_rng();
         let d = RandomData { d: rng.gen::<u128>()};
         results.insert(0, Arc::new(d));
+        std::thread::sleep(std::time::Duration::from_secs(1));
         Ok(results)
     }
 
@@ -88,7 +89,7 @@ zenoh_flow::export_source!(register);
 
 extern "C" fn register(registrar: &mut dyn zenoh_flow::loader::ZFSourceRegistrarTrait) {
     registrar.register_zfsource(
-        "print",
+        "sender",
         Box::new(ExampleRandomSource{}) as Box<dyn zenoh_flow::operator::SourceTrait + Send>,
     );
 }

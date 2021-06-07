@@ -49,7 +49,7 @@ impl<T> From<flume::SendError<T>> for ZFError {
 
 pub struct ZFContext {
     // pub state: Arc<Mutex<dyn StateTrait>>,
-    pub state: Box<dyn StateTrait>,
+    pub state: Option<Box<dyn StateTrait>>,
     pub mode: u128,
 }
 

@@ -53,7 +53,7 @@ impl ExampleGenericSink {
     pub fn run_1(_ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> () {
         println!("#######");
         for (k, v) in inputs {
-            print!("Example Generic Sink Received on LinkId {:?} -> {:?}", k, v);
+            println!("Example Generic Sink Received on LinkId {:?} -> {:?}", k, v);
         }
         println!("#######");
     }
@@ -97,7 +97,7 @@ zenoh_flow::export_sink!(register);
 
 extern "C" fn register(registrar: &mut dyn zenoh_flow::loader::ZFSinkRegistrarTrait) {
     registrar.register_zfsink(
-        "print",
+        "receiver",
         Box::new(ExampleGenericSink{}) as Box<dyn zenoh_flow::operator::SinkTrait + Send>,
     );
 }

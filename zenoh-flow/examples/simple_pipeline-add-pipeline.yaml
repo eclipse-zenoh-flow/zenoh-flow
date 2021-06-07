@@ -1,0 +1,25 @@
+operators:
+  - id : sender
+    kind: SOURCE
+    name : SenderOperator
+    lib: ./target/debug/examples/libexample_random_source.dylib
+    inputs : []
+    outputs: [0]
+  - id : sum
+    kind: COMPUTE
+    name : SumOperator
+    lib: ./target/debug/examples/libsum_and_send.dylib
+    inputs: [0]
+    outputs: [1]
+  - id : receiver
+    kind: SINK
+    name : ReceiverOperator
+    lib: ./target/debug/examples/libexample_generic_sink.dylib
+    inputs: [1]
+    outputs: []
+
+connections:
+  - from: [sender, 0]
+    to: [sum, 0]
+  - from: [sum, 1]
+    to: [receiver, 1]

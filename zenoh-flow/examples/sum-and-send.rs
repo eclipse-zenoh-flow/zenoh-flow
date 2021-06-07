@@ -20,7 +20,7 @@ use zenoh_flow::operator::{
     FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult, RunResult,
 };
 use zenoh_flow::types::{NotReadyToken, ReadyToken, Token, ZFContext, ZFError, ZFLinkId};
-use zenoh_flow::{downcast, downcast_mut, zf_spin_lock};
+use zenoh_flow::{downcast, downcast_mut};
 
 use serde::{Deserialize, Serialize};
 
@@ -39,17 +39,17 @@ impl DataTrait for RandomData {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct SendAndStore {
-    pub state: SendAndStoreState,
+struct SumAndSend {
+    pub state: SumAndSendState,
 }
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct SendAndStoreState {
+struct SumAndSendState {
     pub x : RandomData
 }
 
-impl StateTrait for SendAndStoreState {
+impl StateTrait for SumAndSendState {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -59,14 +59,9 @@ impl StateTrait for SendAndStoreState {
     }
 }
 
-
-pub enum SendAndStoreModes {
-    Default = 0,
-}
-
-impl SendAndStore {
+impl SumAndSend {
     pub fn new() -> Self {
-        Self { state: SendAndStoreState {x : RandomData{d:0} }}
+        Self { state: SumAndSendState {x : RandomData{d:0} }}
     }
 
     pub fn ir_1(
@@ -85,15 +80,16 @@ impl SendAndStore {
 
     pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
-        let mut state = ctx.state.as_ref().unwrap();
-        let mut _state = downcast_mut!(SendAndStoreState, state).unwrap(); //getting state
+        let mut state = ctx.state.as_mut().unwrap();
+        let mut _state = downcast_mut!(SumAndSendState, state).unwrap(); //getting state
 
         if let Some(data) = inputs.get(&0) {
             match downcast!(RandomData, data) {
                 Some(d) => {
+                    let res = _state.x.d + d.d;
                     _state.x = (*d).clone();
-                    results.insert(0, data.clone());
-                    //ctx.update_state(_state);
+                    let res = RandomData { d : res};
+                    results.insert(0, Arc::new(res));
                     Ok(results)
                 }
                 None => Err(ZFError::InvalidData(0)),
@@ -115,7 +111,7 @@ impl SendAndStore {
     }
 }
 
-impl OperatorTrait for SendAndStore {
+impl OperatorTrait for SumAndSend {
     fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule> {
         match ctx.mode {
             0 => Box::new(Self::ir_1),
@@ -138,7 +134,7 @@ impl OperatorTrait for SendAndStore {
     }
 
     fn get_state(&self) -> Box<dyn StateTrait> {
-        Box::new(self.state)
+        Box::new(self.state.clone())
     }
 
 }
@@ -148,7 +144,7 @@ zenoh_flow::export_operator!(register);
 
 extern "C" fn register(registrar: &mut dyn zenoh_flow::loader::ZFOperatorRegistrarTrait) {
     registrar.register_zfoperator(
-        "send-and-store",
-        Box::new(SendAndStore::new()) as Box<dyn zenoh_flow::operator::OperatorTrait + Send>,
+        "sum",
+        Box::new(SumAndSend::new()) as Box<dyn zenoh_flow::operator::OperatorTrait + Send>,
     );
 }

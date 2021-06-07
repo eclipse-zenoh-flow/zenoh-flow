@@ -29,16 +29,15 @@ async fn main() {
 
     dataflow_graph.load().unwrap();
 
-    dataflow_graph.make_connections();
+    dataflow_graph.make_connections().await;
 
     // // let inputs = dataflow_graph.get_inputs();
     let runners = dataflow_graph.get_runners();
-
     for runner in runners {
         async_std::task::spawn(
             async move {
                 let mut runner  = runner.lock().await;
-                runner.run().await;
+                runner.run().await.unwrap();
             }
         );
     }
