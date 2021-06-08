@@ -18,7 +18,7 @@ use zenoh_flow::message::ZFMessage;
 use zenoh_flow::zenoh_flow_macros::ZFState;
 use zenoh_flow::operator::{DataTrait, StateTrait};
 use zenoh_flow::operator::{
-    FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult, RunResult,
+    FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult, RunResult
 };
 use zenoh_flow::types::{NotReadyToken, ReadyToken, Token, ZFContext, ZFError, ZFLinkId, RandomData};
 use zenoh_flow::{downcast, downcast_mut};
@@ -26,8 +26,6 @@ use zenoh_flow::{downcast, downcast_mut};
 use serde::{Deserialize, Serialize};
 
 use async_std::sync::Arc;
-
-
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SumAndSend {
@@ -47,7 +45,7 @@ impl SumAndSend {
     }
 
     pub fn ir_1(
-        ctx: &mut ZFContext,
+        _ctx: &mut ZFContext,
         inputs: &mut HashMap<ZFLinkId, Token>,
     ) -> InputRuleResult {
         if let Some(token) = inputs.get(&0) {
@@ -62,7 +60,7 @@ impl SumAndSend {
 
     pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
-        let mut state = ctx.get_state(); //getting state
+        let mut state = ctx.get_state(); //getting state, rename take
         let mut _state = downcast_mut!(SumAndSendState, state).unwrap(); //downcasting to right type
 
         if let Some(data) = inputs.get(&0) {
@@ -85,11 +83,12 @@ impl SumAndSend {
     }
 
     pub fn or_1(
-        ctx: &mut ZFContext,
+        _ctx: &mut ZFContext,
         outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {
+            // should be ZFMessage::from_data
             results.insert(k, Arc::new(ZFMessage::new_deserialized(0, v)));
         }
         Ok(results)

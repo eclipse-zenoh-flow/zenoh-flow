@@ -59,10 +59,12 @@ impl ZFContext {
     pub fn set_state(&mut self, state : Box<dyn StateTrait>) {
         self.state = Some(state);
     }
-
+    // get returns not mutable
     pub fn get_state(&mut self) -> Box<dyn StateTrait> {
        self.state.take().unwrap()
     }
+
+    //take returns mutable
 }
 
 pub type ZFResult<T> = Result<T, ZFError>;
@@ -95,6 +97,36 @@ pub enum ZFOperatorKind {
     Compute,
 }
 
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZFSinkDescription {
+    pub id: ZFOperatorId,
+    pub name: String,
+    pub inputs: Vec<ZFLinkId>,
+    pub lib: String,
+}
+
+impl std::fmt::Display for ZFSinkDescription {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} - Kind: Sink", self.id)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZFSourceDescription {
+    pub id: ZFOperatorId,
+    pub name: String,
+    pub outputs: Vec<ZFLinkId>,
+    pub lib: String,
+}
+
+impl std::fmt::Display for ZFSourceDescription {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} - Kind: Source", self.id)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFOperatorDescription {
     pub id: ZFOperatorId,
@@ -102,26 +134,20 @@ pub struct ZFOperatorDescription {
     pub inputs: Vec<ZFLinkId>,
     pub outputs: Vec<ZFLinkId>,
     pub lib: String,
-    pub kind: ZFOperatorKind,
 }
 
 impl std::fmt::Display for ZFOperatorDescription {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} - Kind: {:?}", self.id, self.kind)
+        write!(f, "{} - Kind: Operator", self.id)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFOperatorConnection {
+pub struct ZFConnection {
     pub from: (ZFOperatorId, ZFLinkId),
     pub to: (ZFOperatorId, ZFLinkId),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct DataFlowDescription {
-    pub operators: Vec<ZFOperatorDescription>,
-    pub connections: Vec<ZFOperatorConnection>,
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum TokenAction {

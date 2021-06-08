@@ -30,18 +30,6 @@ static mut counter : u128 = 0;
 #[derive(Serialize, Deserialize, Debug, ZFState)]
 struct ExampleRandomSource {}
 
-//derived by a #[derive(ZFState)] macro
-// impl StateTrait for ExampleRandomSource {
-//     fn as_any(&self) -> &dyn Any {
-//         self
-//     }
-
-//     fn as_mut_any(&mut self) -> &mut dyn Any {
-//         self
-//     }
-// }
-
-
 
 impl ExampleRandomSource {
     fn run_1( _ctx: &mut ZFContext) -> RunResult {
