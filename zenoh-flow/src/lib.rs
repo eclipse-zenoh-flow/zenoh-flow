@@ -12,6 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+pub use ::zenoh_flow_macros;
+
 pub use ::bincode;
 pub use ::paste;
 pub use ::serde;

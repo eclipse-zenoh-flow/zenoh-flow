@@ -23,6 +23,7 @@ derive_more = "0.99.10"
 petgraph = "0.5.1"
 structopt = "0.3.21"
 libloading = "0.7.0"
+zenoh-flow-macros = {path = "../zenoh-flow-macros"}
 
 futures = "0.3.15"
 async-std = { version = "=1.9.0", features = ["attributes"] }

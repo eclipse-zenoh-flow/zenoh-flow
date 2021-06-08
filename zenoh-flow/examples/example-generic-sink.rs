@@ -18,6 +18,7 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     operator::{SinkTrait, FnSinkRun, RunResult, DataTrait, StateTrait, FnInputRule, InputRuleResult},
     types::{ZFLinkId, ZFContext, Token},
+    zenoh_flow_macros::ZFState,
 };
 use std::collections::HashMap;
 use async_std::sync::Arc;
@@ -25,20 +26,9 @@ use std::any::Any;
 
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ZFState)]
 struct ExampleGenericSink {}
 
-
-//derived by a #[derive(ZFState)] macro
-impl StateTrait for ExampleGenericSink {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_mut_any(&mut self) -> &mut dyn Any {
-        self
-    }
-}
 
 impl ExampleGenericSink {
 

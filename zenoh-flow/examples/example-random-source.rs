@@ -18,6 +18,7 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     operator::{SourceTrait, FnSourceRun, RunResult, DataTrait, StateTrait},
     types::{ZFLinkId, ZFContext, RandomData},
+    zenoh_flow_macros::ZFState,
 };
 use std::collections::HashMap;
 use async_std::sync::Arc;
@@ -26,19 +27,19 @@ use std::any::Any;
 
 static mut counter : u128 = 0;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, ZFState)]
 struct ExampleRandomSource {}
 
 //derived by a #[derive(ZFState)] macro
-impl StateTrait for ExampleRandomSource {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+// impl StateTrait for ExampleRandomSource {
+//     fn as_any(&self) -> &dyn Any {
+//         self
+//     }
 
-    fn as_mut_any(&mut self) -> &mut dyn Any {
-        self
-    }
-}
+//     fn as_mut_any(&mut self) -> &mut dyn Any {
+//         self
+//     }
+// }
 
 
 

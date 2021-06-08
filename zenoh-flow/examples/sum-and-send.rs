@@ -15,6 +15,7 @@
 use std::any::Any;
 use std::collections::HashMap;
 use zenoh_flow::message::ZFMessage;
+use zenoh_flow::zenoh_flow_macros::ZFState;
 use zenoh_flow::operator::{DataTrait, StateTrait};
 use zenoh_flow::operator::{
     FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult, RunResult,
@@ -34,20 +35,11 @@ struct SumAndSend {
 }
 
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, ZFState)]
 struct SumAndSendState {
     pub x : RandomData
 }
 
-impl StateTrait for SumAndSendState {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_mut_any(&mut self) -> &mut dyn Any {
-        self
-    }
-}
 
 impl SumAndSend {
     pub fn new() -> Self {
@@ -77,8 +69,8 @@ impl SumAndSend {
             match downcast!(RandomData, data) {
                 Some(d) => {
                     let res = _state.x.d + d.d;
-                    _state.x = (*d).clone();
                     let res = RandomData { d : res};
+                    _state.x = res.clone();
 
                     ctx.set_state(state); //storing new state
 

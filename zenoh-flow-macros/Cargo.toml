@@ -24,7 +24,6 @@ quote = "1.0.2"
 proc-macro2 = "1.0.6"
 serde_derive = "1.0.55"
 serde = { version = "1.0.55", features = ["derive"] }
-zenoh-flow = {path = "../zenoh-flow"}
 darling = "0.13.0"
 Inflector = "0.11.4"
 proc-macro-error = "1.0.4"
