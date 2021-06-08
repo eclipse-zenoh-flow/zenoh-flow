@@ -53,6 +53,17 @@ pub struct ZFContext {
     pub mode: u128,
 }
 
+
+impl ZFContext {
+    pub fn set_state(&mut self, state : Box<dyn StateTrait>) {
+        self.state = Some(state);
+    }
+
+    pub fn get_state(&mut self) -> Box<dyn StateTrait> {
+       self.state.take().unwrap()
+    }
+}
+
 pub type ZFResult<T> = Result<T, ZFError>;
 
 // Maybe TokenActions should be always sent back to the OperatorRunner,
@@ -231,5 +242,22 @@ impl Token {
             Self::Ready(ready) => (Some(ready.data), ready.action),
             Self::NotReady(_) => (None, TokenAction::Wait),
         }
+    }
+}
+
+
+
+// We may want to provide some "built-in" types
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RandomData {
+    pub d : u128,
+}
+
+//derived by a #[derive(ZFData)] macro
+impl DataTrait for RandomData {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

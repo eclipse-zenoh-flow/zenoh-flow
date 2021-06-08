@@ -19,24 +19,14 @@ use zenoh_flow::operator::{DataTrait, StateTrait};
 use zenoh_flow::operator::{
     FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult, RunResult,
 };
-use zenoh_flow::types::{NotReadyToken, ReadyToken, Token, ZFContext, ZFError, ZFLinkId};
+use zenoh_flow::types::{NotReadyToken, ReadyToken, Token, ZFContext, ZFError, ZFLinkId, RandomData};
 use zenoh_flow::{downcast, downcast_mut};
 
 use serde::{Deserialize, Serialize};
 
 use async_std::sync::Arc;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct RandomData {
-    pub d : u128,
-}
 
-//derived by a #[derive(ZFData)] macro
-impl DataTrait for RandomData {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct SumAndSend {
@@ -80,8 +70,8 @@ impl SumAndSend {
 
     pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
-        let mut state = ctx.state.as_mut().unwrap();
-        let mut _state = downcast_mut!(SumAndSendState, state).unwrap(); //getting state
+        let mut state = ctx.get_state(); //getting state
+        let mut _state = downcast_mut!(SumAndSendState, state).unwrap(); //downcasting to right type
 
         if let Some(data) = inputs.get(&0) {
             match downcast!(RandomData, data) {
@@ -89,7 +79,10 @@ impl SumAndSend {
                     let res = _state.x.d + d.d;
                     _state.x = (*d).clone();
                     let res = RandomData { d : res};
-                    results.insert(0, Arc::new(res));
+
+                    ctx.set_state(state); //storing new state
+
+                    results.insert(1, Arc::new(res));
                     Ok(results)
                 }
                 None => Err(ZFError::InvalidData(0)),
