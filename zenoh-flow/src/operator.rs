@@ -1,7 +1,6 @@
 use crate::message::ZFMessage;
 use crate::types::{Token, ZFContext, ZFLinkId, ZFResult};
 use async_std::sync::Arc;
-use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -9,6 +8,7 @@ use std::fmt::Debug;
 //Create a Derive macro for this
 pub trait DataTrait: Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;
+    fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
 //Create a Derive macro for this
@@ -52,34 +52,20 @@ pub trait OperatorTrait {
     fn get_state(&self) -> Box<dyn StateTrait>;
 }
 
-
-pub type FnSourceRun = dyn Fn(&mut ZFContext) -> RunResult
-    + Send
-    + Sync
-    + 'static;
-
+pub type FnSourceRun = dyn Fn(&mut ZFContext) -> RunResult + Send + Sync + 'static;
 
 pub trait SourceTrait {
-
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun>;
-
 }
 
-
-pub type FnSinkRun =  dyn Fn(&mut ZFContext, HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> ()
-    + Send
-    + Sync
-    + 'static;
-
+pub type FnSinkRun =
+    dyn Fn(&mut ZFContext, HashMap<ZFLinkId, Arc<dyn DataTrait>>) + Send + Sync + 'static;
 
 pub trait SinkTrait {
-
     fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule>;
 
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSinkRun>;
-
 }
-
 
 #[macro_export]
 macro_rules! downcast {

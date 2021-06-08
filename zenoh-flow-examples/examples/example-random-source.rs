@@ -12,44 +12,35 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use std::io;
-use rand::Rng;
+use async_std::sync::Arc;
+use std::collections::HashMap;
 use zenoh_flow::{
+    operator::{DataTrait, FnSourceRun, RunResult, SourceTrait},
     serde::{Deserialize, Serialize},
-    operator::{SourceTrait, FnSourceRun, RunResult, DataTrait, StateTrait},
-    types::{ZFLinkId, ZFContext, RandomData},
+    types::{RandomData, ZFContext, ZFLinkId},
     zenoh_flow_macros::ZFState,
 };
-use std::collections::HashMap;
-use async_std::sync::Arc;
-use std::any::Any;
 
-
-static mut counter : u128 = 0;
+static mut COUNTER: u128 = 0;
 
 #[derive(Serialize, Deserialize, Debug, ZFState)]
 struct ExampleRandomSource {}
 
-
 impl ExampleRandomSource {
-    fn run_1( _ctx: &mut ZFContext) -> RunResult {
+    fn run_1(_ctx: &mut ZFContext) -> RunResult {
         unsafe {
             let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
             //let mut rng = rand::thread_rng();
-            let d = RandomData { d: counter.clone()};
+            let d = RandomData { d: COUNTER };
             results.insert(0, Arc::new(d));
             std::thread::sleep(std::time::Duration::from_secs(1));
-            counter += 1;
+            COUNTER += 1;
             Ok(results)
         }
-
     }
-
 }
 
-
 impl SourceTrait for ExampleRandomSource {
-
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun> {
         match ctx.mode {
             0 => Box::new(Self::run_1),
@@ -64,6 +55,6 @@ zenoh_flow::export_source!(register);
 extern "C" fn register(registrar: &mut dyn zenoh_flow::loader::ZFSourceRegistrarTrait) {
     registrar.register_zfsource(
         "sender",
-        Box::new(ExampleRandomSource{}) as Box<dyn zenoh_flow::operator::SourceTrait + Send>,
+        Box::new(ExampleRandomSource {}) as Box<dyn zenoh_flow::operator::SourceTrait + Send>,
     );
 }

@@ -19,23 +19,24 @@ use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 use std::collections::HashMap;
 
-use crate::loader::{load_operator, load_source, load_sink, ZFOperatorRunner, ZFSourceRunner, ZFSinkRunner};
-use crate::{ZFConnection, ZFOperatorDescription, ZFOperatorId, ZFSourceDescription, ZFSinkDescription};
-use crate::types::{ZFLinkId, ZFResult, ZFOperatorKind};
 use crate::link::{link, ZFLinkReceiver, ZFLinkSender};
-use crate::operator::DataTrait;
+use crate::loader::{
+    load_operator, load_sink, load_source, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner,
+};
 use crate::message::ZFMessage;
-use crate::serde::{Serialize, Deserialize};
-
+use crate::serde::{Deserialize, Serialize};
+use crate::types::{ZFLinkId, ZFResult};
+use crate::{
+    ZFConnection, ZFOperatorDescription, ZFOperatorId, ZFSinkDescription, ZFSourceDescription,
+};
 
 pub enum Runner {
     Operator(ZFOperatorRunner),
     Source(ZFSourceRunner),
-    Sink(ZFSinkRunner)
+    Sink(ZFSinkRunner),
 }
 
 impl Runner {
-
     pub async fn run(&mut self) -> ZFResult<()> {
         match self {
             Runner::Operator(runner) => runner.run().await,
@@ -44,13 +45,11 @@ impl Runner {
         }
     }
 
-
-    pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>)  {
-
+    pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>) {
         match self {
             Runner::Operator(runner) => runner.add_input(input),
-            Runner::Source(runner) => panic!("Sources does not have inputs!"),
-            Runner::Sink(runner) =>  runner.add_input(input),
+            Runner::Source(_runner) => panic!("Sources does not have inputs!"),
+            Runner::Sink(runner) => runner.add_input(input),
         }
     }
 
@@ -58,10 +57,9 @@ impl Runner {
         match self {
             Runner::Operator(runner) => runner.add_output(output),
             Runner::Source(runner) => runner.add_output(output),
-            Runner::Sink(runner) =>  panic!("Sinks does not have output!"),
+            Runner::Sink(_runner) => panic!("Sinks does not have output!"),
         }
     }
-
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -74,48 +72,39 @@ pub enum DataFlowNode {
 impl std::fmt::Display for DataFlowNode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            DataFlowNode::Operator(inner) =>  write!(f, "{}", inner),
-            DataFlowNode::Source(inner) =>  write!(f, "{}", inner),
-            DataFlowNode::Sink(inner) =>  write!(f, "{}", inner),
+            DataFlowNode::Operator(inner) => write!(f, "{}", inner),
+            DataFlowNode::Source(inner) => write!(f, "{}", inner),
+            DataFlowNode::Sink(inner) => write!(f, "{}", inner),
         }
     }
 }
 
-
 impl DataFlowNode {
-    pub fn has_input(&self, id : ZFLinkId) -> bool {
+    pub fn has_input(&self, id: ZFLinkId) -> bool {
         match self {
-            DataFlowNode::Operator(op) => {
-                match op.inputs.iter().find(|&lid| *lid == id) {
-                    Some(lid) => true,
-                    None => false,
-                }
+            DataFlowNode::Operator(op) => match op.inputs.iter().find(|&lid| *lid == id) {
+                Some(_lid) => true,
+                None => false,
             },
             DataFlowNode::Source(_) => false,
-            DataFlowNode::Sink(sink) => {
-                match sink.inputs.iter().find(|&lid| *lid == id) {
-                    Some(lid) => true,
-                    None => false,
-                }
-            }
+            DataFlowNode::Sink(sink) => match sink.inputs.iter().find(|&lid| *lid == id) {
+                Some(_lid) => true,
+                None => false,
+            },
         }
     }
 
-    pub fn has_output(&self, id : ZFLinkId) -> bool {
+    pub fn has_output(&self, id: ZFLinkId) -> bool {
         match self {
-            DataFlowNode::Operator(op) => {
-                match op.outputs.iter().find(|&lid| *lid == id) {
-                    Some(lid) => true,
-                    None => false,
-                }
+            DataFlowNode::Operator(op) => match op.outputs.iter().find(|&lid| *lid == id) {
+                Some(_lid) => true,
+                None => false,
             },
             DataFlowNode::Sink(_) => false,
-            DataFlowNode::Source(source) => {
-                match source.outputs.iter().find(|&lid| *lid == id) {
-                    Some(lid) => true,
-                    None => false,
-                }
-            }
+            DataFlowNode::Source(source) => match source.outputs.iter().find(|&lid| *lid == id) {
+                Some(_lid) => true,
+                None => false,
+            },
         }
     }
 
@@ -126,9 +115,7 @@ impl DataFlowNode {
             DataFlowNode::Source(s) => s.id.clone(),
         }
     }
-
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DataFlowDescription {
@@ -139,31 +126,27 @@ pub struct DataFlowDescription {
 }
 
 impl DataFlowDescription {
-    pub fn from_yaml(data : String) -> Self {
+    pub fn from_yaml(data: String) -> Self {
         serde_yaml::from_str::<DataFlowDescription>(&data).unwrap()
     }
 
-    pub fn find_node(&self, id : ZFOperatorId) -> Option<DataFlowNode> {
+    pub fn find_node(&self, id: ZFOperatorId) -> Option<DataFlowNode> {
         match self.get_operator(id.clone()) {
-            Some(o) =>  Some(DataFlowNode::Operator(o)),
-            None => {
-                match self.get_source(id.clone()) {
-                    Some(s) => Some(DataFlowNode::Source(s)),
-                    None => {
-                        match self.get_sink(id) {
-                            Some(s) => Some(DataFlowNode::Sink(s)),
-                            None => None,
-                        }
-                    }
-                }
-            }
+            Some(o) => Some(DataFlowNode::Operator(o)),
+            None => match self.get_source(id.clone()) {
+                Some(s) => Some(DataFlowNode::Source(s)),
+                None => match self.get_sink(id) {
+                    Some(s) => Some(DataFlowNode::Sink(s)),
+                    None => None,
+                },
+            },
         }
     }
 
     fn get_operator(&self, id: ZFOperatorId) -> Option<ZFOperatorDescription> {
         match self.operators.iter().find(|&o| o.id == id) {
             Some(o) => Some(o.clone()),
-            None => None
+            None => None,
         }
     }
 
@@ -182,19 +165,12 @@ impl DataFlowDescription {
     }
 }
 
-
 pub struct DataFlowGraph {
     pub operators: Vec<(NodeIndex, DataFlowNode)>,
     pub connections: Vec<(EdgeIndex, ZFConnection)>,
     pub graph: StableGraph<DataFlowNode, ZFLinkId>,
     pub operators_runners: HashMap<ZFOperatorId, Arc<Mutex<Runner>>>,
 }
-
-
-
-
-
-
 
 pub fn deserialize_dataflow_description(data: String) -> DataFlowDescription {
     serde_yaml::from_str::<DataFlowDescription>(&data).unwrap()
@@ -208,51 +184,50 @@ impl DataFlowGraph {
                 let mut operators = Vec::new();
                 let mut connections = Vec::new();
                 for o in df.operators {
-                    operators.push((graph.add_node(DataFlowNode::Operator(o.clone())), DataFlowNode::Operator(o)));
+                    operators.push((
+                        graph.add_node(DataFlowNode::Operator(o.clone())),
+                        DataFlowNode::Operator(o),
+                    ));
                 }
 
                 for o in df.sources {
-                    operators.push((graph.add_node(DataFlowNode::Source(o.clone())), DataFlowNode::Source(o)));
+                    operators.push((
+                        graph.add_node(DataFlowNode::Source(o.clone())),
+                        DataFlowNode::Source(o),
+                    ));
                 }
 
                 for o in df.sinks {
-                    operators.push((graph.add_node(DataFlowNode::Sink(o.clone())), DataFlowNode::Sink(o)));
+                    operators.push((
+                        graph.add_node(DataFlowNode::Sink(o.clone())),
+                        DataFlowNode::Sink(o),
+                    ));
                 }
 
                 for l in df.connections {
-
                     // First check if the LinkId are the same
                     if l.from.1 == l.to.1 {
-
-                        let from_index = match operators.iter().find(|&(_, o)| o.get_id() == l.from.0) {
-                            Some((idx, op)) => {
-                                match op.has_output(l.from.1) {
+                        let from_index =
+                            match operators.iter().find(|&(_, o)| o.get_id() == l.from.0) {
+                                Some((idx, op)) => match op.has_output(l.from.1) {
                                     true => idx,
                                     false => panic!("Link id {:?} not found in {:?}", l.from.1, op),
-                                }
-                            },
-                            None => panic!("Not not found"),
-                        };
+                                },
+                                None => panic!("Not not found"),
+                            };
 
                         let to_index = match operators.iter().find(|&(_, o)| o.get_id() == l.to.0) {
-                            Some((idx, op)) => {
-                                match op.has_input(l.to.1) {
-                                    true => idx,
-                                    false => panic!("Link id {:?} not found in {:?}",l.to.1, op),
-                                }
+                            Some((idx, op)) => match op.has_input(l.to.1) {
+                                true => idx,
+                                false => panic!("Link id {:?} not found in {:?}", l.to.1, op),
                             },
                             None => panic!("Not not found"),
                         };
 
-
-
                         connections.push((graph.add_edge(*from_index, *to_index, 1), l));
-                    } else  {
+                    } else {
                         panic!("Ports ID does not match")
                     }
-
-
-
                 }
 
                 Self {
@@ -287,13 +262,13 @@ impl DataFlowGraph {
                         let runner = Runner::Operator(runner);
                         self.operators_runners
                             .insert(operator_id, Arc::new(Mutex::new(runner)));
-                    },
+                    }
                     DataFlowNode::Source(inner) => {
                         let (operator_id, runner) = load_source(inner.lib.clone())?;
                         let runner = Runner::Source(runner);
                         self.operators_runners
                             .insert(operator_id, Arc::new(Mutex::new(runner)));
-                    },
+                    }
                     DataFlowNode::Sink(inner) => {
                         let (operator_id, runner) = load_sink(inner.lib.clone())?;
                         let runner = Runner::Sink(runner);
@@ -310,7 +285,12 @@ impl DataFlowGraph {
         // Connects the operators via our FIFOs
 
         for (idx, up_op) in &self.operators {
-            let mut up_runner = self.operators_runners.get(&up_op.get_id()).unwrap().lock().await;
+            let mut up_runner = self
+                .operators_runners
+                .get(&up_op.get_id())
+                .unwrap()
+                .lock()
+                .await;
             if self.graph.contains_node(*idx) {
                 let mut downstreams = self
                     .graph
@@ -322,13 +302,16 @@ impl DataFlowGraph {
                         Some((_, op)) => op,
                         None => panic!("To not found"),
                     };
-                    let (_,down_link) = match self.graph.find_edge(*idx, jdx) {
-                        Some(l_idx) => self.connections.iter().find(|&(lidx, _)| *lidx == l_idx).unwrap(),
+                    let (_, down_link) = match self.graph.find_edge(*idx, jdx) {
+                        Some(l_idx) => self
+                            .connections
+                            .iter()
+                            .find(|&(lidx, _)| *lidx == l_idx)
+                            .unwrap(),
                         None => panic!("Link between {:?} -> {:?} not found", idx, jdx),
                     };
 
                     let link_id = down_link.from.1; //The check on the link id matching is done when creating the graph
-
 
                     let mut down_runner = self
                         .operators_runners
@@ -353,10 +336,8 @@ impl DataFlowGraph {
     pub fn get_runners(&self) -> Vec<Arc<Mutex<Runner>>> {
         let mut runners = vec![];
 
-        for (_,runner) in &self.operators_runners {
-            runners.push(
-                runner.clone(),
-            );
+        for (_, runner) in &self.operators_runners {
+            runners.push(runner.clone());
         }
         runners
     }

@@ -12,18 +12,9 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-
-
-
-
-
-
-
-
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
-
 
 #[proc_macro_derive(ZFData)]
 pub fn zf_data_derive(input: TokenStream) -> TokenStream {
@@ -35,11 +26,14 @@ pub fn zf_data_derive(input: TokenStream) -> TokenStream {
             fn as_any(&self) -> &dyn std::any::Any {
                 self
             }
+
+            fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
         }
     };
     gen.into()
 }
-
 
 #[proc_macro_derive(ZFState)]
 pub fn zf_state_derive(input: TokenStream) -> TokenStream {

@@ -14,10 +14,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::message::{Message, ZFCtrlMessage, ZFMessage};
-use crate::operator::{StateTrait, DataTrait};
+use crate::message::{Message, ZFMessage};
+use crate::operator::{DataTrait, StateTrait};
 
-use async_std::sync::{Arc, Mutex};
+use async_std::sync::Arc;
+use std::any::Any;
 use std::collections::HashMap;
 
 // Placeholder types
@@ -54,14 +55,13 @@ pub struct ZFContext {
     pub mode: u128,
 }
 
-
 impl ZFContext {
-    pub fn set_state(&mut self, state : Box<dyn StateTrait>) {
+    pub fn set_state(&mut self, state: Box<dyn StateTrait>) {
         self.state = Some(state);
     }
     // get returns not mutable
     pub fn get_state(&mut self) -> Box<dyn StateTrait> {
-       self.state.take().unwrap()
+        self.state.take().unwrap()
     }
 
     //take returns mutable
@@ -96,8 +96,6 @@ pub enum ZFOperatorKind {
     Sink,
     Compute,
 }
-
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkDescription {
@@ -147,7 +145,6 @@ pub struct ZFConnection {
     pub from: (ZFOperatorId, ZFLinkId),
     pub to: (ZFOperatorId, ZFLinkId),
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum TokenAction {
@@ -272,19 +269,57 @@ impl Token {
     }
 }
 
-
-
 // We may want to provide some "built-in" types
+#[derive(Debug, Clone)]
+pub struct ZFString(String);
 
+impl From<String> for ZFString {
+    fn from(s: String) -> Self {
+        ZFString(s)
+    }
+}
+
+impl From<&str> for ZFString {
+    fn from(s: &str) -> Self {
+        ZFString(s.to_owned())
+    }
+}
+
+impl DataTrait for ZFString {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ZFEmptyState;
+
+impl StateTrait for ZFEmptyState {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RandomData {
-    pub d : u128,
+    pub d: u128,
 }
 
 //derived by a #[derive(ZFData)] macro
 impl DataTrait for RandomData {
     fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn Any {
         self
     }
 }

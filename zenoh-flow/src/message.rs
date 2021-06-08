@@ -76,6 +76,13 @@ impl ZFMessage {
         }
     }
 
+    pub fn from_data(data: Arc<dyn DataTrait>) -> Self {
+        Self {
+            ts: 0, //placeholder
+            msg: ZFMsg::Data(Message::new_deserialized(data)),
+        }
+    }
+
     pub fn from_message(msg: Message) -> Self {
         Self {
             ts: 0, //placeholder
