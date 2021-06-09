@@ -17,9 +17,10 @@ use std::collections::HashMap;
 use zenoh_flow::{
     operator::{DataTrait, FnSourceRun, RunResult, SourceTrait, StateTrait},
     serde::{Deserialize, Serialize},
-    types::{RandomData, ZFContext, ZFLinkId},
+    types::{ZFContext, ZFLinkId},
     zenoh_flow_macros::ZFState,
 };
+use zenoh_flow_examples::RandomData;
 
 static mut COUNTER: u128 = 0;
 

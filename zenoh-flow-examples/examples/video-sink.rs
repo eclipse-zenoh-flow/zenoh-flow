@@ -17,10 +17,11 @@ use rand::Rng;
 use zenoh_flow::{
     serde::{Deserialize, Serialize},
     operator::{SinkTrait, FnSinkRun, FnInputRule, InputRuleResult, DataTrait, StateTrait},
-    types::{ZFLinkId, ZFContext, ZFBytes, Token},
+    types::{ZFLinkId, ZFContext, Token},
     zenoh_flow_macros::ZFState,
     downcast_mut, zf_spin_lock, downcast,
 };
+use zenoh_flow_examples::ZFOpenCVBytes;
 use std::collections::HashMap;
 use async_std::sync::{Arc, Mutex};
 use std::any::Any;
@@ -71,10 +72,13 @@ impl VideoSink {
         let window_name = &format!("Video-Sink");
 
         if let Some(data) = inputs.get(&0) {
-            match downcast!(ZFBytes, data) {
+            match downcast!(ZFOpenCVBytes, data) {
                 Some(d) => {
+
+                    let data = (zf_spin_lock!(d.bytes)).try_borrow().unwrap().to_owned();
+
                     let decoded = match opencv::imgcodecs::imdecode(
-                        &opencv::types::VectorOfu8::from_iter(d.bytes.clone()),
+                        &opencv::types::VectorOfu8::from_iter(data),
                         opencv::imgcodecs::IMREAD_COLOR) {
                             Ok(d) => d,
                             Err(e) => panic!("Unable to decode {:?}", e),

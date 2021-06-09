@@ -18,10 +18,10 @@ use zenoh_flow::operator::{DataTrait, StateTrait};
 use zenoh_flow::operator::{
     FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult, RunResult,
 };
-use zenoh_flow::types::{RandomData, Token, ZFContext, ZFError, ZFLinkId};
+use zenoh_flow::types::{Token, ZFContext, ZFError, ZFLinkId};
 use zenoh_flow::zenoh_flow_macros::ZFState;
 use zenoh_flow::{downcast, downcast_mut};
-
+use zenoh_flow_examples::RandomData;
 use serde::{Deserialize, Serialize};
 
 use async_std::sync::Arc;

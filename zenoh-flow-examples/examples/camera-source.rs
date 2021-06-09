@@ -17,13 +17,15 @@ use rand::Rng;
 use zenoh_flow::{
     serde::{Deserialize, Serialize},
     operator::{SourceTrait, FnSourceRun, RunResult, DataTrait, StateTrait},
-    types::{ZFLinkId, ZFContext, ZFBytes},
+    types::{ZFLinkId, ZFContext},
     zenoh_flow_macros::ZFState,
     downcast_mut, zf_spin_lock,
 };
+use zenoh_flow_examples::ZFOpenCVBytes;
 use std::collections::HashMap;
 use async_std::sync::{Arc, Mutex};
 use std::any::Any;
+use std::cell::RefCell;
 
 use opencv::{
     core,
@@ -93,7 +95,7 @@ impl CameraSource {
             let mut buf = opencv::types::VectorOfu8::new();
             opencv::imgcodecs::imencode(".jpeg", &reduced, &mut buf, &encode_options).unwrap();
 
-            let data = ZFBytes {bytes: buf.to_vec()};
+            let data = ZFOpenCVBytes {bytes: Mutex::new(RefCell::new(buf))};
 
             results.insert(0, Arc::new(data));
 
