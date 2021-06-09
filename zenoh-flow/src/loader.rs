@@ -288,6 +288,10 @@ impl SourceTrait for ZFSourceProxy {
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun> {
         self.operator.get_run(ctx)
     }
+
+    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
+        self.operator.get_state()
+    }
 }
 
 pub struct ZFSourceRegistrar {
@@ -337,7 +341,7 @@ impl ZFSourceRunner {
         // WIP empty context
         let mut ctx = ZFContext {
             mode: 0,
-            state: None, //self.operator.get_state(),
+            state: self.operator.get_state(),
         };
 
         loop {
@@ -401,6 +405,11 @@ impl SinkTrait for ZFSinkProxy {
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSinkRun> {
         self.operator.get_run(ctx)
     }
+
+    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
+        self.operator.get_state()
+    }
+
 }
 
 pub struct ZFSinkRegistrar {
@@ -450,7 +459,7 @@ impl ZFSinkRunner {
         // WIP empty context
         let mut ctx = ZFContext {
             mode: 0,
-            state: None, //Box::new(self.operator.get_state()),
+            state: self.operator.get_state(),
         };
         loop {
             // we should start from an HashMap with all ZFLinkId and not ready tokens

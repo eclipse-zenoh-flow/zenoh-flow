@@ -15,7 +15,7 @@
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
-    operator::{DataTrait, FnInputRule, FnSinkRun, InputRuleResult, SinkTrait},
+    operator::{DataTrait, FnInputRule, FnSinkRun, InputRuleResult, SinkTrait, StateTrait},
     serde::{Deserialize, Serialize},
     types::{Token, ZFContext, ZFLinkId},
     zenoh_flow_macros::ZFState,
@@ -52,6 +52,11 @@ impl SinkTrait for ExampleGenericSink {
             _ => panic!("No way"),
         }
     }
+
+    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
+        None
+    }
+
 }
 
 zenoh_flow::export_sink!(register);

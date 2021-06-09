@@ -56,6 +56,9 @@ pub type FnSourceRun = dyn Fn(&mut ZFContext) -> RunResult + Send + Sync + 'stat
 
 pub trait SourceTrait {
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun>;
+
+    fn get_state(&self) -> Option<Box<dyn StateTrait>>;
+
 }
 
 pub type FnSinkRun =
@@ -65,6 +68,9 @@ pub trait SinkTrait {
     fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule>;
 
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSinkRun>;
+
+    fn get_state(&self) -> Option<Box<dyn StateTrait>>;
+
 }
 
 #[macro_export]

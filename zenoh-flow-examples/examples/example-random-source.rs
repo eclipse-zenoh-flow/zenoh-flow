@@ -15,7 +15,7 @@
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
-    operator::{DataTrait, FnSourceRun, RunResult, SourceTrait},
+    operator::{DataTrait, FnSourceRun, RunResult, SourceTrait, StateTrait},
     serde::{Deserialize, Serialize},
     types::{RandomData, ZFContext, ZFLinkId},
     zenoh_flow_macros::ZFState,
@@ -46,6 +46,10 @@ impl SourceTrait for ExampleRandomSource {
             0 => Box::new(Self::run_1),
             _ => panic!("No way"),
         }
+    }
+
+    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
+        None
     }
 }
 

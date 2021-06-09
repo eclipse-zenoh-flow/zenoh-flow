@@ -323,3 +323,20 @@ impl DataTrait for RandomData {
         self
     }
 }
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZFBytes {
+    pub bytes : Vec<u8>,
+}
+
+//derived by a #[derive(ZFData)] macro
+impl DataTrait for ZFBytes {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn Any {
+        self
+    }
+}

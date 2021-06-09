@@ -1,0 +1,14 @@
+operators: []
+sources:
+  - id : camera-source
+    name : Camera
+    lib: ./target/debug/examples/libcamera_source.dylib
+    outputs: [0]
+sinks:
+  - id : video-sink
+    name : Window
+    lib: ./target/debug/examples/libvideo_sink.dylib
+    inputs: [0]
+connections:
+  - from: [camera-source, 0]
+    to: [video-sink, 0]

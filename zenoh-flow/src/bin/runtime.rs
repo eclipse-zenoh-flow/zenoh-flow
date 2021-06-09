@@ -24,7 +24,7 @@ async fn main() {
     let dot_notation = dataflow_graph.to_dot_notation();
 
     let mut file = File::create(opt.outfile).unwrap();
-    write!(file, "{}", dot_notation);
+    write!(file, "{}", dot_notation).unwrap();
     file.sync_all().unwrap();
 
     dataflow_graph.load().unwrap();
@@ -34,12 +34,12 @@ async fn main() {
     // // let inputs = dataflow_graph.get_inputs();
     let runners = dataflow_graph.get_runners();
     for runner in runners {
-        async_std::task::spawn(
-            async move {
-                let mut runner  = runner.lock().await;
-                runner.run().await.unwrap();
-            }
-        );
+            async_std::task::spawn(
+                async move {
+                    let mut runner  = runner.lock().await;
+                    runner.run().await.unwrap();
+                }
+            );
     }
 
 

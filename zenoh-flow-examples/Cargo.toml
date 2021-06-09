@@ -26,6 +26,10 @@ bincode = "1.3.3"
 flume = "0.10"
 rand = "0.8.0"
 
+[dev-dependencies]
+rand = "0.8.0"
+opencv = "0.53.0"
+
 [[example]]
 name = "example-op"
 crate-type = ["cdylib"]
@@ -63,4 +67,16 @@ name = "sum-and-send"
 crate-type = ["cdylib"]
 
 [[example]]
+name = "camera-source"
+crate-type = ["cdylib"]
+
+
+[[example]]
+name = "video-sink"
+crate-type = ["cdylib"]
+
+[[example]]
 name = "example-select"
+
+[[example]]
+name = "capture"
