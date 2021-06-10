@@ -1,7 +1,7 @@
-use zenoh_flow::zenoh_flow_macros::{ZFState, ZFData};
-use zenoh_flow::serde::{Serialize, Deserialize};
-use std::cell::RefCell;
 use async_std::sync::Mutex;
+use std::cell::RefCell;
+use zenoh_flow::serde::{Deserialize, Serialize};
+use zenoh_flow::zenoh_flow_macros::{ZFData, ZFState};
 // We may want to provide some "built-in" types
 #[derive(Debug, Clone, ZFData)]
 pub struct ZFString(String);
@@ -21,21 +21,17 @@ impl From<&str> for ZFString {
 #[derive(Debug, Clone, ZFState)]
 pub struct ZFEmptyState;
 
-
-
 #[derive(Serialize, Deserialize, Debug, Clone, ZFData)]
 pub struct RandomData {
     pub d: u128,
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone, ZFData)]
 pub struct ZFBytes {
-    pub bytes : Vec<u8>,
+    pub bytes: Vec<u8>,
 }
-
 
 #[derive(Debug, ZFData)]
 pub struct ZFOpenCVBytes {
-    pub bytes : Mutex<RefCell<opencv::types::VectorOfu8>>,
+    pub bytes: Mutex<RefCell<opencv::types::VectorOfu8>>,
 }

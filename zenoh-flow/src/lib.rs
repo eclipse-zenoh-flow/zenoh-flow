@@ -61,7 +61,6 @@ macro_rules! export_operator {
     };
 }
 
-
 #[macro_export]
 macro_rules! export_source {
     ($register:expr) => {

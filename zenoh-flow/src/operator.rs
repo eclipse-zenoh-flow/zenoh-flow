@@ -49,7 +49,7 @@ pub trait OperatorTrait {
 
     fn get_run(&self, ctx: &ZFContext) -> Box<FnRun>;
 
-    fn get_state(&self) -> Box<dyn StateTrait>;
+    fn get_state(&self) -> Option<Box<dyn StateTrait>>;
 }
 
 pub type FnSourceRun = dyn Fn(&mut ZFContext) -> RunResult + Send + Sync + 'static;
@@ -58,7 +58,6 @@ pub trait SourceTrait {
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun>;
 
     fn get_state(&self) -> Option<Box<dyn StateTrait>>;
-
 }
 
 pub type FnSinkRun =
@@ -70,7 +69,6 @@ pub trait SinkTrait {
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSinkRun>;
 
     fn get_state(&self) -> Option<Box<dyn StateTrait>>;
-
 }
 
 #[macro_export]
@@ -87,51 +85,41 @@ macro_rules! downcast_mut {
     };
 }
 
-
 #[macro_export]
 macro_rules! take_state {
     ($ident : ident, $ctx : expr) => {
         match $ctx.take_state() {
-            Some(mut state) => {
-                match zenoh_flow::downcast_mut!($ident, state) {
-                    Some(mut data) => Ok((state,data)),
-                    None => Err(zenoh_flow::types::ZFError::InvalidState)
-                }
-            }
-            None => Err(zenoh_flow::types::ZFError::MissingState)
+            Some(mut state) => match zenoh_flow::downcast_mut!($ident, state) {
+                Some(mut data) => Ok((state, data)),
+                None => Err(zenoh_flow::types::ZFError::InvalidState),
+            },
+            None => Err(zenoh_flow::types::ZFError::MissingState),
         }
-    }
+    };
 }
-
 
 #[macro_export]
 macro_rules! get_state {
     ($ident : ident, $ctx : expr) => {
         match $ctx.get_state() {
-            Some(state) => {
-                match zenoh_flow::downcast!($ident, state) {
-                    Some(data) => Ok((state,data)),
-                    None => Err(zenoh_flow::types::ZFError::InvalidState)
-                }
-            }
-            None => Err(zenoh_flow::types::ZFError::MissingState)
+            Some(state) => match zenoh_flow::downcast!($ident, state) {
+                Some(data) => Ok((state, data)),
+                None => Err(zenoh_flow::types::ZFError::InvalidState),
+            },
+            None => Err(zenoh_flow::types::ZFError::MissingState),
         }
-    }
+    };
 }
-
 
 #[macro_export]
 macro_rules! get_input {
     ($ident : ident, $index : expr, $map : expr) => {
         match $map.get(&$index) {
-            Some(d) => {
-                match zenoh_flow::downcast!($ident, d) {
-                    Some(data) => Ok(data),
-                    None => Err(zenoh_flow::types::ZFError::InvalidData($index))
-                }
-
-            }
-            None => Err(zenoh_flow::types::ZFError::MissingInput($index))
+            Some(d) => match zenoh_flow::downcast!($ident, d) {
+                Some(data) => Ok(data),
+                None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
+            },
+            None => Err(zenoh_flow::types::ZFError::MissingInput($index)),
         }
-    }
+    };
 }

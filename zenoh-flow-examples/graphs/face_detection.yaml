@@ -1,4 +1,9 @@
-operators: []
+operators:
+  - id : face-detection
+    name : FaceDetection
+    lib: ./target/debug/examples/libface_detection.so
+    inputs: [0]
+    outputs: [1]
 sources:
   - id : camera-source
     name : Camera
@@ -8,7 +13,9 @@ sinks:
   - id : video-sink
     name : Window
     lib: ./target/debug/examples/libvideo_sink.so
-    inputs: [0]
+    inputs: [1]
 connections:
   - from: [camera-source, 0]
-    to: [video-sink, 0]
+    to: [face-detection, 0]
+  - from: [face-detection, 1]
+    to: [video-sink, 1]

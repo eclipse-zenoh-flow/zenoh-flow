@@ -1,0 +1,14 @@
+operators: []
+sources:
+  - id : camera-source
+    name : Camera
+    lib: ./target/debug/examples/libcamera_source.dylib
+    outputs: [0]
+sinks:
+  - id : zsink
+    name : ZSink
+    lib: ./target/debug/examples/libexample_generic_zenoh_sink.dylib
+    inputs: [0]
+connections:
+  - from: [camera-source, 0]
+    to: [zsink, 0]

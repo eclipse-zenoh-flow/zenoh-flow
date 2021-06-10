@@ -13,7 +13,6 @@ struct Opt {
 }
 #[async_std::main]
 async fn main() {
-
     let opt = Opt::from_args();
     let yaml_df = fs::read_to_string(opt.graph_file).unwrap();
 
@@ -34,16 +33,11 @@ async fn main() {
     // // let inputs = dataflow_graph.get_inputs();
     let runners = dataflow_graph.get_runners();
     for runner in runners {
-            async_std::task::spawn(
-                async move {
-                    let mut runner  = runner.lock().await;
-                    runner.run().await.unwrap();
-                }
-            );
+        async_std::task::spawn(async move {
+            let mut runner = runner.lock().await;
+            runner.run().await.unwrap();
+        });
     }
-
-
-
 
     let () = std::future::pending().await;
 }

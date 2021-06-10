@@ -12,52 +12,51 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use std::io;
-use rand::Rng;
-use zenoh_flow::{
-    serde::{Deserialize, Serialize},
-    operator::{SourceTrait, FnSourceRun, RunResult, DataTrait, StateTrait},
-    types::{ZFLinkId, ZFContext},
-    zenoh_flow_macros::ZFState,
-    downcast_mut, zf_spin_lock,
-};
-use zenoh_flow_examples::ZFOpenCVBytes;
-use std::collections::HashMap;
 use async_std::sync::{Arc, Mutex};
+use rand::Rng;
 use std::any::Any;
 use std::cell::RefCell;
-
-use opencv::{
-    core,
-    prelude::*,
-    videoio,
+use std::collections::HashMap;
+use std::io;
+use zenoh_flow::{
+    downcast_mut,
+    operator::{DataTrait, FnSourceRun, RunResult, SourceTrait, StateTrait},
+    serde::{Deserialize, Serialize},
+    types::{ZFContext, ZFLinkId},
+    zenoh_flow_macros::ZFState,
+    zf_spin_lock,
 };
+use zenoh_flow_examples::{ZFBytes, ZFOpenCVBytes};
 
+use opencv::{core, prelude::*, videoio};
 
 #[derive(Debug)]
 struct CameraSource {
-    pub state : CameraState,
+    pub state: CameraState,
 }
 
 #[derive(ZFState, Clone)]
 struct CameraState {
-    pub camera : Arc<Mutex<videoio::VideoCapture>>,
-    pub encode_options : Arc<Mutex<opencv::types::VectorOfi32>>,
-    pub resolution : (i32, i32),
+    pub camera: Arc<Mutex<videoio::VideoCapture>>,
+    pub encode_options: Arc<Mutex<opencv::types::VectorOfi32>>,
+    pub resolution: (i32, i32),
     pub delay: u64,
 }
 
 // because of opencv
 impl std::fmt::Debug for CameraState {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "CameraState: resolution:{:?} delay:{:?}", self.resolution, self.delay)
+        write!(
+            f,
+            "CameraState: resolution:{:?} delay:{:?}",
+            self.resolution, self.delay
+        )
     }
 }
 
-
 impl CameraSource {
     fn new() -> Self {
-        let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap();  // 0 is the default camera
+        let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap(); // 0 is the default camera
         let opened = videoio::VideoCapture::is_opened(&camera).unwrap();
         if !opened {
             panic!("Unable to open default camera!");
@@ -66,55 +65,61 @@ impl CameraSource {
         encode_options.push(opencv::imgcodecs::IMWRITE_JPEG_QUALITY);
         encode_options.push(90);
         let state = CameraState {
-            camera : Arc::new(Mutex::new(camera)),
-            encode_options : Arc::new(Mutex::new(encode_options)),
-            resolution: (800,600),
-            delay : 40,
+            camera: Arc::new(Mutex::new(camera)),
+            encode_options: Arc::new(Mutex::new(encode_options)),
+            resolution: (800, 600),
+            delay: 40,
         };
 
-        Self {
-            state
-        }
+        Self { state }
     }
 
-    fn run_1( ctx: &mut ZFContext) -> RunResult {
-            let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+    fn run_1(ctx: &mut ZFContext) -> RunResult {
+        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
 
-            let mut handle = ctx.take_state().unwrap(); //take state
-            let mut _state = downcast_mut!(CameraState, handle).unwrap(); //downcasting to right type
+        let mut handle = ctx.take_state().unwrap(); //take state
+        let mut _state = downcast_mut!(CameraState, handle).unwrap(); //downcasting to right type
 
-            let mut cam = zf_spin_lock!(_state.camera);
-            let encode_options = zf_spin_lock!(_state.encode_options);
+        let mut cam = zf_spin_lock!(_state.camera);
+        let encode_options = zf_spin_lock!(_state.encode_options);
 
-            let mut frame = core::Mat::default();
-            cam.read(&mut frame).unwrap();
+        let mut frame = core::Mat::default();
+        cam.read(&mut frame).unwrap();
 
-            let mut reduced = Mat::default();
-            opencv::imgproc::resize(&frame, &mut reduced, opencv::core::Size::new(_state.resolution.0, _state.resolution.0), 0.0, 0.0 , opencv::imgproc::INTER_LINEAR).unwrap();
+        let mut reduced = Mat::default();
+        opencv::imgproc::resize(
+            &frame,
+            &mut reduced,
+            opencv::core::Size::new(_state.resolution.0, _state.resolution.0),
+            0.0,
+            0.0,
+            opencv::imgproc::INTER_LINEAR,
+        )
+        .unwrap();
 
-            let mut buf = opencv::types::VectorOfu8::new();
-            opencv::imgcodecs::imencode(".jpeg", &reduced, &mut buf, &encode_options).unwrap();
+        let mut buf = opencv::types::VectorOfu8::new();
+        opencv::imgcodecs::imencode(".jpeg", &reduced, &mut buf, &encode_options).unwrap();
 
-            let data = ZFOpenCVBytes {bytes: Mutex::new(RefCell::new(buf))};
+        // let data = ZFOpenCVBytes {bytes: Mutex::new(RefCell::new(buf))};
 
-            results.insert(0, Arc::new(data));
+        let data = ZFBytes {
+            bytes: buf.to_vec(),
+        };
 
-            std::thread::sleep(std::time::Duration::from_millis(_state.delay));
+        results.insert(0, Arc::new(data));
 
-            drop(cam);
-            drop(encode_options);
+        std::thread::sleep(std::time::Duration::from_millis(_state.delay));
 
-            ctx.set_state(handle); //storing new state
+        drop(cam);
+        drop(encode_options);
 
+        ctx.set_state(handle); //storing new state
 
-            Ok(results)
-        }
-
+        Ok(results)
+    }
 }
 
-
 impl SourceTrait for CameraSource {
-
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun> {
         match ctx.mode {
             0 => Box::new(Self::run_1),

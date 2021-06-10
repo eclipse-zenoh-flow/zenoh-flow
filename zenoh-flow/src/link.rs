@@ -75,8 +75,9 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
 
     pub fn recv(
         &mut self,
-    ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFResult<(ZFLinkId, Arc<T>)>> + '_ + Send + Sync>>
-    {
+    ) -> ::core::pin::Pin<
+        Box<dyn std::future::Future<Output = ZFResult<(ZFLinkId, Arc<T>)>> + '_ + Send + Sync>,
+    > {
         async fn __recv<T>(_self: &mut ZFLinkReceiver<T>) -> ZFResult<(ZFLinkId, Arc<T>)> {
             match &_self.last_message {
                 Some(message) => {

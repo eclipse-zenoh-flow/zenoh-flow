@@ -84,7 +84,7 @@ impl OperatorTrait for ZFOperatorProxy {
         self.operator.get_run(ctx)
     }
 
-    fn get_state(&self) -> Box<dyn StateTrait> {
+    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
         self.operator.get_state()
     }
 }
@@ -113,18 +113,17 @@ impl ZFOperatorRegistrarTrait for ZFOperatorRegistrar {
     }
 }
 
-
 pub enum ZFOperatorRunner {
     Dynamic(ZFOperatorRunnerDynamic),
     Static(ZFOperatorRunnerStatic),
 }
 
 impl ZFOperatorRunner {
-    pub fn new_dynamic(operator: ZFOperatorProxy, lib: Arc<Library>) -> Self{
+    pub fn new_dynamic(operator: ZFOperatorProxy, lib: Arc<Library>) -> Self {
         Self::Dynamic(ZFOperatorRunnerDynamic::new(operator, lib))
     }
 
-    pub fn new_static(operator: Box<dyn OperatorTrait + Send>) -> Self{
+    pub fn new_static(operator: Box<dyn OperatorTrait + Send>) -> Self {
         Self::Static(ZFOperatorRunnerStatic::new(operator))
     }
 
@@ -149,7 +148,6 @@ impl ZFOperatorRunner {
         }
     }
 }
-
 
 pub struct ZFOperatorRunnerDynamic {
     pub operator: ZFOperatorProxy,
@@ -182,7 +180,7 @@ impl ZFOperatorRunnerDynamic {
         // WIP empty context
         let mut ctx = ZFContext {
             mode: 0,
-            state: Some(self.operator.get_state()),
+            state: self.operator.get_state(),
         };
 
         loop {
@@ -310,7 +308,7 @@ impl ZFOperatorRunnerStatic {
         // WIP empty context
         let mut ctx = ZFContext {
             mode: 0,
-            state: Some(self.operator.get_state()),
+            state: self.operator.get_state(),
         };
 
         loop {
@@ -483,18 +481,17 @@ impl ZFSourceRegistrarTrait for ZFSourceRegistrar {
     }
 }
 
-
 pub enum ZFSourceRunner {
     Dynamic(ZFSourceRunnerDynamic),
     Static(ZFSourceRunnerStatic),
 }
 
 impl ZFSourceRunner {
-    pub fn new_dynamic(operator: ZFSourceProxy, lib: Arc<Library>) -> Self{
+    pub fn new_dynamic(operator: ZFSourceProxy, lib: Arc<Library>) -> Self {
         Self::Dynamic(ZFSourceRunnerDynamic::new(operator, lib))
     }
 
-    pub fn new_static(operator: Box<dyn SourceTrait + Send>) -> Self{
+    pub fn new_static(operator: Box<dyn SourceTrait + Send>) -> Self {
         Self::Static(ZFSourceRunnerStatic::new(operator))
     }
 
@@ -642,7 +639,6 @@ impl SinkTrait for ZFSinkProxy {
     fn get_state(&self) -> Option<Box<dyn StateTrait>> {
         self.operator.get_state()
     }
-
 }
 
 pub struct ZFSinkRegistrar {
@@ -669,18 +665,17 @@ impl ZFSinkRegistrarTrait for ZFSinkRegistrar {
     }
 }
 
-
 pub enum ZFSinkRunner {
     Dynamic(ZFSinkRunnerDynamic),
     Static(ZFSinkRunnerStatic),
 }
 
 impl ZFSinkRunner {
-    pub fn new_dynamic(operator: ZFSinkProxy, lib: Arc<Library>) -> Self{
+    pub fn new_dynamic(operator: ZFSinkProxy, lib: Arc<Library>) -> Self {
         Self::Dynamic(ZFSinkRunnerDynamic::new(operator, lib))
     }
 
-    pub fn new_static(operator: Box<dyn SinkTrait + Send>) -> Self{
+    pub fn new_static(operator: Box<dyn SinkTrait + Send>) -> Self {
         Self::Static(ZFSinkRunnerStatic::new(operator))
     }
 
@@ -698,7 +693,6 @@ impl ZFSinkRunner {
         }
     }
 }
-
 
 pub struct ZFSinkRunnerDynamic {
     pub operator: ZFSinkProxy,
@@ -807,7 +801,6 @@ impl ZFSinkRunnerDynamic {
         }
     }
 }
-
 
 pub struct ZFSinkRunnerStatic {
     pub operator: Box<dyn SinkTrait + Send>,

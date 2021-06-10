@@ -12,6 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use zenoh_flow::message::ZFMessage;
 use zenoh_flow::operator::{DataTrait, StateTrait};
@@ -22,7 +23,6 @@ use zenoh_flow::types::{Token, ZFContext, ZFError, ZFLinkId};
 use zenoh_flow::zenoh_flow_macros::ZFState;
 use zenoh_flow::{downcast_mut, get_input};
 use zenoh_flow_examples::RandomData;
-use serde::{Deserialize, Serialize};
 
 use async_std::sync::Arc;
 
@@ -63,8 +63,6 @@ impl SumAndSend {
 
         let mut handle = ctx.take_state().unwrap(); //getting state, rename take
         let mut _state = downcast_mut!(SumAndSendState, handle).unwrap(); //downcasting to right type
-
-
 
         let data = get_input!(RandomData, 0, inputs)?;
 
@@ -113,8 +111,8 @@ impl OperatorTrait for SumAndSend {
         }
     }
 
-    fn get_state(&self) -> Box<dyn StateTrait> {
-        Box::new(self.state.clone())
+    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
+        Some(Box::new(self.state.clone()))
     }
 }
 

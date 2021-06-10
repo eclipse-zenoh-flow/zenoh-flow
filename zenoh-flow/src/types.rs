@@ -95,7 +95,6 @@ pub type ZFSinkResult = Result<(), ZFError>;
 pub type ZFSinkRun =
     dyn Fn(&mut ZFContext, Vec<&ZFMessage>) -> ZFSinkResult + Send + Sync + 'static; // This should be a future, Sinks can do I/O
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkDescription {
     pub id: ZFOperatorId,
