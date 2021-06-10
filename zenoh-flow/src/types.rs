@@ -30,6 +30,11 @@ pub enum ZFError {
     GenericError,
     SerializationError,
     DeseralizationError,
+    MissingState,
+    InvalidState,
+    PortIdNotMatching((ZFLinkId, ZFLinkId)),
+    OperatorNotFound(ZFOperatorId),
+    PortNotFound((ZFOperatorId, ZFLinkId)),
     RecvError(flume::RecvError),
     SendError(String),
     MissingInput(ZFLinkId),
@@ -58,12 +63,14 @@ impl ZFContext {
     pub fn set_state(&mut self, state: Box<dyn StateTrait>) {
         self.state = Some(state);
     }
-    // get returns not mutable
-    pub fn get_state(&mut self) -> Box<dyn StateTrait> {
-        self.state.take().unwrap()
+
+    pub fn take_state(&mut self) -> Option<Box<dyn StateTrait>> {
+        self.state.take()
     }
 
-    //take returns mutable
+    pub fn get_state(&self) -> Option<&Box<dyn StateTrait>> {
+        self.state.as_ref()
+    }
 }
 
 pub type ZFResult<T> = Result<T, ZFError>;
@@ -88,13 +95,6 @@ pub type ZFSinkResult = Result<(), ZFError>;
 pub type ZFSinkRun =
     dyn Fn(&mut ZFContext, Vec<&ZFMessage>) -> ZFSinkResult + Send + Sync + 'static; // This should be a future, Sinks can do I/O
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum ZFOperatorKind {
-    Source,
-    Sink,
-    Compute,
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkDescription {

@@ -20,7 +20,7 @@ use zenoh_flow::operator::{
 };
 use zenoh_flow::types::{Token, ZFContext, ZFError, ZFLinkId};
 use zenoh_flow::zenoh_flow_macros::ZFState;
-use zenoh_flow::{downcast, downcast_mut, get_input};
+use zenoh_flow::{downcast_mut, get_input};
 use zenoh_flow_examples::RandomData;
 use serde::{Deserialize, Serialize};
 
@@ -58,8 +58,11 @@ impl SumAndSend {
 
     pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
-        let mut state = ctx.get_state(); //getting state, rename take
-        let mut _state = downcast_mut!(SumAndSendState, state).unwrap(); //downcasting to right type
+
+        // let (handle, mut _state) = take_state!(SumAndSendState, ctx)?;
+
+        let mut handle = ctx.take_state().unwrap(); //getting state, rename take
+        let mut _state = downcast_mut!(SumAndSendState, handle).unwrap(); //downcasting to right type
 
 
 
@@ -69,7 +72,7 @@ impl SumAndSend {
         let res = RandomData { d: res };
         _state.x = res.clone();
 
-        ctx.set_state(state); //storing new state
+        ctx.set_state(handle); //storing new state
 
         results.insert(1, Arc::new(res));
         Ok(results)

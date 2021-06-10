@@ -25,7 +25,7 @@ use crate::loader::{
 };
 use crate::message::ZFMessage;
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{ZFLinkId, ZFResult};
+use crate::types::{ZFLinkId, ZFResult, ZFError};
 use crate::{
     ZFConnection, ZFOperatorDescription, ZFOperatorId, ZFSinkDescription, ZFSourceDescription,
 };
@@ -251,6 +251,89 @@ impl DataFlowGraph {
             "{}",
             Dot::with_config(&self.graph, &[Config::EdgeNoLabel])
         ))
+    }
+
+
+    pub fn add_static_operator(&mut self, id : ZFOperatorId, name: String, inputs : Vec<ZFLinkId>, outputs : Vec<ZFLinkId>,  operator : Box<dyn crate::operator::OperatorTrait + Send>) -> ZFResult<()> {
+        let descriptor = ZFOperatorDescription{
+            id : id.clone(),
+            name,
+            inputs,
+            outputs,
+            lib : "".to_string()
+        };
+        self.operators.push((
+            self.graph.add_node(DataFlowNode::Operator(descriptor.clone())),
+            DataFlowNode::Operator(descriptor),
+        ));
+        let runner = Runner::Operator(crate::loader::ZFOperatorRunner::new_static(operator));
+        self.operators_runners.insert(id, Arc::new(Mutex::new(runner)));
+        Ok(())
+    }
+
+    pub fn add_static_source(&mut self, id : ZFOperatorId, name: String, outputs : Vec<ZFLinkId>,  source : Box<dyn crate::operator::SourceTrait + Send>) -> ZFResult<()> {
+        let descriptor = ZFSourceDescription{
+            id : id.clone(),
+            name,
+            outputs,
+            lib : "".to_string()
+        };
+        self.operators.push((
+            self.graph.add_node(DataFlowNode::Source(descriptor.clone())),
+            DataFlowNode::Source(descriptor),
+        ));
+        let runner = Runner::Source(crate::loader::ZFSourceRunner::new_static(source));
+        self.operators_runners.insert(id, Arc::new(Mutex::new(runner)));
+        Ok(())
+    }
+
+    pub fn add_static_sink(&mut self, id : ZFOperatorId, name: String, inputs : Vec<ZFLinkId>, sink : Box<dyn crate::operator::SinkTrait + Send>) -> ZFResult<()> {
+        let descriptor = ZFSinkDescription{
+            id : id.clone(),
+            name,
+            inputs,
+            lib : "".to_string()
+        };
+        self.operators.push((
+            self.graph.add_node(DataFlowNode::Sink(descriptor.clone())),
+            DataFlowNode::Sink(descriptor),
+        ));
+        let runner = Runner::Sink(crate::loader::ZFSinkRunner::new_static(sink));
+        self.operators_runners.insert(id, Arc::new(Mutex::new(runner)));
+        Ok(())
+    }
+
+    pub fn add_link(&mut self, from : (ZFOperatorId,ZFLinkId), to: (ZFOperatorId, ZFLinkId)) -> ZFResult<()> {
+        let connection = ZFConnection {
+            from,
+            to,
+        };
+
+        if connection.from.1 == connection.to.1 {
+            let from_index =
+                match self.operators.iter().find(|&(_, o)| o.get_id() == connection.from.0) {
+                    Some((idx, op)) => match op.has_output(connection.from.1) {
+                        true => idx,
+                        false => return Err(ZFError::PortNotFound((connection.from.0, connection.from.1))),
+                    },
+                    None => return Err(ZFError::OperatorNotFound(connection.from.0)),
+                };
+
+            let to_index = match self.operators.iter().find(|&(_, o)| o.get_id() == connection.to.0) {
+                Some((idx, op)) => match op.has_input(connection.to.1) {
+                    true => idx,
+                    false => return Err(ZFError::PortNotFound((connection.to.0, connection.to.1))),
+                },
+                None => return Err(ZFError::OperatorNotFound(connection.to.0)),
+            };
+
+            self.connections.push((self.graph.add_edge(*from_index, *to_index, 1), connection));
+        } else {
+            return Err(ZFError::PortIdNotMatching((connection.from.1, connection.to.1)))
+        }
+
+
+        Ok(())
     }
 
     pub fn load(&mut self) -> std::io::Result<()> {

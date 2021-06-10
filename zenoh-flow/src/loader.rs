@@ -52,7 +52,7 @@ pub unsafe fn load_operator(path: String) -> Result<(ZFOperatorId, ZFOperatorRun
 
     let (operator_id, proxy) = registrar.operator.unwrap();
 
-    let runner = ZFOperatorRunner::new(proxy, library);
+    let runner = ZFOperatorRunner::new_dynamic(proxy, library);
     Ok((operator_id, runner))
 }
 
@@ -113,7 +113,45 @@ impl ZFOperatorRegistrarTrait for ZFOperatorRegistrar {
     }
 }
 
-pub struct ZFOperatorRunner {
+
+pub enum ZFOperatorRunner {
+    Dynamic(ZFOperatorRunnerDynamic),
+    Static(ZFOperatorRunnerStatic),
+}
+
+impl ZFOperatorRunner {
+    pub fn new_dynamic(operator: ZFOperatorProxy, lib: Arc<Library>) -> Self{
+        Self::Dynamic(ZFOperatorRunnerDynamic::new(operator, lib))
+    }
+
+    pub fn new_static(operator: Box<dyn OperatorTrait + Send>) -> Self{
+        Self::Static(ZFOperatorRunnerStatic::new(operator))
+    }
+
+    pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>) {
+        match self {
+            ZFOperatorRunner::Dynamic(dyn_op) => dyn_op.add_input(input),
+            ZFOperatorRunner::Static(sta_op) => sta_op.add_input(input),
+        }
+    }
+
+    pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {
+        match self {
+            ZFOperatorRunner::Dynamic(dyn_op) => dyn_op.add_output(output),
+            ZFOperatorRunner::Static(sta_op) => sta_op.add_output(output),
+        }
+    }
+
+    pub async fn run(&mut self) -> ZFResult<()> {
+        match self {
+            ZFOperatorRunner::Dynamic(dyn_op) => dyn_op.run().await,
+            ZFOperatorRunner::Static(sta_op) => sta_op.run().await,
+        }
+    }
+}
+
+
+pub struct ZFOperatorRunnerDynamic {
     pub operator: ZFOperatorProxy,
     pub lib: Arc<Library>,
     pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
@@ -121,7 +159,7 @@ pub struct ZFOperatorRunner {
     // pub kind: OperatorKind,
 }
 
-impl ZFOperatorRunner {
+impl ZFOperatorRunnerDynamic {
     pub fn new(operator: ZFOperatorProxy, lib: Arc<Library>) -> Self {
         Self {
             operator,
@@ -245,6 +283,133 @@ impl ZFOperatorRunner {
     }
 }
 
+pub struct ZFOperatorRunnerStatic {
+    pub operator: Box<dyn OperatorTrait + Send>,
+    pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
+    pub outputs: Vec<ZFLinkSender<ZFMessage>>,
+}
+
+impl ZFOperatorRunnerStatic {
+    pub fn new(operator: Box<dyn OperatorTrait + Send>) -> Self {
+        Self {
+            operator,
+            inputs: vec![],
+            outputs: vec![],
+        }
+    }
+
+    pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>) {
+        self.inputs.push(input);
+    }
+
+    pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {
+        self.outputs.push(output);
+    }
+
+    pub async fn run(&mut self) -> ZFResult<()> {
+        // WIP empty context
+        let mut ctx = ZFContext {
+            mode: 0,
+            state: Some(self.operator.get_state()),
+        };
+
+        loop {
+            // we should start from an HashMap with all ZFLinkId and not ready tokens
+            let mut msgs: HashMap<ZFLinkId, Token> = HashMap::new();
+
+            for i in &self.inputs {
+                msgs.insert(i.id(), Token::new_not_ready(0));
+            }
+
+            let ir_fn = self.operator.get_input_rule(&ctx);
+
+            let mut futs = vec![];
+            for rx in self.inputs.iter_mut() {
+                futs.push(rx.recv()); // this should be peek(), but both requires mut
+            }
+
+            // Input
+            while !futs.is_empty() {
+                match future::select_all(futs).await {
+                    //this could be "slow" as suggested by LC
+                    (Ok((id, msg)), _i, remaining) => {
+                        match &msg.msg {
+                            ZFMsg::Data(data_msg) => {
+                                //data message
+                                match data_msg {
+                                    Message::Deserialized(data) => {
+                                        msgs.insert(id, Token::new_ready(0, data.clone()));
+                                    }
+                                    _ => (),
+                                };
+                                match ir_fn(&mut ctx, &mut msgs) {
+                                    Ok(true) => {
+                                        // we can run
+                                        futs = vec![]; // this makes the while loop to end
+                                    }
+                                    Ok(false) => {
+                                        //we cannot run, we should update the list of futures
+                                        futs = remaining;
+                                    }
+                                    Err(_) => {
+                                        // we got an error on the input rules, we should recover/update list of futures
+                                        futs = remaining;
+                                    }
+                                }
+                            }
+                            ZFMsg::Ctrl(_) => {
+                                //control message receiver, we should handle it
+                                futs = remaining;
+                            }
+                        };
+                    }
+                    (Err(e), i, remaining) => {
+                        println!("Link index {:?} has got error {:?}", i, e);
+                        futs = remaining;
+                    }
+                }
+            }
+            drop(futs);
+
+            // Running
+            let run_fn = self.operator.get_run(&ctx);
+            let mut data: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+
+            for (id, v) in msgs {
+                let (d, _) = v.split();
+                data.insert(id, d.unwrap());
+            }
+
+            let outputs = run_fn(&mut ctx, data)?;
+
+            //Output
+            let out_fn = self.operator.get_output_rule(&ctx);
+
+            let out_msgs = out_fn(&mut ctx, outputs)?;
+
+            // Send to Links
+            for (id, zf_msg) in out_msgs {
+                //getting link
+                let tx = self.outputs.iter().find(|&x| x.id() == id).unwrap();
+                //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
+                match zf_msg.msg {
+                    ZFMsg::Data(_) => {
+                        tx.send(zf_msg).await?;
+                    }
+                    ZFMsg::Ctrl(_) => {
+                        // here we process should process control messages (eg. change mode)
+                        //tx.send(zf_msg);
+                    }
+                }
+            }
+
+            // This depends on the Tokens...
+            for rx in self.inputs.iter_mut() {
+                rx.drop()?;
+            }
+        }
+    }
+}
 // SOURCE
 
 pub unsafe fn load_source(path: String) -> Result<(ZFOperatorId, ZFSourceRunner), io::Error> {
@@ -265,7 +430,7 @@ pub unsafe fn load_source(path: String) -> Result<(ZFOperatorId, ZFSourceRunner)
 
     let (operator_id, proxy) = registrar.operator.unwrap();
 
-    let runner = ZFSourceRunner::new(proxy, library);
+    let runner = ZFSourceRunner::new_dynamic(proxy, library);
     Ok((operator_id, runner))
 }
 
@@ -318,17 +483,85 @@ impl ZFSourceRegistrarTrait for ZFSourceRegistrar {
     }
 }
 
-pub struct ZFSourceRunner {
+
+pub enum ZFSourceRunner {
+    Dynamic(ZFSourceRunnerDynamic),
+    Static(ZFSourceRunnerStatic),
+}
+
+impl ZFSourceRunner {
+    pub fn new_dynamic(operator: ZFSourceProxy, lib: Arc<Library>) -> Self{
+        Self::Dynamic(ZFSourceRunnerDynamic::new(operator, lib))
+    }
+
+    pub fn new_static(operator: Box<dyn SourceTrait + Send>) -> Self{
+        Self::Static(ZFSourceRunnerStatic::new(operator))
+    }
+
+    pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {
+        match self {
+            ZFSourceRunner::Dynamic(dyn_op) => dyn_op.add_output(output),
+            ZFSourceRunner::Static(sta_op) => sta_op.add_output(output),
+        }
+    }
+
+    pub async fn run(&mut self) -> ZFResult<()> {
+        match self {
+            ZFSourceRunner::Dynamic(dyn_op) => dyn_op.run().await,
+            ZFSourceRunner::Static(sta_op) => sta_op.run().await,
+        }
+    }
+}
+
+pub struct ZFSourceRunnerDynamic {
     pub operator: ZFSourceProxy,
     pub lib: Arc<Library>,
     pub outputs: Vec<ZFLinkSender<ZFMessage>>,
 }
 
-impl ZFSourceRunner {
+impl ZFSourceRunnerDynamic {
     pub fn new(operator: ZFSourceProxy, lib: Arc<Library>) -> Self {
         Self {
             operator,
             lib,
+            outputs: vec![],
+        }
+    }
+
+    pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {
+        self.outputs.push(output);
+    }
+
+    pub async fn run(&mut self) -> ZFResult<()> {
+        // WIP empty context
+        let mut ctx = ZFContext {
+            mode: 0,
+            state: self.operator.get_state(),
+        };
+
+        loop {
+            // Running
+            let run_fn = self.operator.get_run(&ctx);
+            let outputs = run_fn(&mut ctx)?;
+            // Send to links
+            for (id, data) in outputs {
+                let tx = self.outputs.iter().find(|&x| x.id() == id).unwrap();
+                let msg = Arc::new(ZFMessage::new_deserialized(0, data));
+                tx.send(msg).await?;
+            }
+        }
+    }
+}
+
+pub struct ZFSourceRunnerStatic {
+    pub operator: Box<dyn SourceTrait + Send>,
+    pub outputs: Vec<ZFLinkSender<ZFMessage>>,
+}
+
+impl ZFSourceRunnerStatic {
+    pub fn new(operator: Box<dyn SourceTrait + Send>) -> Self {
+        Self {
+            operator,
             outputs: vec![],
         }
     }
@@ -378,7 +611,7 @@ pub unsafe fn load_sink(path: String) -> Result<(ZFOperatorId, ZFSinkRunner), io
 
     let (operator_id, proxy) = registrar.operator.unwrap();
 
-    let runner = ZFSinkRunner::new(proxy, library);
+    let runner = ZFSinkRunner::new_dynamic(proxy, library);
     Ok((operator_id, runner))
 }
 
@@ -436,17 +669,155 @@ impl ZFSinkRegistrarTrait for ZFSinkRegistrar {
     }
 }
 
-pub struct ZFSinkRunner {
+
+pub enum ZFSinkRunner {
+    Dynamic(ZFSinkRunnerDynamic),
+    Static(ZFSinkRunnerStatic),
+}
+
+impl ZFSinkRunner {
+    pub fn new_dynamic(operator: ZFSinkProxy, lib: Arc<Library>) -> Self{
+        Self::Dynamic(ZFSinkRunnerDynamic::new(operator, lib))
+    }
+
+    pub fn new_static(operator: Box<dyn SinkTrait + Send>) -> Self{
+        Self::Static(ZFSinkRunnerStatic::new(operator))
+    }
+
+    pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>) {
+        match self {
+            ZFSinkRunner::Dynamic(dyn_op) => dyn_op.add_input(input),
+            ZFSinkRunner::Static(sta_op) => sta_op.add_input(input),
+        }
+    }
+
+    pub async fn run(&mut self) -> ZFResult<()> {
+        match self {
+            ZFSinkRunner::Dynamic(dyn_op) => dyn_op.run().await,
+            ZFSinkRunner::Static(sta_op) => sta_op.run().await,
+        }
+    }
+}
+
+
+pub struct ZFSinkRunnerDynamic {
     pub operator: ZFSinkProxy,
     pub lib: Arc<Library>,
     pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
 }
 
-impl ZFSinkRunner {
+impl ZFSinkRunnerDynamic {
     pub fn new(operator: ZFSinkProxy, lib: Arc<Library>) -> Self {
         Self {
             operator,
             lib,
+            inputs: vec![],
+        }
+    }
+
+    pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>) {
+        self.inputs.push(input);
+    }
+
+    pub async fn run(&mut self) -> ZFResult<()> {
+        // WIP empty context
+        let mut ctx = ZFContext {
+            mode: 0,
+            state: self.operator.get_state(),
+        };
+        loop {
+            // we should start from an HashMap with all ZFLinkId and not ready tokens
+            let mut msgs: HashMap<ZFLinkId, Token> = HashMap::new();
+
+            for i in self.inputs.iter() {
+                msgs.insert(i.id(), Token::new_not_ready(0));
+            }
+
+            let ir_fn = self.operator.get_input_rule(&ctx);
+
+            let mut futs = vec![];
+            for rx in self.inputs.iter_mut() {
+                futs.push(rx.recv()); // this should be peek(), but both requires mut
+            }
+
+            // Input
+            while !futs.is_empty() {
+                match future::select_all(futs).await {
+                    //this could be "slow" as suggested by LC
+                    (Ok((id, msg)), _i, remaining) => {
+                        //println!("Received from link {:?} -> {:?}", id, msg);
+                        match &msg.msg {
+                            ZFMsg::Data(data_msg) => {
+                                //data message
+                                match data_msg {
+                                    Message::Deserialized(data) => {
+                                        msgs.insert(id, Token::new_ready(0, data.clone()));
+                                    }
+                                    _ => (),
+                                };
+                                match ir_fn(&mut ctx, &mut msgs) {
+                                    Ok(true) => {
+                                        // we can run
+                                        futs = vec![]; // this makes the while loop to end
+                                    }
+                                    Ok(false) => {
+                                        //we cannot run, we should update the list of futures
+                                        futs = remaining;
+                                        //()
+                                    }
+                                    Err(err) => {
+                                        // we got an error on the input rules, we should recover/update list of futures
+                                        println!("Got error from IR: {:?}", err);
+                                        futs = remaining;
+                                        //()
+                                    }
+                                }
+                            }
+                            ZFMsg::Ctrl(_) => {
+                                //control message receiver, we should handle it
+                                futs = remaining;
+                                //()
+                            }
+                        };
+                    }
+                    (Err(e), i, remaining) => {
+                        println!("Link index {:?} has got error {:?}", i, e);
+                        futs = remaining;
+                        //()
+                    }
+                }
+            }
+            drop(futs);
+
+            // Running
+            let run_fn = self.operator.get_run(&ctx);
+            let mut data: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+
+            for (id, v) in msgs {
+                let (d, _) = v.split();
+                data.insert(id, d.unwrap());
+            }
+
+            let _ = run_fn(&mut ctx, data);
+
+            //This depends on the Tokens...
+            for rx in self.inputs.iter_mut() {
+                rx.drop()?;
+            }
+        }
+    }
+}
+
+
+pub struct ZFSinkRunnerStatic {
+    pub operator: Box<dyn SinkTrait + Send>,
+    pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
+}
+
+impl ZFSinkRunnerStatic {
+    pub fn new(operator: Box<dyn SinkTrait + Send>) -> Self {
+        Self {
+            operator,
             inputs: vec![],
         }
     }
