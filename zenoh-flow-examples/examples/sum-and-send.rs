@@ -20,7 +20,7 @@ use zenoh_flow::operator::{
 };
 use zenoh_flow::types::{Token, ZFContext, ZFError, ZFLinkId};
 use zenoh_flow::zenoh_flow_macros::ZFState;
-use zenoh_flow::{downcast, downcast_mut};
+use zenoh_flow::{downcast, downcast_mut, get_input};
 use zenoh_flow_examples::RandomData;
 use serde::{Deserialize, Serialize};
 
@@ -61,23 +61,18 @@ impl SumAndSend {
         let mut state = ctx.get_state(); //getting state, rename take
         let mut _state = downcast_mut!(SumAndSendState, state).unwrap(); //downcasting to right type
 
-        if let Some(data) = inputs.get(&0) {
-            match downcast!(RandomData, data) {
-                Some(d) => {
-                    let res = _state.x.d + d.d;
-                    let res = RandomData { d: res };
-                    _state.x = res.clone();
 
-                    ctx.set_state(state); //storing new state
 
-                    results.insert(1, Arc::new(res));
-                    Ok(results)
-                }
-                None => Err(ZFError::InvalidData(0)),
-            }
-        } else {
-            Err(ZFError::MissingInput(0))
-        }
+        let data = get_input!(RandomData, 0, inputs)?;
+
+        let res = _state.x.d + data.d;
+        let res = RandomData { d: res };
+        _state.x = res.clone();
+
+        ctx.set_state(state); //storing new state
+
+        results.insert(1, Arc::new(res));
+        Ok(results)
     }
 
     pub fn or_1(

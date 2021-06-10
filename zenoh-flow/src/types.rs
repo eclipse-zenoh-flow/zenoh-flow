@@ -18,7 +18,6 @@ use crate::message::{Message, ZFMessage};
 use crate::operator::{DataTrait, StateTrait};
 
 use async_std::sync::Arc;
-use std::any::Any;
 use std::collections::HashMap;
 
 // Placeholder types

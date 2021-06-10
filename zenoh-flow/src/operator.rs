@@ -86,3 +86,21 @@ macro_rules! downcast_mut {
         $val.as_mut_any().downcast_mut::<$ident>()
     };
 }
+
+
+
+#[macro_export]
+macro_rules! get_input {
+    ($ident : ident, $index : expr, $map : expr) => {
+        match $map.get(&$index) {
+            Some(d) => {
+                match downcast!($ident, d) {
+                    Some(data) => Ok(data),
+                    None => Err(zenoh_flow::types::ZFError::InvalidData($index))
+                }
+
+            }
+            None => Err(zenoh_flow::types::ZFError::MissingInput($index))
+        }
+    }
+}
