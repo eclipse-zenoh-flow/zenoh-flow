@@ -34,6 +34,9 @@ use zenoh_flow_examples::{ZFBytes, ZFOpenCVBytes};
 
 use opencv::{core, highgui, imgproc, objdetect, prelude::*, types, videoio, Result};
 
+static INPUT: &str = "Frame";
+static OUTPUT: &str = "Frame";
+
 #[derive(Debug)]
 struct FaceDetection {
     pub state: FDState,
@@ -70,13 +73,13 @@ impl FaceDetection {
     }
 
     pub fn ir_1(_ctx: &mut ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
-        if let Some(token) = inputs.get(&0) {
+        if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
                 Token::NotReady(_) => Ok(false),
             }
         } else {
-            Err(ZFError::MissingInput(0))
+            Err(ZFError::MissingInput(String::from(INPUT)))
         }
     }
 
@@ -89,7 +92,7 @@ impl FaceDetection {
         let mut face = zf_spin_lock!(_state.face);
         let encode_options = zf_spin_lock!(_state.encode_options);
 
-        let data = get_input!(ZFBytes, 0, inputs).unwrap();
+        let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
         // Decode Image
         let mut frame = opencv::imgcodecs::imdecode(
@@ -155,7 +158,7 @@ impl FaceDetection {
             bytes: buf.to_vec(),
         };
 
-        results.insert(1, Arc::new(data));
+        results.insert(String::from(OUTPUT), Arc::new(data));
 
         drop(face);
 

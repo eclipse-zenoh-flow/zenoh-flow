@@ -35,3 +35,8 @@ pub struct ZFBytes {
 pub struct ZFOpenCVBytes {
     pub bytes: Mutex<RefCell<opencv::types::VectorOfu8>>,
 }
+
+#[derive(Debug, ZFData)]
+pub struct OpenCVMat {
+    pub mat: Mutex<RefCell<opencv::prelude::Mat>>,
+}

@@ -54,6 +54,8 @@ impl std::fmt::Debug for CameraState {
     }
 }
 
+static SOURCE: &str = "Frame";
+
 impl CameraSource {
     fn new() -> Self {
         let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap(); // 0 is the default camera
@@ -106,7 +108,7 @@ impl CameraSource {
             bytes: buf.to_vec(),
         };
 
-        results.insert(0, Arc::new(data));
+        results.insert(String::from(SOURCE), Arc::new(data));
 
         std::thread::sleep(std::time::Duration::from_millis(_state.delay));
 

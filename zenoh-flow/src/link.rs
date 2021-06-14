@@ -49,12 +49,12 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
     {
         async fn __peek<T>(_self: &mut ZFLinkReceiver<T>) -> ZFResult<(ZFLinkId, Arc<T>)> {
             match &_self.last_message {
-                Some(message) => Ok((_self.id, message.clone())),
+                Some(message) => Ok((_self.id.clone(), message.clone())),
                 None => {
                     let last_message = _self.receiver.recv_async().await?;
                     _self.last_message = Some(last_message.clone());
 
-                    Ok((_self.id, last_message))
+                    Ok((_self.id.clone(), last_message))
                 }
             }
         }
@@ -84,9 +84,9 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
                     let msg = message.clone();
                     _self.last_message = None;
 
-                    Ok((_self.id, msg))
+                    Ok((_self.id.clone(), msg))
                 }
-                None => Ok((_self.id, _self.receiver.recv_async().await?)),
+                None => Ok((_self.id.clone(), _self.receiver.recv_async().await?)),
             }
         }
 
@@ -99,7 +99,7 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
     }
 
     pub fn id(&self) -> ZFLinkId {
-        self.id
+        self.id.clone()
     }
 }
 
@@ -121,14 +121,17 @@ impl<T> ZFLinkSender<T> {
     }
 
     pub fn id(&self) -> ZFLinkId {
-        self.id
+        self.id.clone()
     }
 }
 
 pub fn link<T>(capacity: usize, id: ZFLinkId) -> (ZFLinkSender<T>, ZFLinkReceiver<T>) {
     let (sender, receiver) = flume::bounded(capacity);
     (
-        ZFLinkSender { id, sender },
+        ZFLinkSender {
+            id: id.clone(),
+            sender,
+        },
         ZFLinkReceiver {
             id,
             receiver,

@@ -22,8 +22,10 @@ use std::collections::HashMap;
 
 // Placeholder types
 pub type ZFOperatorId = String;
+
+pub type ZFOperatorName = String;
 pub type ZFTimestamp = u128;
-pub type ZFLinkId = u128;
+pub type ZFLinkId = String;
 
 #[derive(Debug)]
 pub enum ZFError {
@@ -33,8 +35,8 @@ pub enum ZFError {
     MissingState,
     InvalidState,
     PortIdNotMatching((ZFLinkId, ZFLinkId)),
-    OperatorNotFound(ZFOperatorId),
-    PortNotFound((ZFOperatorId, ZFLinkId)),
+    OperatorNotFound(ZFOperatorName),
+    PortNotFound((ZFOperatorName, ZFLinkId)),
     RecvError(flume::RecvError),
     SendError(String),
     MissingInput(ZFLinkId),
@@ -71,6 +73,12 @@ impl ZFContext {
     pub fn get_state(&self) -> Option<&Box<dyn StateTrait>> {
         self.state.as_ref()
     }
+
+    // pub fn get_state(&self) -> & {
+    //     self.state.as_ref().unwrap() //getting state
+    //     // crate::downcast!(T, self.state.as_ref().unwrap()).unwrap() //downcasting to right type
+
+    // }
 }
 
 pub type ZFResult<T> = Result<T, ZFError>;
@@ -98,50 +106,62 @@ pub type ZFSinkRun =
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkDescription {
     pub id: ZFOperatorId,
-    pub name: String,
-    pub inputs: Vec<ZFLinkId>,
-    pub lib: String,
+    pub name: ZFOperatorName,
+    pub input: ZFLinkId,
+    pub lib: Option<String>,
+    pub configuration: Option<HashMap<String, String>>,
 }
 
 impl std::fmt::Display for ZFSinkDescription {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} - Kind: Sink", self.id)
+        write!(f, "{} - {} - Kind: Sink", self.id, self.name)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSourceDescription {
     pub id: ZFOperatorId,
-    pub name: String,
-    pub outputs: Vec<ZFLinkId>,
-    pub lib: String,
+    pub name: ZFOperatorName,
+    pub output: ZFLinkId,
+    pub lib: Option<String>,
+    pub configuration: Option<HashMap<String, String>>,
 }
 
 impl std::fmt::Display for ZFSourceDescription {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} - Kind: Source", self.id)
+        write!(f, "{} - {} - Kind: Source", self.id, self.name)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFOperatorDescription {
     pub id: ZFOperatorId,
-    pub name: String,
+    pub name: ZFOperatorName,
     pub inputs: Vec<ZFLinkId>,
     pub outputs: Vec<ZFLinkId>,
-    pub lib: String,
+    pub lib: Option<String>,
+    pub configuration: Option<HashMap<String, String>>,
 }
 
 impl std::fmt::Display for ZFOperatorDescription {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} - Kind: Operator", self.id)
+        write!(f, "{} - {} - Kind: Operator", self.id, self.name)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZFConnectionEndpoint {
+    pub name: ZFOperatorName,
+    pub port: ZFLinkId,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFConnection {
-    pub from: (ZFOperatorId, ZFLinkId),
-    pub to: (ZFOperatorId, ZFLinkId),
+    pub from: ZFConnectionEndpoint,
+    pub to: ZFConnectionEndpoint,
+    pub size: Option<usize>,
+    pub queueing_policy: Option<String>,
+    pub priority: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

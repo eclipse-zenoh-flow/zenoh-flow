@@ -21,13 +21,15 @@ use zenoh_flow::{
     downcast, downcast_mut, get_input,
     operator::{DataTrait, FnInputRule, FnSinkRun, InputRuleResult, SinkTrait, StateTrait},
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFLinkId},
+    types::{Token, ZFContext, ZFLinkId, ZFError},
     zenoh_flow_macros::ZFState,
     zf_spin_lock,
 };
 use zenoh_flow_examples::{ZFBytes, ZFOpenCVBytes};
 
 use opencv::{highgui, prelude::*};
+
+static INPUT: &str = "Frame";
 
 #[derive(Debug)]
 struct VideoSink {
@@ -52,8 +54,15 @@ impl VideoSink {
         Self {}
     }
 
-    pub fn ir_1(_ctx: &mut ZFContext, _inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
-        Ok(true)
+    pub fn ir_1(_ctx: &mut ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+        if let Some(token) = inputs.get(INPUT) {
+            match token {
+                Token::Ready(_) => Ok(true),
+                Token::NotReady(_) => Ok(false),
+            }
+        } else {
+            Err(ZFError::MissingInput(String::from(INPUT)))
+        }
     }
 
     pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> () {
@@ -63,7 +72,7 @@ impl VideoSink {
 
         let window_name = &format!("Video-Sink");
 
-        let data = get_input!(ZFBytes, 1, inputs).unwrap();
+        let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
         // let data = (zf_spin_lock!(d.bytes)).try_borrow().unwrap().to_owned();
 

@@ -18,7 +18,7 @@ use zenoh_flow::{
     downcast, get_input,
     operator::{DataTrait, FnInputRule, FnSinkRun, InputRuleResult, SinkTrait, StateTrait},
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFLinkId},
+    types::{Token, ZFContext, ZFError, ZFLinkId},
     zenoh_flow_macros::ZFState,
 };
 
@@ -27,6 +27,8 @@ use zenoh_flow_examples::ZFBytes;
 use zenoh::net::config;
 use zenoh::net::{open, Session};
 use zenoh::ZFuture;
+
+static INPUT: &str = "Frame";
 
 #[derive(Debug)]
 struct ExampleGenericZenohSink {
@@ -47,22 +49,29 @@ impl ExampleGenericZenohSink {
         }
     }
 
-    pub fn ir_1(_ctx: &mut ZFContext, _inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
-        Ok(true)
+    pub fn ir_1(_ctx: &mut ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+        if let Some(token) = inputs.get(INPUT) {
+            match token {
+                Token::Ready(_) => Ok(true),
+                Token::NotReady(_) => Ok(false),
+            }
+        } else {
+            Err(ZFError::MissingInput(String::from(INPUT)))
+        }
     }
 
     pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) {
         let state = ctx.get_state().unwrap(); //getting state,
         let _state = downcast!(ZSinkState, state).unwrap(); //downcasting to right type
-        for (k, v) in inputs.into_iter() {
-            let path = format!("/zf/probe/{}", k);
-            let data = downcast!(ZFBytes, v).unwrap();
-            _state
-                .session
-                .write(&path.into(), data.bytes.clone().into())
-                .wait()
-                .unwrap();
-        }
+
+        let path = format!("/zf/probe/{}", String::from(INPUT));
+        let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+
+        _state
+            .session
+            .write(&path.into(), data.bytes.clone().into())
+            .wait()
+            .unwrap();
     }
 }
 

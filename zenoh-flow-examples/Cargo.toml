@@ -52,7 +52,7 @@ name = "example-generic-sink"
 crate-type = ["cdylib"]
 
 [[example]]
-name = "example-generic-zenoh-sink"
+name = "zenoh-sink"
 crate-type = ["cdylib"]
 
 [[example]]
