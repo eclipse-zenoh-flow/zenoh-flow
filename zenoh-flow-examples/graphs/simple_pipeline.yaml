@@ -1,21 +1,30 @@
+flow: SimplePipeline
 operators:
   - id : sum
     name : SumOperator
     lib: ./target/debug/examples/libsum_and_send.dylib
-    inputs: [0]
-    outputs: [1]
+    inputs: [Number]
+    outputs: [Number]
 sources:
   - id : sender
-    name : SenderOperator
-    lib: ./target/debug/examples/libexample_random_source.dylib
-    outputs: [0]
+    name : Counter
+    lib: ./target/debug/examples/libcounter_source.dylib
+    output: Number
 sinks:
   - id : receiver
-    name : ReceiverOperator
-    lib: ./target/debug/examples/libexample_generic_sink.dylib
-    inputs: [1]
-connections:
-  - from: [sender, 0]
-    to: [sum, 0]
-  - from: [sum, 1]
-    to: [receiver, 1]
+    name : PrintSink
+    lib: ./target/debug/examples/libgeneric_sink.dylib
+    input: Number
+links:
+- from:
+    name : Counter
+    port : Number
+  to:
+    name : SumOperator
+    port : Number
+- from:
+    name : SumOperator
+    port : Number
+  to:
+    name : PrintSink
+    port : Number

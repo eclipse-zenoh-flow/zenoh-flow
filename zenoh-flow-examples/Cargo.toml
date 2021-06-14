@@ -24,10 +24,6 @@ zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" 
 
 
 [[example]]
-name = "example-op"
-crate-type = ["cdylib"]
-
-[[example]]
 name = "example-source"
 crate-type = ["cdylib"]
 
@@ -44,11 +40,15 @@ name = "example-buzz"
 crate-type = ["cdylib"]
 
 [[example]]
-name = "example-random-source"
+name = "random-source"
 crate-type = ["cdylib"]
 
 [[example]]
-name = "example-generic-sink"
+name = "counter-source"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "generic-sink"
 crate-type = ["cdylib"]
 
 [[example]]
@@ -74,9 +74,6 @@ crate-type = ["cdylib"]
 
 [[example]]
 name = "example-select"
-
-[[example]]
-name = "capture"
 
 
 [[example]]

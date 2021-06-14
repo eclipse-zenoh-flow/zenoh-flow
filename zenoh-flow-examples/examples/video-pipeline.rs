@@ -25,13 +25,16 @@ use zenoh_flow::{
         SourceTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFLinkId},
+    types::{Token, ZFConnectionEndpoint, ZFContext, ZFError, ZFLinkId},
     zenoh_flow_macros::ZFState,
     zf_spin_lock,
 };
 use zenoh_flow_examples::ZFBytes;
 
 use opencv::{core, highgui, prelude::*, videoio};
+
+static SOURCE: &str = "Frame";
+static INPUT: &str = "Frame";
 
 #[derive(Debug)]
 struct CameraSource {
@@ -107,7 +110,7 @@ impl CameraSource {
             bytes: buf.to_vec(),
         };
 
-        results.insert(0, Arc::new(data));
+        results.insert(String::from(SOURCE), Arc::new(data));
 
         std::thread::sleep(std::time::Duration::from_millis(_state.delay));
 
@@ -153,15 +156,22 @@ impl VideoSink {
         Self { state }
     }
 
-    pub fn ir_1(_ctx: &mut ZFContext, _inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
-        Ok(true)
+    pub fn ir_1(_ctx: &mut ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+        if let Some(token) = inputs.get(INPUT) {
+            match token {
+                Token::Ready(_) => Ok(true),
+                Token::NotReady(_) => Ok(false),
+            }
+        } else {
+            Err(ZFError::MissingInput(String::from(INPUT)))
+        }
     }
 
     pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> () {
         let state = ctx.get_state().unwrap(); //getting state,
         let _state = downcast!(VideoState, state).unwrap(); //downcasting to right type
 
-        let data = get_input!(ZFBytes, 0, inputs).unwrap();
+        let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
         let decoded = opencv::imgcodecs::imdecode(
             &opencv::types::VectorOfu8::from_iter(data.bytes.clone()),
@@ -208,8 +218,9 @@ async fn main() {
         .add_static_source(
             "camera-source".to_string(),
             "camera".to_string(),
-            vec![0],
+            String::from(SOURCE),
             source,
+            None,
         )
         .unwrap();
 
@@ -217,15 +228,25 @@ async fn main() {
         .add_static_sink(
             "video-sink".to_string(),
             "window".to_string(),
-            vec![0],
+            String::from(INPUT),
             sink,
+            None,
         )
         .unwrap();
 
     zf_graph
         .add_link(
-            ("camera-source".to_string(), 0),
-            ("video-sink".to_string(), 0),
+            ZFConnectionEndpoint {
+                name: "camera".to_string(),
+                port: String::from(SOURCE),
+            },
+            ZFConnectionEndpoint {
+                name: "window".to_string(),
+                port: String::from(INPUT),
+            },
+            None,
+            None,
+            None,
         )
         .unwrap();
 

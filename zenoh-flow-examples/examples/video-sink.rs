@@ -21,7 +21,7 @@ use zenoh_flow::{
     downcast, downcast_mut, get_input,
     operator::{DataTrait, FnInputRule, FnSinkRun, InputRuleResult, SinkTrait, StateTrait},
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFLinkId, ZFError},
+    types::{Token, ZFContext, ZFError, ZFLinkId},
     zenoh_flow_macros::ZFState,
     zf_spin_lock,
 };

@@ -14,6 +14,7 @@
 
 use async_std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use zenoh_flow::{
     operator::{DataTrait, FnSourceRun, RunResult, SourceTrait, StateTrait},
     serde::{Deserialize, Serialize},
@@ -22,22 +23,22 @@ use zenoh_flow::{
 };
 use zenoh_flow_examples::RandomData;
 
-static mut COUNTER: u128 = 0;
+static SOURCE: &str = "Number";
+
+static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Serialize, Deserialize, Debug, ZFState)]
 struct ExampleRandomSource {}
 
 impl ExampleRandomSource {
     fn run_1(_ctx: &mut ZFContext) -> RunResult {
-        unsafe {
-            let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
-            //let mut rng = rand::thread_rng();
-            let d = RandomData { d: COUNTER };
-            results.insert(0, Arc::new(d));
-            std::thread::sleep(std::time::Duration::from_secs(1));
-            COUNTER += 1;
-            Ok(results)
-        }
+        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let d = RandomData {
+            d: COUNTER.fetch_add(1, Ordering::AcqRel),
+        };
+        results.insert(String::from(SOURCE), Arc::new(d));
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        Ok(results)
     }
 }
 

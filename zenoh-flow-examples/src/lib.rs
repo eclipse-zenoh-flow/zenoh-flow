@@ -23,7 +23,7 @@ pub struct ZFEmptyState;
 
 #[derive(Serialize, Deserialize, Debug, Clone, ZFData)]
 pub struct RandomData {
-    pub d: u128,
+    pub d: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, ZFData)]

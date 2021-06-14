@@ -13,7 +13,7 @@ sources:
 sinks:
   - id : zsink
     name : ZSink
-    lib: ./target/debug/examples/libexample_generic_zenoh_sink.dylib
+    lib: ./target/debug/examples/libzenoh_sink.dylib
     input: Frame
 links:
 - from:

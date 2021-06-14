@@ -36,6 +36,9 @@ struct SumAndSendState {
     pub x: RandomData,
 }
 
+static INPUT: &str = "Number";
+static OUTPUT: &str = "Number";
+
 impl SumAndSend {
     pub fn new() -> Self {
         Self {
@@ -46,13 +49,13 @@ impl SumAndSend {
     }
 
     pub fn ir_1(_ctx: &mut ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
-        if let Some(token) = inputs.get(&0) {
+        if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
                 Token::NotReady(_) => Ok(false),
             }
         } else {
-            Err(ZFError::MissingInput(0))
+            Err(ZFError::MissingInput(String::from(INPUT)))
         }
     }
 
@@ -64,7 +67,7 @@ impl SumAndSend {
         let mut handle = ctx.take_state().unwrap(); //getting state, rename take
         let mut _state = downcast_mut!(SumAndSendState, handle).unwrap(); //downcasting to right type
 
-        let data = get_input!(RandomData, 0, inputs)?;
+        let data = get_input!(RandomData, String::from(INPUT), inputs)?;
 
         let res = _state.x.d + data.d;
         let res = RandomData { d: res };
@@ -72,7 +75,7 @@ impl SumAndSend {
 
         ctx.set_state(handle); //storing new state
 
-        results.insert(1, Arc::new(res));
+        results.insert(String::from(OUTPUT), Arc::new(res));
         Ok(results)
     }
 
