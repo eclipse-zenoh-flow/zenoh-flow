@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
 use zenoh_flow::{
-    downcast, export_operator,
+    downcast, export_operator, zf_data, get_input,
     loader::ZFOperatorRegistrarTrait,
     message::ZFMessage,
     operator::{
@@ -50,17 +50,15 @@ impl FizzOperator {
 
         let raw_value = inputs.get(LINK_ID_INPUT_INT).unwrap();
         let mut fizz = ZFString::from("");
-        match downcast!(ZFUsize, raw_value) {
-            Some(zfusize) => {
-                if zfusize.0 % 2 == 0 {
-                    fizz = ZFString::from("Fizz");
-                }
-            }
-            None => return Err(ZFError::InvalidData(String::from(LINK_ID_INPUT_INT))),
+
+        let zfusize = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
+
+        if zfusize.0 % 2 == 0 {
+            fizz = ZFString::from("Fizz");
         }
 
         results.insert(String::from(LINK_ID_OUTPUT_INT), raw_value.clone());
-        results.insert(String::from(LINK_ID_OUTPUT_STR), Arc::new(Box::new(fizz)));
+        results.insert(String::from(LINK_ID_OUTPUT_STR), zf_data!(fizz));
 
         Ok(results)
     }

@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
 use zenoh_flow::{
-    downcast, export_operator,
+    downcast, export_operator, zf_data, get_input,
     loader::ZFOperatorRegistrarTrait,
     message::ZFMessage,
     operator::{
@@ -48,24 +48,15 @@ impl BuzzOperator {
     fn run(_ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
         let mut results = HashMap::<ZFLinkId, Arc<Box<dyn DataTrait>>>::with_capacity(1);
 
-        let raw_value = inputs.get(LINK_ID_INPUT_INT).unwrap();
-        let raw_fizz = inputs.get(LINK_ID_INPUT_STR).unwrap();
+        let mut buzz = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?.clone();
 
-        let mut buzz: ZFString = match downcast!(ZFString, raw_fizz) {
-            Some(fizz_str) => (*fizz_str).clone(),
-            None => return Err(ZFError::InvalidData(String::from(LINK_ID_INPUT_STR))),
-        };
+        let value = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
 
-        match downcast!(ZFUsize, raw_value) {
-            Some(value) => {
-                if value.0 % 3 == 0 {
-                    buzz.0.push_str("Buzz");
-                }
-            }
-            None => return Err(ZFError::InvalidData(String::from(LINK_ID_INPUT_INT))),
+        if value.0 % 3 == 0 {
+            buzz.0.push_str("Buzz");
         }
 
-        results.insert(String::from(LINK_ID_OUTPUT_STR), Arc::new(Box::new(buzz)));
+        results.insert(String::from(LINK_ID_OUTPUT_STR), zf_data!(buzz));
 
         Ok(results)
     }

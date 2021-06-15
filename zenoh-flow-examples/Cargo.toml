@@ -25,13 +25,6 @@ flume = "0.10"
 zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
 serde_json = "1.0"
 
-[[example]]
-name = "example-source"
-crate-type = ["cdylib"]
-
-[[example]]
-name = "example-sink"
-crate-type = ["cdylib"]
 
 [[example]]
 name = "example-fizz"

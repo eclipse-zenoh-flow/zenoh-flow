@@ -17,6 +17,7 @@ use std::{collections::HashMap, io, sync::Arc, usize};
 use zenoh_flow::{
     operator::{DataTrait, FnSourceRun, RunResult, SourceTrait, StateTrait},
     ZFContext, ZFError, ZFLinkId,
+    zf_data,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -41,7 +42,7 @@ impl ManualSource {
 
         results.insert(
             String::from(LINK_ID_INPUT_INT),
-            Arc::new(Box::new(ZFUsize(value))),
+            zf_data!(ZFUsize(value)),
         );
 
         Ok(results)
