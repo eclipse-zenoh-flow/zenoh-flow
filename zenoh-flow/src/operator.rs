@@ -6,12 +6,14 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 //Create a Derive macro for this
+#[typetag::serde(tag = "zf_data_type", content = "value")]
 pub trait DataTrait: Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
 //Create a Derive macro for this
+#[typetag::serde(tag = "zf_state_type", content = "value")]
 pub trait StateTrait: Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;
@@ -30,14 +32,14 @@ pub type FnInputRule = dyn Fn(&mut ZFContext, &mut HashMap<ZFLinkId, Token>) -> 
 
 pub type OutputRuleResult = ZFResult<HashMap<ZFLinkId, Arc<ZFMessage>>>;
 
-pub type FnOutputRule = dyn Fn(&mut ZFContext, HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> OutputRuleResult
+pub type FnOutputRule = dyn Fn(&mut ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> OutputRuleResult
     + Send
     + Sync
     + 'static;
 
-pub type RunResult = ZFResult<HashMap<ZFLinkId, Arc<dyn DataTrait>>>;
+pub type RunResult = ZFResult<HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>>;
 
-pub type FnRun = dyn Fn(&mut ZFContext, HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> RunResult
+pub type FnRun = dyn Fn(&mut ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult
     + Send
     + Sync
     + 'static;
@@ -61,7 +63,7 @@ pub trait SourceTrait {
 }
 
 pub type FnSinkRun =
-    dyn Fn(&mut ZFContext, HashMap<ZFLinkId, Arc<dyn DataTrait>>) + Send + Sync + 'static;
+    dyn Fn(&mut ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) + Send + Sync + 'static;
 
 pub trait SinkTrait {
     fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule>;

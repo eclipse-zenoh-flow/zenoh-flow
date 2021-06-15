@@ -19,7 +19,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
 use zenoh_flow::{
-    downcast, downcast_mut, get_input,
+    downcast, downcast_mut, get_input, zf_data,
     message::ZFMessage,
     operator::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
@@ -42,10 +42,16 @@ struct FaceDetection {
     pub state: FDState,
 }
 
-#[derive(ZFState, Clone)]
-struct FDState {
+#[derive(Clone)]
+struct FDInnerState {
     pub face: Arc<Mutex<objdetect::CascadeClassifier>>,
     pub encode_options: Arc<Mutex<opencv::types::VectorOfi32>>,
+}
+
+#[derive(Serialize, Deserialize, ZFState, Clone)]
+struct FDState {
+    #[serde(skip_serializing, skip_deserializing)]
+    pub inner : Option<FDInnerState>,
 }
 
 // because of opencv
@@ -64,10 +70,11 @@ impl FaceDetection {
         encode_options.push(opencv::imgcodecs::IMWRITE_JPEG_QUALITY);
         encode_options.push(90);
 
-        let state = FDState {
+        let inner = Some(FDInnerState {
             face: Arc::new(Mutex::new(face)),
             encode_options: Arc::new(Mutex::new(encode_options)),
-        };
+        });
+        let state = FDState { inner };
 
         Self { state }
     }
@@ -83,14 +90,16 @@ impl FaceDetection {
         }
     }
 
-    pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+    pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
+        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
         let mut handle = ctx.get_state().unwrap(); //getting state
         let _state = downcast!(FDState, handle).unwrap(); //downcasting to right type
 
-        let mut face = zf_spin_lock!(_state.face);
-        let encode_options = zf_spin_lock!(_state.encode_options);
+        let inner = _state.inner.as_ref().unwrap();
+
+        let mut face = zf_spin_lock!(inner.face);
+        let encode_options = zf_spin_lock!(inner.encode_options);
 
         let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
@@ -158,7 +167,7 @@ impl FaceDetection {
             bytes: buf.to_vec(),
         };
 
-        results.insert(String::from(OUTPUT), Arc::new(data));
+        results.insert(String::from(OUTPUT), zf_data!(data));
 
         drop(face);
 
@@ -167,7 +176,7 @@ impl FaceDetection {
 
     pub fn or_1(
         _ctx: &mut ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
+        outputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
     ) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {

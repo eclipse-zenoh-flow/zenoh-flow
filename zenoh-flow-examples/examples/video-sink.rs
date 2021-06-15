@@ -36,7 +36,7 @@ struct VideoSink {
     // pub state : VideoState,
 }
 
-#[derive(ZFState, Clone, Debug)]
+#[derive(Serialize, Deserialize, ZFState, Clone, Debug)]
 struct VideoState {
     pub window_name: String,
 }
@@ -65,8 +65,8 @@ impl VideoSink {
         }
     }
 
-    pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> () {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+    pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> () {
+        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
         // let mut state = ctx.get_state(); //getting state, rename take
         // let mut _state = downcast_mut!(VideoState, state).unwrap(); //downcasting to right type
 

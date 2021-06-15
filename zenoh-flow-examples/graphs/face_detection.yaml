@@ -18,10 +18,10 @@ sinks: # sources can have only ONE input
 links:
 - from:
     name : Camera0
-    port : Frame
+    port : Frame # Output
   to:
     name : FaceDetection
-    port : Frame
+    port : Frame # Input
 - from:
     name : FaceDetection
     port : Frame

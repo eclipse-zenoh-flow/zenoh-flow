@@ -20,6 +20,7 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{ZFContext, ZFLinkId},
     zenoh_flow_macros::ZFState,
+    zf_data
 };
 use zenoh_flow_examples::RandomData;
 
@@ -28,21 +29,21 @@ static SOURCE: &str = "Number";
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Serialize, Deserialize, Debug, ZFState)]
-struct ExampleRandomSource {}
+struct CountSource {}
 
-impl ExampleRandomSource {
+impl CountSource {
     fn run_1(_ctx: &mut ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
         let d = RandomData {
             d: COUNTER.fetch_add(1, Ordering::AcqRel),
         };
-        results.insert(String::from(SOURCE), Arc::new(d));
+        results.insert(String::from(SOURCE), zf_data!(d));
         std::thread::sleep(std::time::Duration::from_secs(1));
         Ok(results)
     }
 }
 
-impl SourceTrait for ExampleRandomSource {
+impl SourceTrait for CountSource {
     fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun> {
         match ctx.mode {
             0 => Box::new(Self::run_1),
@@ -61,6 +62,6 @@ zenoh_flow::export_source!(register);
 extern "C" fn register(registrar: &mut dyn zenoh_flow::loader::ZFSourceRegistrarTrait) {
     registrar.register_zfsource(
         "sender",
-        Box::new(ExampleRandomSource {}) as Box<dyn zenoh_flow::operator::SourceTrait + Send>,
+        Box::new(CountSource {}) as Box<dyn zenoh_flow::operator::SourceTrait + Send>,
     );
 }

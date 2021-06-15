@@ -22,6 +22,7 @@ pub fn zf_data_derive(input: TokenStream) -> TokenStream {
     let ident = &ast.ident;
     let gen = quote! {
 
+        #[typetag::serde]
         impl zenoh_flow::operator::DataTrait for #ident {
             fn as_any(&self) -> &dyn std::any::Any {
                 self
@@ -41,6 +42,7 @@ pub fn zf_state_derive(input: TokenStream) -> TokenStream {
     let ident = &ast.ident;
     let gen = quote! {
 
+        #[typetag::serde]
         impl zenoh_flow::operator::StateTrait for #ident {
             fn as_any(&self) -> &dyn std::any::Any {
                 self

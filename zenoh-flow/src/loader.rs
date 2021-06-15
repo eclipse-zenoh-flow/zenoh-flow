@@ -243,7 +243,7 @@ impl ZFOperatorRunnerDynamic {
 
             // Running
             let run_fn = self.operator.get_run(&ctx);
-            let mut data: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+            let mut data: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
             for (id, v) in msgs {
                 let (d, _) = v.split();
@@ -371,7 +371,7 @@ impl ZFOperatorRunnerStatic {
 
             // Running
             let run_fn = self.operator.get_run(&ctx);
-            let mut data: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+            let mut data: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
             for (id, v) in msgs {
                 let (d, _) = v.split();
@@ -785,7 +785,7 @@ impl ZFSinkRunnerDynamic {
 
             // Running
             let run_fn = self.operator.get_run(&ctx);
-            let mut data: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+            let mut data: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
             for (id, v) in msgs {
                 let (d, _) = v.split();
@@ -891,7 +891,7 @@ impl ZFSinkRunnerStatic {
 
             // Running
             let run_fn = self.operator.get_run(&ctx);
-            let mut data: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+            let mut data: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
             for (id, v) in msgs {
                 let (d, _) = v.split();

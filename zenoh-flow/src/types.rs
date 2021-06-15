@@ -188,7 +188,7 @@ impl NotReadyToken {
 #[derive(Debug, Clone)]
 pub struct ReadyToken {
     pub ts: ZFTimestamp,
-    pub data: Arc<dyn DataTrait>,
+    pub data: Arc<Box<dyn DataTrait>>,
     pub action: TokenAction,
 }
 
@@ -199,7 +199,7 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn new_ready(ts: ZFTimestamp, data: Arc<dyn DataTrait>) -> Self {
+    pub fn new_ready(ts: ZFTimestamp, data: Arc<Box<dyn DataTrait>>) -> Self {
         Self::Ready(ReadyToken {
             ts,
             data,
@@ -265,7 +265,7 @@ impl Token {
         }
     }
 
-    pub fn data(&self) -> ZFResult<Arc<dyn DataTrait>> {
+    pub fn data(&self) -> ZFResult<Arc<Box<dyn DataTrait>>> {
         match self {
             Self::Ready(ready) => Ok(ready.data.clone()),
             _ => Err(ZFError::GenericError),
@@ -279,7 +279,7 @@ impl Token {
         }
     }
 
-    pub fn split(self) -> (Option<Arc<dyn DataTrait>>, TokenAction) {
+    pub fn split(self) -> (Option<Arc<Box<dyn DataTrait>>>, TokenAction) {
         match self {
             Self::Ready(ready) => (Some(ready.data), ready.action),
             Self::NotReady(_) => (None, TokenAction::Wait),

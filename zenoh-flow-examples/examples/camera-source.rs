@@ -24,7 +24,7 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{ZFContext, ZFLinkId},
     zenoh_flow_macros::ZFState,
-    zf_spin_lock,
+    zf_spin_lock, zf_data,
 };
 use zenoh_flow_examples::{ZFBytes, ZFOpenCVBytes};
 
@@ -35,10 +35,17 @@ struct CameraSource {
     pub state: CameraState,
 }
 
-#[derive(ZFState, Clone)]
-struct CameraState {
+#[derive(Clone)]
+struct InnerCameraAccess {
     pub camera: Arc<Mutex<videoio::VideoCapture>>,
     pub encode_options: Arc<Mutex<opencv::types::VectorOfi32>>,
+}
+
+#[derive(Serialize, Deserialize, ZFState, Clone)]
+struct CameraState {
+    #[serde(skip_serializing, skip_deserializing)]
+    pub inner: Option<InnerCameraAccess>,
+
     pub resolution: (i32, i32),
     pub delay: u64,
 }
@@ -66,9 +73,13 @@ impl CameraSource {
         let mut encode_options = opencv::types::VectorOfi32::new();
         encode_options.push(opencv::imgcodecs::IMWRITE_JPEG_QUALITY);
         encode_options.push(90);
-        let state = CameraState {
+        let inner = InnerCameraAccess {
             camera: Arc::new(Mutex::new(camera)),
             encode_options: Arc::new(Mutex::new(encode_options)),
+        };
+
+        let state = CameraState {
+            inner : Some(inner),
             resolution: (800, 600),
             delay: 40,
         };
@@ -77,13 +88,15 @@ impl CameraSource {
     }
 
     fn run_1(ctx: &mut ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
         let mut handle = ctx.take_state().unwrap(); //take state
         let mut _state = downcast_mut!(CameraState, handle).unwrap(); //downcasting to right type
 
-        let mut cam = zf_spin_lock!(_state.camera);
-        let encode_options = zf_spin_lock!(_state.encode_options);
+        let inner = _state.inner.as_ref().unwrap();
+
+        let mut cam = zf_spin_lock!(inner.camera);
+        let encode_options = zf_spin_lock!(inner.encode_options);
 
         let mut frame = core::Mat::default();
         cam.read(&mut frame).unwrap();
@@ -108,7 +121,7 @@ impl CameraSource {
             bytes: buf.to_vec(),
         };
 
-        results.insert(String::from(SOURCE), Arc::new(data));
+        results.insert(String::from(SOURCE), zf_data!(data));
 
         std::thread::sleep(std::time::Duration::from_millis(_state.delay));
 

@@ -21,6 +21,7 @@ use zenoh_flow::{
     zenoh_flow_macros::ZFState,
 };
 
+
 #[derive(Serialize, Deserialize, Debug, ZFState)]
 struct ExampleGenericSink {}
 
@@ -29,10 +30,10 @@ impl ExampleGenericSink {
         Ok(true)
     }
 
-    pub fn run_1(_ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) {
+    pub fn run_1(_ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) {
         println!("#######");
         for (k, v) in inputs {
-            println!("Example Generic Sink Received on LinkId {:?} -> {:?}", k, v);
+            println!("Example Generic Sink Received on LinkId {:?} -> {:?} - Serialized: {}", k, v, serde_json::to_string(&*v).unwrap());
         }
         println!("#######");
     }

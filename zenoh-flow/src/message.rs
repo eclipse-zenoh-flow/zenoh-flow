@@ -22,7 +22,7 @@ use std::fmt::Debug;
 #[derive(Clone, Debug)]
 pub enum Message {
     Serialized(Vec<u8>),
-    Deserialized(Arc<dyn DataTrait>),
+    Deserialized(Arc<Box<dyn DataTrait>>),
 }
 
 impl Message {
@@ -37,11 +37,11 @@ impl Message {
         }
     }
 
-    pub fn new_deserialized(data: Arc<dyn DataTrait>) -> Self {
+    pub fn new_deserialized(data: Arc<Box<dyn DataTrait>>) -> Self {
         Self::Deserialized(data)
     }
 
-    pub fn deserialized_data(&self) -> Arc<dyn DataTrait> {
+    pub fn deserialized_data(&self) -> Arc<Box<dyn DataTrait>> {
         match self {
             Self::Deserialized(data) => data.clone(),
             _ => panic!(),
@@ -69,14 +69,14 @@ pub struct ZFMessage {
 }
 
 impl ZFMessage {
-    pub fn new_deserialized(ts: u128, data: Arc<dyn DataTrait>) -> Self {
+    pub fn new_deserialized(ts: u128, data: Arc<Box<dyn DataTrait>>) -> Self {
         Self {
             ts,
             msg: ZFMsg::Data(Message::new_deserialized(data)),
         }
     }
 
-    pub fn from_data(data: Arc<dyn DataTrait>) -> Self {
+    pub fn from_data(data: Arc<Box<dyn DataTrait>>) -> Self {
         Self {
             ts: 0, //placeholder
             msg: ZFMsg::Data(Message::new_deserialized(data)),

@@ -35,16 +35,23 @@ struct ExampleGenericZenohSink {
     state: ZSinkState,
 }
 
-#[derive(ZFState, Clone, Debug)]
-struct ZSinkState {
+#[derive(Debug, Clone)]
+struct ZSinkInner {
     session: Arc<Session>,
+}
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, ZFState)]
+struct ZSinkState {
+    #[serde(skip_serializing, skip_deserializing)]
+    inner: Option<ZSinkInner>
 }
 
 impl ExampleGenericZenohSink {
     pub fn new() -> Self {
         Self {
             state: ZSinkState {
-                session: Arc::new(open(config::peer()).wait().unwrap()),
+                inner : Some(ZSinkInner { session: Arc::new(open(config::peer()).wait().unwrap())} ),
             },
         }
     }
@@ -60,14 +67,16 @@ impl ExampleGenericZenohSink {
         }
     }
 
-    pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) {
+    pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) {
         let state = ctx.get_state().unwrap(); //getting state,
         let _state = downcast!(ZSinkState, state).unwrap(); //downcasting to right type
+
+        let inner = _state.inner.as_ref().unwrap();
 
         let path = format!("/zf/probe/{}", String::from(INPUT));
         let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
-        _state
+        inner
             .session
             .write(&path.into(), data.bytes.clone().into())
             .wait()

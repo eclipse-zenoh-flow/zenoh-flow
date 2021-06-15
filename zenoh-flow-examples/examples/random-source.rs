@@ -20,6 +20,7 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{ZFContext, ZFLinkId},
     zenoh_flow_macros::ZFState,
+    zf_data,
 };
 use zenoh_flow_examples::RandomData;
 
@@ -30,12 +31,12 @@ struct ExampleRandomSource {}
 
 impl ExampleRandomSource {
     fn run_1(_ctx: &mut ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
         let mut rng = rand::thread_rng();
         let d = RandomData {
             d: rng.gen::<u64>(),
         };
-        results.insert(String::from(SOURCE), Arc::new(d));
+        results.insert(String::from(SOURCE), zf_data!(d));
         std::thread::sleep(std::time::Duration::from_secs(1));
         Ok(results)
     }

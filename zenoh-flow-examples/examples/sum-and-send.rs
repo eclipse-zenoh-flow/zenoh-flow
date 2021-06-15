@@ -21,7 +21,7 @@ use zenoh_flow::operator::{
 };
 use zenoh_flow::types::{Token, ZFContext, ZFError, ZFLinkId};
 use zenoh_flow::zenoh_flow_macros::ZFState;
-use zenoh_flow::{downcast_mut, get_input};
+use zenoh_flow::{downcast_mut, get_input, zf_data};
 use zenoh_flow_examples::RandomData;
 
 use async_std::sync::Arc;
@@ -59,8 +59,8 @@ impl SumAndSend {
         }
     }
 
-    pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+    pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
+        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
         // let (handle, mut _state) = take_state!(SumAndSendState, ctx)?;
 
@@ -75,13 +75,13 @@ impl SumAndSend {
 
         ctx.set_state(handle); //storing new state
 
-        results.insert(String::from(OUTPUT), Arc::new(res));
+        results.insert(String::from(OUTPUT), zf_data!(res));
         Ok(results)
     }
 
     pub fn or_1(
         _ctx: &mut ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
+        outputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
     ) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {
