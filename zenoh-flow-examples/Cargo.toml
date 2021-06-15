@@ -13,6 +13,7 @@ serde = { version = "1.0.55", features = ["derive"] }
 opencv = "0.53.0"
 async-std = { version = "=1.9.0", features = ["attributes"] }
 typetag = "0.1"
+log = "0.4"
 
 [dev-dependencies]
 rand = "0.8.0"
@@ -57,13 +58,16 @@ name = "zenoh-sink"
 crate-type = ["cdylib"]
 
 [[example]]
+name = "manual-source"
+crate-type = ["cdylib"]
+
+[[example]]
 name = "sum-and-send"
 crate-type = ["cdylib"]
 
 [[example]]
 name = "camera-source"
 crate-type = ["cdylib"]
-
 
 [[example]]
 name = "face-detection"

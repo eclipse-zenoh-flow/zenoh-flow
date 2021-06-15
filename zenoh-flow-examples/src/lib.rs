@@ -5,7 +5,7 @@ use zenoh_flow::zenoh_flow_macros::{ZFData, ZFState};
 // We may want to provide some "built-in" types
 
 #[derive(Debug, Clone, Serialize, Deserialize, ZFData)]
-pub struct ZFString(String);
+pub struct ZFString(pub String);
 
 impl From<String> for ZFString {
     fn from(s: String) -> Self {
@@ -18,6 +18,9 @@ impl From<&str> for ZFString {
         ZFString(s.to_owned())
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, ZFData)]
+pub struct ZFUsize(pub usize);
 
 #[derive(Debug, Clone, Serialize, Deserialize, ZFState)]
 pub struct ZFEmptyState;

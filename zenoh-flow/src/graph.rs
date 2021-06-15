@@ -478,23 +478,30 @@ impl DataFlowGraph {
                 .unwrap()
                 .lock()
                 .await;
+
+            log::debug!("Creating links for:\n\t< {:?} > Operator: {:?}", idx, up_op);
+
             if self.graph.contains_node(*idx) {
                 let mut downstreams = self
                     .graph
                     .neighbors_directed(*idx, Direction::Outgoing)
                     .detach();
-                while let Some(down) = downstreams.next(&self.graph) {
-                    let (_, jdx) = down;
-                    let down_op = match self.operators.iter().find(|&(idx, _)| *idx == jdx) {
+                while let Some((down_edge_index, down_node_index)) = downstreams.next(&self.graph) {
+                    let (_, down_link) = self
+                        .links
+                        .iter()
+                        .find(|&(edge_index, _)| *edge_index == down_edge_index)
+                        .unwrap();
+                    let link_id = down_link.from.port.clone();
+
+                    let down_op = match self
+                        .operators
+                        .iter()
+                        .find(|&(idx, _)| *idx == down_node_index)
+                    {
                         Some((_, op)) => op,
                         None => panic!("To not found"),
                     };
-                    let (_, down_link) = match self.graph.find_edge(*idx, jdx) {
-                        Some(l_idx) => self.links.iter().find(|&(lidx, _)| *lidx == l_idx).unwrap(),
-                        None => panic!("Link between {:?} -> {:?} not found", idx, jdx),
-                    };
-
-                    let link_id = down_link.from.port.clone(); //The check on the link id matching is done when creating the graph
 
                     let mut down_runner = self
                         .operators_runners
@@ -503,6 +510,12 @@ impl DataFlowGraph {
                         .lock()
                         .await;
 
+                    log::debug!(
+                        "\t Creating link between {:?} -> {:?}: {:?}",
+                        idx,
+                        down_node_index,
+                        link_id
+                    );
                     let (tx, rx) = link::<ZFMessage>(1024, link_id);
 
                     up_runner.add_output(tx);

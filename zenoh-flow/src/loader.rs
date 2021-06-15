@@ -36,7 +36,7 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 /// TODO
 pub unsafe fn load_operator(path: String) -> Result<(ZFOperatorId, ZFOperatorRunner), io::Error> {
     // This is unsafe because has to dynamically load a library
-    let library = Arc::new(Library::new(path.clone()).unwrap());
+    let library = Arc::new(Library::new(path).unwrap());
     let decl = library
         .get::<*mut ZFOperatorDeclaration>(b"zfoperator_declaration\0")
         .unwrap()
@@ -201,28 +201,33 @@ impl ZFOperatorRunnerDynamic {
             // Input
             while !futs.is_empty() {
                 match future::select_all(futs).await {
-                    //this could be "slow" as suggested by LC
+                    // this could be "slow" as suggested by LC
                     (Ok((id, msg)), _i, remaining) => {
                         match &msg.msg {
                             ZFMsg::Data(data_msg) => {
                                 //data message
                                 match data_msg {
                                     Message::Deserialized(data) => {
+                                        log::debug!("Channel {:?} received: {:?}", id, data);
                                         msgs.insert(id, Token::new_ready(0, data.clone()));
                                     }
                                     _ => (),
                                 };
+
                                 match ir_fn(&mut ctx, &mut msgs) {
                                     Ok(true) => {
                                         // we can run
+                                        log::debug!("IR: OK");
                                         futs = vec![]; // this makes the while loop to end
                                     }
                                     Ok(false) => {
                                         //we cannot run, we should update the list of futures
+                                        log::debug!("IR: Not OK");
                                         futs = remaining;
                                     }
                                     Err(_) => {
                                         // we got an error on the input rules, we should recover/update list of futures
+                                        log::debug!("IR: received an error");
                                         futs = remaining;
                                     }
                                 }
@@ -234,7 +239,7 @@ impl ZFOperatorRunnerDynamic {
                         };
                     }
                     (Err(e), i, remaining) => {
-                        println!("Link index {:?} has got error {:?}", i, e);
+                        log::debug!("Link index {:?} has got error {:?}", i, e);
                         futs = remaining;
                     }
                 }
@@ -260,6 +265,7 @@ impl ZFOperatorRunnerDynamic {
             // Send to Links
             for (id, zf_msg) in out_msgs {
                 //getting link
+                log::debug!("id: {:?}, zf_msg: {:?}", id, zf_msg);
                 let tx = self.outputs.iter().find(|&x| x.id() == id).unwrap();
                 //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
                 match zf_msg.msg {
@@ -362,7 +368,7 @@ impl ZFOperatorRunnerStatic {
                         };
                     }
                     (Err(e), i, remaining) => {
-                        println!("Link index {:?} has got error {:?}", i, e);
+                        log::debug!("Link index {:?} has got error {:?}", i, e);
                         futs = remaining;
                     }
                 }
@@ -412,7 +418,7 @@ impl ZFOperatorRunnerStatic {
 
 pub unsafe fn load_source(path: String) -> Result<(ZFOperatorId, ZFSourceRunner), io::Error> {
     // This is unsafe because has to dynamically load a library
-    let library = Arc::new(Library::new(path.clone()).unwrap());
+    let library = Arc::new(Library::new(path).unwrap());
     let decl = library
         .get::<*mut ZFSourceDeclaration>(b"zfsource_declaration\0")
         .unwrap()
@@ -592,7 +598,7 @@ impl ZFSourceRunnerStatic {
 
 pub unsafe fn load_sink(path: String) -> Result<(ZFOperatorId, ZFSinkRunner), io::Error> {
     // This is unsafe because has to dynamically load a library
-    let library = Arc::new(Library::new(path.clone()).unwrap());
+    let library = Arc::new(Library::new(path).unwrap());
     let decl = library
         .get::<*mut ZFSinkDeclaration>(b"zfsink_declaration\0")
         .unwrap()
@@ -761,7 +767,7 @@ impl ZFSinkRunnerDynamic {
                                     }
                                     Err(err) => {
                                         // we got an error on the input rules, we should recover/update list of futures
-                                        println!("Got error from IR: {:?}", err);
+                                        log::debug!("Got error from IR: {:?}", err);
                                         futs = remaining;
                                         //()
                                     }
@@ -775,7 +781,7 @@ impl ZFSinkRunnerDynamic {
                         };
                     }
                     (Err(e), i, remaining) => {
-                        println!("Link index {:?} has got error {:?}", i, e);
+                        log::debug!("Link index {:?} has got error {:?}", i, e);
                         futs = remaining;
                         //()
                     }
@@ -867,7 +873,7 @@ impl ZFSinkRunnerStatic {
                                     }
                                     Err(err) => {
                                         // we got an error on the input rules, we should recover/update list of futures
-                                        println!("Got error from IR: {:?}", err);
+                                        log::debug!("Got error from IR: {:?}", err);
                                         futs = remaining;
                                         //()
                                     }
@@ -881,7 +887,7 @@ impl ZFSinkRunnerStatic {
                         };
                     }
                     (Err(e), i, remaining) => {
-                        println!("Link index {:?} has got error {:?}", i, e);
+                        log::debug!("Link index {:?} has got error {:?}", i, e);
                         futs = remaining;
                         //()
                     }

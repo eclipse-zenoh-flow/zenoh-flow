@@ -14,6 +14,7 @@
 
 use async_std::sync::Arc;
 use std::collections::HashMap;
+use zenoh_flow_examples::{ZFString, ZFUsize};
 
 use zenoh_flow::{
     downcast, export_operator,
@@ -23,25 +24,16 @@ use zenoh_flow::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait,
     },
-    Token, ZFContext, ZFEmptyState, ZFError, ZFLinkId, ZFString,
+    Token, ZFContext, ZFError, ZFLinkId,
 };
 
-struct BuzzOperator {
-    pub state: ZFEmptyState,
-}
+struct BuzzOperator;
+
+static LINK_ID_INPUT_INT: &str = "Int";
+static LINK_ID_INPUT_STR: &str = "Str";
+static LINK_ID_OUTPUT_STR: &str = "Str";
 
 impl BuzzOperator {
-    const LINK_ID_INPUT_INT: ZFLinkId = 1;
-    const LINK_ID_INPUT_STR: ZFLinkId = 2;
-
-    const LINK_ID_OUTPUT_STR: ZFLinkId = 3;
-
-    pub fn new() -> Self {
-        Self {
-            state: ZFEmptyState {},
-        }
-    }
-
     fn input_rule(_ctx: &mut ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
         for token in inputs.values() {
             match token {
@@ -53,45 +45,41 @@ impl BuzzOperator {
         Ok(true)
     }
 
-    fn run(_ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> RunResult {
-        let mut results = HashMap::<ZFLinkId, Arc<dyn DataTrait>>::with_capacity(1);
+    fn run(_ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
+        let mut results = HashMap::<ZFLinkId, Arc<Box<dyn DataTrait>>>::with_capacity(1);
 
-        let raw_value = inputs.get(&BuzzOperator::LINK_ID_INPUT_INT).unwrap();
-        let raw_fizz = inputs.get(&BuzzOperator::LINK_ID_INPUT_STR).unwrap();
+        let raw_value = inputs.get(LINK_ID_INPUT_INT).unwrap();
+        let raw_fizz = inputs.get(LINK_ID_INPUT_STR).unwrap();
 
-        let fizz: ZFString = match downcast!(ZFString, raw_fizz) {
+        let mut buzz: ZFString = match downcast!(ZFString, raw_fizz) {
             Some(fizz_str) => (*fizz_str).clone(),
-            None => return Err(ZFError::InvalidData(BuzzOperator::LINK_ID_INPUT_STR)),
+            None => return Err(ZFError::InvalidData(String::from(LINK_ID_INPUT_STR))),
         };
 
-        let mut buzz = ZFString::from("".to_string());
-        match downcast!(u128, raw_value) {
+        match downcast!(ZFUsize, raw_value) {
             Some(value) => {
-                if value % 3 == 0 {
-                    buzz = ZFString::from(format!("{:?}Buzz", fizz));
+                if value.0 % 3 == 0 {
+                    buzz.0.push_str("Buzz");
                 }
             }
-            None => return Err(ZFError::InvalidData(BuzzOperator::LINK_ID_INPUT_INT)),
+            None => return Err(ZFError::InvalidData(String::from(LINK_ID_INPUT_INT))),
         }
 
-        results.insert(BuzzOperator::LINK_ID_OUTPUT_STR, Arc::new(buzz));
+        results.insert(String::from(LINK_ID_OUTPUT_STR), Arc::new(Box::new(buzz)));
 
         Ok(results)
     }
 
     fn output_rule(
         _ctx: &mut ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
+        outputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
     ) -> OutputRuleResult {
         let mut zf_outputs: HashMap<ZFLinkId, Arc<ZFMessage>> = HashMap::with_capacity(1);
 
         zf_outputs.insert(
-            BuzzOperator::LINK_ID_OUTPUT_STR,
+            String::from(LINK_ID_OUTPUT_STR),
             Arc::new(ZFMessage::from_data(
-                outputs
-                    .get(&BuzzOperator::LINK_ID_OUTPUT_STR)
-                    .unwrap()
-                    .clone(),
+                outputs.get(LINK_ID_OUTPUT_STR).unwrap().clone(),
             )),
         );
 
@@ -112,8 +100,8 @@ impl OperatorTrait for BuzzOperator {
         Box::new(BuzzOperator::output_rule)
     }
 
-    fn get_state(&self) -> Box<dyn StateTrait> {
-        Box::new(self.state.clone())
+    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
+        None
     }
 }
 
@@ -121,7 +109,7 @@ export_operator!(register);
 
 extern "C" fn register(registrar: &mut dyn ZFOperatorRegistrarTrait) {
     registrar.register_zfoperator(
-        "fizz",
-        Box::new(BuzzOperator::new()) as Box<dyn OperatorTrait + Send>,
+        "buzz",
+        Box::new(BuzzOperator) as Box<dyn OperatorTrait + Send>,
     )
 }

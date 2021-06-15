@@ -13,6 +13,8 @@ struct Opt {
 }
 #[async_std::main]
 async fn main() {
+    env_logger::init();
+
     let opt = Opt::from_args();
     let yaml_df = fs::read_to_string(opt.graph_file).unwrap();
 

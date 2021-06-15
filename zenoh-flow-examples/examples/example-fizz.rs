@@ -14,6 +14,7 @@
 
 use async_std::sync::Arc;
 use std::collections::HashMap;
+use zenoh_flow_examples::{ZFString, ZFUsize};
 
 use zenoh_flow::{
     downcast, export_operator,
@@ -23,25 +24,16 @@ use zenoh_flow::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait,
     },
-    Token, ZFContext, ZFEmptyState, ZFError, ZFLinkId, ZFString,
+    Token, ZFContext, ZFError, ZFLinkId,
 };
 
-struct FizzOperator {
-    pub state: ZFEmptyState,
-}
+struct FizzOperator;
+
+static LINK_ID_INPUT_INT: &str = "Int";
+static LINK_ID_OUTPUT_INT: &str = "Int";
+static LINK_ID_OUTPUT_STR: &str = "Str";
 
 impl FizzOperator {
-    const LINK_ID_INPUT_INTEGER: ZFLinkId = 0;
-
-    const LINK_ID_OUTPUT_INTEGER: ZFLinkId = 1;
-    const LINK_ID_OUTPUT_STR: ZFLinkId = 2;
-
-    pub fn new() -> Self {
-        Self {
-            state: ZFEmptyState {},
-        }
-    }
-
     fn input_rule(_ctx: &mut ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
         for token in inputs.values() {
             match token {
@@ -53,48 +45,42 @@ impl FizzOperator {
         Ok(true)
     }
 
-    fn run(_ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> RunResult {
-        let mut results = HashMap::<ZFLinkId, Arc<dyn DataTrait>>::with_capacity(2);
+    fn run(_ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
+        let mut results = HashMap::<ZFLinkId, Arc<Box<dyn DataTrait>>>::with_capacity(2);
 
-        let raw_value = inputs.get(&FizzOperator::LINK_ID_INPUT_INTEGER).unwrap();
-        let mut fizz: ZFString = ZFString::from("");
-        match downcast!(u128, raw_value) {
-            Some(value) => {
-                if value % 2 == 0 {
+        let raw_value = inputs.get(LINK_ID_INPUT_INT).unwrap();
+        let mut fizz = ZFString::from("");
+        match downcast!(ZFUsize, raw_value) {
+            Some(zfusize) => {
+                if zfusize.0 % 2 == 0 {
                     fizz = ZFString::from("Fizz");
                 }
             }
-            None => return Err(ZFError::InvalidData(FizzOperator::LINK_ID_INPUT_INTEGER)),
+            None => return Err(ZFError::InvalidData(String::from(LINK_ID_INPUT_INT))),
         }
 
-        results.insert(FizzOperator::LINK_ID_OUTPUT_INTEGER, raw_value.clone());
-        results.insert(FizzOperator::LINK_ID_OUTPUT_STR, Arc::new(fizz));
+        results.insert(String::from(LINK_ID_OUTPUT_INT), raw_value.clone());
+        results.insert(String::from(LINK_ID_OUTPUT_STR), Arc::new(Box::new(fizz)));
 
         Ok(results)
     }
 
     fn output_rule(
         _ctx: &mut ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
+        outputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
     ) -> OutputRuleResult {
         let mut zf_outputs: HashMap<ZFLinkId, Arc<ZFMessage>> = HashMap::with_capacity(2);
 
         zf_outputs.insert(
-            FizzOperator::LINK_ID_OUTPUT_INTEGER,
+            String::from(LINK_ID_OUTPUT_INT),
             Arc::new(ZFMessage::from_data(
-                outputs
-                    .get(&FizzOperator::LINK_ID_OUTPUT_INTEGER)
-                    .unwrap()
-                    .clone(),
+                outputs.get(LINK_ID_OUTPUT_INT).unwrap().clone(),
             )),
         );
         zf_outputs.insert(
-            FizzOperator::LINK_ID_OUTPUT_STR,
+            String::from(LINK_ID_OUTPUT_STR),
             Arc::new(ZFMessage::from_data(
-                outputs
-                    .get(&FizzOperator::LINK_ID_OUTPUT_STR)
-                    .unwrap()
-                    .clone(),
+                outputs.get(LINK_ID_OUTPUT_STR).unwrap().clone(),
             )),
         );
 
@@ -115,8 +101,8 @@ impl OperatorTrait for FizzOperator {
         Box::new(FizzOperator::output_rule)
     }
 
-    fn get_state(&self) -> Box<dyn StateTrait> {
-        Box::new(self.state.clone())
+    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
+        None
     }
 }
 
@@ -125,6 +111,6 @@ export_operator!(register);
 extern "C" fn register(registrar: &mut dyn ZFOperatorRegistrarTrait) {
     registrar.register_zfoperator(
         "fizz",
-        Box::new(FizzOperator::new()) as Box<dyn OperatorTrait + Send>,
+        Box::new(FizzOperator) as Box<dyn OperatorTrait + Send>,
     )
 }
