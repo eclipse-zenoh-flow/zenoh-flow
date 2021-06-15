@@ -13,7 +13,7 @@ sinks:
 links:
 - from:
     name : Camera
-    port : Frame
+    output : Frame
   to:
     name : ZSink
-    port : Frame
+    input : Frame

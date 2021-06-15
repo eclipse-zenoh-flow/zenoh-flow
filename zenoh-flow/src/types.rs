@@ -150,15 +150,21 @@ impl std::fmt::Display for ZFOperatorDescription {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFConnectionEndpoint {
+pub struct ZFFromEndpoint {
     pub name: ZFOperatorName,
-    pub port: ZFLinkId,
+    pub output: ZFLinkId,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZFToEndpoint {
+    pub name: ZFOperatorName,
+    pub input: ZFLinkId,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFConnection {
-    pub from: ZFConnectionEndpoint,
-    pub to: ZFConnectionEndpoint,
+    pub from: ZFFromEndpoint,
+    pub to: ZFToEndpoint,
     pub size: Option<usize>,
     pub queueing_policy: Option<String>,
     pub priority: Option<usize>,

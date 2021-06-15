@@ -25,7 +25,7 @@ use zenoh_flow::{
         SourceTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{Token, ZFConnectionEndpoint, ZFContext, ZFError, ZFLinkId},
+    types::{Token, ZFFromEndpoint, ZFToEndpoint, ZFContext, ZFError, ZFLinkId},
     zenoh_flow_macros::ZFState,
     zf_spin_lock, zf_data,
 };
@@ -249,13 +249,13 @@ async fn main() {
 
     zf_graph
         .add_link(
-            ZFConnectionEndpoint {
+            ZFFromEndpoint {
                 name: "camera".to_string(),
-                port: String::from(SOURCE),
+                output: String::from(SOURCE),
             },
-            ZFConnectionEndpoint {
+            ZFToEndpoint {
                 name: "window".to_string(),
-                port: String::from(INPUT),
+                input: String::from(INPUT),
             },
             None,
             None,

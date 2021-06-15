@@ -13,7 +13,7 @@ sinks:
 links:
 - from:
     name : Camera
-    port : Frame
+    output : Frame
   to:
     name : Window
-    port : Frame
+    input : Frame

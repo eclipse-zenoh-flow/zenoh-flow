@@ -27,28 +27,28 @@ sinks:
 links:
   - from:
       name: ManualSenderOperator
-      port: Int
+      output: Int
     to:
       name: FizzOperator
-      port: Int
+      input: Int
 
   - from:
       name: FizzOperator
-      port: Int
+      output: Int
     to:
       name: BuzzOperator
-      port: Int
+      input: Int
 
   - from:
       name: FizzOperator
-      port: Str
+      output: Str
     to:
       name: BuzzOperator
-      port: Str
+      input: Str
 
   - from:
       name: BuzzOperator
-      port: Str
+      output: Str
     to:
       name: ReceiverOperator
-      port: Str
+      input: Str

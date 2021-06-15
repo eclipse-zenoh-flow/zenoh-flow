@@ -18,13 +18,13 @@ sinks:
 links:
 - from:
     name : Counter
-    port : Number
+    output : Number
   to:
     name : SumOperator
-    port : Number
+    input : Number
 - from:
     name : SumOperator
-    port : Number
+    output : Number
   to:
     name : PrintSink
-    port : Number
+    input : Number

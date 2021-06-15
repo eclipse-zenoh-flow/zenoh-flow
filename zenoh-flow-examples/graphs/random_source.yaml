@@ -13,7 +13,7 @@ sinks:
 links:
 - from:
     name : RandomGenerator
-    port : Number
+    output : Number
   to:
     name : PrintSink
-    port : Number
+    input : Number

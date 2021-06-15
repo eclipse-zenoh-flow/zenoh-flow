@@ -18,13 +18,13 @@ sinks:
 links:
 - from:
     name : Camera0
-    port : Frame
+    output : Frame
   to:
     name : FaceDetection
-    port : Frame
+    input : Frame
 - from:
     name : FaceDetection
-    port : Frame
+    output : Frame
   to:
     name : ZSink
-    port : Frame
+    input : Frame
