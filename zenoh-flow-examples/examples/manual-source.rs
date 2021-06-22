@@ -15,7 +15,9 @@
 use std::{collections::HashMap, io, sync::Arc, usize};
 
 use zenoh_flow::{
-    operator::{DataTrait, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait},
+    operator::{
+        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
+    },
     zf_data, zf_empty_state, ZFContext, ZFError, ZFLinkId, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
@@ -49,6 +51,10 @@ impl ManualSource {
 impl SourceTrait for ManualSource {
     fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
         Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run(ctx)) })
+    }
+
+    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+        Box::new(zenoh_flow::operator::default_output_rule)
     }
 
     fn get_state(&self) -> Box<dyn StateTrait> {

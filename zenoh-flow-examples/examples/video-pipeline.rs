@@ -21,7 +21,7 @@ use std::io;
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
     operator::{
-        DataTrait, FnInputRule, FnSinkRun, FnSourceRun, FutRunResult, FutSinkResult,
+        DataTrait, FnInputRule, FnOutputRule, FnSinkRun, FnSourceRun, FutRunResult, FutSinkResult,
         InputRuleResult, RunResult, SinkTrait, SourceTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
@@ -137,6 +137,10 @@ impl CameraSource {
 impl SourceTrait for CameraSource {
     fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
         Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) })
+    }
+
+    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+        Box::new(zenoh_flow::operator::default_output_rule)
     }
 
     fn get_state(&self) -> Box<dyn StateTrait> {

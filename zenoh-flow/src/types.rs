@@ -17,9 +17,9 @@ use serde::{Deserialize, Serialize};
 use crate::message::{Message, ZFMessage};
 use crate::operator::{DataTrait, StateTrait};
 
-use async_std::sync::Arc;
+use async_std::sync::{Arc, Mutex, MutexGuard};
 use std::collections::HashMap;
-use std::sync::{Mutex, MutexGuard};
+//use std::sync::{Mutex, MutexGuard};
 
 // Placeholder types
 pub type ZFOperatorId = String;
@@ -94,7 +94,7 @@ impl ZFContext {
     }
 
     pub fn lock<'a>(&'a self) -> MutexGuard<'a, ZFInnerCtx> {
-        self.0.lock().unwrap() //should check and return a Result
+        crate::zf_spin_lock!(self.0) // should not use this, should have an async lock and a sync "lock"
     }
 
     // pub fn set_state(&mut self, state: Box<dyn StateTrait>) {

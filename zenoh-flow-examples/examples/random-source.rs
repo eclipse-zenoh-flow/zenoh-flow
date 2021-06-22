@@ -16,7 +16,9 @@ use async_std::sync::Arc;
 use rand::Rng;
 use std::collections::HashMap;
 use zenoh_flow::{
-    operator::{DataTrait, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait},
+    operator::{
+        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
+    },
     serde::{Deserialize, Serialize},
     types::{ZFContext, ZFLinkId, ZFResult},
     zenoh_flow_macros::ZFState,
@@ -32,12 +34,11 @@ struct ExampleRandomSource {}
 impl ExampleRandomSource {
     async fn run_1(_ctx: ZFContext) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
-        let mut rng = rand::thread_rng();
         let d = RandomData {
-            d: rng.gen::<u64>(),
+            d: rand::random::<u64>(),
         };
         results.insert(String::from(SOURCE), zf_data!(d));
-        async_std::task::sleep(std::time::Duration::from_secs(1));
+        async_std::task::sleep(std::time::Duration::from_secs(1)).await;
         Ok(results)
     }
 }
@@ -45,6 +46,10 @@ impl ExampleRandomSource {
 impl SourceTrait for ExampleRandomSource {
     fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
         Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) })
+    }
+
+    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+        Box::new(zenoh_flow::operator::default_output_rule)
     }
 
     fn get_state(&self) -> Box<dyn StateTrait> {

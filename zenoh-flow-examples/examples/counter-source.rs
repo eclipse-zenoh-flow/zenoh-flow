@@ -18,7 +18,9 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use zenoh_flow::{
-    operator::{DataTrait, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait},
+    operator::{
+        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
+    },
     serde::{Deserialize, Serialize},
     types::{ZFContext, ZFError, ZFLinkId, ZFResult},
     zenoh_flow_macros::ZFState,
@@ -63,6 +65,10 @@ impl SourceTrait for CountSource {
             0 => Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) }),
             _ => panic!("No way"),
         }
+    }
+
+    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+        Box::new(zenoh_flow::operator::default_output_rule)
     }
 
     fn get_state(&self) -> Box<dyn StateTrait> {

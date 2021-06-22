@@ -61,7 +61,7 @@ pub type FnSourceRun = Box<dyn Fn(ZFContext) -> FutRunResult + Send + Sync>;
 pub trait SourceTrait {
     fn get_run(&self, ctx: ZFContext) -> FnSourceRun;
 
-    // a get output_rule
+    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule>;
 
     fn get_state(&self) -> Box<dyn StateTrait>;
 }
@@ -78,6 +78,32 @@ pub trait SinkTrait {
     fn get_run(&self, ctx: ZFContext) -> FnSinkRun;
 
     fn get_state(&self) -> Box<dyn StateTrait>;
+}
+
+pub fn default_output_rule(
+    _ctx: ZFContext,
+    outputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
+) -> OutputRuleResult {
+    let mut results = HashMap::new();
+    for (k, v) in outputs {
+        // should be ZFMessage::from_data
+        results.insert(k, Arc::new(ZFMessage::new_deserialized(0, v)));
+    }
+    Ok(results)
+}
+
+pub fn default_input_rule(
+    _ctx: ZFContext,
+    inputs: &mut HashMap<ZFLinkId, Token>,
+) -> InputRuleResult {
+    for token in inputs.values() {
+        match token {
+            Token::Ready(_) => continue,
+            Token::NotReady(_) => return Ok(false),
+        }
+    }
+
+    Ok(true)
 }
 
 #[macro_export]

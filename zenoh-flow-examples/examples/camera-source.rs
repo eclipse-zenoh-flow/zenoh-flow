@@ -21,7 +21,9 @@ use std::collections::HashMap;
 use std::io;
 use zenoh_flow::{
     downcast_mut,
-    operator::{DataTrait, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait},
+    operator::{
+        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
+    },
     serde::{Deserialize, Serialize},
     types::{ZFContext, ZFError, ZFLinkId, ZFResult},
     zenoh_flow_macros::ZFState,
@@ -112,39 +114,43 @@ impl CameraSource {
         let mut _state = downcast_mut!(CameraState, guard.state).unwrap(); //downcasting to right type
 
         let inner = _state.inner.as_ref().unwrap();
+        {
+            // just to force rust understand that the not sync variables are dropped before the sleep
+            let mut cam = zf_spin_lock!(inner.camera);
+            let encode_options = zf_spin_lock!(inner.encode_options);
 
-        let mut cam = zf_spin_lock!(inner.camera);
-        let encode_options = zf_spin_lock!(inner.encode_options);
+            let mut frame = core::Mat::default();
+            cam.read(&mut frame).unwrap();
 
-        let mut frame = core::Mat::default();
-        cam.read(&mut frame).unwrap();
+            let mut reduced = Mat::default();
+            opencv::imgproc::resize(
+                &frame,
+                &mut reduced,
+                opencv::core::Size::new(_state.resolution.0, _state.resolution.0),
+                0.0,
+                0.0,
+                opencv::imgproc::INTER_LINEAR,
+            )
+            .unwrap();
 
-        let mut reduced = Mat::default();
-        opencv::imgproc::resize(
-            &frame,
-            &mut reduced,
-            opencv::core::Size::new(_state.resolution.0, _state.resolution.0),
-            0.0,
-            0.0,
-            opencv::imgproc::INTER_LINEAR,
-        )
-        .unwrap();
+            let mut buf = opencv::types::VectorOfu8::new();
+            opencv::imgcodecs::imencode(".jpeg", &reduced, &mut buf, &encode_options).unwrap();
 
-        let mut buf = opencv::types::VectorOfu8::new();
-        opencv::imgcodecs::imencode(".jpeg", &reduced, &mut buf, &encode_options).unwrap();
+            // let data = ZFOpenCVBytes {bytes: Mutex::new(RefCell::new(buf))};
 
-        // let data = ZFOpenCVBytes {bytes: Mutex::new(RefCell::new(buf))};
+            let data = ZFBytes {
+                bytes: buf.to_vec(),
+            };
 
-        let data = ZFBytes {
-            bytes: buf.to_vec(),
-        };
+            results.insert(String::from(SOURCE), zf_data!(data));
 
-        results.insert(String::from(SOURCE), zf_data!(data));
+            drop(cam);
+            drop(encode_options);
+            drop(frame);
+            drop(reduced);
+        }
 
-        async_std::task::sleep(std::time::Duration::from_millis(_state.delay));
-
-        drop(cam);
-        drop(encode_options);
+        async_std::task::sleep(std::time::Duration::from_millis(_state.delay.clone())).await;
 
         Ok(results)
     }
@@ -157,6 +163,10 @@ impl SourceTrait for CameraSource {
             0 => Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) }),
             _ => panic!("No way"),
         }
+    }
+
+    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+        Box::new(zenoh_flow::operator::default_output_rule)
     }
 
     fn get_state(&self) -> Box<dyn StateTrait> {

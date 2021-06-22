@@ -16,17 +16,14 @@ use crate::async_std::sync::Arc;
 use crate::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::message::{Message, ZFMessage, ZFMsg};
 use crate::operator::{
-    DataTrait, FnInputRule, FnOutputRule, FnRun, FnSinkRun, FnSourceRun, OperatorTrait, RunResult,
-    SinkTrait, SourceTrait, StateTrait,
+    DataTrait, FnInputRule, FnOutputRule, FnRun, FnSinkRun, FnSourceRun, OperatorTrait, SinkTrait,
+    SourceTrait, StateTrait,
 };
 use crate::types::{Token, ZFError, ZFLinkId, ZFResult};
 use crate::{ZFContext, ZFOperatorId};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
-use std::io;
-
-use future::Future;
 
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
@@ -466,6 +463,10 @@ impl SourceTrait for ZFSourceProxy {
         self.operator.get_run(ctx.clone())
     }
 
+    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+        self.operator.get_output_rule(ctx)
+    }
+
     fn get_state(&self) -> Box<dyn StateTrait> {
         self.operator.get_state()
     }
@@ -551,11 +552,26 @@ impl ZFSourceRunnerDynamic {
             // Running
             let run_fn = self.operator.get_run(ctx.clone());
             let outputs = run_fn(ctx.clone()).await?;
-            // Send to links
-            for (id, data) in outputs {
+
+            //Output
+            let out_fn = self.operator.get_output_rule(ctx.clone());
+
+            let out_msgs = out_fn(ctx.clone(), outputs)?;
+
+            // Send to Links
+            for (id, zf_msg) in out_msgs {
+                //getting link
                 let tx = self.outputs.iter().find(|&x| x.id() == id).unwrap();
-                let msg = Arc::new(ZFMessage::new_deserialized(0, data));
-                tx.send(msg).await?;
+                //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
+                match zf_msg.msg {
+                    ZFMsg::Data(_) => {
+                        tx.send(zf_msg).await?;
+                    }
+                    ZFMsg::Ctrl(_) => {
+                        // here we process should process control messages (eg. change mode)
+                        //tx.send(zf_msg);
+                    }
+                }
             }
         }
     }
