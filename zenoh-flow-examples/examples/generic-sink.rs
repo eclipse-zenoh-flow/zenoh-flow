@@ -15,14 +15,14 @@
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
-    operator::{DataTrait, FnInputRule, FnSinkRun, InputRuleResult, SinkTrait, StateTrait, FutSinkResult},
+    operator::{
+        DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
+    },
     serde::{Deserialize, Serialize},
     types::{Token, ZFContext, ZFLinkId},
     zenoh_flow_macros::ZFState,
-    zf_empty_state,
-    ZFResult, ZFError,
+    zf_empty_state, ZFError, ZFResult,
 };
-
 
 #[derive(Serialize, Deserialize, Debug, ZFState)]
 struct ExampleGenericSink {}
@@ -32,14 +32,17 @@ impl ExampleGenericSink {
         Ok(true)
     }
 
-    pub async fn run_1(_ctx: ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> ZFResult<()> {
+    pub async fn run_1(
+        _ctx: ZFContext,
+        inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
+    ) -> ZFResult<()> {
         println!("#######");
         for (k, v) in inputs {
-            let serialized = serde_json::to_string(&*v).map_err(|_| ZFError::DeseralizationError)?;
-            println!("Example Generic Sink Received on LinkId {:?} -> {:?} - Serialized: {}",
-                k,
-                v,
-                serialized
+            let serialized =
+                serde_json::to_string(&*v).map_err(|_| ZFError::DeseralizationError)?;
+            println!(
+                "Example Generic Sink Received on LinkId {:?} -> {:?} - Serialized: {}",
+                k, v, serialized
             );
         }
         println!("#######");
@@ -59,9 +62,11 @@ impl SinkTrait for ExampleGenericSink {
     fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
         let gctx = ctx.lock();
         match gctx.mode {
-            0 => Box::new(|ctx: ZFContext , inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>| -> FutSinkResult {
-                Box::pin(Self::run_1(ctx, inputs))
-            }),
+            0 => Box::new(
+                |ctx: ZFContext,
+                 inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>|
+                 -> FutSinkResult { Box::pin(Self::run_1(ctx, inputs)) },
+            ),
             _ => panic!("No way"),
         }
     }
@@ -73,9 +78,13 @@ impl SinkTrait for ExampleGenericSink {
 
 zenoh_flow::export_sink!(register);
 
-extern "C" fn register(registrar: &mut dyn zenoh_flow::loader::ZFSinkRegistrarTrait) {
+extern "C" fn register(
+    registrar: &mut dyn zenoh_flow::loader::ZFSinkRegistrarTrait,
+    _configuration: Option<HashMap<String, String>>,
+) -> ZFResult<()> {
     registrar.register_zfsink(
         "receiver",
         Box::new(ExampleGenericSink {}) as Box<dyn zenoh_flow::operator::SinkTrait + Send>,
     );
+    Ok(())
 }

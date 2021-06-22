@@ -16,9 +16,11 @@ use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
     downcast, get_input,
-    operator::{DataTrait, FnInputRule, FnSinkRun, InputRuleResult, SinkTrait, StateTrait},
+    operator::{
+        DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
+    },
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFError, ZFLinkId},
+    types::{Token, ZFContext, ZFError, ZFLinkId, ZFResult},
     zenoh_flow_macros::ZFState,
 };
 
@@ -40,23 +42,24 @@ struct ZSinkInner {
     session: Arc<Session>,
 }
 
-
 #[derive(Serialize, Deserialize, Clone, Debug, ZFState)]
 struct ZSinkState {
     #[serde(skip_serializing, skip_deserializing)]
-    inner: Option<ZSinkInner>
+    inner: Option<ZSinkInner>,
 }
 
 impl ExampleGenericZenohSink {
     pub fn new() -> Self {
         Self {
             state: ZSinkState {
-                inner : Some(ZSinkInner { session: Arc::new(open(config::peer()).wait().unwrap())} ),
+                inner: Some(ZSinkInner {
+                    session: Arc::new(open(config::peer()).wait().unwrap()),
+                }),
             },
         }
     }
 
-    pub fn ir_1(_ctx: &mut ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -67,9 +70,12 @@ impl ExampleGenericZenohSink {
         }
     }
 
-    pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) {
-        let state = ctx.get_state().unwrap(); //getting state,
-        let _state = downcast!(ZSinkState, state).unwrap(); //downcasting to right type
+    pub async fn run_1(
+        ctx: ZFContext,
+        inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
+    ) -> ZFResult<()> {
+        let guard = ctx.lock(); //getting state,
+        let _state = downcast!(ZSinkState, guard.state).unwrap(); //downcasting to right type
 
         let inner = _state.inner.as_ref().unwrap();
 
@@ -81,34 +87,37 @@ impl ExampleGenericZenohSink {
             .write(&path.into(), data.bytes.clone().into())
             .wait()
             .unwrap();
+        Ok(())
     }
 }
 
 impl SinkTrait for ExampleGenericZenohSink {
-    fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule> {
-        match ctx.mode {
-            0 => Box::new(Self::ir_1),
-            _ => panic!("No way"),
-        }
+    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
+        Box::new(Self::ir_1)
     }
 
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnSinkRun> {
-        match ctx.mode {
-            0 => Box::new(Self::run_1),
-            _ => panic!("No way"),
-        }
+    fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
+        Box::new(
+            |ctx: ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>| -> FutSinkResult {
+                Box::pin(Self::run_1(ctx, inputs))
+            },
+        )
     }
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
-        Some(Box::new(self.state.clone()))
+    fn get_state(&self) -> Box<dyn StateTrait> {
+        Box::new(self.state.clone())
     }
 }
 
 zenoh_flow::export_sink!(register);
 
-extern "C" fn register(registrar: &mut dyn zenoh_flow::loader::ZFSinkRegistrarTrait) {
+extern "C" fn register(
+    registrar: &mut dyn zenoh_flow::loader::ZFSinkRegistrarTrait,
+    _configuration: Option<HashMap<String, String>>,
+) -> ZFResult<()> {
     registrar.register_zfsink(
         "zsink",
         Box::new(ExampleGenericZenohSink::new()) as Box<dyn zenoh_flow::operator::SinkTrait + Send>,
     );
+    Ok(())
 }

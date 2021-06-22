@@ -1,10 +1,10 @@
+use crate::async_std::sync::Arc;
 use crate::message::ZFMessage;
 use crate::types::{Token, ZFContext, ZFLinkId, ZFResult};
-use crate::async_std::sync::Arc;
+use futures::Future;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use futures::Future;
 use std::pin::Pin;
 
 //Create a Derive macro for this
@@ -27,10 +27,8 @@ pub trait OperatorMode: Into<u128> + From<u128> {}
 pub type InputRuleResult = ZFResult<bool>;
 
 // CAUTION, USER CAN DO NASTY THINGS, eg. remove a link we have passed to him.
-pub type FnInputRule = dyn Fn(ZFContext, &mut HashMap<ZFLinkId, Token>) -> InputRuleResult
-    + Send
-    + Sync
-    + 'static;
+pub type FnInputRule =
+    dyn Fn(ZFContext, &mut HashMap<ZFLinkId, Token>) -> InputRuleResult + Send + Sync + 'static;
 
 pub type OutputRuleResult = ZFResult<HashMap<ZFLinkId, Arc<ZFMessage>>>;
 
@@ -56,7 +54,6 @@ pub trait OperatorTrait {
     fn get_state(&self) -> Box<dyn StateTrait>;
 }
 
-
 pub type FutRunResult = Pin<Box<dyn Future<Output = RunResult> + Send + Sync>>;
 
 pub type FnSourceRun = Box<dyn Fn(ZFContext) -> FutRunResult + Send + Sync>;
@@ -71,8 +68,9 @@ pub trait SourceTrait {
 
 pub type FutSinkResult = Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync>>;
 
-pub type FnSinkRun =
-    Box<dyn Fn(ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> FutSinkResult + Send + Sync>;
+pub type FnSinkRun = Box<
+    dyn Fn(ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> FutSinkResult + Send + Sync,
+>;
 
 pub trait SinkTrait {
     fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule>;
@@ -138,10 +136,9 @@ macro_rules! get_input {
 #[macro_export]
 macro_rules! zf_empty_state {
     () => {
-        Box::new(zenoh_flow::EmptyState{})
+        Box::new(zenoh_flow::EmptyState {})
     };
 }
-
 
 #[macro_export]
 macro_rules! zf_source_result {

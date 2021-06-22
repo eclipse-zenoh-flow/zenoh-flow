@@ -17,14 +17,15 @@ use std::collections::HashMap;
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
 use zenoh_flow::{
-    downcast, export_operator, zf_data, get_input,
+    downcast, export_operator, get_input,
     loader::ZFOperatorRegistrarTrait,
     message::ZFMessage,
     operator::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait,
     },
-    Token, ZFContext, ZFError, ZFLinkId,
+    types::ZFResult,
+    zf_data, zf_empty_state, Token, ZFContext, ZFError, ZFLinkId,
 };
 
 struct BuzzOperator;
@@ -34,7 +35,7 @@ static LINK_ID_INPUT_STR: &str = "Str";
 static LINK_ID_OUTPUT_STR: &str = "Str";
 
 impl BuzzOperator {
-    fn input_rule(_ctx: &mut ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    fn input_rule(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
         for token in inputs.values() {
             match token {
                 Token::Ready(_) => continue,
@@ -45,7 +46,7 @@ impl BuzzOperator {
         Ok(true)
     }
 
-    fn run(_ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
+    fn run(_ctx: ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
         let mut results = HashMap::<ZFLinkId, Arc<Box<dyn DataTrait>>>::with_capacity(1);
 
         let mut buzz = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?.clone();
@@ -62,7 +63,7 @@ impl BuzzOperator {
     }
 
     fn output_rule(
-        _ctx: &mut ZFContext,
+        _ctx: ZFContext,
         outputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
     ) -> OutputRuleResult {
         let mut zf_outputs: HashMap<ZFLinkId, Arc<ZFMessage>> = HashMap::with_capacity(1);
@@ -79,28 +80,32 @@ impl BuzzOperator {
 }
 
 impl OperatorTrait for BuzzOperator {
-    fn get_input_rule(&self, _ctx: &ZFContext) -> Box<FnInputRule> {
+    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
         Box::new(BuzzOperator::input_rule)
     }
 
-    fn get_run(&self, _ctx: &ZFContext) -> Box<FnRun> {
+    fn get_run(&self, _ctx: ZFContext) -> Box<FnRun> {
         Box::new(BuzzOperator::run)
     }
 
-    fn get_output_rule(&self, _ctx: &ZFContext) -> Box<FnOutputRule> {
+    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
         Box::new(BuzzOperator::output_rule)
     }
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
-        None
+    fn get_state(&self) -> Box<dyn StateTrait> {
+        zf_empty_state!()
     }
 }
 
 export_operator!(register);
 
-extern "C" fn register(registrar: &mut dyn ZFOperatorRegistrarTrait) {
+extern "C" fn register(
+    registrar: &mut dyn ZFOperatorRegistrarTrait,
+    _configuration: Option<HashMap<String, String>>,
+) -> ZFResult<()> {
     registrar.register_zfoperator(
         "buzz",
         Box::new(BuzzOperator) as Box<dyn OperatorTrait + Send>,
-    )
+    );
+    Ok(())
 }

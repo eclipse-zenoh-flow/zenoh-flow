@@ -18,8 +18,8 @@ use crate::message::{Message, ZFMessage};
 use crate::operator::{DataTrait, StateTrait};
 
 use async_std::sync::Arc;
-use std::sync::{Mutex, MutexGuard};
 use std::collections::HashMap;
+use std::sync::{Mutex, MutexGuard};
 
 // Placeholder types
 pub type ZFOperatorId = String;
@@ -44,6 +44,9 @@ pub enum ZFError {
     InvalidData(ZFLinkId),
     Disconnected,
     Empty,
+    IOError(std::io::Error),
+    MissingConfiguration,
+    VersionMismatch,
 }
 
 impl From<flume::RecvError> for ZFError {
@@ -67,21 +70,23 @@ impl<T> From<flume::SendError<T>> for ZFError {
     }
 }
 
-
+impl From<std::io::Error> for ZFError {
+    fn from(err: std::io::Error) -> Self {
+        Self::IOError(err)
+    }
+}
 
 pub struct ZFInnerCtx {
     pub state: Box<dyn StateTrait>,
     pub mode: usize, //can be arc<atomic> and inside ZFContext
 }
 
-
 #[derive(Clone)]
 pub struct ZFContext(Arc<Mutex<ZFInnerCtx>>);
 
 impl ZFContext {
-
-    pub fn new(state: Box<dyn StateTrait>, mode : usize) -> Self {
-        let inner = Arc::new(Mutex::new( ZFInnerCtx {
+    pub fn new(state: Box<dyn StateTrait>, mode: usize) -> Self {
+        let inner = Arc::new(Mutex::new(ZFInnerCtx {
             mode: mode,
             state: state,
         }));
@@ -322,8 +327,6 @@ impl Token {
         }
     }
 }
-
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EmptyState;

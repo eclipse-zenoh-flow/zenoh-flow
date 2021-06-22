@@ -5,11 +5,18 @@ operators:
     lib: ./target/debug/examples/libface_detection.so
     inputs: [Frame]
     outputs: [Frame] #port id = String
+    # configuration:
+      # neural-network: haarcascades/haarcascade_frontalface_alt_tree.xml
+      # neural-network: haarcascades/haarcascade_eye.xml #eyes only
+      # more configurations can be found in opencv: /usr/share/opencv4/haarcascades
 sources: # sources can have only ONE output
   - id : camera-source
     name : Camera0
     lib: ./target/debug/examples/libcamera_source.so
     output: Frame
+    configuration:
+      camera: /dev/video0
+      resolution: 800x600
 sinks: # sources can have only ONE input
   - id : video-sink
     name : Window

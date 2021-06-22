@@ -14,11 +14,11 @@
 
 pub use ::zenoh_flow_macros;
 
+pub use ::async_std;
 pub use ::bincode;
 pub use ::paste;
 pub use ::serde;
 pub use ::typetag;
-pub use ::async_std;
 
 pub mod graph;
 pub mod link;
@@ -102,7 +102,6 @@ macro_rules! zf_spin_lock {
         }
     };
 }
-
 
 #[macro_export]
 macro_rules! zf_data {

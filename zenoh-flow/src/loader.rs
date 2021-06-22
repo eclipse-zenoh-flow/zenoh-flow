@@ -12,15 +12,15 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::async_std::sync::Arc;
 use crate::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::message::{Message, ZFMessage, ZFMsg};
 use crate::operator::{
-    DataTrait, FnInputRule, FnOutputRule, FnRun, FnSinkRun, FnSourceRun, OperatorTrait, SinkTrait,
-    SourceTrait, StateTrait, RunResult
+    DataTrait, FnInputRule, FnOutputRule, FnRun, FnSinkRun, FnSourceRun, OperatorTrait, RunResult,
+    SinkTrait, SourceTrait, StateTrait,
 };
 use crate::types::{Token, ZFError, ZFLinkId, ZFResult};
 use crate::{ZFContext, ZFOperatorId};
-use crate::async_std::sync::Arc;
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -36,7 +36,10 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 /// # Safety
 ///
 /// TODO
-pub unsafe fn load_operator(path: String) -> Result<(ZFOperatorId, ZFOperatorRunner), io::Error> {
+pub unsafe fn load_operator(
+    path: String,
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<(ZFOperatorId, ZFOperatorRunner)> {
     // This is unsafe because has to dynamically load a library
     let library = Arc::new(Library::new(path).unwrap());
     let decl = library
@@ -46,11 +49,11 @@ pub unsafe fn load_operator(path: String) -> Result<(ZFOperatorId, ZFOperatorRun
 
     // version checks to prevent accidental ABI incompatibilities
     if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
-        return Err(io::Error::new(io::ErrorKind::Other, "Version mismatch"));
+        return Err(ZFError::VersionMismatch);
     }
     let mut registrar = ZFOperatorRegistrar::new(Arc::clone(&library));
 
-    (decl.register)(&mut registrar);
+    (decl.register)(&mut registrar, configuration)?;
 
     let (operator_id, proxy) = registrar.operator.unwrap();
 
@@ -61,7 +64,10 @@ pub unsafe fn load_operator(path: String) -> Result<(ZFOperatorId, ZFOperatorRun
 pub struct ZFOperatorDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: unsafe extern "C" fn(&mut dyn ZFOperatorRegistrarTrait),
+    pub register: unsafe extern "C" fn(
+        &mut dyn ZFOperatorRegistrarTrait,
+        Option<HashMap<String, String>>,
+    ) -> ZFResult<()>,
 }
 
 pub trait ZFOperatorRegistrarTrait {
@@ -412,7 +418,10 @@ impl ZFOperatorRunnerStatic {
 }
 // SOURCE
 
-pub unsafe fn load_source(path: String) -> Result<(ZFOperatorId, ZFSourceRunner), io::Error> {
+pub unsafe fn load_source(
+    path: String,
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<(ZFOperatorId, ZFSourceRunner)> {
     // This is unsafe because has to dynamically load a library
     let library = Arc::new(Library::new(path).unwrap());
     let decl = library
@@ -422,11 +431,11 @@ pub unsafe fn load_source(path: String) -> Result<(ZFOperatorId, ZFSourceRunner)
 
     // version checks to prevent accidental ABI incompatibilities
     if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
-        return Err(io::Error::new(io::ErrorKind::Other, "Version mismatch"));
+        return Err(ZFError::VersionMismatch);
     }
     let mut registrar = ZFSourceRegistrar::new(Arc::clone(&library));
 
-    (decl.register)(&mut registrar);
+    (decl.register)(&mut registrar, configuration)?;
 
     let (operator_id, proxy) = registrar.operator.unwrap();
 
@@ -437,7 +446,10 @@ pub unsafe fn load_source(path: String) -> Result<(ZFOperatorId, ZFSourceRunner)
 pub struct ZFSourceDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: unsafe extern "C" fn(&mut dyn ZFSourceRegistrarTrait),
+    pub register: unsafe extern "C" fn(
+        &mut dyn ZFSourceRegistrarTrait,
+        Option<HashMap<String, String>>,
+    ) -> ZFResult<()>,
 }
 
 pub trait ZFSourceRegistrarTrait {
@@ -586,7 +598,10 @@ impl ZFSourceRunnerStatic {
 
 // SINK
 
-pub unsafe fn load_sink(path: String) -> Result<(ZFOperatorId, ZFSinkRunner), io::Error> {
+pub unsafe fn load_sink(
+    path: String,
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<(ZFOperatorId, ZFSinkRunner)> {
     // This is unsafe because has to dynamically load a library
     let library = Arc::new(Library::new(path).unwrap());
     let decl = library
@@ -596,11 +611,11 @@ pub unsafe fn load_sink(path: String) -> Result<(ZFOperatorId, ZFSinkRunner), io
 
     // version checks to prevent accidental ABI incompatibilities
     if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
-        return Err(io::Error::new(io::ErrorKind::Other, "Version mismatch"));
+        return Err(ZFError::VersionMismatch);
     }
     let mut registrar = ZFSinkRegistrar::new(Arc::clone(&library));
 
-    (decl.register)(&mut registrar);
+    (decl.register)(&mut registrar, configuration)?;
 
     let (operator_id, proxy) = registrar.operator.unwrap();
 
@@ -611,7 +626,10 @@ pub unsafe fn load_sink(path: String) -> Result<(ZFOperatorId, ZFSinkRunner), io
 pub struct ZFSinkDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: unsafe extern "C" fn(&mut dyn ZFSinkRegistrarTrait),
+    pub register: unsafe extern "C" fn(
+        &mut dyn ZFSinkRegistrarTrait,
+        Option<HashMap<String, String>>,
+    ) -> ZFResult<()>,
 }
 
 pub trait ZFSinkRegistrarTrait {
@@ -624,7 +642,6 @@ pub struct ZFSinkProxy {
 }
 
 impl SinkTrait for ZFSinkProxy {
-
     fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
         self.operator.get_input_rule(ctx.clone())
     }

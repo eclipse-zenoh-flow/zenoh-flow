@@ -21,13 +21,13 @@ use std::io;
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
     operator::{
-        DataTrait, FnInputRule, FnSinkRun, FnSourceRun, InputRuleResult, RunResult, SinkTrait,
-        SourceTrait, StateTrait,
+        DataTrait, FnInputRule, FnSinkRun, FnSourceRun, FutRunResult, FutSinkResult,
+        InputRuleResult, RunResult, SinkTrait, SourceTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{Token, ZFFromEndpoint, ZFToEndpoint, ZFContext, ZFError, ZFLinkId},
+    types::{Token, ZFContext, ZFError, ZFFromEndpoint, ZFLinkId, ZFResult, ZFToEndpoint},
     zenoh_flow_macros::ZFState,
-    zf_spin_lock, zf_data,
+    zf_data, zf_spin_lock,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -83,7 +83,7 @@ impl CameraSource {
         };
 
         let state = CameraState {
-            inner : Some(inner),
+            inner: Some(inner),
             resolution: (800, 600),
             delay: 40,
         };
@@ -91,11 +91,11 @@ impl CameraSource {
         Self { state }
     }
 
-    fn run_1(ctx: &mut ZFContext) -> RunResult {
+    async fn run_1(ctx: ZFContext) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
-        let mut handle = ctx.take_state().unwrap(); //take state
-        let mut _state = downcast_mut!(CameraState, handle).unwrap(); //downcasting to right type
+        let mut guard = ctx.lock(); //take state
+        let mut _state = downcast_mut!(CameraState, guard.state).unwrap(); //downcasting to right type
 
         let inner = _state.inner.as_ref().unwrap();
 
@@ -125,27 +125,22 @@ impl CameraSource {
 
         results.insert(String::from(SOURCE), zf_data!(data));
 
-        std::thread::sleep(std::time::Duration::from_millis(_state.delay));
+        async_std::task::sleep(std::time::Duration::from_millis(_state.delay));
 
         drop(cam);
         drop(encode_options);
-
-        ctx.set_state(handle); //storing new state
 
         Ok(results)
     }
 }
 
 impl SourceTrait for CameraSource {
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun> {
-        match ctx.mode {
-            0 => Box::new(Self::run_1),
-            _ => panic!("No way"),
-        }
+    fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
+        Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) })
     }
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
-        Some(Box::new(self.state.clone()))
+    fn get_state(&self) -> Box<dyn StateTrait> {
+        Box::new(self.state.clone())
     }
 }
 
@@ -169,7 +164,7 @@ impl VideoSink {
         Self { state }
     }
 
-    pub fn ir_1(_ctx: &mut ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -180,9 +175,12 @@ impl VideoSink {
         }
     }
 
-    pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> () {
-        let state = ctx.get_state().unwrap(); //getting state,
-        let _state = downcast!(VideoState, state).unwrap(); //downcasting to right type
+    pub async fn run_1(
+        ctx: ZFContext,
+        inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
+    ) -> ZFResult<()> {
+        let guard = ctx.lock(); //getting state,
+        let _state = downcast!(VideoState, guard.state).unwrap(); //downcasting to right type
 
         let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
@@ -197,26 +195,25 @@ impl VideoSink {
         }
 
         highgui::wait_key(10).unwrap();
+        Ok(())
     }
 }
 
 impl SinkTrait for VideoSink {
-    fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule> {
-        match ctx.mode {
-            0 => Box::new(Self::ir_1),
-            _ => panic!("No way"),
-        }
+    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+        Box::new(Self::ir_1)
     }
 
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnSinkRun> {
-        match ctx.mode {
-            0 => Box::new(Self::run_1),
-            _ => panic!("No way"),
-        }
+    fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
+        Box::new(
+            |ctx: ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>| -> FutSinkResult {
+                Box::pin(Self::run_1(ctx, inputs))
+            },
+        )
     }
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
-        Some(Box::new(self.state.clone()))
+    fn get_state(&self) -> Box<dyn StateTrait> {
+        Box::new(self.state.clone())
     }
 }
 

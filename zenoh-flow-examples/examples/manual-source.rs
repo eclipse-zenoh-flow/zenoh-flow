@@ -15,9 +15,8 @@
 use std::{collections::HashMap, io, sync::Arc, usize};
 
 use zenoh_flow::{
-    operator::{DataTrait, FnSourceRun, RunResult, SourceTrait, StateTrait},
-    ZFContext, ZFError, ZFLinkId,
-    zf_data,
+    operator::{DataTrait, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait},
+    zf_data, zf_empty_state, ZFContext, ZFError, ZFLinkId, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -26,13 +25,14 @@ struct ManualSource;
 static LINK_ID_INPUT_INT: &str = "Int";
 
 impl ManualSource {
-    fn run(_ctx: &mut ZFContext) -> RunResult {
+    async fn run(_ctx: ZFContext) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::with_capacity(1);
 
         println!("> Please input a number: ");
         let mut number = String::new();
-        io::stdin()
+        async_std::io::stdin()
             .read_line(&mut number)
+            .await
             .expect("Could not read number.");
 
         let value: usize = match number.trim().parse() {
@@ -40,30 +40,31 @@ impl ManualSource {
             Err(_) => return Err(ZFError::GenericError),
         };
 
-        results.insert(
-            String::from(LINK_ID_INPUT_INT),
-            zf_data!(ZFUsize(value)),
-        );
+        results.insert(String::from(LINK_ID_INPUT_INT), zf_data!(ZFUsize(value)));
 
         Ok(results)
     }
 }
 
 impl SourceTrait for ManualSource {
-    fn get_run(&self, _ctx: &ZFContext) -> Box<FnSourceRun> {
-        Box::new(Self::run)
+    fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
+        Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run(ctx)) })
     }
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
-        None
+    fn get_state(&self) -> Box<dyn StateTrait> {
+        zf_empty_state!()
     }
 }
 
 zenoh_flow::export_source!(register);
 
-extern "C" fn register(registrar: &mut dyn zenoh_flow::loader::ZFSourceRegistrarTrait) {
+extern "C" fn register(
+    registrar: &mut dyn zenoh_flow::loader::ZFSourceRegistrarTrait,
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<()> {
     registrar.register_zfsource(
         "sender",
         Box::new(ManualSource {}) as Box<dyn zenoh_flow::operator::SourceTrait + Send>,
     );
+    Ok(())
 }

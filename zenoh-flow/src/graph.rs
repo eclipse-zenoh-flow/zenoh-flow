@@ -25,7 +25,7 @@ use crate::loader::{
 };
 use crate::message::ZFMessage;
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{ZFFromEndpoint, ZFToEndpoint, ZFError, ZFLinkId, ZFOperatorName, ZFResult};
+use crate::types::{ZFError, ZFFromEndpoint, ZFLinkId, ZFOperatorName, ZFResult, ZFToEndpoint};
 use crate::{
     ZFConnection, ZFOperatorDescription, ZFOperatorId, ZFSinkDescription, ZFSourceDescription,
 };
@@ -217,7 +217,9 @@ impl DataFlowGraph {
                         {
                             Some((idx, op)) => match op.has_output(l.from.output.clone()) {
                                 true => idx,
-                                false => panic!("Link id {:?} not found in {:?}", &l.from.output, op),
+                                false => {
+                                    panic!("Link id {:?} not found in {:?}", &l.from.output, op)
+                                }
                             },
                             None => panic!("Not not found"),
                         };
@@ -416,14 +418,15 @@ impl DataFlowGraph {
         Ok(())
     }
 
-    pub fn load(&mut self) -> std::io::Result<()> {
+    pub fn load(&mut self) -> ZFResult<()> {
         unsafe {
             for (_, op) in &self.operators {
                 match op {
                     DataFlowNode::Operator(inner) => {
                         match &inner.lib {
                             Some(lib) => {
-                                let (_operator_id, runner) = load_operator(lib.clone())?;
+                                let (_operator_id, runner) =
+                                    load_operator(lib.clone(), inner.configuration.clone())?;
                                 let runner = Runner::Operator(runner);
                                 self.operators_runners
                                     .insert(inner.name.clone(), Arc::new(Mutex::new(runner)));
@@ -437,7 +440,8 @@ impl DataFlowGraph {
                     DataFlowNode::Source(inner) => {
                         match &inner.lib {
                             Some(lib) => {
-                                let (_operator_id, runner) = load_source(lib.clone())?;
+                                let (_operator_id, runner) =
+                                    load_source(lib.clone(), inner.configuration.clone())?;
                                 let runner = Runner::Source(runner);
                                 self.operators_runners
                                     .insert(inner.name.clone(), Arc::new(Mutex::new(runner)));
@@ -451,7 +455,8 @@ impl DataFlowGraph {
                     DataFlowNode::Sink(inner) => {
                         match &inner.lib {
                             Some(lib) => {
-                                let (_operator_id, runner) = load_sink(lib.clone())?;
+                                let (_operator_id, runner) =
+                                    load_sink(lib.clone(), inner.configuration.clone())?;
                                 let runner = Runner::Sink(runner);
                                 self.operators_runners
                                     .insert(inner.name.clone(), Arc::new(Mutex::new(runner)));
