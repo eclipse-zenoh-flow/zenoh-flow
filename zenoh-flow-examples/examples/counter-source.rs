@@ -16,13 +16,15 @@ use async_std::sync::Arc;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use zenoh_flow::{
-    operator::{DataTrait, FnSourceRun, RunResult, SourceTrait, StateTrait},
+    operator::{DataTrait, FnSourceRun, FutRunResult, SourceTrait, StateTrait, RunResult},
     serde::{Deserialize, Serialize},
     types::{ZFContext, ZFLinkId},
     zenoh_flow_macros::ZFState,
-    zf_data
+    zf_data, zf_empty_state
 };
 use zenoh_flow_examples::RandomData;
+use futures::Future;
+use std::pin::Pin;
 
 static SOURCE: &str = "Number";
 
@@ -32,27 +34,31 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 struct CountSource {}
 
 impl CountSource {
-    fn run_1(_ctx: &mut ZFContext) -> RunResult {
+    async fn run_1(_ctx: ZFContext) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
         let d = RandomData {
             d: COUNTER.fetch_add(1, Ordering::AcqRel),
         };
         results.insert(String::from(SOURCE), zf_data!(d));
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        async_std::task::sleep(std::time::Duration::from_secs(1)).await;
         Ok(results)
     }
+
 }
 
 impl SourceTrait for CountSource {
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun> {
-        match ctx.mode {
-            0 => Box::new(Self::run_1),
+    fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
+        let gctx = ctx.lock();
+        match gctx.mode {
+            0 => Box::new(|ctx: ZFContext| -> FutRunResult {
+                Box::pin(Self::run_1(ctx))
+            } ),
             _ => panic!("No way"),
         }
     }
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
-        None
+    fn get_state(&self) -> Box<dyn StateTrait> {
+        zf_empty_state!()
     }
 }
 

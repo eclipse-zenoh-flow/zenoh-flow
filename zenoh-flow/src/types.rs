@@ -18,6 +18,7 @@ use crate::message::{Message, ZFMessage};
 use crate::operator::{DataTrait, StateTrait};
 
 use async_std::sync::Arc;
+use std::sync::{Mutex, MutexGuard};
 use std::collections::HashMap;
 
 // Placeholder types
@@ -41,11 +42,22 @@ pub enum ZFError {
     SendError(String),
     MissingInput(ZFLinkId),
     InvalidData(ZFLinkId),
+    Disconnected,
+    Empty,
 }
 
 impl From<flume::RecvError> for ZFError {
     fn from(err: flume::RecvError) -> Self {
         Self::RecvError(err)
+    }
+}
+
+impl From<flume::TryRecvError> for ZFError {
+    fn from(err: flume::TryRecvError) -> Self {
+        match err {
+            flume::TryRecvError::Disconnected => Self::Disconnected,
+            flume::TryRecvError::Empty => Self::Empty,
+        }
     }
 }
 
@@ -55,24 +67,42 @@ impl<T> From<flume::SendError<T>> for ZFError {
     }
 }
 
-pub struct ZFContext {
-    // pub state: Arc<Mutex<dyn StateTrait>>,
-    pub state: Option<Box<dyn StateTrait>>,
-    pub mode: u128,
+
+
+pub struct ZFInnerCtx {
+    pub state: Box<dyn StateTrait>,
+    pub mode: usize, //can be arc<atomic> and inside ZFContext
 }
 
+
+#[derive(Clone)]
+pub struct ZFContext(Arc<Mutex<ZFInnerCtx>>);
+
 impl ZFContext {
-    pub fn set_state(&mut self, state: Box<dyn StateTrait>) {
-        self.state = Some(state);
+
+    pub fn new(state: Box<dyn StateTrait>, mode : usize) -> Self {
+        let inner = Arc::new(Mutex::new( ZFInnerCtx {
+            mode: mode,
+            state: state,
+        }));
+        Self(inner)
     }
 
-    pub fn take_state(&mut self) -> Option<Box<dyn StateTrait>> {
-        self.state.take()
+    pub fn lock<'a>(&'a self) -> MutexGuard<'a, ZFInnerCtx> {
+        self.0.lock().unwrap() //should check and return a Result
     }
 
-    pub fn get_state(&self) -> Option<&Box<dyn StateTrait>> {
-        self.state.as_ref()
-    }
+    // pub fn set_state(&mut self, state: Box<dyn StateTrait>) {
+    //     self.state = Some(state);
+    // }
+
+    // pub fn take_state(&mut self) -> Option<Box<dyn StateTrait>> {
+    //     self.state.take()
+    // }
+
+    // pub fn get_state(&self) -> Option<&Box<dyn StateTrait>> {
+    //     self.state.as_ref()
+    // }
 
     // pub fn get_state(&self) -> & {
     //     self.state.as_ref().unwrap() //getting state
@@ -290,5 +320,21 @@ impl Token {
             Self::Ready(ready) => (Some(ready.data), ready.action),
             Self::NotReady(_) => (None, TokenAction::Wait),
         }
+    }
+}
+
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct EmptyState;
+
+#[typetag::serde]
+impl crate::operator::StateTrait for EmptyState {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }

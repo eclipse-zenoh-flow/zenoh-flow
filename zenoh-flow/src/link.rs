@@ -17,13 +17,13 @@ use async_std::sync::Arc;
 use crate::types::ZFLinkId;
 use crate::ZFResult;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ZFLinkSender<T> {
     pub id: ZFLinkId,
     pub sender: flume::Sender<Arc<T>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ZFLinkReceiver<T> {
     pub id: ZFLinkId,
     pub receiver: flume::Receiver<Arc<T>>,
@@ -72,6 +72,18 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
     //         None => Ok(self.receiver.recv_async().await?),
     //     }
     // }
+
+    pub fn try_recv(&mut self) -> ZFResult<(ZFLinkId, Arc<T>)> {
+        match &self.last_message {
+            Some(message) => {
+                let msg = message.clone();
+                self.last_message = None;
+
+                Ok((self.id.clone(), msg))
+            }
+            None => Ok((self.id.clone(), self.receiver.try_recv()?)),
+        }
+    }
 
     pub fn recv(
         &mut self,
@@ -125,8 +137,9 @@ impl<T> ZFLinkSender<T> {
     }
 }
 
-pub fn link<T>(capacity: usize, id: ZFLinkId) -> (ZFLinkSender<T>, ZFLinkReceiver<T>) {
-    let (sender, receiver) = flume::bounded(capacity);
+pub fn link<T>(_capacity: usize, id: ZFLinkId) -> (ZFLinkSender<T>, ZFLinkReceiver<T>) {
+    // let (sender, receiver) = flume::bounded(capacity);
+    let (sender, receiver) = flume::unbounded();
     (
         ZFLinkSender {
             id: id.clone(),

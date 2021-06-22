@@ -48,7 +48,7 @@ impl SumAndSend {
         }
     }
 
-    pub fn ir_1(_ctx: &mut ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -59,13 +59,11 @@ impl SumAndSend {
         }
     }
 
-    pub fn run_1(ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
+    pub fn run_1(ctx: ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
-        // let (handle, mut _state) = take_state!(SumAndSendState, ctx)?;
-
-        let mut handle = ctx.take_state().unwrap(); //getting state, rename take
-        let mut _state = downcast_mut!(SumAndSendState, handle).unwrap(); //downcasting to right type
+        let mut guard = ctx.lock(); //getting the context
+        let mut _state = downcast_mut!(SumAndSendState, guard.state).unwrap(); //getting and downcasting  state to right type
 
         let data = get_input!(RandomData, String::from(INPUT), inputs)?;
 
@@ -73,14 +71,12 @@ impl SumAndSend {
         let res = RandomData { d: res };
         _state.x = res.clone();
 
-        ctx.set_state(handle); //storing new state
-
         results.insert(String::from(OUTPUT), zf_data!(res));
         Ok(results)
     }
 
     pub fn or_1(
-        _ctx: &mut ZFContext,
+        _ctx: ZFContext,
         outputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
     ) -> OutputRuleResult {
         let mut results = HashMap::new();
@@ -93,29 +89,32 @@ impl SumAndSend {
 }
 
 impl OperatorTrait for SumAndSend {
-    fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule> {
-        match ctx.mode {
+    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+        let gctx = ctx.lock();
+        match gctx.mode {
             0 => Box::new(Self::ir_1),
             _ => panic!("No way"),
         }
     }
 
-    fn get_output_rule(&self, ctx: &ZFContext) -> Box<FnOutputRule> {
-        match ctx.mode {
+    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+        let gctx = ctx.lock();
+        match gctx.mode {
             0 => Box::new(Self::or_1),
             _ => panic!("No way"),
         }
     }
 
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnRun> {
-        match ctx.mode {
+    fn get_run(&self, ctx: ZFContext) -> Box<FnRun> {
+        let gctx = ctx.lock();
+        match gctx.mode {
             0 => Box::new(Self::run_1),
             _ => panic!("No way"),
         }
     }
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
-        Some(Box::new(self.state.clone()))
+    fn get_state(&self) -> Box<dyn StateTrait> {
+        Box::new(self.state.clone())
     }
 }
 

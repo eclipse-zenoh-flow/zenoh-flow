@@ -15,10 +15,12 @@
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
-    operator::{DataTrait, FnInputRule, FnSinkRun, InputRuleResult, SinkTrait, StateTrait},
+    operator::{DataTrait, FnInputRule, FnSinkRun, InputRuleResult, SinkTrait, StateTrait, FutSinkResult},
     serde::{Deserialize, Serialize},
     types::{Token, ZFContext, ZFLinkId},
     zenoh_flow_macros::ZFState,
+    zf_empty_state,
+    ZFResult, ZFError,
 };
 
 
@@ -26,36 +28,46 @@ use zenoh_flow::{
 struct ExampleGenericSink {}
 
 impl ExampleGenericSink {
-    pub fn ir_1(_ctx: &mut ZFContext, _inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, _inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
         Ok(true)
     }
 
-    pub fn run_1(_ctx: &mut ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) {
+    pub async fn run_1(_ctx: ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> ZFResult<()> {
         println!("#######");
         for (k, v) in inputs {
-            println!("Example Generic Sink Received on LinkId {:?} -> {:?} - Serialized: {}", k, v, serde_json::to_string(&*v).unwrap());
+            let serialized = serde_json::to_string(&*v).map_err(|_| ZFError::DeseralizationError)?;
+            println!("Example Generic Sink Received on LinkId {:?} -> {:?} - Serialized: {}",
+                k,
+                v,
+                serialized
+            );
         }
         println!("#######");
+        Ok(())
     }
 }
 
 impl SinkTrait for ExampleGenericSink {
-    fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule> {
-        match ctx.mode {
+    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+        let gctx = ctx.lock();
+        match gctx.mode {
             0 => Box::new(Self::ir_1),
             _ => panic!("No way"),
         }
     }
 
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnSinkRun> {
-        match ctx.mode {
-            0 => Box::new(Self::run_1),
+    fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
+        let gctx = ctx.lock();
+        match gctx.mode {
+            0 => Box::new(|ctx: ZFContext , inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>| -> FutSinkResult {
+                Box::pin(Self::run_1(ctx, inputs))
+            }),
             _ => panic!("No way"),
         }
     }
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
-        None
+    fn get_state(&self) -> Box<dyn StateTrait> {
+        zf_empty_state!()
     }
 }
 

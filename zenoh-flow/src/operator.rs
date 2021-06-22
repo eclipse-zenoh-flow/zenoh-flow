@@ -1,9 +1,11 @@
 use crate::message::ZFMessage;
 use crate::types::{Token, ZFContext, ZFLinkId, ZFResult};
-use async_std::sync::Arc;
+use crate::async_std::sync::Arc;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use futures::Future;
+use std::pin::Pin;
 
 //Create a Derive macro for this
 #[typetag::serde(tag = "zf_data_type", content = "value")]
@@ -25,52 +27,59 @@ pub trait OperatorMode: Into<u128> + From<u128> {}
 pub type InputRuleResult = ZFResult<bool>;
 
 // CAUTION, USER CAN DO NASTY THINGS, eg. remove a link we have passed to him.
-pub type FnInputRule = dyn Fn(&mut ZFContext, &mut HashMap<ZFLinkId, Token>) -> InputRuleResult
+pub type FnInputRule = dyn Fn(ZFContext, &mut HashMap<ZFLinkId, Token>) -> InputRuleResult
     + Send
     + Sync
     + 'static;
 
 pub type OutputRuleResult = ZFResult<HashMap<ZFLinkId, Arc<ZFMessage>>>;
 
-pub type FnOutputRule = dyn Fn(&mut ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> OutputRuleResult
+pub type FnOutputRule = dyn Fn(ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> OutputRuleResult
     + Send
     + Sync
     + 'static;
 
 pub type RunResult = ZFResult<HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>>;
 
-pub type FnRun = dyn Fn(&mut ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult
+pub type FnRun = dyn Fn(ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult
     + Send
     + Sync
     + 'static;
 
 pub trait OperatorTrait {
-    fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule>;
+    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule>;
 
-    fn get_output_rule(&self, ctx: &ZFContext) -> Box<FnOutputRule>;
+    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule>;
 
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnRun>;
+    fn get_run(&self, ctx: ZFContext) -> Box<FnRun>;
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>>;
+    fn get_state(&self) -> Box<dyn StateTrait>;
 }
 
-pub type FnSourceRun = dyn Fn(&mut ZFContext) -> RunResult + Send + Sync + 'static;
+
+pub type FutRunResult = Pin<Box<dyn Future<Output = RunResult> + Send + Sync>>;
+
+pub type FnSourceRun = Box<dyn Fn(ZFContext) -> FutRunResult + Send + Sync>;
 
 pub trait SourceTrait {
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun>;
+    fn get_run(&self, ctx: ZFContext) -> FnSourceRun;
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>>;
+    // a get output_rule
+
+    fn get_state(&self) -> Box<dyn StateTrait>;
 }
 
+pub type FutSinkResult = Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync>>;
+
 pub type FnSinkRun =
-    dyn Fn(&mut ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) + Send + Sync + 'static;
+    Box<dyn Fn(ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> FutSinkResult + Send + Sync>;
 
 pub trait SinkTrait {
-    fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule>;
+    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule>;
 
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnSinkRun>;
+    fn get_run(&self, ctx: ZFContext) -> FnSinkRun;
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>>;
+    fn get_state(&self) -> Box<dyn StateTrait>;
 }
 
 #[macro_export]
@@ -123,5 +132,20 @@ macro_rules! get_input {
             },
             None => Err(zenoh_flow::types::ZFError::MissingInput($index)),
         }
+    };
+}
+
+#[macro_export]
+macro_rules! zf_empty_state {
+    () => {
+        Box::new(zenoh_flow::EmptyState{})
+    };
+}
+
+
+#[macro_export]
+macro_rules! zf_source_result {
+    ($result : expr) => {
+        Box::pin($result)
     };
 }

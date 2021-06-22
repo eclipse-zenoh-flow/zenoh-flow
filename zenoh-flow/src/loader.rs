@@ -16,15 +16,17 @@ use crate::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::message::{Message, ZFMessage, ZFMsg};
 use crate::operator::{
     DataTrait, FnInputRule, FnOutputRule, FnRun, FnSinkRun, FnSourceRun, OperatorTrait, SinkTrait,
-    SourceTrait, StateTrait,
+    SourceTrait, StateTrait, RunResult
 };
-use crate::types::{Token, ZFLinkId, ZFResult};
+use crate::types::{Token, ZFError, ZFLinkId, ZFResult};
 use crate::{ZFContext, ZFOperatorId};
-use async_std::sync::Arc;
+use crate::async_std::sync::Arc;
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 use std::io;
+
+use future::Future;
 
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
@@ -72,19 +74,19 @@ pub struct ZFOperatorProxy {
 }
 
 impl OperatorTrait for ZFOperatorProxy {
-    fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule> {
-        self.operator.get_input_rule(ctx)
+    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+        self.operator.get_input_rule(ctx.clone())
     }
 
-    fn get_output_rule(&self, ctx: &ZFContext) -> Box<FnOutputRule> {
-        self.operator.get_output_rule(ctx)
+    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+        self.operator.get_output_rule(ctx.clone())
     }
 
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnRun> {
-        self.operator.get_run(ctx)
+    fn get_run(&self, ctx: ZFContext) -> Box<FnRun> {
+        self.operator.get_run(ctx.clone())
     }
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
+    fn get_state(&self) -> Box<dyn StateTrait> {
         self.operator.get_state()
     }
 }
@@ -178,10 +180,7 @@ impl ZFOperatorRunnerDynamic {
 
     pub async fn run(&mut self) -> ZFResult<()> {
         // WIP empty context
-        let mut ctx = ZFContext {
-            mode: 0,
-            state: self.operator.get_state(),
-        };
+        let ctx = ZFContext::new(self.operator.get_state(), 0);
 
         loop {
             // we should start from an HashMap with all ZFLinkId and not ready tokens
@@ -191,7 +190,7 @@ impl ZFOperatorRunnerDynamic {
                 msgs.insert(i.id(), Token::new_not_ready(0));
             }
 
-            let ir_fn = self.operator.get_input_rule(&ctx);
+            let ir_fn = self.operator.get_input_rule(ctx.clone());
 
             let mut futs = vec![];
             for rx in self.inputs.iter_mut() {
@@ -214,7 +213,7 @@ impl ZFOperatorRunnerDynamic {
                                     _ => (),
                                 };
 
-                                match ir_fn(&mut ctx, &mut msgs) {
+                                match ir_fn(ctx.clone(), &mut msgs) {
                                     Ok(true) => {
                                         // we can run
                                         log::debug!("IR: OK");
@@ -247,7 +246,7 @@ impl ZFOperatorRunnerDynamic {
             drop(futs);
 
             // Running
-            let run_fn = self.operator.get_run(&ctx);
+            let run_fn = self.operator.get_run(ctx.clone());
             let mut data: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
             for (id, v) in msgs {
@@ -255,12 +254,12 @@ impl ZFOperatorRunnerDynamic {
                 data.insert(id, d.unwrap());
             }
 
-            let outputs = run_fn(&mut ctx, data)?;
+            let outputs = run_fn(ctx.clone(), data)?;
 
             //Output
-            let out_fn = self.operator.get_output_rule(&ctx);
+            let out_fn = self.operator.get_output_rule(ctx.clone());
 
-            let out_msgs = out_fn(&mut ctx, outputs)?;
+            let out_msgs = out_fn(ctx.clone(), outputs)?;
 
             // Send to Links
             for (id, zf_msg) in out_msgs {
@@ -312,10 +311,7 @@ impl ZFOperatorRunnerStatic {
 
     pub async fn run(&mut self) -> ZFResult<()> {
         // WIP empty context
-        let mut ctx = ZFContext {
-            mode: 0,
-            state: self.operator.get_state(),
-        };
+        let ctx = ZFContext::new(self.operator.get_state(), 0);
 
         loop {
             // we should start from an HashMap with all ZFLinkId and not ready tokens
@@ -325,7 +321,7 @@ impl ZFOperatorRunnerStatic {
                 msgs.insert(i.id(), Token::new_not_ready(0));
             }
 
-            let ir_fn = self.operator.get_input_rule(&ctx);
+            let ir_fn = self.operator.get_input_rule(ctx.clone());
 
             let mut futs = vec![];
             for rx in self.inputs.iter_mut() {
@@ -346,7 +342,7 @@ impl ZFOperatorRunnerStatic {
                                     }
                                     _ => (),
                                 };
-                                match ir_fn(&mut ctx, &mut msgs) {
+                                match ir_fn(ctx.clone(), &mut msgs) {
                                     Ok(true) => {
                                         // we can run
                                         futs = vec![]; // this makes the while loop to end
@@ -376,7 +372,7 @@ impl ZFOperatorRunnerStatic {
             drop(futs);
 
             // Running
-            let run_fn = self.operator.get_run(&ctx);
+            let run_fn = self.operator.get_run(ctx.clone());
             let mut data: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
             for (id, v) in msgs {
@@ -384,12 +380,12 @@ impl ZFOperatorRunnerStatic {
                 data.insert(id, d.unwrap());
             }
 
-            let outputs = run_fn(&mut ctx, data)?;
+            let outputs = run_fn(ctx.clone(), data)?;
 
             //Output
-            let out_fn = self.operator.get_output_rule(&ctx);
+            let out_fn = self.operator.get_output_rule(ctx.clone());
 
-            let out_msgs = out_fn(&mut ctx, outputs)?;
+            let out_msgs = out_fn(ctx.clone(), outputs)?;
 
             // Send to Links
             for (id, zf_msg) in out_msgs {
@@ -454,11 +450,11 @@ pub struct ZFSourceProxy {
 }
 
 impl SourceTrait for ZFSourceProxy {
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnSourceRun> {
-        self.operator.get_run(ctx)
+    fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
+        self.operator.get_run(ctx.clone())
     }
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
+    fn get_state(&self) -> Box<dyn StateTrait> {
         self.operator.get_state()
     }
 }
@@ -537,15 +533,12 @@ impl ZFSourceRunnerDynamic {
 
     pub async fn run(&mut self) -> ZFResult<()> {
         // WIP empty context
-        let mut ctx = ZFContext {
-            mode: 0,
-            state: self.operator.get_state(),
-        };
+        let ctx = ZFContext::new(self.operator.get_state(), 0);
 
         loop {
             // Running
-            let run_fn = self.operator.get_run(&ctx);
-            let outputs = run_fn(&mut ctx)?;
+            let run_fn = self.operator.get_run(ctx.clone());
+            let outputs = run_fn(ctx.clone()).await?;
             // Send to links
             for (id, data) in outputs {
                 let tx = self.outputs.iter().find(|&x| x.id() == id).unwrap();
@@ -575,15 +568,12 @@ impl ZFSourceRunnerStatic {
 
     pub async fn run(&mut self) -> ZFResult<()> {
         // WIP empty context
-        let mut ctx = ZFContext {
-            mode: 0,
-            state: self.operator.get_state(),
-        };
+        let ctx = ZFContext::new(self.operator.get_state(), 0);
 
         loop {
             // Running
-            let run_fn = self.operator.get_run(&ctx);
-            let outputs = run_fn(&mut ctx)?;
+            let run_fn = self.operator.get_run(ctx.clone());
+            let outputs = run_fn(ctx.clone()).await?;
             // Send to links
             for (id, data) in outputs {
                 let tx = self.outputs.iter().find(|&x| x.id() == id).unwrap();
@@ -634,15 +624,16 @@ pub struct ZFSinkProxy {
 }
 
 impl SinkTrait for ZFSinkProxy {
-    fn get_input_rule(&self, ctx: &ZFContext) -> Box<FnInputRule> {
-        self.operator.get_input_rule(ctx)
+
+    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+        self.operator.get_input_rule(ctx.clone())
     }
 
-    fn get_run(&self, ctx: &ZFContext) -> Box<FnSinkRun> {
-        self.operator.get_run(ctx)
+    fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
+        self.operator.get_run(ctx.clone())
     }
 
-    fn get_state(&self) -> Option<Box<dyn StateTrait>> {
+    fn get_state(&self) -> Box<dyn StateTrait> {
         self.operator.get_state()
     }
 }
@@ -721,10 +712,8 @@ impl ZFSinkRunnerDynamic {
 
     pub async fn run(&mut self) -> ZFResult<()> {
         // WIP empty context
-        let mut ctx = ZFContext {
-            mode: 0,
-            state: self.operator.get_state(),
-        };
+        let ctx = ZFContext::new(self.operator.get_state(), 0);
+
         loop {
             // we should start from an HashMap with all ZFLinkId and not ready tokens
             let mut msgs: HashMap<ZFLinkId, Token> = HashMap::new();
@@ -733,7 +722,7 @@ impl ZFSinkRunnerDynamic {
                 msgs.insert(i.id(), Token::new_not_ready(0));
             }
 
-            let ir_fn = self.operator.get_input_rule(&ctx);
+            let ir_fn = self.operator.get_input_rule(ctx.clone());
 
             let mut futs = vec![];
             for rx in self.inputs.iter_mut() {
@@ -755,7 +744,7 @@ impl ZFSinkRunnerDynamic {
                                     }
                                     _ => (),
                                 };
-                                match ir_fn(&mut ctx, &mut msgs) {
+                                match ir_fn(ctx.clone(), &mut msgs) {
                                     Ok(true) => {
                                         // we can run
                                         futs = vec![]; // this makes the while loop to end
@@ -790,7 +779,7 @@ impl ZFSinkRunnerDynamic {
             drop(futs);
 
             // Running
-            let run_fn = self.operator.get_run(&ctx);
+            let run_fn = self.operator.get_run(ctx.clone());
             let mut data: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
             for (id, v) in msgs {
@@ -798,7 +787,7 @@ impl ZFSinkRunnerDynamic {
                 data.insert(id, d.unwrap());
             }
 
-            let _ = run_fn(&mut ctx, data);
+            run_fn(ctx.clone(), data).await?;
 
             //This depends on the Tokens...
             for rx in self.inputs.iter_mut() {
@@ -827,10 +816,8 @@ impl ZFSinkRunnerStatic {
 
     pub async fn run(&mut self) -> ZFResult<()> {
         // WIP empty context
-        let mut ctx = ZFContext {
-            mode: 0,
-            state: self.operator.get_state(),
-        };
+        let ctx = ZFContext::new(self.operator.get_state(), 0);
+
         loop {
             // we should start from an HashMap with all ZFLinkId and not ready tokens
             let mut msgs: HashMap<ZFLinkId, Token> = HashMap::new();
@@ -839,7 +826,7 @@ impl ZFSinkRunnerStatic {
                 msgs.insert(i.id(), Token::new_not_ready(0));
             }
 
-            let ir_fn = self.operator.get_input_rule(&ctx);
+            let ir_fn = self.operator.get_input_rule(ctx.clone());
 
             let mut futs = vec![];
             for rx in self.inputs.iter_mut() {
@@ -861,7 +848,7 @@ impl ZFSinkRunnerStatic {
                                     }
                                     _ => (),
                                 };
-                                match ir_fn(&mut ctx, &mut msgs) {
+                                match ir_fn(ctx.clone(), &mut msgs) {
                                     Ok(true) => {
                                         // we can run
                                         futs = vec![]; // this makes the while loop to end
@@ -896,7 +883,7 @@ impl ZFSinkRunnerStatic {
             drop(futs);
 
             // Running
-            let run_fn = self.operator.get_run(&ctx);
+            let run_fn = self.operator.get_run(ctx.clone());
             let mut data: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
             for (id, v) in msgs {
@@ -904,7 +891,7 @@ impl ZFSinkRunnerStatic {
                 data.insert(id, d.unwrap());
             }
 
-            let _ = run_fn(&mut ctx, data);
+            run_fn(ctx.clone(), data).await?;
 
             //This depends on the Tokens...
             for rx in self.inputs.iter_mut() {
