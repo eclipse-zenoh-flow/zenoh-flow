@@ -74,7 +74,7 @@ impl ExampleGenericZenohSink {
         ctx: ZFContext,
         inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
     ) -> ZFResult<()> {
-        let guard = ctx.lock(); //getting state,
+        let guard = ctx.async_lock().await; //getting state,
         let _state = downcast!(ZSinkState, guard.state).unwrap(); //downcasting to right type
 
         let inner = _state.inner.as_ref().unwrap();

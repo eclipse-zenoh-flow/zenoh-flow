@@ -110,7 +110,7 @@ impl CameraSource {
     async fn run_1(ctx: ZFContext) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
-        let mut guard = ctx.lock();
+        let mut guard = ctx.async_lock().await;
         let mut _state = downcast_mut!(CameraState, guard.state).unwrap(); //downcasting to right type
 
         let inner = _state.inner.as_ref().unwrap();

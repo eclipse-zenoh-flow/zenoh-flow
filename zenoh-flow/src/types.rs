@@ -93,6 +93,11 @@ impl ZFContext {
         Self(inner)
     }
 
+    pub async fn async_lock<'a>(&'a self) -> MutexGuard<'a, ZFInnerCtx> {
+        self.0.lock().await
+    }
+
+
     pub fn lock<'a>(&'a self) -> MutexGuard<'a, ZFInnerCtx> {
         crate::zf_spin_lock!(self.0) // should not use this, should have an async lock and a sync "lock"
     }

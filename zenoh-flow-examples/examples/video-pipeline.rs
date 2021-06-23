@@ -94,7 +94,7 @@ impl CameraSource {
     async fn run_1(ctx: ZFContext) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
-        let mut guard = ctx.lock(); //take state
+        let mut guard = ctx.async_lock().await;
         let mut _state = downcast_mut!(CameraState, guard.state).unwrap(); //downcasting to right type
 
         let inner = _state.inner.as_ref().unwrap();
@@ -183,7 +183,7 @@ impl VideoSink {
         ctx: ZFContext,
         inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
     ) -> ZFResult<()> {
-        let guard = ctx.lock(); //getting state,
+        let guard = ctx.async_lock().await; //getting state,
         let _state = downcast!(VideoState, guard.state).unwrap(); //downcasting to right type
 
         let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
