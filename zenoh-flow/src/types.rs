@@ -23,7 +23,7 @@ use std::collections::HashMap;
 
 // Placeholder types
 pub type ZFOperatorId = String;
-
+pub type ZFZenohResource = String;
 pub type ZFOperatorName = String;
 pub type ZFTimestamp = u128;
 pub type ZFLinkId = String;
