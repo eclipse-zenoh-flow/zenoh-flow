@@ -24,6 +24,7 @@ use crate::{ZFContext, ZFOperatorId};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
+use zenoh::net::Session;
 
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
@@ -269,6 +270,7 @@ impl ZFOperatorRunnerDynamic {
                 //getting link
                 log::debug!("id: {:?}, zf_msg: {:?}", id, zf_msg);
                 let tx = self.outputs.iter().find(|&x| x.id() == id).unwrap();
+                log::debug!("Sending on: {:?}", tx);
                 //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
                 match zf_msg.msg {
                     ZFMsg::Data(_) => {
@@ -414,25 +416,55 @@ impl ZFOperatorRunnerStatic {
     }
 }
 // SOURCE
+pub unsafe fn load_zenoh_receiver(
+    path: String,
+    session: Arc<Session>,
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<(ZFOperatorId, ZFSourceRunner)> {
+    load_source_or_receiver(path, Some(session), configuration)
+}
 
 pub unsafe fn load_source(
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<(ZFOperatorId, ZFSourceRunner)> {
+    load_source_or_receiver(path, None, configuration)
+}
+
+unsafe fn load_source_or_receiver(
+    path: String,
+    zenoh_session: Option<Arc<Session>>,
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<(ZFOperatorId, ZFSourceRunner)> {
     // This is unsafe because has to dynamically load a library
     let library = Arc::new(Library::new(path).unwrap());
-    let decl = library
-        .get::<*mut ZFSourceDeclaration>(b"zfsource_declaration\0")
-        .unwrap()
-        .read();
-
-    // version checks to prevent accidental ABI incompatibilities
-    if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
-        return Err(ZFError::VersionMismatch);
-    }
     let mut registrar = ZFSourceRegistrar::new(Arc::clone(&library));
 
-    (decl.register)(&mut registrar, configuration)?;
+    if let Some(session) = zenoh_session {
+        let decl = library
+            .get::<*mut ZFZenohReceiverDeclaration>(b"zfsource_declaration\0")
+            .unwrap()
+            .read();
+
+        // version checks to prevent accidental ABI incompatibilities
+        if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
+            return Err(ZFError::VersionMismatch);
+        }
+
+        (decl.register)(&mut registrar, session, configuration)?;
+    } else {
+        let decl = library
+            .get::<*mut ZFSourceDeclaration>(b"zfsource_declaration\0")
+            .unwrap()
+            .read();
+
+        // version checks to prevent accidental ABI incompatibilities
+        if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
+            return Err(ZFError::VersionMismatch);
+        }
+
+        (decl.register)(&mut registrar, configuration)?;
+    }
 
     let (operator_id, proxy) = registrar.operator.unwrap();
 
@@ -445,6 +477,16 @@ pub struct ZFSourceDeclaration {
     pub core_version: &'static str,
     pub register: unsafe extern "C" fn(
         &mut dyn ZFSourceRegistrarTrait,
+        Option<HashMap<String, String>>,
+    ) -> ZFResult<()>,
+}
+
+pub struct ZFZenohReceiverDeclaration {
+    pub rustc_version: &'static str,
+    pub core_version: &'static str,
+    pub register: unsafe extern "C" fn(
+        &mut dyn ZFSourceRegistrarTrait,
+        Arc<Session>,
         Option<HashMap<String, String>>,
     ) -> ZFResult<()>,
 }
@@ -557,9 +599,11 @@ impl ZFSourceRunnerDynamic {
             let out_fn = self.operator.get_output_rule(ctx.clone());
 
             let out_msgs = out_fn(ctx.clone(), outputs)?;
+            log::debug!("Outputs: {:?}", self.outputs);
 
             // Send to Links
             for (id, zf_msg) in out_msgs {
+                log::debug!("Sending on {:?} data: {:?}", id, zf_msg);
                 //getting link
                 let tx = self.outputs.iter().find(|&x| x.id() == id).unwrap();
                 //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
@@ -612,31 +656,74 @@ impl ZFSourceRunnerStatic {
     }
 }
 
+// CONNECTOR SENDER — Similar to a SINK (see below)
+pub unsafe fn load_zenoh_sender(
+    path: String,
+    session: Arc<Session>,
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<(ZFOperatorId, ZFSinkRunner)> {
+    load_sink_or_sender(path, Some(session), configuration)
+}
+
 // SINK
 
 pub unsafe fn load_sink(
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<(ZFOperatorId, ZFSinkRunner)> {
-    // This is unsafe because has to dynamically load a library
-    let library = Arc::new(Library::new(path).unwrap());
-    let decl = library
-        .get::<*mut ZFSinkDeclaration>(b"zfsink_declaration\0")
-        .unwrap()
-        .read();
+    load_sink_or_sender(path, None, configuration)
+}
 
-    // version checks to prevent accidental ABI incompatibilities
-    if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
-        return Err(ZFError::VersionMismatch);
-    }
+unsafe fn load_sink_or_sender(
+    path: String,
+    zenoh_session: Option<Arc<Session>>,
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<(ZFOperatorId, ZFSinkRunner)> {
+    // This is unsafe because has to dynamically load a library
+    log::debug!("Loading {}", path);
+    let library = Arc::new(Library::new(path).unwrap());
     let mut registrar = ZFSinkRegistrar::new(Arc::clone(&library));
 
-    (decl.register)(&mut registrar, configuration)?;
+    if let Some(session) = zenoh_session {
+        let decl = library
+            .get::<*mut ZFZenohSenderDeclaration>(b"zfsink_declaration\0")
+            .unwrap()
+            .read();
+
+        // version checks to prevent accidental ABI incompatibilities
+        if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
+            return Err(ZFError::VersionMismatch);
+        }
+
+        (decl.register)(&mut registrar, session, configuration)?;
+    } else {
+        let decl = library
+            .get::<*mut ZFSinkDeclaration>(b"zfsink_declaration\0")
+            .unwrap()
+            .read();
+
+        // version checks to prevent accidental ABI incompatibilities
+        if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
+            return Err(ZFError::VersionMismatch);
+        }
+
+        (decl.register)(&mut registrar, configuration)?;
+    }
 
     let (operator_id, proxy) = registrar.operator.unwrap();
 
     let runner = ZFSinkRunner::new_dynamic(proxy, library);
     Ok((operator_id, runner))
+}
+
+pub struct ZFZenohSenderDeclaration {
+    pub rustc_version: &'static str,
+    pub core_version: &'static str,
+    pub register: unsafe extern "C" fn(
+        &mut dyn ZFSinkRegistrarTrait,
+        Arc<Session>,
+        Option<HashMap<String, String>>,
+    ) -> ZFResult<()>,
 }
 
 pub struct ZFSinkDeclaration {
@@ -816,7 +903,11 @@ impl ZFSinkRunnerDynamic {
             let mut data: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
 
             for (id, v) in msgs {
+                log::debug!("[SINK] Sending data to run: {:?}", v);
                 let (d, _) = v.split();
+                if d.is_none() {
+                    continue;
+                }
                 data.insert(id, d.unwrap());
             }
 

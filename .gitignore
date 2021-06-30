@@ -16,3 +16,7 @@
 
 # MacOS Related
 .DS_Store
+
+# Output files
+outfile.png
+output.dot

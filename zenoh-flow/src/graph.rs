@@ -18,17 +18,27 @@ use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 use std::collections::HashMap;
+use zenoh::ZFuture;
 
-use crate::link::{link, ZFLinkReceiver, ZFLinkSender};
-use crate::loader::{
-    load_operator, load_sink, load_source, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner,
+use crate::{
+    link::{link, ZFLinkReceiver, ZFLinkSender},
+    ZFZenohConnectorDescription,
 };
-use crate::message::ZFMessage;
-use crate::serde::{Deserialize, Serialize};
-use crate::types::{ZFError, ZFFromEndpoint, ZFLinkId, ZFOperatorName, ZFResult, ZFToEndpoint};
+use crate::{
+    loader::load_zenoh_receiver,
+    types::{ZFError, ZFFromEndpoint, ZFLinkId, ZFOperatorName, ZFResult, ZFToEndpoint},
+};
+use crate::{loader::load_zenoh_sender, message::ZFMessage};
+use crate::{
+    loader::{
+        load_operator, load_sink, load_source, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner,
+    },
+    ZFZenohReceiverDescription, ZFZenohSenderDescription,
+};
 use crate::{
     ZFConnection, ZFOperatorDescription, ZFOperatorId, ZFSinkDescription, ZFSourceDescription,
 };
+use serde::{Deserialize, Serialize};
 
 pub enum Runner {
     Operator(ZFOperatorRunner),
@@ -67,6 +77,7 @@ pub enum DataFlowNode {
     Operator(ZFOperatorDescription),
     Source(ZFSourceDescription),
     Sink(ZFSinkDescription),
+    Connector(ZFZenohConnectorDescription),
 }
 
 impl std::fmt::Display for DataFlowNode {
@@ -75,6 +86,7 @@ impl std::fmt::Display for DataFlowNode {
             DataFlowNode::Operator(inner) => write!(f, "{}", inner),
             DataFlowNode::Source(inner) => write!(f, "{}", inner),
             DataFlowNode::Sink(inner) => write!(f, "{}", inner),
+            DataFlowNode::Connector(inner) => write!(f, "{}", inner),
         }
     }
 }
@@ -88,6 +100,10 @@ impl DataFlowNode {
             },
             DataFlowNode::Source(_) => false,
             DataFlowNode::Sink(sink) => sink.input == id,
+            DataFlowNode::Connector(zc) => match zc {
+                ZFZenohConnectorDescription::Receiver(_) => false,
+                ZFZenohConnectorDescription::Sender(tx) => tx.input == id,
+            },
         }
     }
 
@@ -99,6 +115,10 @@ impl DataFlowNode {
             },
             DataFlowNode::Sink(_) => false,
             DataFlowNode::Source(source) => source.output == id,
+            DataFlowNode::Connector(zc) => match zc {
+                ZFZenohConnectorDescription::Receiver(rx) => rx.output == id,
+                ZFZenohConnectorDescription::Sender(_) => false,
+            },
         }
     }
 
@@ -107,6 +127,7 @@ impl DataFlowNode {
             DataFlowNode::Operator(op) => op.id.clone(),
             DataFlowNode::Sink(s) => s.id.clone(),
             DataFlowNode::Source(s) => s.id.clone(),
+            DataFlowNode::Connector(zc) => zc.get_id(),
         }
     }
 
@@ -115,6 +136,16 @@ impl DataFlowNode {
             DataFlowNode::Operator(op) => op.name.clone(),
             DataFlowNode::Sink(s) => s.name.clone(),
             DataFlowNode::Source(s) => s.name.clone(),
+            DataFlowNode::Connector(zc) => zc.get_name(),
+        }
+    }
+
+    pub fn get_runtime(&self) -> Option<String> {
+        match self {
+            DataFlowNode::Operator(op) => op.runtime.clone(),
+            DataFlowNode::Sink(s) => s.runtime.clone(),
+            DataFlowNode::Source(s) => s.runtime.clone(),
+            DataFlowNode::Connector(zc) => zc.get_runtime(),
         }
     }
 }
@@ -186,7 +217,7 @@ impl DataFlowGraph {
             Some(df) => {
                 let mut graph = StableGraph::<DataFlowNode, ZFLinkId>::new();
                 let mut operators = Vec::new();
-                let mut links = Vec::new();
+                let mut links: Vec<(EdgeIndex, ZFConnection)> = Vec::new();
                 for o in df.operators {
                     operators.push((
                         graph.add_node(DataFlowNode::Operator(o.clone())),
@@ -210,37 +241,135 @@ impl DataFlowGraph {
 
                 for l in df.links {
                     // First check if the LinkId are the same
-                    if l.from.output.clone() == l.to.input.clone() {
-                        let from_index = match operators
-                            .iter()
-                            .find(|&(_, o)| o.get_name() == l.from.name.clone())
-                        {
+                    if l.from.output != l.to.input {
+                        panic!("Ports ID does not match");
+                    }
+
+                    let (from_index, from_runtime) =
+                        match operators.iter().find(|&(_, o)| o.get_name() == l.from.name) {
                             Some((idx, op)) => match op.has_output(l.from.output.clone()) {
-                                true => idx,
+                                true => (idx, op.get_runtime()),
                                 false => {
-                                    panic!("Link id {:?} not found in {:?}", &l.from.output, op)
+                                    panic!("Link id {:?} not found in {:?}", l.from.output, op)
                                 }
                             },
                             None => panic!("Not not found"),
                         };
 
-                        let to_index = match operators
-                            .iter()
-                            .find(|&(_, o)| o.get_name() == l.to.name.clone())
-                        {
+                    let (to_index, to_runtime) =
+                        match operators.iter().find(|&(_, o)| o.get_name() == l.to.name) {
                             Some((idx, op)) => match op.has_input(l.to.input.clone()) {
-                                true => idx,
+                                true => (idx, op.get_runtime()),
                                 false => panic!("Link id {:?} not found in {:?}", &l.to.input, op),
                             },
                             None => panic!("Not not found"),
                         };
 
+                    if from_runtime == to_runtime {
+                        log::debug!("[Graph instantiation] [same runtime] Pushing link: {:?}", l);
                         links.push((
                             graph.add_edge(*from_index, *to_index, l.from.output.clone()),
-                            l,
+                            l.clone(),
                         ));
                     } else {
-                        panic!("Ports ID does not match")
+                        log::debug!(
+                            "[Graph instantiation] Link on different runtime detected: {:?}",
+                            l
+                        );
+
+                        // TODO Refactoring: put the following logic in a separate, dedicated
+                        // function.
+                        let resource = format!(
+                            "/zf/{}/{}/{}",
+                            df.flow,
+                            l.from.name.clone(),
+                            l.from.output.clone()
+                        );
+                        log::debug!("[Graph instantiation] Resource associated: {:?}", resource);
+
+                        let sender_name = format!(
+                            "{}-sender-{}-{}",
+                            df.flow,
+                            l.from.name.clone(),
+                            l.from.output.clone()
+                        );
+                        let sender = ZFZenohSenderDescription {
+                            id: sender_name.clone(),
+                            name: sender_name.clone(),
+                            input: l.from.output.clone(),
+                            resource: resource.clone(),
+                            uri: "./target/debug/examples/libzenoh_sender.dylib".to_string(),
+                            runtime: from_runtime.clone(),
+                        };
+
+                        let sender_idx = graph.add_node(DataFlowNode::Connector(
+                            ZFZenohConnectorDescription::Sender(sender.clone()),
+                        ));
+
+                        let link_sender = ZFConnection {
+                            from: l.from.clone(),
+                            to: ZFToEndpoint {
+                                name: sender_name,
+                                input: sender.input.clone(),
+                            },
+                            size: None,
+                            queueing_policy: None,
+                            priority: None,
+                        };
+
+                        log::debug!("Pushing link: {:?}", link_sender);
+                        links.push((
+                            graph.add_edge(
+                                *from_index,
+                                sender_idx,
+                                link_sender.from.output.clone(),
+                            ),
+                            link_sender,
+                        ));
+
+                        let receiver_name = format!(
+                            "{}-receiver-{}-{}",
+                            df.flow,
+                            l.to.name.clone(),
+                            l.to.input.clone()
+                        );
+                        let receiver = ZFZenohReceiverDescription {
+                            id: receiver_name.clone(),
+                            name: receiver_name.clone(),
+                            output: l.to.input.clone(),
+                            resource,
+                            uri: "./target/debug/examples/libzenoh_receiver.dylib".to_string(),
+                            runtime: to_runtime.clone(),
+                        };
+
+                        let recv_idx = graph.add_node(DataFlowNode::Connector(
+                            ZFZenohConnectorDescription::Receiver(receiver.clone()),
+                        ));
+                        let link_receiver = ZFConnection {
+                            from: ZFFromEndpoint {
+                                name: receiver_name,
+                                output: receiver.output.clone(),
+                            },
+                            to: l.to.clone(),
+                            size: None,
+                            queueing_policy: None,
+                            priority: None,
+                        };
+                        links.push((
+                            graph.add_edge(recv_idx, *to_index, link_receiver.to.input.clone()),
+                            link_receiver,
+                        ));
+
+                        operators.push((
+                            sender_idx,
+                            DataFlowNode::Connector(ZFZenohConnectorDescription::Sender(sender)),
+                        ));
+                        operators.push((
+                            recv_idx,
+                            DataFlowNode::Connector(ZFZenohConnectorDescription::Receiver(
+                                receiver,
+                            )),
+                        ));
                     }
                 }
 
@@ -289,6 +418,7 @@ impl DataFlowGraph {
             outputs,
             lib: None,
             configuration,
+            runtime: None,
         };
         self.operators.push((
             self.graph
@@ -315,6 +445,7 @@ impl DataFlowGraph {
             output,
             lib: None,
             configuration,
+            runtime: None,
         };
         self.operators.push((
             self.graph
@@ -341,6 +472,7 @@ impl DataFlowGraph {
             input,
             lib: None,
             configuration,
+            runtime: None,
         };
         self.operators.push((
             self.graph.add_node(DataFlowNode::Sink(descriptor.clone())),
@@ -418,9 +550,16 @@ impl DataFlowGraph {
         Ok(())
     }
 
-    pub fn load(&mut self) -> ZFResult<()> {
+    pub fn load(&mut self, runtime: &str) -> ZFResult<()> {
         unsafe {
+            let session = Arc::new(zenoh::net::open(zenoh::net::config::peer()).wait().unwrap());
             for (_, op) in &self.operators {
+                if let Some(op_runtime) = op.get_runtime() {
+                    if op_runtime != runtime {
+                        continue;
+                    }
+                }
+
                 match op {
                     DataFlowNode::Operator(inner) => {
                         match &inner.lib {
@@ -467,24 +606,59 @@ impl DataFlowGraph {
                             }
                         }
                     }
+                    DataFlowNode::Connector(zc) => match zc {
+                        ZFZenohConnectorDescription::Sender(tx) => {
+                            let mut configuration = HashMap::with_capacity(2);
+                            configuration.insert("resource".to_string(), tx.resource.clone());
+                            configuration.insert("input".to_string(), tx.input.clone());
+                            let (_, runner) = load_zenoh_sender(
+                                tx.uri.clone(),
+                                session.clone(),
+                                Some(configuration),
+                            )?;
+                            let runner = Runner::Sink(runner);
+                            self.operators_runners
+                                .insert(tx.name.clone(), Arc::new(Mutex::new(runner)));
+                        }
+
+                        ZFZenohConnectorDescription::Receiver(rx) => {
+                            let mut configuration = HashMap::with_capacity(2);
+                            configuration.insert("resource".to_string(), rx.resource.clone());
+                            configuration.insert("output".to_string(), rx.output.clone());
+                            let (_, runner) = load_zenoh_receiver(
+                                rx.uri.clone(),
+                                session.clone(),
+                                Some(configuration),
+                            )?;
+                            let runner = Runner::Source(runner);
+                            self.operators_runners
+                                .insert(rx.name.clone(), Arc::new(Mutex::new(runner)));
+                        }
+                    },
                 }
             }
             Ok(())
         }
     }
 
-    pub async fn make_connections(&mut self) {
+    pub async fn make_connections(&mut self, runtime: &str) {
         // Connects the operators via our FIFOs
 
         for (idx, up_op) in &self.operators {
+            if let Some(op_runtime) = up_op.get_runtime() {
+                if op_runtime != runtime {
+                    continue;
+                }
+            }
+
+            log::debug!("Creating links for:\n\t< {:?} > Operator: {:?}", idx, up_op);
+
             let mut up_runner = self
                 .operators_runners
                 .get(&up_op.get_name())
                 .unwrap()
                 .lock()
                 .await;
-
-            log::debug!("Creating links for:\n\t< {:?} > Operator: {:?}", idx, up_op);
 
             if self.graph.contains_node(*idx) {
                 let mut downstreams = self

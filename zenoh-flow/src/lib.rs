@@ -78,12 +78,40 @@ macro_rules! export_source {
 }
 
 #[macro_export]
+macro_rules! export_zenoh_receiver {
+    ($register:expr) => {
+        #[doc(hidden)]
+        #[no_mangle]
+        pub static zfsource_declaration: $crate::loader::ZFZenohReceiverDeclaration =
+            $crate::loader::ZFZenohReceiverDeclaration {
+                rustc_version: $crate::loader::RUSTC_VERSION,
+                core_version: $crate::loader::CORE_VERSION,
+                register: $register,
+            };
+    };
+}
+
+#[macro_export]
 macro_rules! export_sink {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
         pub static zfsink_declaration: $crate::loader::ZFSinkDeclaration =
             $crate::loader::ZFSinkDeclaration {
+                rustc_version: $crate::loader::RUSTC_VERSION,
+                core_version: $crate::loader::CORE_VERSION,
+                register: $register,
+            };
+    };
+}
+
+#[macro_export]
+macro_rules! export_zenoh_sender {
+    ($register:expr) => {
+        #[doc(hidden)]
+        #[no_mangle]
+        pub static zfsink_declaration: $crate::loader::ZFZenohSenderDeclaration =
+            $crate::loader::ZFZenohSenderDeclaration {
                 rustc_version: $crate::loader::RUSTC_VERSION,
                 core_version: $crate::loader::CORE_VERSION,
                 register: $register,

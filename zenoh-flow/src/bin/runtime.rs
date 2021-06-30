@@ -10,7 +10,10 @@ struct Opt {
     graph_file: String,
     #[structopt(short = "o", long = "out-file", default_value = "output.dot")]
     outfile: String,
+    #[structopt(short = "r", long = "runtime")]
+    runtime: String,
 }
+
 #[async_std::main]
 async fn main() {
     env_logger::init();
@@ -28,9 +31,9 @@ async fn main() {
     write!(file, "{}", dot_notation).unwrap();
     file.sync_all().unwrap();
 
-    dataflow_graph.load().unwrap();
+    dataflow_graph.load(&opt.runtime).unwrap();
 
-    dataflow_graph.make_connections().await;
+    dataflow_graph.make_connections(&opt.runtime).await;
 
     // // let inputs = dataflow_graph.get_inputs();
     let runners = dataflow_graph.get_runners();

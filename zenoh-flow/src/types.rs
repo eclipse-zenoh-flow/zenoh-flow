@@ -97,7 +97,6 @@ impl ZFContext {
         self.0.lock().await
     }
 
-
     pub fn lock<'a>(&'a self) -> MutexGuard<'a, ZFInnerCtx> {
         crate::zf_spin_lock!(self.0) // should not use this, should have an async lock and a sync "lock"
     }
@@ -150,6 +149,7 @@ pub struct ZFSinkDescription {
     pub input: ZFLinkId,
     pub lib: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
+    pub runtime: Option<String>,
 }
 
 impl std::fmt::Display for ZFSinkDescription {
@@ -165,6 +165,7 @@ pub struct ZFSourceDescription {
     pub output: ZFLinkId,
     pub lib: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
+    pub runtime: Option<String>,
 }
 
 impl std::fmt::Display for ZFSourceDescription {
@@ -181,6 +182,7 @@ pub struct ZFOperatorDescription {
     pub outputs: Vec<ZFLinkId>,
     pub lib: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
+    pub runtime: Option<String>,
 }
 
 impl std::fmt::Display for ZFOperatorDescription {
@@ -208,6 +210,76 @@ pub struct ZFConnection {
     pub size: Option<usize>,
     pub queueing_policy: Option<String>,
     pub priority: Option<usize>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZFZenohSenderDescription {
+    pub id: ZFOperatorId,
+    pub name: ZFOperatorName,
+    pub input: ZFLinkId,
+    pub resource: ZFZenohResource,
+    pub uri: String,
+    pub runtime: Option<String>,
+}
+
+impl std::fmt::Display for ZFZenohSenderDescription {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} - Kind: Sender", self.name)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZFZenohReceiverDescription {
+    pub id: ZFOperatorId,
+    pub name: ZFOperatorName,
+    pub output: ZFLinkId,
+    pub resource: ZFZenohResource,
+    pub uri: String,
+    pub runtime: Option<String>,
+}
+
+impl std::fmt::Display for ZFZenohReceiverDescription {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} - Kind: Receiver", self.name)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ZFZenohConnectorDescription {
+    Sender(ZFZenohSenderDescription),
+    Receiver(ZFZenohReceiverDescription),
+}
+
+impl std::fmt::Display for ZFZenohConnectorDescription {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ZFZenohConnectorDescription::Receiver(rx) => write!(f, "{}", rx),
+            ZFZenohConnectorDescription::Sender(tx) => write!(f, "{}", tx),
+        }
+    }
+}
+
+impl ZFZenohConnectorDescription {
+    pub fn get_id(&self) -> ZFOperatorId {
+        match self {
+            ZFZenohConnectorDescription::Receiver(rx) => rx.id.clone(),
+            ZFZenohConnectorDescription::Sender(tx) => tx.id.clone(),
+        }
+    }
+
+    pub fn get_name(&self) -> ZFOperatorName {
+        match self {
+            ZFZenohConnectorDescription::Receiver(rx) => rx.name.clone(),
+            ZFZenohConnectorDescription::Sender(tx) => tx.name.clone(),
+        }
+    }
+
+    pub fn get_runtime(&self) -> Option<String> {
+        match self {
+            ZFZenohConnectorDescription::Sender(tx) => tx.runtime.clone(),
+            ZFZenohConnectorDescription::Receiver(rx) => rx.runtime.clone(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

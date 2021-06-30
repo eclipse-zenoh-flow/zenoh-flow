@@ -1,0 +1,58 @@
+flow: FizzBuzz
+
+operators:
+  - id: fizz
+    name: FizzOperator
+    lib: ./target/debug/examples/libexample_fizz.dylib
+    inputs: [Int]
+    outputs: [Int, Str]
+    runtime: foo
+  - id: buzz
+    name: BuzzOperator
+    lib: ./target/debug/examples/libexample_buzz.dylib
+    inputs: [Int, Str]
+    outputs: [Str]
+    runtime: bar
+
+sources:
+  - id: sender
+    name: ManualSenderOperator
+    lib: ./target/debug/examples/libmanual_source.dylib
+    output: Int
+    runtime: foo
+
+sinks:
+  - id: receiver
+    name: ReceiverOperator
+    lib: ./target/debug/examples/libgeneric_sink.dylib
+    input: Str
+    runtime: bar
+
+links:
+  - from:
+      name: ManualSenderOperator
+      output: Int
+    to:
+      name: FizzOperator
+      input: Int
+
+  - from:
+      name: FizzOperator
+      output: Int
+    to:
+      name: BuzzOperator
+      input: Int
+
+  - from:
+      name: FizzOperator
+      output: Str
+    to:
+      name: BuzzOperator
+      input: Str
+
+  - from:
+      name: BuzzOperator
+      output: Str
+    to:
+      name: ReceiverOperator
+      input: Str
