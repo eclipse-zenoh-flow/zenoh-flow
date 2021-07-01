@@ -25,8 +25,8 @@ use std::collections::HashMap;
 pub type ZFOperatorId = String;
 pub type ZFZenohResource = String;
 pub type ZFOperatorName = String;
-pub type ZFTimestamp = u128;
-pub type ZFLinkId = String;
+pub type ZFTimestamp = usize; //TODO: improve it, usize is just a placeholder
+pub type ZFLinkId = String; // TODO: improve it, String is just a placeholder
 
 #[derive(Debug)]
 pub enum ZFError {
@@ -82,7 +82,7 @@ pub struct ZFInnerCtx {
 }
 
 #[derive(Clone)]
-pub struct ZFContext(Arc<Mutex<ZFInnerCtx>>);
+pub struct ZFContext(Arc<Mutex<ZFInnerCtx>>); //TODO: have only state inside Mutex
 
 impl ZFContext {
     pub fn new(state: Box<dyn StateTrait>, mode: usize) -> Self {
@@ -124,21 +124,29 @@ pub type ZFResult<T> = Result<T, ZFError>;
 
 // Maybe TokenActions should be always sent back to the OperatorRunner,
 // to allow it the management of the data in the links.
+
+// TODO: remove
 pub enum OperatorResult {
     InResult(Result<(bool, HashMap<ZFLinkId, TokenAction>), ZFError>),
     RunResult(ZFError), // This may be just ZFError
     OutResult(Result<HashMap<ZFLinkId, ZFMessage>, ZFError>),
 }
 
+// TODO: remove
 pub type OperatorRun = dyn Fn(&mut ZFContext, &HashMap<ZFLinkId, Option<Arc<ZFMessage>>>) -> OperatorResult
     + Send
     + Sync
     + 'static;
 
+// TODO: move to operator.rs
 pub type ZFSourceResult = Result<Vec<Message>, ZFError>;
+//TODO: move to operator.rs
 pub type ZFSourceRun = dyn Fn(&mut ZFContext) -> ZFSourceResult + Send + Sync + 'static; // This should be a future, Sources can do I/O
 
+// TODO: move to operator.rs
 pub type ZFSinkResult = Result<(), ZFError>;
+
+// TODO: move to operator.rs
 pub type ZFSinkRun =
     dyn Fn(&mut ZFContext, Vec<&ZFMessage>) -> ZFSinkResult + Send + Sync + 'static; // This should be a future, Sinks can do I/O
 
@@ -203,6 +211,7 @@ pub struct ZFToEndpoint {
     pub input: ZFLinkId,
 }
 
+//TODO: improve
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFConnection {
     pub from: ZFFromEndpoint,
@@ -303,6 +312,7 @@ impl NotReadyToken {
     }
 }
 
+//TODO: improve
 #[derive(Debug, Clone)]
 pub struct ReadyToken {
     pub ts: ZFTimestamp,

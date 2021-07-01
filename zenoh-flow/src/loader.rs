@@ -33,7 +33,7 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 /// # Safety
 ///
-/// TODO
+/// TODO remove all copy-pasted code, make macros/functions instead
 pub unsafe fn load_operator(
     path: String,
     configuration: Option<HashMap<String, String>>,

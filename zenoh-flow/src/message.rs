@@ -19,6 +19,7 @@ use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
+//TODO: improve
 #[derive(Clone, Debug)]
 pub enum Message {
     Serialized(Vec<u8>),
@@ -49,6 +50,7 @@ impl Message {
     }
 }
 
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ZFCtrlMessage {
     ReadyToMigrate,
@@ -56,12 +58,14 @@ pub enum ZFCtrlMessage {
     Watermark,
 }
 
+//TODO: improve, change name
 #[derive(Clone, Debug)]
 pub enum ZFMsg {
     Data(Message),
     Ctrl(ZFCtrlMessage),
 }
 
+//TODO: improve
 #[derive(Clone, Debug)]
 pub struct ZFMessage {
     pub ts: u128,
