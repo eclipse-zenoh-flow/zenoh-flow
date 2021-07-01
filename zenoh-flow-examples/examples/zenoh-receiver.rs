@@ -26,7 +26,7 @@ use zenoh_flow::{
     ZFContext, ZFLinkId, ZFResult,
 };
 // NOTE: This is a dirty dirty workaround, bincode needs the type in order to deserialize…
-use zenoh_flow_examples::{ZFString, ZFUsize};
+use zenoh_flow_examples::{ZFString, ZFUsize, ZFBytes};
 
 struct ZenohReceiver {
     pub state: ZenohReceiverState,

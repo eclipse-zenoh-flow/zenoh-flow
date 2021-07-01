@@ -20,6 +20,17 @@ use petgraph::Direction;
 use std::collections::HashMap;
 use zenoh::ZFuture;
 
+
+#[cfg(target_os = "macos")]
+static LIB_EXT: &str = "dylib";
+
+#[cfg(target_os = "linux")]
+static LIB_EXT: &str = "so";
+
+#[cfg(target_os = "windows")]
+static LIB_EXT: &str = "ddl";
+
+
 use crate::{
     link::{link, ZFLinkReceiver, ZFLinkSender},
     ZFZenohConnectorDescription,
@@ -298,7 +309,7 @@ impl DataFlowGraph {
                             name: sender_name.clone(),
                             input: l.from.output.clone(),
                             resource: resource.clone(),
-                            uri: "./target/debug/examples/libzenoh_sender.dylib".to_string(),
+                            uri: format!("./target/debug/examples/libzenoh_sender.{}", LIB_EXT).to_string(),
                             runtime: from_runtime.clone(),
                         };
 
@@ -338,7 +349,7 @@ impl DataFlowGraph {
                             name: receiver_name.clone(),
                             output: l.to.input.clone(),
                             resource,
-                            uri: "./target/debug/examples/libzenoh_receiver.dylib".to_string(),
+                            uri: format!("./target/debug/examples/libzenoh_receiver.{}", LIB_EXT).to_string(),
                             runtime: to_runtime.clone(),
                         };
 
