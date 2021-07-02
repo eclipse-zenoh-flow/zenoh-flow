@@ -61,7 +61,7 @@ impl SourceTrait for ExampleRandomSource {
 zenoh_flow::export_source!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::loader::ZFSourceRegistrarTrait,
+    registrar: &mut dyn zenoh_flow::runner::ZFSourceRegistrarTrait,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<()> {
     registrar.register_zfsource(

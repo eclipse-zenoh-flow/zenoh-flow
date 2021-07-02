@@ -17,15 +17,15 @@ use std::collections::HashMap;
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
 use zenoh_flow::{
-    downcast, export_operator, get_input,
-    loader::ZFOperatorRegistrarTrait,
+    export_operator, get_input,
     message::ZFMessage,
     operator::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait,
     },
+    runner::ZFOperatorRegistrarTrait,
     types::ZFResult,
-    zf_data, zf_empty_state, Token, ZFContext, ZFError, ZFLinkId,
+    zf_data, zf_empty_state, Token, ZFContext, ZFLinkId,
 };
 
 struct BuzzOperator;

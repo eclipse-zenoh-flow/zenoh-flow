@@ -122,7 +122,7 @@ impl OperatorTrait for SumAndSend {
 zenoh_flow::export_operator!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::loader::ZFOperatorRegistrarTrait,
+    registrar: &mut dyn zenoh_flow::runner::ZFOperatorRegistrarTrait,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<()> {
     registrar.register_zfoperator(

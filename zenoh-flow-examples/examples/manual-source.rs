@@ -12,8 +12,9 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use std::{collections::HashMap, io, sync::Arc, usize};
+use std::{collections::HashMap, sync::Arc, usize};
 
+use zenoh_flow::runner::ZFSourceRegistrarTrait;
 use zenoh_flow::{
     operator::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
@@ -65,7 +66,7 @@ impl SourceTrait for ManualSource {
 zenoh_flow::export_source!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::loader::ZFSourceRegistrarTrait,
+    registrar: &mut dyn ZFSourceRegistrarTrait,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<()> {
     registrar.register_zfsource(

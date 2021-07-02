@@ -98,7 +98,7 @@ impl SinkTrait for ZenohSender {
 zenoh_flow::export_zenoh_sender!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::loader::ZFSinkRegistrarTrait,
+    registrar: &mut dyn zenoh_flow::runner::ZFSinkRegistrarTrait,
     session: Arc<Session>,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<()> {

@@ -26,7 +26,7 @@ use zenoh_flow::{
     ZFContext, ZFLinkId, ZFResult,
 };
 // NOTE: This is a dirty dirty workaround, bincode needs the type in order to deserialize…
-use zenoh_flow_examples::{ZFString, ZFUsize, ZFBytes};
+use zenoh_flow_examples::{ZFBytes, ZFString, ZFUsize};
 
 struct ZenohReceiver {
     pub state: ZenohReceiverState,
@@ -97,7 +97,7 @@ impl SourceTrait for ZenohReceiver {
 zenoh_flow::export_zenoh_receiver!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::loader::ZFSourceRegistrarTrait,
+    registrar: &mut dyn zenoh_flow::runner::ZFSourceRegistrarTrait,
     session: Arc<Session>,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<()> {

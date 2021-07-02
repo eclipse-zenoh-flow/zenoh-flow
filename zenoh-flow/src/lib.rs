@@ -25,6 +25,7 @@ pub mod link;
 pub mod loader;
 pub mod message;
 pub mod operator;
+pub mod runner;
 
 pub mod types;
 pub use types::*;
@@ -54,8 +55,8 @@ macro_rules! export_operator {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfoperator_declaration: $crate::loader::ZFOperatorDeclaration =
-            $crate::loader::ZFOperatorDeclaration {
+        pub static zfoperator_declaration: $crate::runner::ZFOperatorDeclaration =
+            $crate::runner::ZFOperatorDeclaration {
                 rustc_version: $crate::loader::RUSTC_VERSION,
                 core_version: $crate::loader::CORE_VERSION,
                 register: $register,
@@ -68,8 +69,8 @@ macro_rules! export_source {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsource_declaration: $crate::loader::ZFSourceDeclaration =
-            $crate::loader::ZFSourceDeclaration {
+        pub static zfsource_declaration: $crate::runner::ZFSourceDeclaration =
+            $crate::runner::ZFSourceDeclaration {
                 rustc_version: $crate::loader::RUSTC_VERSION,
                 core_version: $crate::loader::CORE_VERSION,
                 register: $register,
@@ -82,8 +83,8 @@ macro_rules! export_zenoh_receiver {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsource_declaration: $crate::loader::ZFZenohReceiverDeclaration =
-            $crate::loader::ZFZenohReceiverDeclaration {
+        pub static zfsource_declaration: $crate::runner::ZFZenohReceiverDeclaration =
+            $crate::runner::ZFZenohReceiverDeclaration {
                 rustc_version: $crate::loader::RUSTC_VERSION,
                 core_version: $crate::loader::CORE_VERSION,
                 register: $register,
@@ -96,8 +97,8 @@ macro_rules! export_sink {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsink_declaration: $crate::loader::ZFSinkDeclaration =
-            $crate::loader::ZFSinkDeclaration {
+        pub static zfsink_declaration: $crate::runner::ZFSinkDeclaration =
+            $crate::runner::ZFSinkDeclaration {
                 rustc_version: $crate::loader::RUSTC_VERSION,
                 core_version: $crate::loader::CORE_VERSION,
                 register: $register,
@@ -110,8 +111,8 @@ macro_rules! export_zenoh_sender {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsink_declaration: $crate::loader::ZFZenohSenderDeclaration =
-            $crate::loader::ZFZenohSenderDeclaration {
+        pub static zfsink_declaration: $crate::runner::ZFZenohSenderDeclaration =
+            $crate::runner::ZFZenohSenderDeclaration {
                 rustc_version: $crate::loader::RUSTC_VERSION,
                 core_version: $crate::loader::CORE_VERSION,
                 register: $register,

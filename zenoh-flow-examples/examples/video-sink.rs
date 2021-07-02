@@ -112,7 +112,7 @@ impl SinkTrait for VideoSink {
 zenoh_flow::export_sink!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::loader::ZFSinkRegistrarTrait,
+    registrar: &mut dyn zenoh_flow::runner::ZFSinkRegistrarTrait,
     _configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<()> {
     registrar.register_zfsink(

@@ -14,11 +14,7 @@
 
 use async_std::sync::{Arc, Mutex};
 use opencv::{core, prelude::*, videoio};
-use rand::Rng;
-use std::any::Any;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io;
 use zenoh_flow::{
     downcast_mut,
     operator::{
@@ -178,7 +174,7 @@ impl SourceTrait for CameraSource {
 zenoh_flow::export_source!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::loader::ZFSourceRegistrarTrait,
+    registrar: &mut dyn zenoh_flow::runner::ZFSourceRegistrarTrait,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<()> {
     match configuration {

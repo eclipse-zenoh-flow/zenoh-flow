@@ -12,14 +12,16 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+pub mod node;
+
 use async_std::sync::{Arc, Mutex};
+use node::DataFlowNode;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 use std::collections::HashMap;
 use zenoh::ZFuture;
-
 
 #[cfg(target_os = "macos")]
 static LIB_EXT: &str = "dylib";
@@ -30,136 +32,21 @@ static LIB_EXT: &str = "so";
 #[cfg(target_os = "windows")]
 static LIB_EXT: &str = "ddl";
 
-
-use crate::{
-    link::{link, ZFLinkReceiver, ZFLinkSender},
-    ZFZenohConnectorDescription,
-};
+use crate::runner::{Runner, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner};
+use crate::{link::link, ZFZenohConnectorDescription};
 use crate::{
     loader::load_zenoh_receiver,
     types::{ZFError, ZFFromEndpoint, ZFLinkId, ZFOperatorName, ZFResult, ZFToEndpoint},
 };
 use crate::{loader::load_zenoh_sender, message::ZFMessage};
 use crate::{
-    loader::{
-        load_operator, load_sink, load_source, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner,
-    },
+    loader::{load_operator, load_sink, load_source},
     ZFZenohReceiverDescription, ZFZenohSenderDescription,
 };
 use crate::{
     ZFConnection, ZFOperatorDescription, ZFOperatorId, ZFSinkDescription, ZFSourceDescription,
 };
 use serde::{Deserialize, Serialize};
-
-pub enum Runner {
-    Operator(ZFOperatorRunner),
-    Source(ZFSourceRunner),
-    Sink(ZFSinkRunner),
-}
-
-impl Runner {
-    pub async fn run(&mut self) -> ZFResult<()> {
-        match self {
-            Runner::Operator(runner) => runner.run().await,
-            Runner::Source(runner) => runner.run().await,
-            Runner::Sink(runner) => runner.run().await,
-        }
-    }
-
-    pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>) {
-        match self {
-            Runner::Operator(runner) => runner.add_input(input),
-            Runner::Source(_runner) => panic!("Sources does not have inputs!"),
-            Runner::Sink(runner) => runner.add_input(input),
-        }
-    }
-
-    pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {
-        match self {
-            Runner::Operator(runner) => runner.add_output(output),
-            Runner::Source(runner) => runner.add_output(output),
-            Runner::Sink(_runner) => panic!("Sinks does not have output!"),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum DataFlowNode {
-    Operator(ZFOperatorDescription),
-    Source(ZFSourceDescription),
-    Sink(ZFSinkDescription),
-    Connector(ZFZenohConnectorDescription),
-}
-
-impl std::fmt::Display for DataFlowNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            DataFlowNode::Operator(inner) => write!(f, "{}", inner),
-            DataFlowNode::Source(inner) => write!(f, "{}", inner),
-            DataFlowNode::Sink(inner) => write!(f, "{}", inner),
-            DataFlowNode::Connector(inner) => write!(f, "{}", inner),
-        }
-    }
-}
-
-impl DataFlowNode {
-    pub fn has_input(&self, id: ZFLinkId) -> bool {
-        match self {
-            DataFlowNode::Operator(op) => match op.inputs.iter().find(|&lid| *lid == id) {
-                Some(_lid) => true,
-                None => false,
-            },
-            DataFlowNode::Source(_) => false,
-            DataFlowNode::Sink(sink) => sink.input == id,
-            DataFlowNode::Connector(zc) => match zc {
-                ZFZenohConnectorDescription::Receiver(_) => false,
-                ZFZenohConnectorDescription::Sender(tx) => tx.input == id,
-            },
-        }
-    }
-
-    pub fn has_output(&self, id: ZFLinkId) -> bool {
-        match self {
-            DataFlowNode::Operator(op) => match op.outputs.iter().find(|&lid| *lid == id) {
-                Some(_lid) => true,
-                None => false,
-            },
-            DataFlowNode::Sink(_) => false,
-            DataFlowNode::Source(source) => source.output == id,
-            DataFlowNode::Connector(zc) => match zc {
-                ZFZenohConnectorDescription::Receiver(rx) => rx.output == id,
-                ZFZenohConnectorDescription::Sender(_) => false,
-            },
-        }
-    }
-
-    pub fn get_id(&self) -> ZFOperatorId {
-        match self {
-            DataFlowNode::Operator(op) => op.id.clone(),
-            DataFlowNode::Sink(s) => s.id.clone(),
-            DataFlowNode::Source(s) => s.id.clone(),
-            DataFlowNode::Connector(zc) => zc.get_id(),
-        }
-    }
-
-    pub fn get_name(&self) -> ZFOperatorName {
-        match self {
-            DataFlowNode::Operator(op) => op.name.clone(),
-            DataFlowNode::Sink(s) => s.name.clone(),
-            DataFlowNode::Source(s) => s.name.clone(),
-            DataFlowNode::Connector(zc) => zc.get_name(),
-        }
-    }
-
-    pub fn get_runtime(&self) -> Option<String> {
-        match self {
-            DataFlowNode::Operator(op) => op.runtime.clone(),
-            DataFlowNode::Sink(s) => s.runtime.clone(),
-            DataFlowNode::Source(s) => s.runtime.clone(),
-            DataFlowNode::Connector(zc) => zc.get_runtime(),
-        }
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DataFlowDescription {
@@ -309,7 +196,8 @@ impl DataFlowGraph {
                             name: sender_name.clone(),
                             input: l.from.output.clone(),
                             resource: resource.clone(),
-                            uri: format!("./target/debug/examples/libzenoh_sender.{}", LIB_EXT).to_string(),
+                            uri: format!("./target/debug/examples/libzenoh_sender.{}", LIB_EXT)
+                                .to_string(),
                             runtime: from_runtime.clone(),
                         };
 
@@ -349,7 +237,8 @@ impl DataFlowGraph {
                             name: receiver_name.clone(),
                             output: l.to.input.clone(),
                             resource,
-                            uri: format!("./target/debug/examples/libzenoh_receiver.{}", LIB_EXT).to_string(),
+                            uri: format!("./target/debug/examples/libzenoh_receiver.{}", LIB_EXT)
+                                .to_string(),
                             runtime: to_runtime.clone(),
                         };
 
@@ -436,7 +325,7 @@ impl DataFlowGraph {
                 .add_node(DataFlowNode::Operator(descriptor.clone())),
             DataFlowNode::Operator(descriptor),
         ));
-        let runner = Runner::Operator(crate::loader::ZFOperatorRunner::new_static(operator));
+        let runner = Runner::Operator(ZFOperatorRunner::new_static(operator));
         self.operators_runners
             .insert(name, Arc::new(Mutex::new(runner)));
         Ok(())
@@ -463,7 +352,7 @@ impl DataFlowGraph {
                 .add_node(DataFlowNode::Source(descriptor.clone())),
             DataFlowNode::Source(descriptor),
         ));
-        let runner = Runner::Source(crate::loader::ZFSourceRunner::new_static(source));
+        let runner = Runner::Source(ZFSourceRunner::new_static(source));
         self.operators_runners
             .insert(name, Arc::new(Mutex::new(runner)));
         Ok(())
@@ -489,7 +378,7 @@ impl DataFlowGraph {
             self.graph.add_node(DataFlowNode::Sink(descriptor.clone())),
             DataFlowNode::Sink(descriptor),
         ));
-        let runner = Runner::Sink(crate::loader::ZFSinkRunner::new_static(sink));
+        let runner = Runner::Sink(ZFSinkRunner::new_static(sink));
         self.operators_runners
             .insert(name, Arc::new(Mutex::new(runner)));
         Ok(())
