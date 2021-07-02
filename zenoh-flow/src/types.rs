@@ -27,6 +27,7 @@ pub type ZFZenohResource = String;
 pub type ZFOperatorName = String;
 pub type ZFTimestamp = usize; //TODO: improve it, usize is just a placeholder
 pub type ZFLinkId = String; // TODO: improve it, String is just a placeholder
+pub type ZFRuntimeID = String;
 
 #[derive(Debug)]
 pub enum ZFError {

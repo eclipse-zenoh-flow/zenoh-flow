@@ -13,7 +13,7 @@
 //
 
 use crate::model::operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor};
-use crate::{ZFLinkId, ZFOperatorId, ZFOperatorName, ZFZenohConnectorDescription};
+use crate::{ZFLinkId, ZFOperatorId, ZFOperatorName, ZFRuntimeID, ZFZenohConnectorDescription};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -84,7 +84,7 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_runtime(&self) -> Option<String> {
+    pub fn get_runtime(&self) -> Option<ZFRuntimeID> {
         match self {
             DataFlowNode::Operator(op) => op.runtime.clone(),
             DataFlowNode::Sink(s) => s.runtime.clone(),
