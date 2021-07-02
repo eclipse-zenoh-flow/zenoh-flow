@@ -13,6 +13,7 @@
 //
 
 pub mod node;
+pub mod link;
 
 use async_std::sync::{Arc, Mutex};
 use node::DataFlowNode;
@@ -32,15 +33,16 @@ static LIB_EXT: &str = "so";
 #[cfg(target_os = "windows")]
 static LIB_EXT: &str = "ddl";
 
-use crate::runner::{Runner, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner};
-use crate::{link::link, ZFZenohConnectorDescription};
+use crate::runtime::runner::{Runner, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner};
+use crate::runtime::graph::{link::link};
+use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender, ZFZenohConnectorInfo, ZFZenohConnectorDescriptor};
 use crate::{
-    loader::load_zenoh_receiver,
+    runtime::loader::load_zenoh_receiver,
     types::{ZFError, ZFFromEndpoint, ZFLinkId, ZFOperatorName, ZFResult, ZFToEndpoint},
 };
-use crate::{loader::load_zenoh_sender, message::ZFMessage};
+use crate::runtime::{loader::load_zenoh_sender, message::ZFMessage};
 use crate::{
-    loader::{load_operator, load_sink, load_source},
+    runtime::loader::{load_operator, load_sink, load_source},
     ZFZenohReceiverDescription, ZFZenohSenderDescription,
 };
 use crate::{
@@ -191,25 +193,22 @@ impl DataFlowGraph {
                             l.from.name.clone(),
                             l.from.output.clone()
                         );
-                        let sender = ZFZenohSenderDescription {
-                            id: sender_name.clone(),
+                        let sender = ZFZenohConnectorInfo {
                             name: sender_name.clone(),
-                            input: l.from.output.clone(),
+                            link_id: l.from.output.clone(),
                             resource: resource.clone(),
-                            uri: format!("./target/debug/examples/libzenoh_sender.{}", LIB_EXT)
-                                .to_string(),
                             runtime: from_runtime.clone(),
                         };
 
                         let sender_idx = graph.add_node(DataFlowNode::Connector(
-                            ZFZenohConnectorDescription::Sender(sender.clone()),
+                            ZFZenohConnectorDescriptor::Sender(sender.clone()),
                         ));
 
                         let link_sender = ZFConnection {
                             from: l.from.clone(),
                             to: ZFToEndpoint {
                                 name: sender_name,
-                                input: sender.input.clone(),
+                                input: sender.link_id.clone(),
                             },
                             size: None,
                             queueing_policy: None,
@@ -232,23 +231,20 @@ impl DataFlowGraph {
                             l.to.name.clone(),
                             l.to.input.clone()
                         );
-                        let receiver = ZFZenohReceiverDescription {
-                            id: receiver_name.clone(),
+                        let receiver = ZFZenohConnectorInfo {
                             name: receiver_name.clone(),
-                            output: l.to.input.clone(),
+                            link_id: l.to.input.clone(),
                             resource,
-                            uri: format!("./target/debug/examples/libzenoh_receiver.{}", LIB_EXT)
-                                .to_string(),
                             runtime: to_runtime.clone(),
                         };
 
                         let recv_idx = graph.add_node(DataFlowNode::Connector(
-                            ZFZenohConnectorDescription::Receiver(receiver.clone()),
+                            ZFZenohConnectorDescriptor::Receiver(receiver.clone()),
                         ));
                         let link_receiver = ZFConnection {
                             from: ZFFromEndpoint {
                                 name: receiver_name,
-                                output: receiver.output.clone(),
+                                output: receiver.link_id.clone(),
                             },
                             to: l.to.clone(),
                             size: None,
@@ -262,11 +258,11 @@ impl DataFlowGraph {
 
                         operators.push((
                             sender_idx,
-                            DataFlowNode::Connector(ZFZenohConnectorDescription::Sender(sender)),
+                            DataFlowNode::Connector(ZFZenohConnectorDescriptor::Sender(sender)),
                         ));
                         operators.push((
                             recv_idx,
-                            DataFlowNode::Connector(ZFZenohConnectorDescription::Receiver(
+                            DataFlowNode::Connector(ZFZenohConnectorDescriptor::Receiver(
                                 receiver,
                             )),
                         ));
@@ -325,7 +321,7 @@ impl DataFlowGraph {
                 .add_node(DataFlowNode::Operator(descriptor.clone())),
             DataFlowNode::Operator(descriptor),
         ));
-        let runner = Runner::Operator(ZFOperatorRunner::new_static(operator));
+        let runner = Runner::Operator(ZFOperatorRunner::new(operator, None));
         self.operators_runners
             .insert(name, Arc::new(Mutex::new(runner)));
         Ok(())
@@ -352,7 +348,7 @@ impl DataFlowGraph {
                 .add_node(DataFlowNode::Source(descriptor.clone())),
             DataFlowNode::Source(descriptor),
         ));
-        let runner = Runner::Source(ZFSourceRunner::new_static(source));
+        let runner = Runner::Source(ZFSourceRunner::new(source, None));
         self.operators_runners
             .insert(name, Arc::new(Mutex::new(runner)));
         Ok(())
@@ -378,7 +374,7 @@ impl DataFlowGraph {
             self.graph.add_node(DataFlowNode::Sink(descriptor.clone())),
             DataFlowNode::Sink(descriptor),
         ));
-        let runner = Runner::Sink(ZFSinkRunner::new_static(sink));
+        let runner = Runner::Sink(ZFSinkRunner::new(sink, None));
         self.operators_runners
             .insert(name, Arc::new(Mutex::new(runner)));
         Ok(())
@@ -464,7 +460,7 @@ impl DataFlowGraph {
                     DataFlowNode::Operator(inner) => {
                         match &inner.lib {
                             Some(lib) => {
-                                let (_operator_id, runner) =
+                                let runner =
                                     load_operator(lib.clone(), inner.configuration.clone())?;
                                 let runner = Runner::Operator(runner);
                                 self.operators_runners
@@ -479,8 +475,7 @@ impl DataFlowGraph {
                     DataFlowNode::Source(inner) => {
                         match &inner.lib {
                             Some(lib) => {
-                                let (_operator_id, runner) =
-                                    load_source(lib.clone(), inner.configuration.clone())?;
+                                let runner = load_source(lib.clone(), inner.configuration.clone())?;
                                 let runner = Runner::Source(runner);
                                 self.operators_runners
                                     .insert(inner.name.clone(), Arc::new(Mutex::new(runner)));
@@ -494,8 +489,7 @@ impl DataFlowGraph {
                     DataFlowNode::Sink(inner) => {
                         match &inner.lib {
                             Some(lib) => {
-                                let (_operator_id, runner) =
-                                    load_sink(lib.clone(), inner.configuration.clone())?;
+                                let runner = load_sink(lib.clone(), inner.configuration.clone())?;
                                 let runner = Runner::Sink(runner);
                                 self.operators_runners
                                     .insert(inner.name.clone(), Arc::new(Mutex::new(runner)));
@@ -507,30 +501,16 @@ impl DataFlowGraph {
                         }
                     }
                     DataFlowNode::Connector(zc) => match zc {
-                        ZFZenohConnectorDescription::Sender(tx) => {
-                            let mut configuration = HashMap::with_capacity(2);
-                            configuration.insert("resource".to_string(), tx.resource.clone());
-                            configuration.insert("input".to_string(), tx.input.clone());
-                            let (_, runner) = load_zenoh_sender(
-                                tx.uri.clone(),
-                                session.clone(),
-                                Some(configuration),
-                            )?;
-                            let runner = Runner::Sink(runner);
+                        ZFZenohConnectorDescriptor::Sender(tx) => {
+                            let runner = ZFZenohSender::new(session.clone(), tx.resource.clone(), None);
+                            let runner = Runner::Sender(runner);
                             self.operators_runners
                                 .insert(tx.name.clone(), Arc::new(Mutex::new(runner)));
                         }
 
-                        ZFZenohConnectorDescription::Receiver(rx) => {
-                            let mut configuration = HashMap::with_capacity(2);
-                            configuration.insert("resource".to_string(), rx.resource.clone());
-                            configuration.insert("output".to_string(), rx.output.clone());
-                            let (_, runner) = load_zenoh_receiver(
-                                rx.uri.clone(),
-                                session.clone(),
-                                Some(configuration),
-                            )?;
-                            let runner = Runner::Source(runner);
+                        ZFZenohConnectorDescriptor::Receiver(rx) => {
+                            let runner = ZFZenohReceiver::new(session.clone(), rx.resource.clone(), None);
+                            let runner = Runner::Receiver(runner);
                             self.operators_runners
                                 .insert(rx.name.clone(), Arc::new(Mutex::new(runner)));
                         }

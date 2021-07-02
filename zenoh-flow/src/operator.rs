@@ -1,5 +1,5 @@
 use crate::async_std::sync::Arc;
-use crate::message::ZFMessage;
+use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFContext, ZFLinkId, ZFResult};
 use futures::Future;
 use std::any::Any;

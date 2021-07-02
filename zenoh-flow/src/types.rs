@@ -14,7 +14,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::message::{Message, ZFMessage};
+use crate::runtime::message::{Message, ZFMessage};
 use crate::operator::{DataTrait, StateTrait};
 
 use async_std::sync::{Arc, Mutex, MutexGuard};
@@ -47,6 +47,7 @@ pub enum ZFError {
     IOError(std::io::Error),
     MissingConfiguration,
     VersionMismatch,
+    ZenohError(zenoh_util::core::ZError)
 }
 
 impl From<flume::RecvError> for ZFError {
@@ -73,6 +74,12 @@ impl<T> From<flume::SendError<T>> for ZFError {
 impl From<std::io::Error> for ZFError {
     fn from(err: std::io::Error) -> Self {
         Self::IOError(err)
+    }
+}
+
+impl From<zenoh_util::core::ZError> for ZFError {
+    fn from(err: zenoh_util::core::ZError) -> Self {
+        Self::ZenohError(err)
     }
 }
 

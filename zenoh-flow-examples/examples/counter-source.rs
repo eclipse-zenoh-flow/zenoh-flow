@@ -80,13 +80,8 @@ impl SourceTrait for CountSource {
 zenoh_flow::export_source!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::runner::ZFSourceRegistrarTrait,
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<()> {
-    registrar.register_zfsource(
-        "sender",
-        Box::new(CountSource::new(configuration))
-            as Box<dyn zenoh_flow::operator::SourceTrait + Send>,
-    );
-    Ok(())
+) -> ZFResult<Box<dyn zenoh_flow::operator::SourceTrait + Send>> {
+    Ok(Box::new(CountSource::new(configuration))
+        as Box<dyn zenoh_flow::operator::SourceTrait + Send>)
 }

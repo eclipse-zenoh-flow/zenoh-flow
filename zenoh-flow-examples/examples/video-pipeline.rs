@@ -13,11 +13,7 @@
 //
 
 use async_std::sync::{Arc, Mutex};
-use rand::Rng;
-use std::any::Any;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io;
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
     operator::{
@@ -223,7 +219,7 @@ impl SinkTrait for VideoSink {
 
 #[async_std::main]
 async fn main() {
-    let mut zf_graph = zenoh_flow::graph::DataFlowGraph::new(None);
+    let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new(None);
 
     let source = Box::new(CameraSource::new());
     let sink = Box::new(VideoSink::new());

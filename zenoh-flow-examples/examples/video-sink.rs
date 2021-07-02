@@ -12,11 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use async_std::sync::{Arc, Mutex};
-use rand::Rng;
-use std::any::Any;
+use async_std::sync::{Arc,};
 use std::collections::HashMap;
-use std::io;
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
     operator::{
@@ -112,12 +109,7 @@ impl SinkTrait for VideoSink {
 zenoh_flow::export_sink!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::runner::ZFSinkRegistrarTrait,
     _configuration: Option<HashMap<String, String>>,
-) -> ZFResult<()> {
-    registrar.register_zfsink(
-        "video-sink",
-        Box::new(VideoSink::new()) as Box<dyn zenoh_flow::operator::SinkTrait + Send>,
-    );
-    Ok(())
+) -> ZFResult<Box<dyn zenoh_flow::operator::SinkTrait + Send>> {
+        Ok(Box::new(VideoSink::new()) as Box<dyn zenoh_flow::operator::SinkTrait + Send>)
 }

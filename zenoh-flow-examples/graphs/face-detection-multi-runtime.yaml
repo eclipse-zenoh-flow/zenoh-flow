@@ -18,6 +18,7 @@ sources: # sources can have only ONE output
     configuration:
       camera: /dev/video0
       resolution: 800x600
+      fps: 24
     runtime: bar
 sinks: # sources can have only ONE input
   - id : video-sink

@@ -98,14 +98,9 @@ impl SinkTrait for ZenohSender {
 zenoh_flow::export_zenoh_sender!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::runner::ZFSinkRegistrarTrait,
     session: Arc<Session>,
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<()> {
-    registrar.register_zfsink(
-        "ZenohSender",
-        Box::new(ZenohSender::new(session, configuration))
-            as Box<dyn zenoh_flow::operator::SinkTrait + Send>,
-    );
-    Ok(())
+) -> ZFResult<Box<dyn zenoh_flow::operator::SinkTrait + Send>> {
+    Ok(Box::new(ZenohSender::new(session, configuration))
+        as Box<dyn zenoh_flow::operator::SinkTrait + Send>)
 }

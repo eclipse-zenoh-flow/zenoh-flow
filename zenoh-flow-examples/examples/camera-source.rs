@@ -174,18 +174,11 @@ impl SourceTrait for CameraSource {
 zenoh_flow::export_source!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::runner::ZFSourceRegistrarTrait,
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<()> {
+) -> ZFResult<Box<dyn zenoh_flow::operator::SourceTrait + Send>> {
     match configuration {
-        Some(config) => {
-            registrar.register_zfsource(
-                "camera-source",
-                Box::new(CameraSource::new(config))
-                    as Box<dyn zenoh_flow::operator::SourceTrait + Send>,
-            );
-            Ok(())
-        }
+        Some(config) => Ok(Box::new(CameraSource::new(config))
+            as Box<dyn zenoh_flow::operator::SourceTrait + Send>),
         None => Err(ZFError::MissingConfiguration),
     }
 }

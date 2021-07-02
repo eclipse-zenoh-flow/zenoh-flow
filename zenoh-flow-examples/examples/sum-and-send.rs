@@ -14,7 +14,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use zenoh_flow::message::ZFMessage;
+use zenoh_flow::runtime::message::ZFMessage;
 use zenoh_flow::operator::{DataTrait, StateTrait};
 use zenoh_flow::operator::{
     FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult, RunResult,
@@ -122,12 +122,7 @@ impl OperatorTrait for SumAndSend {
 zenoh_flow::export_operator!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::runner::ZFOperatorRegistrarTrait,
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<()> {
-    registrar.register_zfoperator(
-        "sum",
-        Box::new(SumAndSend::new()) as Box<dyn zenoh_flow::operator::OperatorTrait + Send>,
-    );
-    Ok(())
+) -> ZFResult<Box<dyn zenoh_flow::operator::OperatorTrait + Send>> {
+    Ok(Box::new(SumAndSend::new()) as Box<dyn zenoh_flow::operator::OperatorTrait + Send>)
 }

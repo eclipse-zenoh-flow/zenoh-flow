@@ -14,8 +14,9 @@
 
 use crate::{
     ZFLinkId, ZFOperatorDescription, ZFOperatorId, ZFOperatorName, ZFSinkDescription,
-    ZFSourceDescription, ZFZenohConnectorDescription,
+    ZFSourceDescription,
 };
+use crate::runtime::connectors::ZFZenohConnectorDescriptor;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -23,7 +24,7 @@ pub enum DataFlowNode {
     Operator(ZFOperatorDescription),
     Source(ZFSourceDescription),
     Sink(ZFSinkDescription),
-    Connector(ZFZenohConnectorDescription),
+    Connector(ZFZenohConnectorDescriptor),
 }
 
 impl std::fmt::Display for DataFlowNode {
@@ -47,8 +48,8 @@ impl DataFlowNode {
             DataFlowNode::Source(_) => false,
             DataFlowNode::Sink(sink) => sink.input == id,
             DataFlowNode::Connector(zc) => match zc {
-                ZFZenohConnectorDescription::Receiver(_) => false,
-                ZFZenohConnectorDescription::Sender(tx) => tx.input == id,
+                ZFZenohConnectorDescriptor::Receiver(_) => false,
+                ZFZenohConnectorDescriptor::Sender(tx) => tx.link_id == id,
             },
         }
     }
@@ -62,8 +63,8 @@ impl DataFlowNode {
             DataFlowNode::Sink(_) => false,
             DataFlowNode::Source(source) => source.output == id,
             DataFlowNode::Connector(zc) => match zc {
-                ZFZenohConnectorDescription::Receiver(rx) => rx.output == id,
-                ZFZenohConnectorDescription::Sender(_) => false,
+                ZFZenohConnectorDescriptor::Receiver(rx) => rx.link_id == id,
+                ZFZenohConnectorDescriptor::Sender(_) => false,
             },
         }
     }
@@ -73,7 +74,10 @@ impl DataFlowNode {
             DataFlowNode::Operator(op) => op.id.clone(),
             DataFlowNode::Sink(s) => s.id.clone(),
             DataFlowNode::Source(s) => s.id.clone(),
-            DataFlowNode::Connector(zc) => zc.get_id(),
+            DataFlowNode::Connector(zc) => match zc {
+                ZFZenohConnectorDescriptor::Receiver(rx) => rx.name.clone(),
+                ZFZenohConnectorDescriptor::Sender(tx) => tx.name.clone(),
+            },
         }
     }
 
@@ -82,7 +86,10 @@ impl DataFlowNode {
             DataFlowNode::Operator(op) => op.name.clone(),
             DataFlowNode::Sink(s) => s.name.clone(),
             DataFlowNode::Source(s) => s.name.clone(),
-            DataFlowNode::Connector(zc) => zc.get_name(),
+            DataFlowNode::Connector(zc) => match zc {
+                ZFZenohConnectorDescriptor::Receiver(rx) => rx.name.clone(),
+                ZFZenohConnectorDescriptor::Sender(tx) => tx.name.clone(),
+            },
         }
     }
 
@@ -91,7 +98,10 @@ impl DataFlowNode {
             DataFlowNode::Operator(op) => op.runtime.clone(),
             DataFlowNode::Sink(s) => s.runtime.clone(),
             DataFlowNode::Source(s) => s.runtime.clone(),
-            DataFlowNode::Connector(zc) => zc.get_runtime(),
+            DataFlowNode::Connector(zc) => match zc {
+                ZFZenohConnectorDescriptor::Receiver(rx) => rx.runtime.clone(),
+                ZFZenohConnectorDescriptor::Sender(tx) => tx.runtime.clone(),
+            },
         }
     }
 }

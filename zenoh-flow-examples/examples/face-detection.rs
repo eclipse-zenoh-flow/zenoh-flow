@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::io;
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
-    message::ZFMessage,
+    runtime::message::ZFMessage,
     operator::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait,
@@ -213,25 +213,14 @@ impl OperatorTrait for FaceDetection {
 zenoh_flow::export_operator!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::runner::ZFOperatorRegistrarTrait,
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<()> {
+) -> ZFResult<Box<dyn zenoh_flow::operator::OperatorTrait + Send>> {
     match configuration {
-        Some(config) => {
-            registrar.register_zfoperator(
-                "face-detection",
-                Box::new(FaceDetection::new(config))
-                    as Box<dyn zenoh_flow::operator::OperatorTrait + Send>,
-            );
-            Ok(())
-        }
+        Some(config) => Ok(Box::new(FaceDetection::new(config))
+            as Box<dyn zenoh_flow::operator::OperatorTrait + Send>),
         None => {
-            registrar.register_zfoperator(
-                "face-detection",
-                Box::new(FaceDetection::new(HashMap::new()))
-                    as Box<dyn zenoh_flow::operator::OperatorTrait + Send>,
-            );
-            Ok(())
+            Ok(Box::new(FaceDetection::new(HashMap::new()))
+                as Box<dyn zenoh_flow::operator::OperatorTrait + Send>)
         }
     }
 }

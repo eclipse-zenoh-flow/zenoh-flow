@@ -18,12 +18,11 @@ use zenoh_flow_examples::{ZFString, ZFUsize};
 
 use zenoh_flow::{
     export_operator, get_input,
-    message::ZFMessage,
+    runtime::message::ZFMessage,
     operator::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait,
     },
-    runner::ZFOperatorRegistrarTrait,
     types::ZFResult,
     zf_data, zf_empty_state, Token, ZFContext, ZFLinkId,
 };
@@ -100,12 +99,7 @@ impl OperatorTrait for BuzzOperator {
 export_operator!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn ZFOperatorRegistrarTrait,
-    _configuration: Option<HashMap<String, String>>,
-) -> ZFResult<()> {
-    registrar.register_zfoperator(
-        "buzz",
-        Box::new(BuzzOperator) as Box<dyn OperatorTrait + Send>,
-    );
-    Ok(())
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<Box<dyn zenoh_flow::operator::OperatorTrait + Send>> {
+    Ok(Box::new(BuzzOperator) as Box<dyn OperatorTrait + Send>)
 }

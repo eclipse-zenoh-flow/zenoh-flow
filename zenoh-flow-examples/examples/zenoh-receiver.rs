@@ -97,14 +97,9 @@ impl SourceTrait for ZenohReceiver {
 zenoh_flow::export_zenoh_receiver!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn zenoh_flow::runner::ZFSourceRegistrarTrait,
     session: Arc<Session>,
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<()> {
-    registrar.register_zfsource(
-        "ZenohReceiver",
-        Box::new(ZenohReceiver::new(session, configuration))
-            as Box<dyn zenoh_flow::operator::SourceTrait + Send>,
-    );
-    Ok(())
+) -> ZFResult<Box<dyn zenoh_flow::operator::SourceTrait + Send>> {
+    Ok(Box::new(ZenohReceiver::new(session, configuration))
+        as Box<dyn zenoh_flow::operator::SourceTrait + Send>)
 }

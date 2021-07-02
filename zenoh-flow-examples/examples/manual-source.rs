@@ -14,7 +14,7 @@
 
 use std::{collections::HashMap, sync::Arc, usize};
 
-use zenoh_flow::runner::ZFSourceRegistrarTrait;
+use zenoh_flow::runtime::runner::ZFSourceRegistrarTrait;
 use zenoh_flow::{
     operator::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
@@ -66,12 +66,7 @@ impl SourceTrait for ManualSource {
 zenoh_flow::export_source!(register);
 
 extern "C" fn register(
-    registrar: &mut dyn ZFSourceRegistrarTrait,
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<()> {
-    registrar.register_zfsource(
-        "sender",
-        Box::new(ManualSource {}) as Box<dyn zenoh_flow::operator::SourceTrait + Send>,
-    );
-    Ok(())
+) -> ZFResult<Box<dyn zenoh_flow::operator::SourceTrait + Send>> {
+    Ok(Box::new(ManualSource {}) as Box<dyn zenoh_flow::operator::SourceTrait + Send>)
 }

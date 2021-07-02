@@ -20,9 +20,10 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 //TODO: improve
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Message {
     Serialized(Vec<u8>),
+    #[serde(skip_serializing, skip_deserializing)] // Deserialized data is never serialized directly
     Deserialized(Arc<Box<dyn DataTrait>>),
 }
 
@@ -50,7 +51,6 @@ impl Message {
     }
 }
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ZFCtrlMessage {
     ReadyToMigrate,
@@ -59,14 +59,14 @@ pub enum ZFCtrlMessage {
 }
 
 //TODO: improve, change name
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ZFMsg {
     Data(Message),
     Ctrl(ZFCtrlMessage),
 }
 
 //TODO: improve
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ZFMessage {
     pub ts: u128,
     pub msg: ZFMsg,

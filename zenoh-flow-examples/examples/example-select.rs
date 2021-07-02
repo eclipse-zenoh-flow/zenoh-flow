@@ -2,7 +2,7 @@ use async_std::sync::Arc;
 use async_std::task::sleep;
 use futures::future;
 use std::time::Duration;
-use zenoh_flow::link::{link, ZFLinkSender};
+use zenoh_flow::runtime::graph::link::{link, ZFLinkSender};
 //use async_std::channel::{unbounded, Sender, Receiver};
 
 async fn send<T: Clone>(sender: ZFLinkSender<T>, interveal: Duration, data: T) {
