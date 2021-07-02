@@ -12,15 +12,15 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::model::operator::{ZFOperatorDescription, ZFSinkDescription, ZFSourceDescription};
+use crate::model::operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor};
 use crate::{ZFLinkId, ZFOperatorId, ZFOperatorName, ZFZenohConnectorDescription};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum DataFlowNode {
-    Operator(ZFOperatorDescription),
-    Source(ZFSourceDescription),
-    Sink(ZFSinkDescription),
+    Operator(ZFOperatorDescriptor),
+    Source(ZFSourceDescriptor),
+    Sink(ZFSinkDescriptor),
     Connector(ZFZenohConnectorDescription),
 }
 

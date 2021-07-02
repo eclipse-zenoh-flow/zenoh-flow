@@ -14,22 +14,22 @@
 
 use crate::graph::node::DataFlowNode;
 use crate::model::link::ZFLinkDescriptor;
-use crate::model::operator::{ZFOperatorDescription, ZFSinkDescription, ZFSourceDescription};
+use crate::model::operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor};
 use crate::types::ZFOperatorId;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct DataFlowDescription {
+pub struct DataFlowDescriptor {
     pub flow: String,
-    pub operators: Vec<ZFOperatorDescription>,
-    pub sources: Vec<ZFSourceDescription>,
-    pub sinks: Vec<ZFSinkDescription>,
+    pub operators: Vec<ZFOperatorDescriptor>,
+    pub sources: Vec<ZFSourceDescriptor>,
+    pub sinks: Vec<ZFSinkDescriptor>,
     pub links: Vec<ZFLinkDescriptor>,
 }
 
-impl DataFlowDescription {
+impl DataFlowDescriptor {
     pub fn from_yaml(data: String) -> Self {
-        serde_yaml::from_str::<DataFlowDescription>(&data).unwrap()
+        serde_yaml::from_str::<DataFlowDescriptor>(&data).unwrap()
     }
 
     pub fn find_node(&self, id: ZFOperatorId) -> Option<DataFlowNode> {
@@ -45,21 +45,21 @@ impl DataFlowDescription {
         }
     }
 
-    fn get_operator(&self, id: ZFOperatorId) -> Option<ZFOperatorDescription> {
+    fn get_operator(&self, id: ZFOperatorId) -> Option<ZFOperatorDescriptor> {
         match self.operators.iter().find(|&o| o.id == id) {
             Some(o) => Some(o.clone()),
             None => None,
         }
     }
 
-    fn get_source(&self, id: ZFOperatorId) -> Option<ZFSourceDescription> {
+    fn get_source(&self, id: ZFOperatorId) -> Option<ZFSourceDescriptor> {
         match self.sources.iter().find(|&o| o.id == id) {
             Some(s) => Some(s.clone()),
             None => None,
         }
     }
 
-    fn get_sink(&self, id: ZFOperatorId) -> Option<ZFSinkDescription> {
+    fn get_sink(&self, id: ZFOperatorId) -> Option<ZFSinkDescriptor> {
         match self.sinks.iter().find(|&o| o.id == id) {
             Some(s) => Some(s.clone()),
             None => None,

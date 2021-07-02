@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSinkDescription {
+pub struct ZFSinkDescriptor {
     pub id: ZFOperatorId,
     pub name: ZFOperatorName,
     pub input: ZFLinkId,
@@ -26,14 +26,14 @@ pub struct ZFSinkDescription {
     pub runtime: Option<String>,
 }
 
-impl std::fmt::Display for ZFSinkDescription {
+impl std::fmt::Display for ZFSinkDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - {} - Kind: Sink", self.id, self.name)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSourceDescription {
+pub struct ZFSourceDescriptor {
     pub id: ZFOperatorId,
     pub name: ZFOperatorName,
     pub output: ZFLinkId,
@@ -42,14 +42,14 @@ pub struct ZFSourceDescription {
     pub runtime: Option<String>,
 }
 
-impl std::fmt::Display for ZFSourceDescription {
+impl std::fmt::Display for ZFSourceDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - {} - Kind: Source", self.id, self.name)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFOperatorDescription {
+pub struct ZFOperatorDescriptor {
     pub id: ZFOperatorId,
     pub name: ZFOperatorName,
     pub inputs: Vec<ZFLinkId>,
@@ -59,7 +59,7 @@ pub struct ZFOperatorDescription {
     pub runtime: Option<String>,
 }
 
-impl std::fmt::Display for ZFOperatorDescription {
+impl std::fmt::Display for ZFOperatorDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - {} - Kind: Operator", self.id, self.name)
     }

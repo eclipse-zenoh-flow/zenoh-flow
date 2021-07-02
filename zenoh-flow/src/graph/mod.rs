@@ -32,14 +32,14 @@ static LIB_EXT: &str = "so";
 #[cfg(target_os = "windows")]
 static LIB_EXT: &str = "ddl";
 
-use crate::model::dataflow::DataFlowDescription;
+use crate::model::dataflow::DataFlowDescriptor;
 use crate::runner::{Runner, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner};
 use crate::ZFZenohConnectorDescription;
 use crate::{
     link::link,
     loader::load_zenoh_receiver,
     model::link::{ZFFromEndpoint, ZFLinkDescriptor, ZFToEndpoint},
-    model::operator::{ZFOperatorDescription, ZFSinkDescription, ZFSourceDescription},
+    model::operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor},
     types::{ZFError, ZFLinkId, ZFOperatorId, ZFOperatorName, ZFResult},
 };
 use crate::{loader::load_zenoh_sender, message::ZFMessage};
@@ -56,12 +56,12 @@ pub struct DataFlowGraph {
     pub operators_runners: HashMap<ZFOperatorName, Arc<Mutex<Runner>>>,
 }
 
-pub fn deserialize_dataflow_description(data: String) -> DataFlowDescription {
-    serde_yaml::from_str::<DataFlowDescription>(&data).unwrap()
+pub fn deserialize_dataflow_description(data: String) -> DataFlowDescriptor {
+    serde_yaml::from_str::<DataFlowDescriptor>(&data).unwrap()
 }
 
 impl DataFlowGraph {
-    pub fn new(df: Option<DataFlowDescription>) -> Self {
+    pub fn new(df: Option<DataFlowDescriptor>) -> Self {
         match df {
             Some(df) => {
                 let mut graph = StableGraph::<DataFlowNode, ZFLinkId>::new();
@@ -262,7 +262,7 @@ impl DataFlowGraph {
         operator: Box<dyn crate::operator::OperatorTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let descriptor = ZFOperatorDescription {
+        let descriptor = ZFOperatorDescriptor {
             id: id,
             name: name.clone(),
             inputs,
@@ -290,7 +290,7 @@ impl DataFlowGraph {
         source: Box<dyn crate::operator::SourceTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let descriptor = ZFSourceDescription {
+        let descriptor = ZFSourceDescriptor {
             id: id,
             name: name.clone(),
             output,
@@ -317,7 +317,7 @@ impl DataFlowGraph {
         sink: Box<dyn crate::operator::SinkTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let descriptor = ZFSinkDescription {
+        let descriptor = ZFSinkDescriptor {
             id: id,
             name: name.clone(),
             input,
