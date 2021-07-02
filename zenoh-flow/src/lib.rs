@@ -24,6 +24,7 @@ pub mod graph;
 pub mod link;
 pub mod loader;
 pub mod message;
+pub mod model;
 pub mod operator;
 pub mod runner;
 

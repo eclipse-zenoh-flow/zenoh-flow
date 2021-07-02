@@ -12,10 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::{
-    ZFLinkId, ZFOperatorDescription, ZFOperatorId, ZFOperatorName, ZFSinkDescription,
-    ZFSourceDescription, ZFZenohConnectorDescription,
-};
+use crate::model::operator::{ZFOperatorDescription, ZFSinkDescription, ZFSourceDescription};
+use crate::{ZFLinkId, ZFOperatorId, ZFOperatorName, ZFZenohConnectorDescription};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
