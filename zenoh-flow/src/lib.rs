@@ -22,7 +22,7 @@ pub use ::typetag;
 
 pub mod operator;
 pub mod runtime;
-
+pub mod model;
 pub mod types;
 pub use types::*;
 

@@ -33,91 +33,42 @@ static LIB_EXT: &str = "so";
 #[cfg(target_os = "windows")]
 static LIB_EXT: &str = "ddl";
 
+use crate::model::dataflow::DataFlowDescriptor;
 use crate::runtime::runner::{Runner, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner};
-use crate::runtime::graph::{link::link};
-use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender, ZFZenohConnectorInfo, ZFZenohConnectorDescriptor};
+use crate::ZFZenohConnectorDescription;
 use crate::{
+    runtime::graph::link::link,
     runtime::loader::load_zenoh_receiver,
-    types::{ZFError, ZFFromEndpoint, ZFLinkId, ZFOperatorName, ZFResult, ZFToEndpoint},
+    model::link::{ZFFromEndpoint, ZFLinkDescriptor, ZFToEndpoint},
+    model::operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor},
+    types::{ZFError, ZFLinkId, ZFOperatorId, ZFOperatorName, ZFResult},
 };
+use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender, ZFZenohConnectorInfo, ZFZenohConnectorDescriptor};
 use crate::runtime::{loader::load_zenoh_sender, message::ZFMessage};
 use crate::{
     runtime::loader::{load_operator, load_sink, load_source},
     ZFZenohReceiverDescription, ZFZenohSenderDescription,
 };
-use crate::{
-    ZFConnection, ZFOperatorDescription, ZFOperatorId, ZFSinkDescription, ZFSourceDescription,
-};
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct DataFlowDescription {
-    pub flow: String,
-    pub operators: Vec<ZFOperatorDescription>,
-    pub sources: Vec<ZFSourceDescription>,
-    pub sinks: Vec<ZFSinkDescription>,
-    pub links: Vec<ZFConnection>,
-}
-
-impl DataFlowDescription {
-    pub fn from_yaml(data: String) -> Self {
-        serde_yaml::from_str::<DataFlowDescription>(&data).unwrap()
-    }
-
-    pub fn find_node(&self, id: ZFOperatorId) -> Option<DataFlowNode> {
-        match self.get_operator(id.clone()) {
-            Some(o) => Some(DataFlowNode::Operator(o)),
-            None => match self.get_source(id.clone()) {
-                Some(s) => Some(DataFlowNode::Source(s)),
-                None => match self.get_sink(id) {
-                    Some(s) => Some(DataFlowNode::Sink(s)),
-                    None => None,
-                },
-            },
-        }
-    }
-
-    fn get_operator(&self, id: ZFOperatorId) -> Option<ZFOperatorDescription> {
-        match self.operators.iter().find(|&o| o.id == id) {
-            Some(o) => Some(o.clone()),
-            None => None,
-        }
-    }
-
-    fn get_source(&self, id: ZFOperatorId) -> Option<ZFSourceDescription> {
-        match self.sources.iter().find(|&o| o.id == id) {
-            Some(s) => Some(s.clone()),
-            None => None,
-        }
-    }
-
-    fn get_sink(&self, id: ZFOperatorId) -> Option<ZFSinkDescription> {
-        match self.sinks.iter().find(|&o| o.id == id) {
-            Some(s) => Some(s.clone()),
-            None => None,
-        }
-    }
-}
 
 pub struct DataFlowGraph {
     pub flow: String,
     pub operators: Vec<(NodeIndex, DataFlowNode)>,
-    pub links: Vec<(EdgeIndex, ZFConnection)>,
+    pub links: Vec<(EdgeIndex, ZFLinkDescriptor)>,
     pub graph: StableGraph<DataFlowNode, ZFLinkId>,
     pub operators_runners: HashMap<ZFOperatorName, Arc<Mutex<Runner>>>,
 }
 
-pub fn deserialize_dataflow_description(data: String) -> DataFlowDescription {
-    serde_yaml::from_str::<DataFlowDescription>(&data).unwrap()
+pub fn deserialize_dataflow_description(data: String) -> DataFlowDescriptor {
+    serde_yaml::from_str::<DataFlowDescriptor>(&data).unwrap()
 }
 
 impl DataFlowGraph {
-    pub fn new(df: Option<DataFlowDescription>) -> Self {
+    pub fn new(df: Option<DataFlowDescriptor>) -> Self {
         match df {
             Some(df) => {
                 let mut graph = StableGraph::<DataFlowNode, ZFLinkId>::new();
                 let mut operators = Vec::new();
-                let mut links: Vec<(EdgeIndex, ZFConnection)> = Vec::new();
+                let mut links: Vec<(EdgeIndex, ZFLinkDescriptor)> = Vec::new();
                 for o in df.operators {
                     operators.push((
                         graph.add_node(DataFlowNode::Operator(o.clone())),
@@ -204,7 +155,7 @@ impl DataFlowGraph {
                             ZFZenohConnectorDescriptor::Sender(sender.clone()),
                         ));
 
-                        let link_sender = ZFConnection {
+                        let link_sender = ZFLinkDescriptor {
                             from: l.from.clone(),
                             to: ZFToEndpoint {
                                 name: sender_name,
@@ -241,7 +192,7 @@ impl DataFlowGraph {
                         let recv_idx = graph.add_node(DataFlowNode::Connector(
                             ZFZenohConnectorDescriptor::Receiver(receiver.clone()),
                         ));
-                        let link_receiver = ZFConnection {
+                        let link_receiver = ZFLinkDescriptor {
                             from: ZFFromEndpoint {
                                 name: receiver_name,
                                 output: receiver.link_id.clone(),
@@ -307,7 +258,7 @@ impl DataFlowGraph {
         operator: Box<dyn crate::operator::OperatorTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let descriptor = ZFOperatorDescription {
+        let descriptor = ZFOperatorDescriptor {
             id: id,
             name: name.clone(),
             inputs,
@@ -335,7 +286,7 @@ impl DataFlowGraph {
         source: Box<dyn crate::operator::SourceTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let descriptor = ZFSourceDescription {
+        let descriptor = ZFSourceDescriptor {
             id: id,
             name: name.clone(),
             output,
@@ -362,7 +313,7 @@ impl DataFlowGraph {
         sink: Box<dyn crate::operator::SinkTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let descriptor = ZFSinkDescription {
+        let descriptor = ZFSinkDescriptor {
             id: id,
             name: name.clone(),
             input,
@@ -388,7 +339,7 @@ impl DataFlowGraph {
         queueing_policy: Option<String>,
         priority: Option<usize>,
     ) -> ZFResult<()> {
-        let connection = ZFConnection {
+        let connection = ZFLinkDescriptor {
             from,
             to,
             size,
@@ -396,7 +347,7 @@ impl DataFlowGraph {
             priority,
         };
 
-        if connection.from.output.clone() == connection.to.input.clone() {
+        if connection.from.output == connection.to.input {
             let from_index = match self
                 .operators
                 .iter()
@@ -439,7 +390,7 @@ impl DataFlowGraph {
         } else {
             return Err(ZFError::PortIdNotMatching((
                 connection.from.output.clone(),
-                connection.to.input.clone(),
+                connection.to.input,
             )));
         }
 

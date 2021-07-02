@@ -27,6 +27,7 @@ pub type ZFZenohResource = String;
 pub type ZFOperatorName = String;
 pub type ZFTimestamp = usize; //TODO: improve it, usize is just a placeholder
 pub type ZFLinkId = String; // TODO: improve it, String is just a placeholder
+pub type ZFRuntimeID = String;
 
 #[derive(Debug)]
 pub enum ZFError {
@@ -156,77 +157,6 @@ pub type ZFSinkResult = Result<(), ZFError>;
 // TODO: move to operator.rs
 pub type ZFSinkRun =
     dyn Fn(&mut ZFContext, Vec<&ZFMessage>) -> ZFSinkResult + Send + Sync + 'static; // This should be a future, Sinks can do I/O
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSinkDescription {
-    pub id: ZFOperatorId,
-    pub name: ZFOperatorName,
-    pub input: ZFLinkId,
-    pub lib: Option<String>,
-    pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<String>,
-}
-
-impl std::fmt::Display for ZFSinkDescription {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} - {} - Kind: Sink", self.id, self.name)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSourceDescription {
-    pub id: ZFOperatorId,
-    pub name: ZFOperatorName,
-    pub output: ZFLinkId,
-    pub lib: Option<String>,
-    pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<String>,
-}
-
-impl std::fmt::Display for ZFSourceDescription {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} - {} - Kind: Source", self.id, self.name)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFOperatorDescription {
-    pub id: ZFOperatorId,
-    pub name: ZFOperatorName,
-    pub inputs: Vec<ZFLinkId>,
-    pub outputs: Vec<ZFLinkId>,
-    pub lib: Option<String>,
-    pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<String>,
-}
-
-impl std::fmt::Display for ZFOperatorDescription {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} - {} - Kind: Operator", self.id, self.name)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFFromEndpoint {
-    pub name: ZFOperatorName,
-    pub output: ZFLinkId,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFToEndpoint {
-    pub name: ZFOperatorName,
-    pub input: ZFLinkId,
-}
-
-//TODO: improve
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFConnection {
-    pub from: ZFFromEndpoint,
-    pub to: ZFToEndpoint,
-    pub size: Option<usize>,
-    pub queueing_policy: Option<String>,
-    pub priority: Option<usize>,
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFZenohSenderDescription {

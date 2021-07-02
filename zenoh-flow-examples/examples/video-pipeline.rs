@@ -14,6 +14,7 @@
 
 use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use zenoh_flow::model::link::{ZFFromEndpoint, ZFToEndpoint};
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
     operator::{
@@ -21,7 +22,7 @@ use zenoh_flow::{
         InputRuleResult, RunResult, SinkTrait, SourceTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFError, ZFFromEndpoint, ZFLinkId, ZFResult, ZFToEndpoint},
+    types::{Token, ZFContext, ZFError, ZFLinkId, ZFResult},
     zenoh_flow_macros::ZFState,
     zf_data, zf_spin_lock,
 };

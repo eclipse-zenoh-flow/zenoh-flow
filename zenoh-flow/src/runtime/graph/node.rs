@@ -12,18 +12,16 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::{
-    ZFLinkId, ZFOperatorDescription, ZFOperatorId, ZFOperatorName, ZFSinkDescription,
-    ZFSourceDescription,
-};
+use crate::model::operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor};
+use crate::{ZFLinkId, ZFOperatorId, ZFOperatorName, ZFRuntimeID};
 use crate::runtime::connectors::ZFZenohConnectorDescriptor;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum DataFlowNode {
-    Operator(ZFOperatorDescription),
-    Source(ZFSourceDescription),
-    Sink(ZFSinkDescription),
+    Operator(ZFOperatorDescriptor),
+    Source(ZFSourceDescriptor),
+    Sink(ZFSinkDescriptor),
     Connector(ZFZenohConnectorDescriptor),
 }
 
@@ -93,7 +91,7 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_runtime(&self) -> Option<String> {
+    pub fn get_runtime(&self) -> Option<ZFRuntimeID> {
         match self {
             DataFlowNode::Operator(op) => op.runtime.clone(),
             DataFlowNode::Sink(s) => s.runtime.clone(),
