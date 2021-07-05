@@ -399,6 +399,22 @@ pub enum ZFData {
     Deserialized(Arc<dyn DataTrait>),
 }
 
+impl ZFData {
+    pub fn get_serialized(&self) -> &Arc<Vec<u8>> {
+        match self {
+            Self::Serialized(ser) => ser,
+            Self::Deserialized(_) => panic!(),
+        }
+    }
+
+    pub fn get_deserialized(&self) -> &Arc<dyn DataTrait> {
+        match self {
+            Self::Deserialized(de) => de,
+            Self::Serialized(_) => panic!(),
+        }
+    }
+}
+
 impl From<TokenData> for ZFData {
     fn from(d: TokenData) -> Self {
         match d {
@@ -422,6 +438,10 @@ impl ZFInput {
 
     pub fn get(&self, id: &ZFLinkId) -> Option<&ZFData> {
         self.0.get(id)
+    }
+
+    pub fn get_mut(&mut self, id: &ZFLinkId) -> Option<&mut ZFData> {
+        self.0.get_mut(id)
     }
 }
 

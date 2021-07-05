@@ -21,7 +21,7 @@ use zenoh_flow::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{ZFContext, ZFError, ZFLinkId, ZFResult, ZFInput},
+    types::{ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult},
     zenoh_flow_macros::ZFState,
     zf_data, zf_spin_lock,
 };

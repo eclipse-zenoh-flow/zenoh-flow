@@ -20,7 +20,7 @@ use zenoh_flow::{
         DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFError, ZFLinkId, ZFResult, ZFInput},
+    types::{Token, ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult},
     zenoh_flow_macros::ZFState,
     zf_empty_state, zf_spin_lock,
 };
@@ -56,10 +56,7 @@ impl VideoSink {
         }
     }
 
-    pub async fn run_1(
-        _ctx: ZFContext,
-        inputs: ZFInput,
-    ) -> ZFResult<()> {
+    pub async fn run_1(_ctx: ZFContext, mut inputs: ZFInput) -> ZFResult<()> {
         let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
 
         let window_name = &format!("Video-Sink");
@@ -93,11 +90,9 @@ impl SinkTrait for VideoSink {
     }
 
     fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
-        Box::new(
-            |ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
-                Box::pin(Self::run_1(ctx, inputs))
-            },
-        )
+        Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
+            Box::pin(Self::run_1(ctx, inputs))
+        })
     }
 
     fn get_state(&self) -> Box<dyn StateTrait> {

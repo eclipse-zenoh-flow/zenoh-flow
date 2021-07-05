@@ -144,24 +144,55 @@ macro_rules! get_state {
 #[macro_export]
 macro_rules! get_input {
     ($ident : ident, $index : expr, $map : expr) => {
-        match $map.get(&$index) {
-            Some(d) =>
-                match d {
-                    zenoh_flow::types::ZFData::Serialized(ser) => {
-                        // let de : Box<dyn DataTrait>  = bincode::deserialize(&ser).map_err(|_| zenoh_flow::types::ZFError::DeseralizationError)?;
-                        // match zenoh_flow::downcast!($ident, de) {
-                        //     Some(data) => Ok(data),
-                        //     None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
-                        // }
-                        Err(zenoh_flow::types::ZFError::Unimplemented)
-                    },
-                    zenoh_flow::types::ZFData::Deserialized(de) => {
-                        match zenoh_flow::downcast!($ident, de) {
-                            Some(data) => Ok(data),
-                            None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
-                        }
+        match $map.get_mut(&$index) {
+            Some(mut d) =>
+            // {
+            //     loop {
+            //         match d {
+            //             zenoh_flow::types::ZFData::Serialized(ser) => {
+            //                 let de: Arc<dyn DataTrait> = bincode::deserialize(&ser)
+            //                     .map_err(|_| zenoh_flow::types::ZFError::DeseralizationError)?;
+            //                 *d = zenoh_flow::types::ZFData::Deserialized(de);
+            //                 // match zenoh_flow::downcast!($ident, de) {
+            //                 //     Some(data) => Ok(data),
+            //                 //     None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
+            //                 // }
+            //                 //Err(zenoh_flow::types::ZFError::Unimplemented)
+            //             }
+            //             zenoh_flow::types::ZFData::Deserialized(de) => {
+            //                 match zenoh_flow::downcast!($ident, de) {
+            //                     Some(data) => break Ok(data),
+            //                     None => break Err(zenoh_flow::types::ZFError::InvalidData($index)),
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
+
+            match d {
+                zenoh_flow::types::ZFData::Deserialized(de) => {
+                    match zenoh_flow::downcast!($ident, de) {
+                        Some(data) => Ok(data),
+                        None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
                     }
-                },
+                }
+                zenoh_flow::types::ZFData::Serialized(ser) => {
+                    let de: Arc<dyn DataTrait> = bincode::deserialize(&ser)
+                        .map_err(|_| zenoh_flow::types::ZFError::DeseralizationError)?;
+
+                    *d = zenoh_flow::types::ZFData::Deserialized(de);
+
+                    match d {
+                        zenoh_flow::types::ZFData::Deserialized(de) => {
+                            match zenoh_flow::downcast!($ident, de) {
+                                Some(data) => Ok(data),
+                                None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
+                            }
+                        }
+                        _ => Err(zenoh_flow::types::ZFError::Unimplemented),
+                    }
+                }
+            },
             None => Err(zenoh_flow::types::ZFError::MissingInput($index)),
         }
     };

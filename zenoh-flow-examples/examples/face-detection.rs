@@ -26,7 +26,7 @@ use zenoh_flow::{
     },
     runtime::message::ZFMessage,
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFError, ZFLinkId, ZFResult, ZFInput},
+    types::{Token, ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult},
     zenoh_flow_macros::ZFState,
     zf_data, zf_spin_lock,
 };
@@ -94,7 +94,7 @@ impl FaceDetection {
         }
     }
 
-    pub fn run_1(ctx: ZFContext, inputs: ZFInput) -> RunResult {
+    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
         let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.lock(); //getting state

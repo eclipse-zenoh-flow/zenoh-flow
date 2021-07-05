@@ -14,7 +14,8 @@
 
 use async_std::sync::Arc;
 use std::collections::HashMap;
-use zenoh_flow::{export_operator, get_input,
+use zenoh_flow::{
+    export_operator, get_input,
     operator::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait,
@@ -43,7 +44,7 @@ impl BuzzOperator {
         Ok(true)
     }
 
-    fn run(_ctx: ZFContext, inputs: ZFInput) -> RunResult {
+    fn run(_ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
         let mut results = HashMap::<ZFLinkId, Arc<dyn DataTrait>>::with_capacity(1);
 
         let mut buzz = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?.clone();

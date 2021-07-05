@@ -45,7 +45,7 @@ impl FizzOperator {
         Ok(true)
     }
 
-    fn run(_ctx: ZFContext, inputs: ZFInput) -> RunResult {
+    fn run(_ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
         let mut results = HashMap::<ZFLinkId, Arc<dyn DataTrait>>::with_capacity(2);
 
         let mut fizz = ZFString::from("");
