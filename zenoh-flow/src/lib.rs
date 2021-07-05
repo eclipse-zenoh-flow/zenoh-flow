@@ -20,9 +20,9 @@ pub use ::paste;
 pub use ::serde;
 pub use ::typetag;
 
+pub mod model;
 pub mod operator;
 pub mod runtime;
-pub mod model;
 pub mod types;
 pub use types::*;
 
@@ -131,6 +131,6 @@ macro_rules! zf_spin_lock {
 #[macro_export]
 macro_rules! zf_data {
     ($val : expr) => {
-        zenoh_flow::async_std::sync::Arc::new(Box::new($val))
+        zenoh_flow::async_std::sync::Arc::new($val)
     };
 }

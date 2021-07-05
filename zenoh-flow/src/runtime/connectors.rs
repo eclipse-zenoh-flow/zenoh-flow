@@ -12,21 +12,19 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-
-use crate::{ZFError, ZFResult};
-use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
-use crate::runtime::message::{Message, ZFMessage, ZFMsg};
-use zenoh::net::{Session, SubInfo, Reliability, SubMode};
 use crate::async_std::sync::Arc;
-use futures::prelude::*;
+use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
+use crate::runtime::message::{ZFDataMessage, ZFMessage, ZFMsg};
 use crate::serde::{Deserialize, Serialize};
 use crate::types::ZFLinkId;
-
+use crate::{ZFError, ZFResult};
+use futures::prelude::*;
+use zenoh::net::{Reliability, Session, SubInfo, SubMode};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ZFZenohConnectorDescriptor {
     Sender(ZFZenohConnectorInfo),
-    Receiver(ZFZenohConnectorInfo)
+    Receiver(ZFZenohConnectorInfo),
 }
 
 impl std::fmt::Display for ZFZenohConnectorDescriptor {
@@ -35,15 +33,14 @@ impl std::fmt::Display for ZFZenohConnectorDescriptor {
             ZFZenohConnectorDescriptor::Sender(s) => write!(f, "{} - Kind: Zenoh-Sender", s),
             ZFZenohConnectorDescriptor::Receiver(r) => write!(f, "{} - Kind: Zenoh-Receiver", r),
         }
-
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFZenohConnectorInfo {
-    pub name : String,
+    pub name: String,
     pub resource: String,
-    pub link_id : ZFLinkId,
+    pub link_id: ZFLinkId,
     pub runtime: Option<String>,
 }
 
@@ -53,16 +50,18 @@ impl std::fmt::Display for ZFZenohConnectorInfo {
     }
 }
 
-
 pub struct ZFZenohSender {
     pub session: Arc<Session>,
     pub resource: String,
-    pub input: Option<ZFLinkReceiver<ZFMessage>>
+    pub input: Option<ZFLinkReceiver<ZFMessage>>,
 }
 
-
 impl ZFZenohSender {
-    pub fn new(session : Arc<Session>, resource: String, input: Option<ZFLinkReceiver<ZFMessage>>) -> Self {
+    pub fn new(
+        session: Arc<Session>,
+        resource: String,
+        input: Option<ZFLinkReceiver<ZFMessage>>,
+    ) -> Self {
         Self {
             session,
             resource,
@@ -70,29 +69,28 @@ impl ZFZenohSender {
         }
     }
 
-
     pub async fn run(&mut self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.resource);
         if let Some(mut input) = self.input.take() {
-            while let Ok((_,msg)) = input.recv().await {
+            while let Ok((_, msg)) = input.recv().await {
                 log::debug!("ZenohSender IN <= {:?} ", msg);
 
                 let serialized = match &msg.msg {
-                    ZFMsg::Data(data_msg) => {
-                        match data_msg {
-                            Message::Deserialized(de) => {
-                                let se = bincode::serialize(&**de).map_err(|_| ZFError::SerializationError)?;
-                                let se_msg = ZFMessage{ts: msg.ts, msg: ZFMsg::Data(Message::new_serialized(se))};
-                                bincode::serialize(&se_msg).map_err(|_| ZFError::SerializationError)?
-                            },
-                            _ => {
-                                bincode::serialize(&*msg).map_err(|_| ZFError::SerializationError)?
-                            }
+                    ZFMsg::Data(data_msg) => match data_msg {
+                        ZFDataMessage::Deserialized(de) => {
+                            let se = Arc::new(
+                                bincode::serialize(&**de)
+                                    .map_err(|_| ZFError::SerializationError)?,
+                            );
+                            let se_msg = ZFMessage {
+                                ts: msg.ts,
+                                msg: ZFMsg::Data(ZFDataMessage::new_serialized(se)),
+                            };
+                            bincode::serialize(&se_msg).map_err(|_| ZFError::SerializationError)?
                         }
+                        _ => bincode::serialize(&*msg).map_err(|_| ZFError::SerializationError)?,
                     },
-                    _ => {
-                        bincode::serialize(&*msg).map_err(|_| ZFError::SerializationError)?
-                    }
+                    _ => bincode::serialize(&*msg).map_err(|_| ZFError::SerializationError)?,
                 };
                 log::debug!("ZenohSender - {}=>{:?} ", self.resource, serialized);
                 self.session
@@ -102,25 +100,25 @@ impl ZFZenohSender {
             return Err(ZFError::Disconnected);
         }
         Err(ZFError::Disconnected)
-
     }
-
 
     pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>) {
         self.input = Some(input);
     }
 }
 
-
 pub struct ZFZenohReceiver {
     pub session: Arc<Session>,
     pub resource: String,
-    pub output: Option<ZFLinkSender<ZFMessage>>
+    pub output: Option<ZFLinkSender<ZFMessage>>,
 }
 
-
 impl ZFZenohReceiver {
-    pub fn new(session : Arc<Session>, resource: String, output: Option<ZFLinkSender<ZFMessage>>) -> Self {
+    pub fn new(
+        session: Arc<Session>,
+        resource: String,
+        output: Option<ZFLinkSender<ZFMessage>>,
+    ) -> Self {
         Self {
             session,
             resource,
@@ -128,9 +126,7 @@ impl ZFZenohReceiver {
         }
     }
 
-
     pub async fn run(&mut self) -> ZFResult<()> {
-
         log::debug!("ZenohReceiver - {} - Started", self.resource);
 
         if let Some(output) = &self.output {
@@ -140,20 +136,21 @@ impl ZFZenohReceiver {
                 period: None,
             };
 
-            let mut subscriber = self.session
-            .declare_subscriber(&self.resource.clone().into(), &sub_info)
-            .await?;
+            let mut subscriber = self
+                .session
+                .declare_subscriber(&self.resource.clone().into(), &sub_info)
+                .await?;
 
             while let Some(msg) = subscriber.receiver().next().await {
                 log::debug!("ZenohSender - {}<={:?} ", self.resource, msg);
-                let de : ZFMessage = bincode::deserialize(&msg.payload.to_vec()).map_err(|_| ZFError::DeseralizationError)?;
+                let de: ZFMessage = bincode::deserialize(&msg.payload.contiguous())
+                    .map_err(|_| ZFError::DeseralizationError)?;
                 log::debug!("ZenohSender - OUT =>{:?} ", de);
                 output.send(Arc::new(de)).await?;
             }
             return Err(ZFError::Disconnected);
         }
         Err(ZFError::Disconnected)
-
     }
 
     pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {

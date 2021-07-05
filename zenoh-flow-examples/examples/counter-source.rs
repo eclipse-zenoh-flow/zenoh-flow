@@ -22,7 +22,7 @@ use zenoh_flow::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{ZFContext, ZFError, ZFLinkId, ZFResult},
+    types::{ZFContext, ZFError, ZFLinkId, ZFResult, ZFInput},
     zenoh_flow_macros::ZFState,
     zf_data, zf_empty_state,
 };
@@ -48,7 +48,7 @@ impl CountSource {
     }
 
     async fn run_1(_ctx: ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
+        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
         let d = RandomData {
             d: COUNTER.fetch_add(1, Ordering::AcqRel),
         };
@@ -67,7 +67,7 @@ impl SourceTrait for CountSource {
         }
     }
 
-    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
         Box::new(zenoh_flow::operator::default_output_rule)
     }
 

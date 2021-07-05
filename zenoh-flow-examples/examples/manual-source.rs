@@ -19,6 +19,7 @@ use zenoh_flow::{
     operator::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
     },
+    types::ZFInput,
     zf_data, zf_empty_state, ZFContext, ZFError, ZFLinkId, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
@@ -29,7 +30,7 @@ static LINK_ID_INPUT_INT: &str = "Int";
 
 impl ManualSource {
     async fn run(_ctx: ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::with_capacity(1);
+        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::with_capacity(1);
 
         println!("> Please input a number: ");
         let mut number = String::new();
@@ -54,7 +55,7 @@ impl SourceTrait for ManualSource {
         Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run(ctx)) })
     }
 
-    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
         Box::new(zenoh_flow::operator::default_output_rule)
     }
 

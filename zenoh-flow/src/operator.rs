@@ -1,6 +1,6 @@
 use crate::async_std::sync::Arc;
 use crate::runtime::message::ZFMessage;
-use crate::types::{Token, ZFContext, ZFLinkId, ZFResult};
+use crate::types::{Token, ZFContext, ZFInput, ZFLinkId, ZFResult};
 use futures::Future;
 use std::any::Any;
 use std::collections::HashMap;
@@ -32,17 +32,14 @@ pub type FnInputRule =
 
 pub type OutputRuleResult = ZFResult<HashMap<ZFLinkId, Arc<ZFMessage>>>;
 
-pub type FnOutputRule = dyn Fn(ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> OutputRuleResult
+pub type FnOutputRule = dyn Fn(ZFContext, HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> OutputRuleResult
     + Send
     + Sync
     + 'static;
 
-pub type RunResult = ZFResult<HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>>;
+pub type RunResult = ZFResult<HashMap<ZFLinkId, Arc<dyn DataTrait>>>;
 
-pub type FnRun = dyn Fn(ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult
-    + Send
-    + Sync
-    + 'static;
+pub type FnRun = dyn Fn(ZFContext, ZFInput) -> RunResult + Send + Sync + 'static;
 
 pub trait OperatorTrait {
     fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule>;
@@ -68,9 +65,7 @@ pub trait SourceTrait {
 
 pub type FutSinkResult = Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync>>;
 
-pub type FnSinkRun = Box<
-    dyn Fn(ZFContext, HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> FutSinkResult + Send + Sync,
->;
+pub type FnSinkRun = Box<dyn Fn(ZFContext, ZFInput) -> FutSinkResult + Send + Sync>;
 
 pub trait SinkTrait {
     fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule>;
@@ -82,12 +77,12 @@ pub trait SinkTrait {
 
 pub fn default_output_rule(
     _ctx: ZFContext,
-    outputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
+    outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
 ) -> OutputRuleResult {
     let mut results = HashMap::new();
     for (k, v) in outputs {
         // should be ZFMessage::from_data
-        results.insert(k, Arc::new(ZFMessage::new_deserialized(0, v)));
+        results.insert(k, Arc::new(ZFMessage::from_data(v)));
     }
     Ok(results)
 }
@@ -150,10 +145,23 @@ macro_rules! get_state {
 macro_rules! get_input {
     ($ident : ident, $index : expr, $map : expr) => {
         match $map.get(&$index) {
-            Some(d) => match zenoh_flow::downcast!($ident, d) {
-                Some(data) => Ok(data),
-                None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
-            },
+            Some(d) =>
+                match d {
+                    zenoh_flow::types::ZFData::Serialized(ser) => {
+                        // let de : Box<dyn DataTrait>  = bincode::deserialize(&ser).map_err(|_| zenoh_flow::types::ZFError::DeseralizationError)?;
+                        // match zenoh_flow::downcast!($ident, de) {
+                        //     Some(data) => Ok(data),
+                        //     None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
+                        // }
+                        Err(zenoh_flow::types::ZFError::Unimplemented)
+                    },
+                    zenoh_flow::types::ZFData::Deserialized(de) => {
+                        match zenoh_flow::downcast!($ident, de) {
+                            Some(data) => Ok(data),
+                            None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
+                        }
+                    }
+                },
             None => Err(zenoh_flow::types::ZFError::MissingInput($index)),
         }
     };

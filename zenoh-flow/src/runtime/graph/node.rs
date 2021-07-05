@@ -13,8 +13,8 @@
 //
 
 use crate::model::operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor};
-use crate::{ZFLinkId, ZFOperatorId, ZFOperatorName, ZFRuntimeID};
 use crate::runtime::connectors::ZFZenohConnectorDescriptor;
+use crate::{ZFLinkId, ZFOperatorId, ZFOperatorName, ZFRuntimeID};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -14,21 +14,22 @@
 
 extern crate serde;
 
-use crate::operator::DataTrait;
+use crate::{operator::DataTrait, ZFTimestamp};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 //TODO: improve
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Message {
-    Serialized(Vec<u8>),
-    #[serde(skip_serializing, skip_deserializing)] // Deserialized data is never serialized directly
-    Deserialized(Arc<Box<dyn DataTrait>>),
+pub enum ZFDataMessage {
+    Serialized(Arc<Vec<u8>>),
+    #[serde(skip_serializing, skip_deserializing)]
+    // Deserialized data is never serialized directly
+    Deserialized(Arc<dyn DataTrait>),
 }
 
-impl Message {
-    pub fn new_serialized(data: Vec<u8>) -> Self {
+impl ZFDataMessage {
+    pub fn new_serialized(data: Arc<Vec<u8>>) -> Self {
         Self::Serialized(data)
     }
 
@@ -39,11 +40,11 @@ impl Message {
         }
     }
 
-    pub fn new_deserialized(data: Arc<Box<dyn DataTrait>>) -> Self {
+    pub fn new_deserialized(data: Arc<dyn DataTrait>) -> Self {
         Self::Deserialized(data)
     }
 
-    pub fn deserialized_data(&self) -> Arc<Box<dyn DataTrait>> {
+    pub fn deserialized_data(&self) -> Arc<dyn DataTrait> {
         match self {
             Self::Deserialized(data) => data.clone(),
             _ => panic!(),
@@ -61,33 +62,33 @@ pub enum ZFCtrlMessage {
 //TODO: improve, change name
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ZFMsg {
-    Data(Message),
+    Data(ZFDataMessage),
     Ctrl(ZFCtrlMessage),
 }
 
 //TODO: improve
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ZFMessage {
-    pub ts: u128,
+    pub ts: ZFTimestamp,
     pub msg: ZFMsg,
 }
 
 impl ZFMessage {
-    pub fn new_deserialized(ts: u128, data: Arc<Box<dyn DataTrait>>) -> Self {
-        Self {
-            ts,
-            msg: ZFMsg::Data(Message::new_deserialized(data)),
-        }
-    }
-
-    pub fn from_data(data: Arc<Box<dyn DataTrait>>) -> Self {
+    pub fn from_raw(data: Arc<Vec<u8>>) -> Self {
         Self {
             ts: 0, //placeholder
-            msg: ZFMsg::Data(Message::new_deserialized(data)),
+            msg: ZFMsg::Data(ZFDataMessage::new_serialized(data)),
         }
     }
 
-    pub fn from_message(msg: Message) -> Self {
+    pub fn from_data(data: Arc<dyn DataTrait>) -> Self {
+        Self {
+            ts: 0, //placeholder
+            msg: ZFMsg::Data(ZFDataMessage::new_deserialized(data)),
+        }
+    }
+
+    pub fn from_message(msg: ZFDataMessage) -> Self {
         Self {
             ts: 0, //placeholder
             msg: ZFMsg::Data(msg),
@@ -101,7 +102,7 @@ impl ZFMessage {
     //     }
     // }
 
-    pub fn timestamp(&self) -> &u128 {
+    pub fn timestamp(&self) -> &ZFTimestamp {
         &self.ts
     }
 }

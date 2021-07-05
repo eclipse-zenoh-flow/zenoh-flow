@@ -21,7 +21,7 @@ use zenoh_flow::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{ZFContext, ZFError, ZFLinkId, ZFResult},
+    types::{ZFContext, ZFError, ZFLinkId, ZFResult, ZFInput},
     zenoh_flow_macros::ZFState,
     zf_data, zf_spin_lock,
 };
@@ -104,7 +104,7 @@ impl CameraSource {
     }
 
     async fn run_1(ctx: ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
+        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.async_lock().await;
         let mut _state = downcast_mut!(CameraState, guard.state).unwrap(); //downcasting to right type

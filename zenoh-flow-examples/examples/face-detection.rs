@@ -20,13 +20,13 @@ use std::collections::HashMap;
 use std::io;
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
-    runtime::message::ZFMessage,
     operator::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait,
     },
+    runtime::message::ZFMessage,
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFError, ZFLinkId, ZFResult},
+    types::{Token, ZFContext, ZFError, ZFLinkId, ZFResult, ZFInput},
     zenoh_flow_macros::ZFState,
     zf_data, zf_spin_lock,
 };
@@ -94,8 +94,8 @@ impl FaceDetection {
         }
     }
 
-    pub fn run_1(ctx: ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
+    pub fn run_1(ctx: ZFContext, inputs: ZFInput) -> RunResult {
+        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.lock(); //getting state
         let _state = downcast!(FDState, guard.state).unwrap(); //downcasting to right type
@@ -180,12 +180,12 @@ impl FaceDetection {
 
     pub fn or_1(
         _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
+        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {
             // should be ZFMessage::from_data
-            results.insert(k, Arc::new(ZFMessage::new_deserialized(0, v)));
+            results.insert(k, Arc::new(ZFMessage::from_data(v)));
         }
         Ok(results)
     }
@@ -218,9 +218,7 @@ extern "C" fn register(
     match configuration {
         Some(config) => Ok(Box::new(FaceDetection::new(config))
             as Box<dyn zenoh_flow::operator::OperatorTrait + Send>),
-        None => {
-            Ok(Box::new(FaceDetection::new(HashMap::new()))
-                as Box<dyn zenoh_flow::operator::OperatorTrait + Send>)
-        }
+        None => Ok(Box::new(FaceDetection::new(HashMap::new()))
+            as Box<dyn zenoh_flow::operator::OperatorTrait + Send>),
     }
 }

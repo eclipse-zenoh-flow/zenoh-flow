@@ -17,7 +17,7 @@ readme = "README.md"
 [dependencies]
 env_logger = "0.8.3"
 serde_derive = "1.0.55"
-serde = { version = "1.0.55", features = ["derive"] }
+serde = { version = "1.0.55", features = ["derive", "rc"] }
 serde_yaml = {version = "0.8.13"}
 derive_more = "0.99.10"
 petgraph = "0.5.1"

@@ -14,18 +14,16 @@
 
 use async_std::sync::Arc;
 use std::collections::HashMap;
-use zenoh_flow_examples::{ZFString, ZFUsize};
-
-use zenoh_flow::{
-    export_operator, get_input,
-    runtime::message::ZFMessage,
+use zenoh_flow::{export_operator, get_input,
     operator::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait,
     },
-    types::ZFResult,
+    runtime::message::ZFMessage,
+    types::{ZFInput, ZFResult},
     zf_data, zf_empty_state, Token, ZFContext, ZFLinkId,
 };
+use zenoh_flow_examples::{ZFString, ZFUsize};
 
 struct BuzzOperator;
 
@@ -45,8 +43,8 @@ impl BuzzOperator {
         Ok(true)
     }
 
-    fn run(_ctx: ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
-        let mut results = HashMap::<ZFLinkId, Arc<Box<dyn DataTrait>>>::with_capacity(1);
+    fn run(_ctx: ZFContext, inputs: ZFInput) -> RunResult {
+        let mut results = HashMap::<ZFLinkId, Arc<dyn DataTrait>>::with_capacity(1);
 
         let mut buzz = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?.clone();
 
@@ -63,7 +61,7 @@ impl BuzzOperator {
 
     fn output_rule(
         _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
+        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
         let mut zf_outputs: HashMap<ZFLinkId, Arc<ZFMessage>> = HashMap::with_capacity(1);
 
@@ -99,7 +97,7 @@ impl OperatorTrait for BuzzOperator {
 export_operator!(register);
 
 extern "C" fn register(
-    configuration: Option<HashMap<String, String>>,
+    _configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::operator::OperatorTrait + Send>> {
     Ok(Box::new(BuzzOperator) as Box<dyn OperatorTrait + Send>)
 }

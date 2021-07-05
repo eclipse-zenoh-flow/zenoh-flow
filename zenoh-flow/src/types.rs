@@ -12,14 +12,12 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use serde::{Deserialize, Serialize};
-
-use crate::runtime::message::{Message, ZFMessage};
+use crate::async_std::sync::{Arc, Mutex, MutexGuard};
 use crate::operator::{DataTrait, StateTrait};
-
-use async_std::sync::{Arc, Mutex, MutexGuard};
+use crate::runtime::message::{ZFDataMessage, ZFMessage, ZFMsg};
+use crate::serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-//use std::sync::{Mutex, MutexGuard};
+use std::convert::From;
 
 // Placeholder types
 pub type ZFOperatorId = String;
@@ -36,6 +34,7 @@ pub enum ZFError {
     DeseralizationError,
     MissingState,
     InvalidState,
+    Unimplemented,
     PortIdNotMatching((ZFLinkId, ZFLinkId)),
     OperatorNotFound(ZFOperatorName),
     PortNotFound((ZFOperatorName, ZFLinkId)),
@@ -48,7 +47,7 @@ pub enum ZFError {
     IOError(std::io::Error),
     MissingConfiguration,
     VersionMismatch,
-    ZenohError(zenoh_util::core::ZError)
+    ZenohError(zenoh_util::core::ZError),
 }
 
 impl From<flume::RecvError> for ZFError {
@@ -147,7 +146,7 @@ pub type OperatorRun = dyn Fn(&mut ZFContext, &HashMap<ZFLinkId, Option<Arc<ZFMe
     + 'static;
 
 // TODO: move to operator.rs
-pub type ZFSourceResult = Result<Vec<Message>, ZFError>;
+pub type ZFSourceResult = Result<Vec<ZFDataMessage>, ZFError>;
 //TODO: move to operator.rs
 pub type ZFSourceRun = dyn Fn(&mut ZFContext) -> ZFSourceResult + Send + Sync + 'static; // This should be a future, Sources can do I/O
 
@@ -249,11 +248,33 @@ impl NotReadyToken {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum TokenData {
+    Serialized(Arc<Vec<u8>>),
+    Deserialized(Arc<dyn DataTrait>),
+}
+
+impl TokenData {
+    pub fn get_data(self) -> ZFResult<Arc<dyn DataTrait>> {
+        match self {
+            Self::Serialized(_) => Err(ZFError::GenericError),
+            Self::Deserialized(de) => Ok(de),
+        }
+    }
+
+    pub fn get_raw(self) -> ZFResult<Arc<Vec<u8>>> {
+        match self {
+            Self::Serialized(ser) => Ok(ser),
+            Self::Deserialized(_) => Err(ZFError::GenericError),
+        }
+    }
+}
+
 //TODO: improve
 #[derive(Debug, Clone)]
 pub struct ReadyToken {
     pub ts: ZFTimestamp,
-    pub data: Arc<Box<dyn DataTrait>>,
+    pub data: TokenData,
     pub action: TokenAction,
 }
 
@@ -264,7 +285,7 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn new_ready(ts: ZFTimestamp, data: Arc<Box<dyn DataTrait>>) -> Self {
+    pub fn new_ready(ts: ZFTimestamp, data: TokenData) -> Self {
         Self::Ready(ReadyToken {
             ts,
             data,
@@ -330,7 +351,7 @@ impl Token {
         }
     }
 
-    pub fn data(&self) -> ZFResult<Arc<Box<dyn DataTrait>>> {
+    pub fn data(&self) -> ZFResult<TokenData> {
         match self {
             Self::Ready(ready) => Ok(ready.data.clone()),
             _ => Err(ZFError::GenericError),
@@ -344,11 +365,72 @@ impl Token {
         }
     }
 
-    pub fn split(self) -> (Option<Arc<Box<dyn DataTrait>>>, TokenAction) {
+    pub fn split(self) -> (Option<TokenData>, TokenAction) {
         match self {
             Self::Ready(ready) => (Some(ready.data), ready.action),
             Self::NotReady(_) => (None, TokenAction::Wait),
         }
+    }
+}
+
+impl From<Arc<ZFMessage>> for Token {
+    fn from(msg: Arc<ZFMessage>) -> Self {
+        match &msg.msg {
+            ZFMsg::Ctrl(_) => Token::NotReady(NotReadyToken { ts: msg.ts }),
+            ZFMsg::Data(data_msg) => match data_msg {
+                ZFDataMessage::Serialized(ser) => Token::Ready(ReadyToken {
+                    ts: msg.ts,
+                    action: TokenAction::Consume,
+                    data: TokenData::Serialized(ser.clone()), //Use ZBuf
+                }),
+                ZFDataMessage::Deserialized(de) => Token::Ready(ReadyToken {
+                    ts: msg.ts,
+                    action: TokenAction::Consume,
+                    data: TokenData::Deserialized(de.clone()),
+                }),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ZFData {
+    Serialized(Arc<Vec<u8>>),
+    Deserialized(Arc<dyn DataTrait>),
+}
+
+impl From<TokenData> for ZFData {
+    fn from(d: TokenData) -> Self {
+        match d {
+            TokenData::Serialized(ser) => ZFData::Serialized(ser),
+            TokenData::Deserialized(de) => ZFData::Deserialized(de),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ZFInput(HashMap<ZFLinkId, ZFData>);
+
+impl ZFInput {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+
+    pub fn insert(&mut self, id: ZFLinkId, data: ZFData) -> Option<ZFData> {
+        self.0.insert(id, data)
+    }
+
+    pub fn get(&self, id: &ZFLinkId) -> Option<&ZFData> {
+        self.0.get(id)
+    }
+}
+
+impl<'a> IntoIterator for &'a ZFInput {
+    type Item = (&'a ZFLinkId, &'a ZFData);
+    type IntoIter = std::collections::hash_map::Iter<'a, ZFLinkId, ZFData>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
 }
 

@@ -12,11 +12,11 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::runtime::graph::node::DataFlowNode;
 use crate::model::link::ZFLinkDescriptor;
 use crate::model::operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor};
+use crate::runtime::graph::node::DataFlowNode;
+use crate::serde::{Deserialize, Serialize};
 use crate::types::ZFOperatorId;
-use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DataFlowDescriptor {

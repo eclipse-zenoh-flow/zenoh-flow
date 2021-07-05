@@ -12,19 +12,16 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::operator::{OperatorTrait, SinkTrait, SourceTrait};
+use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
-use crate::runtime::message::{Message, ZFMessage, ZFMsg};
-use crate::operator::{
-    DataTrait, FnInputRule, FnOutputRule, FnRun, FnSinkRun, FnSourceRun, OperatorTrait, SinkTrait,
-    SourceTrait, StateTrait,
-};
-use crate::types::{Token, ZFContext, ZFLinkId, ZFOperatorId, ZFResult};
+use crate::runtime::message::{ZFMessage, ZFMsg};
+use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFLinkId, ZFResult};
 use async_std::sync::Arc;
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 use zenoh::net::Session;
-use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 
 pub enum Runner {
     Operator(ZFOperatorRunner),
@@ -42,18 +39,16 @@ impl Runner {
             Runner::Sink(runner) => runner.run().await,
             Runner::Sender(runner) => runner.run().await,
             Runner::Receiver(runner) => runner.run().await,
-
         }
     }
 
     pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>) {
         match self {
             Runner::Operator(runner) => runner.add_input(input),
-            Runner::Source(_runner) => panic!("Sources does not have inputs!"), // TODO this should return a ZFResult<()>
+            Runner::Source(_) => panic!("Sources does not have inputs!"), // TODO this should return a ZFResult<()>
             Runner::Sink(runner) => runner.add_input(input),
             Runner::Sender(runner) => runner.add_input(input),
-            Runner::Receiver(runner) => panic!("Receiver does not have inputs!"), // TODO this should return a ZFResult<()>
-
+            Runner::Receiver(_) => panic!("Receiver does not have inputs!"), // TODO this should return a ZFResult<()>
         }
     }
 
@@ -61,8 +56,8 @@ impl Runner {
         match self {
             Runner::Operator(runner) => runner.add_output(output),
             Runner::Source(runner) => runner.add_output(output),
-            Runner::Sink(_runner) => panic!("Sinks does not have output!"), // TODO this should return a ZFResult<()>
-            Runner::Sender(runner) => panic!("Senders does not have output!"), // TODO this should return a ZFResult<()>
+            Runner::Sink(_) => panic!("Sinks does not have output!"), // TODO this should return a ZFResult<()>
+            Runner::Sender(_) => panic!("Senders does not have output!"), // TODO this should return a ZFResult<()>
             Runner::Receiver(runner) => runner.add_output(output),
         }
     }
@@ -126,15 +121,8 @@ impl ZFOperatorRunner {
                     // this could be "slow" as suggested by LC
                     (Ok((id, msg)), _i, remaining) => {
                         match &msg.msg {
-                            ZFMsg::Data(data_msg) => {
-                                //data message
-                                match data_msg {
-                                    Message::Deserialized(data) => {
-                                        log::debug!("Channel {:?} received: {:?}", id, data);
-                                        msgs.insert(id, Token::new_ready(0, data.clone()));
-                                    }
-                                    _ => (),
-                                };
+                            ZFMsg::Data(_) => {
+                                msgs.insert(id, Token::from(msg));
 
                                 match ir_fn(ctx.clone(), &mut msgs) {
                                     Ok(true) => {
@@ -170,11 +158,11 @@ impl ZFOperatorRunner {
 
             // Running
             let run_fn = self.operator.get_run(ctx.clone());
-            let mut data: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
+            let mut data = ZFInput::new();
 
             for (id, v) in msgs {
                 let (d, _) = v.split();
-                data.insert(id, d.unwrap());
+                data.insert(id, ZFData::from(d.unwrap()));
             }
 
             let outputs = run_fn(ctx.clone(), data)?;
@@ -213,8 +201,9 @@ impl ZFOperatorRunner {
 pub struct ZFSourceDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register:
-        unsafe extern "C" fn(Option<HashMap<String, String>>) -> ZFResult<Box<SourceTrait + Send>>,
+    pub register: unsafe extern "C" fn(
+        Option<HashMap<String, String>>,
+    ) -> ZFResult<Box<dyn SourceTrait + Send>>,
 }
 
 pub struct ZFZenohReceiverDeclaration {
@@ -223,7 +212,7 @@ pub struct ZFZenohReceiverDeclaration {
     pub register: unsafe extern "C" fn(
         Arc<Session>,
         Option<HashMap<String, String>>,
-    ) -> ZFResult<Box<SourceTrait + Send>>,
+    ) -> ZFResult<Box<dyn SourceTrait + Send>>,
 }
 
 // TODO to be removed
@@ -351,14 +340,9 @@ impl ZFSinkRunner {
                     (Ok((id, msg)), _i, remaining) => {
                         //println!("Received from link {:?} -> {:?}", id, msg);
                         match &msg.msg {
-                            ZFMsg::Data(data_msg) => {
-                                //data message
-                                match data_msg {
-                                    Message::Deserialized(data) => {
-                                        msgs.insert(id, Token::new_ready(0, data.clone()));
-                                    }
-                                    _ => (),
-                                };
+                            ZFMsg::Data(_) => {
+                                msgs.insert(id, Token::from(msg)); //Creating Token from data
+
                                 match ir_fn(ctx.clone(), &mut msgs) {
                                     Ok(true) => {
                                         // we can run
@@ -395,7 +379,7 @@ impl ZFSinkRunner {
 
             // Running
             let run_fn = self.operator.get_run(ctx.clone());
-            let mut data: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
+            let mut data = ZFInput::new();
 
             for (id, v) in msgs {
                 log::debug!("[SINK] Sending data to run: {:?}", v);
@@ -403,7 +387,7 @@ impl ZFSinkRunner {
                 if d.is_none() {
                     continue;
                 }
-                data.insert(id, d.unwrap());
+                data.insert(id, ZFData::from(d.unwrap()));
             }
 
             run_fn(ctx.clone(), data).await?;

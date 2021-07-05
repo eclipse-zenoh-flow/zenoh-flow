@@ -20,7 +20,7 @@ use zenoh_flow::{
         DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFError, ZFLinkId, ZFResult},
+    types::{Token, ZFContext, ZFError, ZFLinkId, ZFResult, ZFInput},
     zenoh_flow_macros::ZFState,
 };
 
@@ -72,7 +72,7 @@ impl ExampleGenericZenohSink {
 
     pub async fn run_1(
         ctx: ZFContext,
-        inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
+        inputs: ZFInput,
     ) -> ZFResult<()> {
         let guard = ctx.async_lock().await; //getting state,
         let _state = downcast!(ZSinkState, guard.state).unwrap(); //downcasting to right type
@@ -98,7 +98,7 @@ impl SinkTrait for ExampleGenericZenohSink {
 
     fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
         Box::new(
-            |ctx: ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>| -> FutSinkResult {
+            |ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
                 Box::pin(Self::run_1(ctx, inputs))
             },
         )

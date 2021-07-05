@@ -19,7 +19,7 @@ use zenoh_flow::{
         DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFLinkId},
+    types::{Token, ZFContext, ZFInput, ZFLinkId},
     zenoh_flow_macros::ZFState,
     zf_empty_state, ZFError, ZFResult,
 };
@@ -32,18 +32,10 @@ impl ExampleGenericSink {
         Ok(true)
     }
 
-    pub async fn run_1(
-        _ctx: ZFContext,
-        inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
-    ) -> ZFResult<()> {
+    pub async fn run_1(_ctx: ZFContext, inputs: ZFInput) -> ZFResult<()> {
         println!("#######");
-        for (k, v) in inputs {
-            let serialized =
-                serde_json::to_string(&*v).map_err(|_| ZFError::DeseralizationError)?;
-            println!(
-                "Example Generic Sink Received on LinkId {:?} -> {:?} - Serialized: {}",
-                k, v, serialized
-            );
+        for (k, v) in inputs.into_iter() {
+            println!("Example Generic Sink Received on LinkId {:?} -> {:?}", k, v);
         }
         println!("#######");
         Ok(())
@@ -62,11 +54,9 @@ impl SinkTrait for ExampleGenericSink {
     fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
         let gctx = ctx.lock();
         match gctx.mode {
-            0 => Box::new(
-                |ctx: ZFContext,
-                 inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>|
-                 -> FutSinkResult { Box::pin(Self::run_1(ctx, inputs)) },
-            ),
+            0 => Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
+                Box::pin(Self::run_1(ctx, inputs))
+            }),
             _ => panic!("No way"),
         }
     }

@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use async_std::sync::{Arc,};
+use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
@@ -20,7 +20,7 @@ use zenoh_flow::{
         DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFError, ZFLinkId, ZFResult},
+    types::{Token, ZFContext, ZFError, ZFLinkId, ZFResult, ZFInput},
     zenoh_flow_macros::ZFState,
     zf_empty_state, zf_spin_lock,
 };
@@ -58,9 +58,9 @@ impl VideoSink {
 
     pub async fn run_1(
         _ctx: ZFContext,
-        inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
+        inputs: ZFInput,
     ) -> ZFResult<()> {
-        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
+        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
 
         let window_name = &format!("Video-Sink");
 
@@ -88,13 +88,13 @@ impl VideoSink {
 }
 
 impl SinkTrait for VideoSink {
-    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
         Box::new(Self::ir_1)
     }
 
     fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
         Box::new(
-            |ctx: ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>| -> FutSinkResult {
+            |ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
                 Box::pin(Self::run_1(ctx, inputs))
             },
         )
@@ -111,5 +111,5 @@ zenoh_flow::export_sink!(register);
 extern "C" fn register(
     _configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::operator::SinkTrait + Send>> {
-        Ok(Box::new(VideoSink::new()) as Box<dyn zenoh_flow::operator::SinkTrait + Send>)
+    Ok(Box::new(VideoSink::new()) as Box<dyn zenoh_flow::operator::SinkTrait + Send>)
 }

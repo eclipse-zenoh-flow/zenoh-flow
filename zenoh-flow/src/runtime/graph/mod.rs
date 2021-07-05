@@ -12,8 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-pub mod node;
 pub mod link;
+pub mod node;
 
 use async_std::sync::{Arc, Mutex};
 use node::DataFlowNode;
@@ -24,30 +24,18 @@ use petgraph::Direction;
 use std::collections::HashMap;
 use zenoh::ZFuture;
 
-#[cfg(target_os = "macos")]
-static LIB_EXT: &str = "dylib";
-
-#[cfg(target_os = "linux")]
-static LIB_EXT: &str = "so";
-
-#[cfg(target_os = "windows")]
-static LIB_EXT: &str = "ddl";
-
 use crate::model::dataflow::DataFlowDescriptor;
+use crate::runtime::connectors::{
+    ZFZenohConnectorDescriptor, ZFZenohConnectorInfo, ZFZenohReceiver, ZFZenohSender,
+};
+use crate::runtime::loader::{load_operator, load_sink, load_source};
+use crate::runtime::message::ZFMessage;
 use crate::runtime::runner::{Runner, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner};
-use crate::ZFZenohConnectorDescription;
 use crate::{
-    runtime::graph::link::link,
-    runtime::loader::load_zenoh_receiver,
     model::link::{ZFFromEndpoint, ZFLinkDescriptor, ZFToEndpoint},
     model::operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor},
+    runtime::graph::link::link,
     types::{ZFError, ZFLinkId, ZFOperatorId, ZFOperatorName, ZFResult},
-};
-use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender, ZFZenohConnectorInfo, ZFZenohConnectorDescriptor};
-use crate::runtime::{loader::load_zenoh_sender, message::ZFMessage};
-use crate::{
-    runtime::loader::{load_operator, load_sink, load_source},
-    ZFZenohReceiverDescription, ZFZenohSenderDescription,
 };
 
 pub struct DataFlowGraph {
@@ -213,9 +201,7 @@ impl DataFlowGraph {
                         ));
                         operators.push((
                             recv_idx,
-                            DataFlowNode::Connector(ZFZenohConnectorDescriptor::Receiver(
-                                receiver,
-                            )),
+                            DataFlowNode::Connector(ZFZenohConnectorDescriptor::Receiver(receiver)),
                         ));
                     }
                 }
@@ -453,14 +439,16 @@ impl DataFlowGraph {
                     }
                     DataFlowNode::Connector(zc) => match zc {
                         ZFZenohConnectorDescriptor::Sender(tx) => {
-                            let runner = ZFZenohSender::new(session.clone(), tx.resource.clone(), None);
+                            let runner =
+                                ZFZenohSender::new(session.clone(), tx.resource.clone(), None);
                             let runner = Runner::Sender(runner);
                             self.operators_runners
                                 .insert(tx.name.clone(), Arc::new(Mutex::new(runner)));
                         }
 
                         ZFZenohConnectorDescriptor::Receiver(rx) => {
-                            let runner = ZFZenohReceiver::new(session.clone(), rx.resource.clone(), None);
+                            let runner =
+                                ZFZenohReceiver::new(session.clone(), rx.resource.clone(), None);
                             let runner = Runner::Receiver(runner);
                             self.operators_runners
                                 .insert(rx.name.clone(), Arc::new(Mutex::new(runner)));

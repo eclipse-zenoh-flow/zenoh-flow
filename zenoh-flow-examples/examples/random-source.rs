@@ -20,7 +20,7 @@ use zenoh_flow::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
     },
     serde::{Deserialize, Serialize},
-    types::{ZFContext, ZFLinkId, ZFResult},
+    types::{ZFContext, ZFLinkId, ZFResult, ZFInput},
     zenoh_flow_macros::ZFState,
     zf_data, zf_empty_state,
 };
@@ -33,7 +33,7 @@ struct ExampleRandomSource {}
 
 impl ExampleRandomSource {
     async fn run_1(_ctx: ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>> = HashMap::new();
+        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
         let d = RandomData {
             d: rand::random::<u64>(),
         };
@@ -48,7 +48,7 @@ impl SourceTrait for ExampleRandomSource {
         Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) })
     }
 
-    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
         Box::new(zenoh_flow::operator::default_output_rule)
     }
 

@@ -18,12 +18,12 @@ use zenoh_flow_examples::{ZFString, ZFUsize};
 
 use zenoh_flow::{
     downcast, export_operator, get_input,
-    runtime::message::ZFMessage,
     operator::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait,
     },
-    types::ZFResult,
+    runtime::message::ZFMessage,
+    types::{ZFInput, ZFResult},
     zf_data, zf_empty_state, Token, ZFContext, ZFError, ZFLinkId,
 };
 
@@ -45,10 +45,9 @@ impl FizzOperator {
         Ok(true)
     }
 
-    fn run(_ctx: ZFContext, inputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>) -> RunResult {
-        let mut results = HashMap::<ZFLinkId, Arc<Box<dyn DataTrait>>>::with_capacity(2);
+    fn run(_ctx: ZFContext, inputs: ZFInput) -> RunResult {
+        let mut results = HashMap::<ZFLinkId, Arc<dyn DataTrait>>::with_capacity(2);
 
-        let raw_value = inputs.get(LINK_ID_INPUT_INT).unwrap();
         let mut fizz = ZFString::from("");
 
         let zfusize = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
@@ -57,7 +56,7 @@ impl FizzOperator {
             fizz = ZFString::from("Fizz");
         }
 
-        results.insert(String::from(LINK_ID_OUTPUT_INT), raw_value.clone());
+        results.insert(String::from(LINK_ID_OUTPUT_INT), zf_data!(zfusize.clone()));
         results.insert(String::from(LINK_ID_OUTPUT_STR), zf_data!(fizz));
 
         Ok(results)
@@ -65,7 +64,7 @@ impl FizzOperator {
 
     fn output_rule(
         _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<Box<dyn DataTrait>>>,
+        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
         let mut zf_outputs: HashMap<ZFLinkId, Arc<ZFMessage>> = HashMap::with_capacity(2);
 

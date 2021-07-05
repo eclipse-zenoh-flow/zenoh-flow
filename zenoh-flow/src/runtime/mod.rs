@@ -12,8 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-pub mod runner;
-pub mod message;
-pub mod loader;
-pub mod graph;
 pub mod connectors;
+pub mod graph;
+pub mod loader;
+pub mod message;
+pub mod runner;

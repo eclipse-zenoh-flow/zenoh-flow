@@ -77,10 +77,3 @@ name = "example-select"
 [[example]]
 name = "video-pipeline"
 
-[[example]]
-name = "zenoh-sender"
-crate-type = ["cdylib"]
-
-[[example]]
-name = "zenoh-receiver"
-crate-type = ["cdylib"]
