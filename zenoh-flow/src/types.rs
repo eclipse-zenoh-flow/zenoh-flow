@@ -27,7 +27,7 @@ pub type ZFTimestamp = usize; //TODO: improve it, usize is just a placeholder
 pub type ZFLinkId = String; // TODO: improve it, String is just a placeholder
 pub type ZFRuntimeID = String;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ZFError {
     GenericError,
     SerializationError,
@@ -35,6 +35,10 @@ pub enum ZFError {
     MissingState,
     InvalidState,
     Unimplemented,
+    Empty,
+    MissingConfiguration,
+    VersionMismatch,
+    Disconnected,
     PortIdNotMatching((ZFLinkId, ZFLinkId)),
     OperatorNotFound(ZFOperatorName),
     PortNotFound((ZFOperatorName, ZFLinkId)),
@@ -42,12 +46,8 @@ pub enum ZFError {
     SendError(String),
     MissingInput(ZFLinkId),
     InvalidData(ZFLinkId),
-    Disconnected,
-    Empty,
-    IOError(std::io::Error),
-    MissingConfiguration,
-    VersionMismatch,
-    ZenohError(zenoh_util::core::ZError),
+    IOError(String),
+    ZenohError(String),
 }
 
 impl From<flume::RecvError> for ZFError {
@@ -73,13 +73,13 @@ impl<T> From<flume::SendError<T>> for ZFError {
 
 impl From<std::io::Error> for ZFError {
     fn from(err: std::io::Error) -> Self {
-        Self::IOError(err)
+        Self::IOError(format!("{}", err))
     }
 }
 
 impl From<zenoh_util::core::ZError> for ZFError {
     fn from(err: zenoh_util::core::ZError) -> Self {
-        Self::ZenohError(err)
+        Self::ZenohError(format!("{}",err))
     }
 }
 

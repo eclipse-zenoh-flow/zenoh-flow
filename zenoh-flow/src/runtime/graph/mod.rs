@@ -514,7 +514,7 @@ impl DataFlowGraph {
                         down_node_index,
                         link_id
                     );
-                    let (tx, rx) = link::<ZFMessage>(1024, link_id);
+                    let (tx, rx) = link::<ZFMessage>(None, link_id);
 
                     up_runner.add_output(tx);
                     down_runner.add_input(rx);
