@@ -13,7 +13,7 @@
 //
 
 use crate::async_std::sync::{Arc, Mutex, MutexGuard};
-use crate::runtime::message::{ZFDataMessage, ZFMessage, ZFMsg};
+use crate::runtime::message::{Message, ZFDataMessage, ZFMessage};
 use crate::serde::{Deserialize, Serialize};
 use futures::Future;
 use std::any::Any;
@@ -346,8 +346,8 @@ impl Token {
 impl From<Arc<ZFMessage>> for Token {
     fn from(msg: Arc<ZFMessage>) -> Self {
         match &msg.msg {
-            ZFMsg::Ctrl(_) => Token::NotReady(NotReadyToken { ts: msg.ts }),
-            ZFMsg::Data(data_msg) => match data_msg {
+            Message::Ctrl(_) => Token::NotReady(NotReadyToken { ts: msg.ts }),
+            Message::Data(data_msg) => match data_msg {
                 ZFDataMessage::Serialized(ser) => Token::Ready(ReadyToken {
                     ts: msg.ts,
                     action: TokenAction::Consume,

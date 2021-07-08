@@ -14,7 +14,7 @@
 
 use crate::async_std::sync::Arc;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
-use crate::runtime::message::{ZFDataMessage, ZFMessage, ZFMsg};
+use crate::runtime::message::{Message, ZFDataMessage, ZFMessage};
 use crate::serde::{Deserialize, Serialize};
 use crate::types::ZFLinkId;
 use crate::{ZFError, ZFResult};
@@ -76,7 +76,7 @@ impl ZFZenohSender {
                 log::debug!("ZenohSender IN <= {:?} ", msg);
 
                 let serialized = match &msg.msg {
-                    ZFMsg::Data(data_msg) => match data_msg {
+                    Message::Data(data_msg) => match data_msg {
                         ZFDataMessage::Deserialized(de) => {
                             let se = Arc::new(
                                 bincode::serialize(&**de)
@@ -84,7 +84,7 @@ impl ZFZenohSender {
                             );
                             let se_msg = ZFMessage {
                                 ts: msg.ts,
-                                msg: ZFMsg::Data(ZFDataMessage::new_serialized(se)),
+                                msg: Message::Data(ZFDataMessage::new_serialized(se)),
                             };
                             bincode::serialize(&se_msg).map_err(|_| ZFError::SerializationError)?
                         }

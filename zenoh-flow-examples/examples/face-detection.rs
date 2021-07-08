@@ -216,8 +216,9 @@ extern "C" fn register(
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
     match configuration {
-        Some(config) => Ok(Box::new(FaceDetection::new(config))
-            as Box<dyn zenoh_flow::OperatorTrait + Send>),
+        Some(config) => {
+            Ok(Box::new(FaceDetection::new(config)) as Box<dyn zenoh_flow::OperatorTrait + Send>)
+        }
         None => Ok(Box::new(FaceDetection::new(HashMap::new()))
             as Box<dyn zenoh_flow::OperatorTrait + Send>),
     }

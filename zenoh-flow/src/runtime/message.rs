@@ -61,7 +61,7 @@ pub enum ZFCtrlMessage {
 
 //TODO: improve, change name
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ZFMsg {
+pub enum Message {
     Data(ZFDataMessage),
     Ctrl(ZFCtrlMessage),
 }
@@ -70,37 +70,30 @@ pub enum ZFMsg {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ZFMessage {
     pub ts: ZFTimestamp,
-    pub msg: ZFMsg,
+    pub msg: Message,
 }
 
 impl ZFMessage {
     pub fn from_raw(data: Arc<Vec<u8>>) -> Self {
         Self {
             ts: 0, //placeholder
-            msg: ZFMsg::Data(ZFDataMessage::new_serialized(data)),
+            msg: Message::Data(ZFDataMessage::new_serialized(data)),
         }
     }
 
     pub fn from_data(data: Arc<dyn DataTrait>) -> Self {
         Self {
             ts: 0, //placeholder
-            msg: ZFMsg::Data(ZFDataMessage::new_deserialized(data)),
+            msg: Message::Data(ZFDataMessage::new_deserialized(data)),
         }
     }
 
     pub fn from_message(msg: ZFDataMessage) -> Self {
         Self {
             ts: 0, //placeholder
-            msg: ZFMsg::Data(msg),
+            msg: Message::Data(msg),
         }
     }
-
-    // pub fn data(&self) -> &[u8] {
-    //     match &self.msg {
-    //         ZFMsg::Data(m) => m.data(),
-    //         _ => panic!("Nope"),
-    //     }
-    // }
 
     pub fn timestamp(&self) -> &ZFTimestamp {
         &self.ts

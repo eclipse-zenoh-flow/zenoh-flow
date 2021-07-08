@@ -177,8 +177,9 @@ extern "C" fn register(
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::SourceTrait + Send>> {
     match configuration {
-        Some(config) => Ok(Box::new(CameraSource::new(config))
-            as Box<dyn zenoh_flow::SourceTrait + Send>),
+        Some(config) => {
+            Ok(Box::new(CameraSource::new(config)) as Box<dyn zenoh_flow::SourceTrait + Send>)
+        }
         None => Err(ZFError::MissingConfiguration),
     }
 }

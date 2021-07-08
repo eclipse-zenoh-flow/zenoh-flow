@@ -82,6 +82,5 @@ zenoh_flow::export_source!(register);
 extern "C" fn register(
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::SourceTrait + Send>> {
-    Ok(Box::new(CountSource::new(configuration))
-        as Box<dyn zenoh_flow::SourceTrait + Send>)
+    Ok(Box::new(CountSource::new(configuration)) as Box<dyn zenoh_flow::SourceTrait + Send>)
 }

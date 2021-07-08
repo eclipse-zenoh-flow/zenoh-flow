@@ -15,7 +15,7 @@
 use crate::async_std::sync::Arc;
 use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
-use crate::runtime::message::{ZFMessage, ZFMsg};
+use crate::runtime::message::{Message, ZFMessage};
 use crate::types::{Token, ZFContext, ZFData, ZFError, ZFInput, ZFLinkId, ZFResult};
 use crate::FnInputRule;
 use crate::{OperatorTrait, SinkTrait, SourceTrait};
@@ -144,10 +144,10 @@ impl ZFOperatorRunner {
                 log::debug!("Sending on: {:?}", tx);
                 //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
                 match zf_msg.msg {
-                    ZFMsg::Data(_) => {
+                    Message::Data(_) => {
                         tx.send(zf_msg).await?;
                     }
-                    ZFMsg::Ctrl(_) => {
+                    Message::Ctrl(_) => {
                         // here we process should process control messages (eg. change mode)
                         //tx.send(zf_msg);
                     }
@@ -225,10 +225,10 @@ impl ZFSourceRunner {
                 let tx = self.outputs.iter().find(|&x| x.id() == id).unwrap();
                 //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
                 match zf_msg.msg {
-                    ZFMsg::Data(_) => {
+                    Message::Data(_) => {
                         tx.send(zf_msg).await?;
                     }
-                    ZFMsg::Ctrl(_) => {
+                    Message::Ctrl(_) => {
                         // here we process should process control messages (eg. change mode)
                         //tx.send(zf_msg);
                     }
@@ -330,7 +330,7 @@ macro_rules! run_input_rules {
                 // this could be "slow" as suggested by LC
                 (Ok((id, msg)), _i, remaining) => {
                     match &msg.msg {
-                        ZFMsg::Data(_) => {
+                        Message::Data(_) => {
                             $tokens.insert(id, Token::from(msg));
 
                             match $ir($ctx.clone(), &mut $tokens) {
@@ -351,7 +351,7 @@ macro_rules! run_input_rules {
                                 }
                             }
                         }
-                        ZFMsg::Ctrl(_) => {
+                        Message::Ctrl(_) => {
                             //control message receiver, we should handle it
                             $links = remaining;
                         }
