@@ -2,7 +2,7 @@ flow: FacePipeline # it should have a name, from this we will have an Instance o
 operators:
   - id : face-detection # this should be unique in the namespace of operators, this can also be removed actually...
     name : FaceDetection # this should be unique in the graph
-    lib: ./target/debug/examples/libface_detection.so
+    uri: file://./target/debug/examples/libface_detection.so
     inputs: [Frame]
     outputs: [Frame] #port id = String
     # configuration:
@@ -12,7 +12,7 @@ operators:
 sources: # sources can have only ONE output
   - id : camera-source
     name : Camera0
-    lib: ./target/debug/examples/libcamera_source.so
+    uri: file://./target/debug/examples/libcamera_source.so
     output: Frame
     configuration:
       camera: /dev/video0
@@ -21,7 +21,7 @@ sources: # sources can have only ONE output
 sinks: # sources can have only ONE input
   - id : video-sink
     name : Window
-    lib: ./target/debug/examples/libvideo_sink.so
+    uri: file://./target/debug/examples/libvideo_sink.so
     input: Frame
 links:
 - from:

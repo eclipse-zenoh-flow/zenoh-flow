@@ -12,9 +12,9 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use zenoh_flow::runtime::graph::link::{link, ZFLinkReceiver, ZFLinkSender};
 use zenoh_flow::async_std::sync::Arc;
-use zenoh_flow::{ZFResult, ZFError};
+use zenoh_flow::runtime::graph::link::{link, ZFLinkReceiver, ZFLinkSender};
+use zenoh_flow::{ZFError, ZFResult};
 
 async fn same_task_simple() {
     let size = 2;
@@ -76,7 +76,6 @@ async fn send_task_more(sender: ZFLinkSender<u8>) {
         assert_eq!(res, Ok(()));
     }
 }
-
 
 #[test]
 fn ordered_fifo_simple_async() {

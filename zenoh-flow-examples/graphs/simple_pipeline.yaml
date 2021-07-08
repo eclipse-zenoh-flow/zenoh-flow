@@ -2,18 +2,18 @@ flow: SimplePipeline
 operators:
   - id : sum
     name : SumOperator
-    lib: ./target/debug/examples/libsum_and_send.dylib
+    uri: file://./target/debug/examples/libsum_and_send.dylib
     inputs: [Number]
     outputs: [Number]
 sources:
   - id : sender
     name : Counter
-    lib: ./target/debug/examples/libcounter_source.dylib
+    uri: file://./target/debug/examples/libcounter_source.dylib
     output: Number
 sinks:
   - id : receiver
     name : PrintSink
-    lib: ./target/debug/examples/libgeneric_sink.dylib
+    uri: file://./target/debug/examples/libgeneric_sink.dylib
     input: Number
 links:
 - from:

@@ -249,7 +249,7 @@ impl DataFlowGraph {
             name: name.clone(),
             inputs,
             outputs,
-            lib: None,
+            uri: None,
             configuration,
             runtime: None,
         };
@@ -276,7 +276,7 @@ impl DataFlowGraph {
             id: id,
             name: name.clone(),
             output,
-            lib: None,
+            uri: None,
             configuration,
             runtime: None,
         };
@@ -303,7 +303,7 @@ impl DataFlowGraph {
             id: id,
             name: name.clone(),
             input,
-            lib: None,
+            uri: None,
             configuration,
             runtime: None,
         };
@@ -384,80 +384,76 @@ impl DataFlowGraph {
     }
 
     pub fn load(&mut self, runtime: &str) -> ZFResult<()> {
-        unsafe {
-            let session = Arc::new(zenoh::net::open(zenoh::net::config::peer()).wait().unwrap());
-            for (_, op) in &self.operators {
-                if let Some(op_runtime) = op.get_runtime() {
-                    if op_runtime != runtime {
-                        continue;
-                    }
-                }
-
-                match op {
-                    DataFlowNode::Operator(inner) => {
-                        match &inner.lib {
-                            Some(lib) => {
-                                let runner =
-                                    load_operator(lib.clone(), inner.configuration.clone())?;
-                                let runner = Runner::Operator(runner);
-                                self.operators_runners
-                                    .insert(inner.name.clone(), Arc::new(Mutex::new(runner)));
-                            }
-                            None => {
-                                // this is a static operator.
-                                ()
-                            }
-                        }
-                    }
-                    DataFlowNode::Source(inner) => {
-                        match &inner.lib {
-                            Some(lib) => {
-                                let runner = load_source(lib.clone(), inner.configuration.clone())?;
-                                let runner = Runner::Source(runner);
-                                self.operators_runners
-                                    .insert(inner.name.clone(), Arc::new(Mutex::new(runner)));
-                            }
-                            None => {
-                                // static source
-                                ()
-                            }
-                        }
-                    }
-                    DataFlowNode::Sink(inner) => {
-                        match &inner.lib {
-                            Some(lib) => {
-                                let runner = load_sink(lib.clone(), inner.configuration.clone())?;
-                                let runner = Runner::Sink(runner);
-                                self.operators_runners
-                                    .insert(inner.name.clone(), Arc::new(Mutex::new(runner)));
-                            }
-                            None => {
-                                //static sink
-                                ()
-                            }
-                        }
-                    }
-                    DataFlowNode::Connector(zc) => match zc {
-                        ZFZenohConnectorDescriptor::Sender(tx) => {
-                            let runner =
-                                ZFZenohSender::new(session.clone(), tx.resource.clone(), None);
-                            let runner = Runner::Sender(runner);
-                            self.operators_runners
-                                .insert(tx.name.clone(), Arc::new(Mutex::new(runner)));
-                        }
-
-                        ZFZenohConnectorDescriptor::Receiver(rx) => {
-                            let runner =
-                                ZFZenohReceiver::new(session.clone(), rx.resource.clone(), None);
-                            let runner = Runner::Receiver(runner);
-                            self.operators_runners
-                                .insert(rx.name.clone(), Arc::new(Mutex::new(runner)));
-                        }
-                    },
+        let session = Arc::new(zenoh::net::open(zenoh::net::config::peer()).wait().unwrap());
+        for (_, op) in &self.operators {
+            if let Some(op_runtime) = op.get_runtime() {
+                if op_runtime != runtime {
+                    continue;
                 }
             }
-            Ok(())
+
+            match op {
+                DataFlowNode::Operator(inner) => {
+                    match &inner.uri {
+                        Some(uri) => {
+                            let runner = load_operator(uri.clone(), inner.configuration.clone())?;
+                            let runner = Runner::Operator(runner);
+                            self.operators_runners
+                                .insert(inner.name.clone(), Arc::new(Mutex::new(runner)));
+                        }
+                        None => {
+                            // this is a static operator.
+                            ()
+                        }
+                    }
+                }
+                DataFlowNode::Source(inner) => {
+                    match &inner.uri {
+                        Some(uri) => {
+                            let runner = load_source(uri.clone(), inner.configuration.clone())?;
+                            let runner = Runner::Source(runner);
+                            self.operators_runners
+                                .insert(inner.name.clone(), Arc::new(Mutex::new(runner)));
+                        }
+                        None => {
+                            // static source
+                            ()
+                        }
+                    }
+                }
+                DataFlowNode::Sink(inner) => {
+                    match &inner.uri {
+                        Some(uri) => {
+                            let runner = load_sink(uri.clone(), inner.configuration.clone())?;
+                            let runner = Runner::Sink(runner);
+                            self.operators_runners
+                                .insert(inner.name.clone(), Arc::new(Mutex::new(runner)));
+                        }
+                        None => {
+                            //static sink
+                            ()
+                        }
+                    }
+                }
+                DataFlowNode::Connector(zc) => match zc {
+                    ZFZenohConnectorDescriptor::Sender(tx) => {
+                        let runner = ZFZenohSender::new(session.clone(), tx.resource.clone(), None);
+                        let runner = Runner::Sender(runner);
+                        self.operators_runners
+                            .insert(tx.name.clone(), Arc::new(Mutex::new(runner)));
+                    }
+
+                    ZFZenohConnectorDescriptor::Receiver(rx) => {
+                        let runner =
+                            ZFZenohReceiver::new(session.clone(), rx.resource.clone(), None);
+                        let runner = Runner::Receiver(runner);
+                        self.operators_runners
+                            .insert(rx.name.clone(), Arc::new(Mutex::new(runner)));
+                    }
+                },
+            }
         }
+        Ok(())
     }
 
     pub async fn make_connections(&mut self, runtime: &str) {

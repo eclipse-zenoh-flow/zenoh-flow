@@ -12,18 +12,18 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::async_std::sync::Arc;
+use crate::operator::FnInputRule;
 use crate::operator::{OperatorTrait, SinkTrait, SourceTrait};
 use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::{ZFMessage, ZFMsg};
-use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFLinkId, ZFResult, ZFError};
-use crate::operator::FnInputRule;
-use crate::async_std::sync::Arc;
+use crate::types::{Token, ZFContext, ZFData, ZFError, ZFInput, ZFLinkId, ZFResult};
 use futures::future;
 use futures::Future;
-use std::pin::Pin;
 use libloading::Library;
 use std::collections::HashMap;
+use std::pin::Pin;
 use zenoh::net::Session;
 
 pub enum Runner {
@@ -321,7 +321,6 @@ impl ZFSinkRunner {
         }
     }
 }
-
 
 #[macro_export]
 macro_rules! run_input_rules {

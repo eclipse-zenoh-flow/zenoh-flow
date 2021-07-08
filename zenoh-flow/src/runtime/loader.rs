@@ -19,6 +19,7 @@ use crate::runtime::runner::{
 use crate::types::{ZFError, ZFResult};
 use libloading::Library;
 use std::collections::HashMap;
+use url::Url;
 
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
@@ -28,15 +29,27 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 /// # Safety
 ///
 /// TODO remove all copy-pasted code, make macros/functions instead
-pub unsafe fn load_operator(
+pub fn load_operator(
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFOperatorRunner> {
-    // This is unsafe because has to dynamically load a library
-    let library = Library::new(path).unwrap();
+    let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
+
+    match uri.scheme() {
+        "file" => unsafe { load_lib_operator(make_file_path(uri), configuration) },
+        _ => Err(ZFError::Unimplemented),
+    }
+}
+
+pub unsafe fn load_lib_operator(
+    path: String,
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<ZFOperatorRunner> {
+    log::debug!("Operator Loading {}", path);
+
+    let library = Library::new(path)?;
     let decl = library
-        .get::<*mut ZFOperatorDeclaration>(b"zfoperator_declaration\0")
-        .unwrap()
+        .get::<*mut ZFOperatorDeclaration>(b"zfoperator_declaration\0")?
         .read();
 
     // version checks to prevent accidental ABI incompatibilities
@@ -52,14 +65,26 @@ pub unsafe fn load_operator(
 
 // SOURCE
 
-pub unsafe fn load_source(
+pub fn load_source(
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFSourceRunner> {
-    let library = Library::new(path).unwrap();
+    let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
+
+    match uri.scheme() {
+        "file" => unsafe { load_lib_source(make_file_path(uri), configuration) },
+        _ => Err(ZFError::Unimplemented),
+    }
+}
+
+pub unsafe fn load_lib_source(
+    path: String,
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<ZFSourceRunner> {
+    log::debug!("Source Loading {}", path);
+    let library = Library::new(path)?;
     let decl = library
-        .get::<*mut ZFSourceDeclaration>(b"zfsource_declaration\0")
-        .unwrap()
+        .get::<*mut ZFSourceDeclaration>(b"zfsource_declaration\0")?
         .read();
 
     // version checks to prevent accidental ABI incompatibilities
@@ -75,16 +100,27 @@ pub unsafe fn load_source(
 
 // SINK
 
-pub unsafe fn load_sink(
+pub fn load_sink(
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFSinkRunner> {
-    log::debug!("Loading {}", path);
-    let library = Library::new(path).unwrap();
+    let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
+
+    match uri.scheme() {
+        "file" => unsafe { load_lib_sink(make_file_path(uri), configuration) },
+        _ => Err(ZFError::Unimplemented),
+    }
+}
+
+pub unsafe fn load_lib_sink(
+    path: String,
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<ZFSinkRunner> {
+    log::debug!("Sink Loading {}", path);
+    let library = Library::new(path)?;
 
     let decl = library
-        .get::<*mut ZFSinkDeclaration>(b"zfsink_declaration\0")
-        .unwrap()
+        .get::<*mut ZFSinkDeclaration>(b"zfsink_declaration\0")?
         .read();
 
     // version checks to prevent accidental ABI incompatibilities
@@ -96,4 +132,11 @@ pub unsafe fn load_sink(
 
     let runner = ZFSinkRunner::new(sink, Some(library));
     Ok(runner)
+}
+
+pub fn make_file_path(uri: Url) -> String {
+    match uri.host_str() {
+        Some(h) => format!("{}{}", h, uri.path()),
+        None => format!("{}", uri.path()),
+    }
 }

@@ -21,7 +21,7 @@ pub struct ZFSinkDescriptor {
     pub id: ZFOperatorId,
     pub name: ZFOperatorName,
     pub input: ZFLinkId,
-    pub lib: Option<String>,
+    pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<ZFRuntimeID>,
 }
@@ -37,7 +37,7 @@ pub struct ZFSourceDescriptor {
     pub id: ZFOperatorId,
     pub name: ZFOperatorName,
     pub output: ZFLinkId,
-    pub lib: Option<String>,
+    pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<ZFRuntimeID>,
 }
@@ -54,7 +54,7 @@ pub struct ZFOperatorDescriptor {
     pub name: ZFOperatorName,
     pub inputs: Vec<ZFLinkId>,
     pub outputs: Vec<ZFLinkId>,
-    pub lib: Option<String>,
+    pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<ZFRuntimeID>,
 }

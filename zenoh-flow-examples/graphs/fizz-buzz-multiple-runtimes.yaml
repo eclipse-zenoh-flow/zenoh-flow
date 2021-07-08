@@ -3,13 +3,13 @@ flow: FizzBuzz
 operators:
   - id: fizz
     name: FizzOperator
-    lib: ./target/debug/examples/libexample_fizz.dylib
+    uri: file://./target/debug/examples/libexample_fizz.dylib
     inputs: [Int]
     outputs: [Int, Str]
     runtime: foo
   - id: buzz
     name: BuzzOperator
-    lib: ./target/debug/examples/libexample_buzz.dylib
+    uri: file://./target/debug/examples/libexample_buzz.dylib
     inputs: [Int, Str]
     outputs: [Str]
     runtime: bar
@@ -17,14 +17,14 @@ operators:
 sources:
   - id: sender
     name: ManualSenderOperator
-    lib: ./target/debug/examples/libmanual_source.dylib
+    uri: file://./target/debug/examples/libmanual_source.dylib
     output: Int
     runtime: foo
 
 sinks:
   - id: receiver
     name: ReceiverOperator
-    lib: ./target/debug/examples/libgeneric_sink.dylib
+    uri: file://./target/debug/examples/libgeneric_sink.dylib
     input: Str
     runtime: bar
 

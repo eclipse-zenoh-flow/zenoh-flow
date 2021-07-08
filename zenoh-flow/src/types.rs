@@ -48,6 +48,8 @@ pub enum ZFError {
     InvalidData(ZFLinkId),
     IOError(String),
     ZenohError(String),
+    LoadingError(String),
+    ParsingError(String),
 }
 
 impl From<flume::RecvError> for ZFError {
@@ -79,7 +81,13 @@ impl From<std::io::Error> for ZFError {
 
 impl From<zenoh_util::core::ZError> for ZFError {
     fn from(err: zenoh_util::core::ZError) -> Self {
-        Self::ZenohError(format!("{}",err))
+        Self::ZenohError(format!("{}", err))
+    }
+}
+
+impl From<libloading::Error> for ZFError {
+    fn from(err: libloading::Error) -> Self {
+        Self::LoadingError(format!("Error when loading the library: {}", err))
     }
 }
 

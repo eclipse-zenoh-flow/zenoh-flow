@@ -138,7 +138,6 @@ impl<T> ZFLinkSender<T> {
 }
 
 pub fn link<T>(capacity: Option<usize>, id: ZFLinkId) -> (ZFLinkSender<T>, ZFLinkReceiver<T>) {
-
     let (sender, receiver) = match capacity {
         None => flume::unbounded(),
         Some(cap) => flume::bounded(cap),

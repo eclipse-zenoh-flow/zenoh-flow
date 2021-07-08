@@ -3,12 +3,12 @@ operators: []
 sources:
   - id : camera-source
     name : Camera
-    lib: ./target/debug/examples/libcamera_source.so
+    uri: file://./target/debug/examples/libcamera_source.so
     output: Frame
 sinks:
   - id : video-sink
     name : Window
-    lib: ./target/debug/examples/libvideo_sink.so
+    uri: file://./target/debug/examples/libvideo_sink.so
     input: Frame
 links:
 - from:
