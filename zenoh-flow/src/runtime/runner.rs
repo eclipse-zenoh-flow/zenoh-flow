@@ -16,9 +16,12 @@ use crate::operator::{OperatorTrait, SinkTrait, SourceTrait};
 use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::{ZFMessage, ZFMsg};
-use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFLinkId, ZFResult};
-use async_std::sync::Arc;
+use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFLinkId, ZFResult, ZFError};
+use crate::operator::FnInputRule;
+use crate::async_std::sync::Arc;
 use futures::future;
+use futures::Future;
+use std::pin::Pin;
 use libloading::Library;
 use std::collections::HashMap;
 use zenoh::net::Session;
@@ -115,46 +118,7 @@ impl ZFOperatorRunner {
                 futs.push(rx.recv()); // this should be peek(), but both requires mut
             }
 
-            // Input
-            while !futs.is_empty() {
-                match future::select_all(futs).await {
-                    // this could be "slow" as suggested by LC
-                    (Ok((id, msg)), _i, remaining) => {
-                        match &msg.msg {
-                            ZFMsg::Data(_) => {
-                                msgs.insert(id, Token::from(msg));
-
-                                match ir_fn(ctx.clone(), &mut msgs) {
-                                    Ok(true) => {
-                                        // we can run
-                                        log::debug!("IR: OK");
-                                        futs = vec![]; // this makes the while loop to end
-                                    }
-                                    Ok(false) => {
-                                        //we cannot run, we should update the list of futures
-                                        log::debug!("IR: Not OK");
-                                        futs = remaining;
-                                    }
-                                    Err(_) => {
-                                        // we got an error on the input rules, we should recover/update list of futures
-                                        log::debug!("IR: received an error");
-                                        futs = remaining;
-                                    }
-                                }
-                            }
-                            ZFMsg::Ctrl(_) => {
-                                //control message receiver, we should handle it
-                                futs = remaining;
-                            }
-                        };
-                    }
-                    (Err(e), i, remaining) => {
-                        log::debug!("Link index {:?} has got error {:?}", i, e);
-                        futs = remaining;
-                    }
-                }
-            }
-            drop(futs);
+            crate::run_input_rules!(ir_fn, msgs, futs, ctx);
 
             // Running
             let run_fn = self.operator.get_run(ctx.clone());
@@ -333,49 +297,7 @@ impl ZFSinkRunner {
                 futs.push(rx.recv()); // this should be peek(), but both requires mut
             }
 
-            // Input
-            while !futs.is_empty() {
-                match future::select_all(futs).await {
-                    //this could be "slow" as suggested by LC
-                    (Ok((id, msg)), _i, remaining) => {
-                        //println!("Received from link {:?} -> {:?}", id, msg);
-                        match &msg.msg {
-                            ZFMsg::Data(_) => {
-                                msgs.insert(id, Token::from(msg)); //Creating Token from data
-
-                                match ir_fn(ctx.clone(), &mut msgs) {
-                                    Ok(true) => {
-                                        // we can run
-                                        futs = vec![]; // this makes the while loop to end
-                                    }
-                                    Ok(false) => {
-                                        //we cannot run, we should update the list of futures
-                                        futs = remaining;
-                                        //()
-                                    }
-                                    Err(err) => {
-                                        // we got an error on the input rules, we should recover/update list of futures
-                                        log::debug!("Got error from IR: {:?}", err);
-                                        futs = remaining;
-                                        //()
-                                    }
-                                }
-                            }
-                            ZFMsg::Ctrl(_) => {
-                                //control message receiver, we should handle it
-                                futs = remaining;
-                                //()
-                            }
-                        };
-                    }
-                    (Err(e), i, remaining) => {
-                        log::debug!("Link index {:?} has got error {:?}", i, e);
-                        futs = remaining;
-                        //()
-                    }
-                }
-            }
-            drop(futs);
+            crate::run_input_rules!(ir_fn, msgs, futs, ctx);
 
             // Running
             let run_fn = self.operator.get_run(ctx.clone());
@@ -398,4 +320,50 @@ impl ZFSinkRunner {
             }
         }
     }
+}
+
+
+#[macro_export]
+macro_rules! run_input_rules {
+    ($ir : expr, $tokens : expr, $links : expr, $ctx: expr) => {
+        while !$links.is_empty() {
+            match future::select_all($links).await {
+                // this could be "slow" as suggested by LC
+                (Ok((id, msg)), _i, remaining) => {
+                    match &msg.msg {
+                        ZFMsg::Data(_) => {
+                            $tokens.insert(id, Token::from(msg));
+
+                            match $ir($ctx.clone(), &mut $tokens) {
+                                Ok(true) => {
+                                    // we can run
+                                    log::debug!("IR: OK");
+                                    $links = vec![]; // this makes the while loop to end
+                                }
+                                Ok(false) => {
+                                    //we cannot run, we should update the list of futures
+                                    log::debug!("IR: Not OK");
+                                    $links = remaining;
+                                }
+                                Err(_) => {
+                                    // we got an error on the input rules, we should recover/update list of futures
+                                    log::debug!("IR: received an error");
+                                    $links = remaining;
+                                }
+                            }
+                        }
+                        ZFMsg::Ctrl(_) => {
+                            //control message receiver, we should handle it
+                            $links = remaining;
+                        }
+                    };
+                }
+                (Err(e), i, remaining) => {
+                    log::debug!("Link index {:?} has got error {:?}", i, e);
+                    $links = remaining;
+                }
+            }
+        };
+        drop($links);
+    };
 }
