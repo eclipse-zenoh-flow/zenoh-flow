@@ -1,5 +1,5 @@
 [package]
-name = "zenoh-flow-macros"
+name = "zenoh-flow-derive"
 version = "0.0.1"
 repository = "https://github.com/eclipse-zenoh/zenoh-flow"
 homepage = "http://zenoh.io"

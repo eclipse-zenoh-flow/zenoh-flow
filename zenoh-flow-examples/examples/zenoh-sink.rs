@@ -21,7 +21,7 @@ use zenoh_flow::{
     },
     serde::{Deserialize, Serialize},
     types::{Token, ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult},
-    zenoh_flow_macros::ZFState,
+    zenoh_flow_derive::ZFState,
 };
 
 use zenoh_flow_examples::ZFBytes;

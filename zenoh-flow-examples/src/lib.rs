@@ -1,7 +1,7 @@
 use async_std::sync::Mutex;
 use std::cell::RefCell;
 use zenoh_flow::serde::{Deserialize, Serialize};
-use zenoh_flow::zenoh_flow_macros::{ZFData, ZFState};
+use zenoh_flow::zenoh_flow_derive::{ZFData, ZFState};
 // We may want to provide some "built-in" types
 
 #[derive(Debug, Clone, Serialize, Deserialize, ZFData)]

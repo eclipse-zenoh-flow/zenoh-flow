@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-pub use ::zenoh_flow_macros;
+pub use ::zenoh_flow_derive;
 
 pub use ::async_std;
 pub use ::bincode;
@@ -25,6 +25,9 @@ pub mod operator;
 pub mod runtime;
 pub mod types;
 pub use types::*;
+
+pub mod macros;
+pub use macros::*;
 
 /// This trait will be implemented by the zfoperator proc_macro
 pub trait ZFOperator {
@@ -44,93 +47,4 @@ pub trait ZFSource {
 
 pub trait ZFSink {
     fn make_sink(&self, ctx: &mut ZFContext) -> Box<ZFSinkRun>;
-}
-
-#[macro_export]
-macro_rules! export_operator {
-    ($register:expr) => {
-        #[doc(hidden)]
-        #[no_mangle]
-        pub static zfoperator_declaration: $crate::runtime::runner::ZFOperatorDeclaration =
-            $crate::runtime::runner::ZFOperatorDeclaration {
-                rustc_version: $crate::runtime::loader::RUSTC_VERSION,
-                core_version: $crate::runtime::loader::CORE_VERSION,
-                register: $register,
-            };
-    };
-}
-
-#[macro_export]
-macro_rules! export_source {
-    ($register:expr) => {
-        #[doc(hidden)]
-        #[no_mangle]
-        pub static zfsource_declaration: $crate::runtime::runner::ZFSourceDeclaration =
-            $crate::runtime::runner::ZFSourceDeclaration {
-                rustc_version: $crate::runtime::loader::RUSTC_VERSION,
-                core_version: $crate::runtime::loader::CORE_VERSION,
-                register: $register,
-            };
-    };
-}
-
-#[macro_export]
-macro_rules! export_zenoh_receiver {
-    ($register:expr) => {
-        #[doc(hidden)]
-        #[no_mangle]
-        pub static zfsource_declaration: $crate::runtime::runner::ZFZenohReceiverDeclaration =
-            $crate::runtime::runner::ZFZenohReceiverDeclaration {
-                rustc_version: $crate::runtime::loader::RUSTC_VERSION,
-                core_version: $crate::runtime::loader::CORE_VERSION,
-                register: $register,
-            };
-    };
-}
-
-#[macro_export]
-macro_rules! export_sink {
-    ($register:expr) => {
-        #[doc(hidden)]
-        #[no_mangle]
-        pub static zfsink_declaration: $crate::runtime::runner::ZFSinkDeclaration =
-            $crate::runtime::runner::ZFSinkDeclaration {
-                rustc_version: $crate::runtime::loader::RUSTC_VERSION,
-                core_version: $crate::runtime::loader::CORE_VERSION,
-                register: $register,
-            };
-    };
-}
-
-#[macro_export]
-macro_rules! export_zenoh_sender {
-    ($register:expr) => {
-        #[doc(hidden)]
-        #[no_mangle]
-        pub static zfsink_declaration: $crate::runtime::runner::ZFZenohSenderDeclaration =
-            $crate::runtime::runner::ZFZenohSenderDeclaration {
-                rustc_version: $crate::runtime::loader::RUSTC_VERSION,
-                core_version: $crate::runtime::loader::CORE_VERSION,
-                register: $register,
-            };
-    };
-}
-
-#[macro_export]
-macro_rules! zf_spin_lock {
-    ($val : expr) => {
-        loop {
-            match $val.try_lock() {
-                Some(x) => break x,
-                None => std::hint::spin_loop(),
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! zf_data {
-    ($val : expr) => {
-        zenoh_flow::async_std::sync::Arc::new($val)
-    };
 }

@@ -21,7 +21,7 @@ use zenoh_flow::{
     },
     serde::{Deserialize, Serialize},
     types::{ZFContext, ZFInput, ZFLinkId, ZFResult},
-    zenoh_flow_macros::ZFState,
+    zenoh_flow_derive::ZFState,
     zf_data, zf_empty_state,
 };
 use zenoh_flow_examples::RandomData;

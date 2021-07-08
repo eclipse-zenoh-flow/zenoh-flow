@@ -20,7 +20,7 @@ use zenoh_flow::{
     },
     serde::{Deserialize, Serialize},
     types::{Token, ZFContext, ZFInput, ZFLinkId},
-    zenoh_flow_macros::ZFState,
+    zenoh_flow_derive::ZFState,
     zf_empty_state, ZFError, ZFResult,
 };
 

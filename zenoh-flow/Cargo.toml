@@ -23,7 +23,7 @@ derive_more = "0.99.10"
 petgraph = "0.5.1"
 structopt = "0.3.21"
 libloading = "0.7.0"
-zenoh-flow-macros = {path = "../zenoh-flow-macros"}
+zenoh-flow-derive = {path = "../zenoh-flow-derive"}
 log = "0.4"
 zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
 zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }

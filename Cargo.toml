@@ -15,7 +15,7 @@
 
 members = [
   "zenoh-flow",
-  "zenoh-flow-macros",
+  "zenoh-flow-derive",
   "zenoh-flow-examples",
 ]
 

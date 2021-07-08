@@ -7,7 +7,6 @@ edition = "2018"
 
 [dependencies]
 zenoh-flow = { path = "../zenoh-flow" }
-zenoh-flow-macros = {path = "../zenoh-flow-macros"}
 env_logger = "0.8.3"
 serde = { version = "1.0.55", features = ["derive"] }
 opencv = "0.53.0"

@@ -20,7 +20,7 @@ use zenoh_flow::operator::{
 };
 use zenoh_flow::runtime::message::ZFMessage;
 use zenoh_flow::types::{Token, ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult};
-use zenoh_flow::zenoh_flow_macros::ZFState;
+use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{downcast_mut, get_input, zf_data};
 use zenoh_flow_examples::RandomData;
 
