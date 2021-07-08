@@ -14,12 +14,11 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use zenoh_flow::operator::{DataTrait, StateTrait};
-use zenoh_flow::operator::{
-    FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult, RunResult,
-};
 use zenoh_flow::runtime::message::ZFMessage;
-use zenoh_flow::types::{Token, ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult};
+use zenoh_flow::types::{
+    DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult,
+    RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult
+};
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{downcast_mut, get_input, zf_data};
 use zenoh_flow_examples::RandomData;
@@ -123,6 +122,6 @@ zenoh_flow::export_operator!(register);
 
 extern "C" fn register(
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::operator::OperatorTrait + Send>> {
-    Ok(Box::new(SumAndSend::new()) as Box<dyn zenoh_flow::operator::OperatorTrait + Send>)
+) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
+    Ok(Box::new(SumAndSend::new()) as Box<dyn zenoh_flow::OperatorTrait + Send>)
 }

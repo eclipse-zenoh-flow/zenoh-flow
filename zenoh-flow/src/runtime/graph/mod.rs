@@ -241,7 +241,7 @@ impl DataFlowGraph {
         name: String,
         inputs: Vec<ZFLinkId>,
         outputs: Vec<ZFLinkId>,
-        operator: Box<dyn crate::operator::OperatorTrait + Send>,
+        operator: Box<dyn crate::OperatorTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
         let descriptor = ZFOperatorDescriptor {
@@ -269,7 +269,7 @@ impl DataFlowGraph {
         id: ZFOperatorId,
         name: String,
         output: ZFLinkId,
-        source: Box<dyn crate::operator::SourceTrait + Send>,
+        source: Box<dyn crate::SourceTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
         let descriptor = ZFSourceDescriptor {
@@ -296,7 +296,7 @@ impl DataFlowGraph {
         id: ZFOperatorId,
         name: String,
         input: ZFLinkId,
-        sink: Box<dyn crate::operator::SinkTrait + Send>,
+        sink: Box<dyn crate::SinkTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
         let descriptor = ZFSinkDescriptor {

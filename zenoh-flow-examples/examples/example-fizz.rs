@@ -18,12 +18,11 @@ use zenoh_flow_examples::{ZFString, ZFUsize};
 
 use zenoh_flow::{
     downcast, export_operator, get_input,
-    operator::{
-        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
-        OutputRuleResult, RunResult, StateTrait,
-    },
     runtime::message::ZFMessage,
-    types::{ZFInput, ZFResult},
+    types::{
+        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
+        OutputRuleResult, RunResult, StateTrait, ZFInput, ZFResult,
+    },
     zf_data, zf_empty_state, Token, ZFContext, ZFError, ZFLinkId,
 };
 
@@ -107,6 +106,6 @@ export_operator!(register);
 
 extern "C" fn register(
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::operator::OperatorTrait + Send>> {
+) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
     Ok(Box::new(FizzOperator) as Box<dyn OperatorTrait + Send>)
 }

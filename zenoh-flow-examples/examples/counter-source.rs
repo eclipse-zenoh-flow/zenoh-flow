@@ -18,11 +18,11 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use zenoh_flow::{
-    operator::{
-        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
-    },
     serde::{Deserialize, Serialize},
-    types::{ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult},
+    types::{
+        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
+        ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult,
+    },
     zenoh_flow_derive::ZFState,
     zf_data, zf_empty_state,
 };
@@ -68,7 +68,7 @@ impl SourceTrait for CountSource {
     }
 
     fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
-        Box::new(zenoh_flow::operator::default_output_rule)
+        Box::new(zenoh_flow::default_output_rule)
     }
 
     fn get_state(&self) -> Box<dyn StateTrait> {
@@ -81,7 +81,7 @@ zenoh_flow::export_source!(register);
 
 extern "C" fn register(
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::operator::SourceTrait + Send>> {
+) -> ZFResult<Box<dyn zenoh_flow::SourceTrait + Send>> {
     Ok(Box::new(CountSource::new(configuration))
-        as Box<dyn zenoh_flow::operator::SourceTrait + Send>)
+        as Box<dyn zenoh_flow::SourceTrait + Send>)
 }

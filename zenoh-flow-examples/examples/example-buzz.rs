@@ -16,12 +16,11 @@ use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
     export_operator, get_input,
-    operator::{
-        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
-        OutputRuleResult, RunResult, StateTrait,
-    },
     runtime::message::ZFMessage,
-    types::{ZFInput, ZFResult},
+    types::{
+        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
+        OutputRuleResult, RunResult, StateTrait, ZFInput, ZFResult,
+    },
     zf_data, zf_empty_state, Token, ZFContext, ZFLinkId,
 };
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -99,6 +98,6 @@ export_operator!(register);
 
 extern "C" fn register(
     _configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::operator::OperatorTrait + Send>> {
+) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
     Ok(Box::new(BuzzOperator) as Box<dyn OperatorTrait + Send>)
 }

@@ -20,13 +20,13 @@ use std::collections::HashMap;
 use std::io;
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
-    operator::{
-        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
-        OutputRuleResult, RunResult, StateTrait,
-    },
     runtime::message::ZFMessage,
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult},
+    types::{
+        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
+        OutputRuleResult, RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFLinkId,
+        ZFResult,
+    },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
 };
@@ -214,11 +214,11 @@ zenoh_flow::export_operator!(register);
 
 extern "C" fn register(
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::operator::OperatorTrait + Send>> {
+) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
     match configuration {
         Some(config) => Ok(Box::new(FaceDetection::new(config))
-            as Box<dyn zenoh_flow::operator::OperatorTrait + Send>),
+            as Box<dyn zenoh_flow::OperatorTrait + Send>),
         None => Ok(Box::new(FaceDetection::new(HashMap::new()))
-            as Box<dyn zenoh_flow::operator::OperatorTrait + Send>),
+            as Box<dyn zenoh_flow::OperatorTrait + Send>),
     }
 }

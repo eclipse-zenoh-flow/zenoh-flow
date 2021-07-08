@@ -16,10 +16,10 @@ use std::{collections::HashMap, sync::Arc, usize};
 
 use zenoh_flow::runtime::runner::ZFSourceRegistrarTrait;
 use zenoh_flow::{
-    operator::{
+    types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
+        ZFInput,
     },
-    types::ZFInput,
     zf_data, zf_empty_state, ZFContext, ZFError, ZFLinkId, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
@@ -56,7 +56,7 @@ impl SourceTrait for ManualSource {
     }
 
     fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
-        Box::new(zenoh_flow::operator::default_output_rule)
+        Box::new(zenoh_flow::default_output_rule)
     }
 
     fn get_state(&self) -> Box<dyn StateTrait> {
@@ -68,6 +68,6 @@ zenoh_flow::export_source!(register);
 
 extern "C" fn register(
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::operator::SourceTrait + Send>> {
-    Ok(Box::new(ManualSource {}) as Box<dyn zenoh_flow::operator::SourceTrait + Send>)
+) -> ZFResult<Box<dyn zenoh_flow::SourceTrait + Send>> {
+    Ok(Box::new(ManualSource {}) as Box<dyn zenoh_flow::SourceTrait + Send>)
 }

@@ -17,11 +17,11 @@ use opencv::{core, prelude::*, videoio};
 use std::collections::HashMap;
 use zenoh_flow::{
     downcast_mut,
-    operator::{
-        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
-    },
     serde::{Deserialize, Serialize},
-    types::{ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult},
+    types::{
+        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
+        ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult,
+    },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
 };
@@ -162,7 +162,7 @@ impl SourceTrait for CameraSource {
     }
 
     fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
-        Box::new(zenoh_flow::operator::default_output_rule)
+        Box::new(zenoh_flow::default_output_rule)
     }
 
     fn get_state(&self) -> Box<dyn StateTrait> {
@@ -175,10 +175,10 @@ zenoh_flow::export_source!(register);
 
 extern "C" fn register(
     configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::operator::SourceTrait + Send>> {
+) -> ZFResult<Box<dyn zenoh_flow::SourceTrait + Send>> {
     match configuration {
         Some(config) => Ok(Box::new(CameraSource::new(config))
-            as Box<dyn zenoh_flow::operator::SourceTrait + Send>),
+            as Box<dyn zenoh_flow::SourceTrait + Send>),
         None => Err(ZFError::MissingConfiguration),
     }
 }

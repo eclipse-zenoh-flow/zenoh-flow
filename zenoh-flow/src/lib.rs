@@ -21,30 +21,9 @@ pub use ::serde;
 pub use ::typetag;
 
 pub mod model;
-pub mod operator;
 pub mod runtime;
 pub mod types;
 pub use types::*;
 
 pub mod macros;
 pub use macros::*;
-
-/// This trait will be implemented by the zfoperator proc_macro
-pub trait ZFOperator {
-    fn make_run(&self, ctx: &mut ZFContext) -> Box<OperatorRun>;
-
-    // TODO Add function to get the name of the ports.
-    // TODO Add function to get the port by name.
-
-    // TODO Inputs and Outputs become HashMaps<String, T>
-
-    fn get_serialized_state(&self) -> Vec<u8>;
-}
-
-pub trait ZFSource {
-    fn make_source(&self, ctx: &mut ZFContext) -> Box<ZFSourceRun>;
-}
-
-pub trait ZFSink {
-    fn make_sink(&self, ctx: &mut ZFContext) -> Box<ZFSinkRun>;
-}

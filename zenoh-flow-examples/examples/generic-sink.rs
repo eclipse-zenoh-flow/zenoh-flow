@@ -15,11 +15,11 @@
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
-    operator::{
-        DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
-    },
     serde::{Deserialize, Serialize},
-    types::{Token, ZFContext, ZFInput, ZFLinkId},
+    types::{
+        DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
+        Token, ZFContext, ZFInput, ZFLinkId,
+    },
     zenoh_flow_derive::ZFState,
     zf_empty_state, ZFError, ZFResult,
 };
@@ -70,6 +70,6 @@ zenoh_flow::export_sink!(register);
 
 extern "C" fn register(
     _configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::operator::SinkTrait + Send>> {
-    Ok(Box::new(ExampleGenericSink {}) as Box<dyn zenoh_flow::operator::SinkTrait + Send>)
+) -> ZFResult<Box<dyn zenoh_flow::SinkTrait + Send>> {
+    Ok(Box::new(ExampleGenericSink {}) as Box<dyn zenoh_flow::SinkTrait + Send>)
 }

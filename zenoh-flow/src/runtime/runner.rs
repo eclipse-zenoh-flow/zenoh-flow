@@ -13,12 +13,12 @@
 //
 
 use crate::async_std::sync::Arc;
-use crate::operator::FnInputRule;
-use crate::operator::{OperatorTrait, SinkTrait, SourceTrait};
 use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::{ZFMessage, ZFMsg};
 use crate::types::{Token, ZFContext, ZFData, ZFError, ZFInput, ZFLinkId, ZFResult};
+use crate::FnInputRule;
+use crate::{OperatorTrait, SinkTrait, SourceTrait};
 use futures::future;
 use futures::Future;
 use libloading::Library;
