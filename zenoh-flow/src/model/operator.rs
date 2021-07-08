@@ -16,6 +16,8 @@ use crate::types::{ZFLinkId, ZFOperatorId, ZFOperatorName, ZFRuntimeID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+// Descriptors
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkDescriptor {
     pub id: ZFOperatorId,
@@ -23,7 +25,7 @@ pub struct ZFSinkDescriptor {
     pub input: ZFLinkId,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<ZFRuntimeID>,
+    pub runtime: Option<ZFRuntimeID>, // to be removed
 }
 
 impl std::fmt::Display for ZFSinkDescriptor {
@@ -39,7 +41,7 @@ pub struct ZFSourceDescriptor {
     pub output: ZFLinkId,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<ZFRuntimeID>,
+    pub runtime: Option<ZFRuntimeID>, // to be removed
 }
 
 impl std::fmt::Display for ZFSourceDescriptor {
@@ -56,7 +58,7 @@ pub struct ZFOperatorDescriptor {
     pub outputs: Vec<ZFLinkId>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<ZFRuntimeID>,
+    pub runtime: Option<ZFRuntimeID>, // to be removed
 }
 
 impl std::fmt::Display for ZFOperatorDescriptor {
@@ -64,3 +66,55 @@ impl std::fmt::Display for ZFOperatorDescriptor {
         write!(f, "{} - {} - Kind: Operator", self.id, self.name)
     }
 }
+
+// Records
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZFSinkRecord {
+    pub id: ZFOperatorId,
+    pub name: ZFOperatorName,
+    pub input: ZFLinkId,
+    pub uri: Option<String>,
+    pub configuration: Option<HashMap<String, String>>,
+    pub runtime: ZFRuntimeID,
+}
+
+impl std::fmt::Display for ZFSinkRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} - {} - Kind: Sink", self.id, self.name)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZFSourceRecord {
+    pub id: ZFOperatorId,
+    pub name: ZFOperatorName,
+    pub output: ZFLinkId,
+    pub uri: Option<String>,
+    pub configuration: Option<HashMap<String, String>>,
+    pub runtime: ZFRuntimeID,
+}
+
+impl std::fmt::Display for ZFSourceRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} - {} - Kind: Source", self.id, self.name)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZFOperatorRecord {
+    pub id: ZFOperatorId,
+    pub name: ZFOperatorName,
+    pub inputs: Vec<ZFLinkId>,
+    pub outputs: Vec<ZFLinkId>,
+    pub uri: Option<String>,
+    pub configuration: Option<HashMap<String, String>>,
+    pub runtime: ZFRuntimeID,
+}
+
+impl std::fmt::Display for ZFOperatorRecord {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} - {} - Kind: Operator", self.id, self.name)
+    }
+}
+

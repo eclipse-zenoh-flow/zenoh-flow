@@ -18,7 +18,6 @@ use zenoh_flow::runtime::runner::ZFSourceRegistrarTrait;
 use zenoh_flow::{
     types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
-        ZFInput,
     },
     zf_data, zf_empty_state, ZFContext, ZFError, ZFLinkId, ZFResult,
 };

@@ -20,7 +20,7 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
-        ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult,
+        ZFContext, ZFError, ZFLinkId, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
@@ -161,7 +161,7 @@ impl SourceTrait for CameraSource {
         }
     }
 
-    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
         Box::new(zenoh_flow::default_output_rule)
     }
 

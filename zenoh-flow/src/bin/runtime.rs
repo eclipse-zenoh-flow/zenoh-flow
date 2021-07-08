@@ -36,7 +36,7 @@ async fn main() {
     let opt = Opt::from_args();
     let yaml_df = fs::read_to_string(opt.graph_file).unwrap();
 
-    let df = zenoh_flow::runtime::graph::deserialize_dataflow_description(yaml_df);
+    let df = zenoh_flow::model::dataflow::DataFlowDescriptor::from_yaml(yaml_df).unwrap();
 
     let mut dataflow_graph = zenoh_flow::runtime::graph::DataFlowGraph::new(Some(df));
 

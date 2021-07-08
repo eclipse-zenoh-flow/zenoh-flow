@@ -12,6 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+pub mod connector;
 pub mod dataflow;
 pub mod link;
 pub mod operator;

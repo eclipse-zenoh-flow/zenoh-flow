@@ -42,6 +42,7 @@ pub enum ZFError {
     MissingConfiguration,
     VersionMismatch,
     Disconnected,
+    Uncompleted,
     PortIdNotMatching((ZFLinkId, ZFLinkId)),
     OperatorNotFound(ZFOperatorName),
     PortNotFound((ZFOperatorName, ZFLinkId)),

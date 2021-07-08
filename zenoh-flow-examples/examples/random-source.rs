@@ -13,13 +13,12 @@
 //
 
 use async_std::sync::Arc;
-use rand::Rng;
 use std::collections::HashMap;
 use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
-        ZFContext, ZFInput, ZFLinkId, ZFResult,
+        ZFContext, ZFLinkId, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_empty_state,

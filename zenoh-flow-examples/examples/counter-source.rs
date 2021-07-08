@@ -13,15 +13,13 @@
 //
 
 use async_std::sync::Arc;
-use futures::Future;
 use std::collections::HashMap;
-use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
-        ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult,
+        ZFContext, ZFLinkId, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_empty_state,

@@ -12,16 +12,15 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
-        DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
-        Token, ZFContext, ZFInput, ZFLinkId,
+        FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait, Token,
+        ZFContext, ZFInput, ZFLinkId,
     },
     zenoh_flow_derive::ZFState,
-    zf_empty_state, ZFError, ZFResult,
+    zf_empty_state, ZFResult,
 };
 
 #[derive(Serialize, Deserialize, Debug, ZFState)]

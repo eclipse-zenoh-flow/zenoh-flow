@@ -46,10 +46,6 @@ pub struct DataFlowGraph {
     pub operators_runners: HashMap<ZFOperatorName, Arc<Mutex<Runner>>>,
 }
 
-pub fn deserialize_dataflow_description(data: String) -> DataFlowDescriptor {
-    serde_yaml::from_str::<DataFlowDescriptor>(&data).unwrap()
-}
-
 impl DataFlowGraph {
     pub fn new(df: Option<DataFlowDescriptor>) -> Self {
         match df {
