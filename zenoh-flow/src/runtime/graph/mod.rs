@@ -34,6 +34,7 @@ use crate::{
     model::link::{ZFFromEndpoint, ZFLinkDescriptor, ZFToEndpoint},
     model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord},
     runtime::graph::link::link,
+    runtime::graph::node::DataFlowNodeKind,
     types::{ZFError, ZFLinkId, ZFOperatorId, ZFOperatorName, ZFResult},
 };
 use uuid::Uuid;
@@ -44,7 +45,7 @@ pub struct DataFlowGraph {
     pub operators: Vec<(NodeIndex, DataFlowNode)>,
     pub links: Vec<(EdgeIndex, ZFLinkDescriptor)>,
     pub graph: StableGraph<DataFlowNode, ZFLinkId>,
-    pub operators_runners: HashMap<ZFOperatorName, Arc<Mutex<Runner>>>,
+    pub operators_runners: HashMap<ZFOperatorName, (Arc<Mutex<Runner>>, DataFlowNodeKind)>,
 }
 
 impl DataFlowGraph {
@@ -177,8 +178,10 @@ impl DataFlowGraph {
             DataFlowNode::Operator(descriptor),
         ));
         let runner = Runner::Operator(ZFOperatorRunner::new(operator, None));
-        self.operators_runners
-            .insert(id, Arc::new(Mutex::new(runner)));
+        self.operators_runners.insert(
+            id,
+            (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Operator),
+        );
         Ok(())
     }
 
@@ -203,7 +206,7 @@ impl DataFlowGraph {
         ));
         let runner = Runner::Source(ZFSourceRunner::new(source, None));
         self.operators_runners
-            .insert(id, Arc::new(Mutex::new(runner)));
+            .insert(id, (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Source));
         Ok(())
     }
 
@@ -227,7 +230,7 @@ impl DataFlowGraph {
         ));
         let runner = Runner::Sink(ZFSinkRunner::new(sink, None));
         self.operators_runners
-            .insert(id, Arc::new(Mutex::new(runner)));
+            .insert(id, (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Sink));
         Ok(())
     }
 
@@ -298,7 +301,7 @@ impl DataFlowGraph {
     }
 
     pub fn load(&mut self, runtime: &str) -> ZFResult<()> {
-        let session = Arc::new(zenoh::net::open(zenoh::net::config::peer()).wait().unwrap());
+        let session = Arc::new(zenoh::net::open(zenoh::net::config::peer()).wait()?);
         for (_, op) in &self.operators {
             if op.get_runtime() != runtime {
                 continue;
@@ -310,8 +313,10 @@ impl DataFlowGraph {
                         Some(uri) => {
                             let runner = load_operator(uri.clone(), inner.configuration.clone())?;
                             let runner = Runner::Operator(runner);
-                            self.operators_runners
-                                .insert(inner.id.clone(), Arc::new(Mutex::new(runner)));
+                            self.operators_runners.insert(
+                                inner.id.clone(),
+                                (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Operator),
+                            );
                         }
                         None => {
                             // this is a static operator.
@@ -324,8 +329,10 @@ impl DataFlowGraph {
                         Some(uri) => {
                             let runner = load_source(uri.clone(), inner.configuration.clone())?;
                             let runner = Runner::Source(runner);
-                            self.operators_runners
-                                .insert(inner.id.clone(), Arc::new(Mutex::new(runner)));
+                            self.operators_runners.insert(
+                                inner.id.clone(),
+                                (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Source),
+                            );
                         }
                         None => {
                             // static source
@@ -338,8 +345,10 @@ impl DataFlowGraph {
                         Some(uri) => {
                             let runner = load_sink(uri.clone(), inner.configuration.clone())?;
                             let runner = Runner::Sink(runner);
-                            self.operators_runners
-                                .insert(inner.id.clone(), Arc::new(Mutex::new(runner)));
+                            self.operators_runners.insert(
+                                inner.id.clone(),
+                                (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Sink),
+                            );
                         }
                         None => {
                             //static sink
@@ -351,16 +360,20 @@ impl DataFlowGraph {
                     ZFConnectorKind::Sender => {
                         let runner = ZFZenohSender::new(session.clone(), zc.resource.clone(), None);
                         let runner = Runner::Sender(runner);
-                        self.operators_runners
-                            .insert(zc.id.clone(), Arc::new(Mutex::new(runner)));
+                        self.operators_runners.insert(
+                            zc.id.clone(),
+                            (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Connector),
+                        );
                     }
 
                     ZFConnectorKind::Receiver => {
                         let runner =
                             ZFZenohReceiver::new(session.clone(), zc.resource.clone(), None);
                         let runner = Runner::Receiver(runner);
-                        self.operators_runners
-                            .insert(zc.id.clone(), Arc::new(Mutex::new(runner)));
+                        self.operators_runners.insert(
+                            zc.id.clone(),
+                            (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Connector),
+                        );
                     }
                 },
             }
@@ -368,7 +381,7 @@ impl DataFlowGraph {
         Ok(())
     }
 
-    pub async fn make_connections(&mut self, runtime: &str) {
+    pub async fn make_connections(&mut self, runtime: &str) -> ZFResult<()> {
         // Connects the operators via our FIFOs
 
         for (idx, up_op) in &self.operators {
@@ -378,12 +391,11 @@ impl DataFlowGraph {
 
             log::debug!("Creating links for:\n\t< {:?} > Operator: {:?}", idx, up_op);
 
-            let mut up_runner = self
+            let (up_runner, _) = self
                 .operators_runners
                 .get(&up_op.get_id())
-                .unwrap()
-                .lock()
-                .await;
+                .ok_or(ZFError::OperatorNotFound(up_op.get_id().clone()))?;
+            let mut up_runner = up_runner.lock().await;
 
             if self.graph.contains_node(*idx) {
                 let mut downstreams = self
@@ -395,7 +407,7 @@ impl DataFlowGraph {
                         .links
                         .iter()
                         .find(|&(edge_index, _)| *edge_index == down_edge_index)
-                        .unwrap();
+                        .ok_or(ZFError::OperatorNotFound(up_op.get_id().clone()))?;
                     let link_id = down_link.from.output.clone();
 
                     let down_op = match self
@@ -407,12 +419,11 @@ impl DataFlowGraph {
                         None => panic!("To not found"),
                     };
 
-                    let mut down_runner = self
+                    let (down_runner, _) = self
                         .operators_runners
                         .get(&down_op.get_id())
-                        .unwrap()
-                        .lock()
-                        .await;
+                        .ok_or(ZFError::OperatorNotFound(down_op.get_id().clone()))?;
+                    let mut down_runner = down_runner.lock().await;
 
                     log::debug!(
                         "\t Creating link between {:?} -> {:?}: {:?}",
@@ -427,17 +438,69 @@ impl DataFlowGraph {
                 }
             }
         }
+        Ok(())
     }
 
-    pub fn get_runner(&self, operator_id: &ZFOperatorId) -> Arc<Mutex<Runner>> {
-        self.operators_runners.get(operator_id).unwrap().clone()
+    pub fn get_runner(&self, operator_id: &ZFOperatorId) -> Option<Arc<Mutex<Runner>>> {
+        match self.operators_runners.get(operator_id) {
+            Some((r, _)) => Some(r.clone()),
+            None => None,
+        }
     }
 
     pub fn get_runners(&self) -> Vec<Arc<Mutex<Runner>>> {
         let mut runners = vec![];
 
-        for (_, runner) in &self.operators_runners {
+        for (_, (runner, _)) in &self.operators_runners {
             runners.push(runner.clone());
+        }
+        runners
+    }
+
+    pub fn get_sources(&self) -> Vec<Arc<Mutex<Runner>>> {
+        let mut runners = vec![];
+
+        for (_, (runner, kind)) in &self.operators_runners {
+            match kind {
+                DataFlowNodeKind::Source => runners.push(runner.clone()),
+                _ => (),
+            }
+        }
+        runners
+    }
+
+    pub fn get_sinks(&self) -> Vec<Arc<Mutex<Runner>>> {
+        let mut runners = vec![];
+
+        for (_, (runner, kind)) in &self.operators_runners {
+            match kind {
+                DataFlowNodeKind::Sink => runners.push(runner.clone()),
+                _ => (),
+            }
+        }
+        runners
+    }
+
+    pub fn get_operarators(&self) -> Vec<Arc<Mutex<Runner>>> {
+        let mut runners = vec![];
+
+        for (_, (runner, kind)) in &self.operators_runners {
+            match kind {
+                DataFlowNodeKind::Operator => runners.push(runner.clone()),
+                _ => (),
+            }
+        }
+        runners
+    }
+
+    pub fn get_connectors(&self) -> Vec<Arc<Mutex<Runner>>> {
+        let mut runners = vec![];
+
+        for (_, (runner, kind)) in &self.operators_runners {
+            match kind {
+                DataFlowNodeKind::Connector => runners.push(runner.clone()),
+                _ => (),
+            }
         }
         runners
     }

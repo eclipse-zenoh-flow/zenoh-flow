@@ -18,6 +18,14 @@ use crate::{ZFLinkId, ZFOperatorId, ZFRuntimeID};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum DataFlowNodeKind {
+    Operator,
+    Source,
+    Sink,
+    Connector,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum DataFlowNode {
     Operator(ZFOperatorRecord),
     Source(ZFSourceRecord),

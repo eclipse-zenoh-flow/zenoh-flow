@@ -15,40 +15,9 @@
 use crate::async_std::sync::Arc;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::{Message, ZFDataMessage, ZFMessage};
-use crate::serde::{Deserialize, Serialize};
-use crate::types::ZFLinkId;
 use crate::{ZFError, ZFResult};
 use futures::prelude::*;
 use zenoh::net::{Reliability, Session, SubInfo, SubMode};
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ZFZenohConnectorDescriptor {
-    Sender(ZFZenohConnectorInfo),
-    Receiver(ZFZenohConnectorInfo),
-}
-
-impl std::fmt::Display for ZFZenohConnectorDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            ZFZenohConnectorDescriptor::Sender(s) => write!(f, "{} - Kind: Zenoh-Sender", s),
-            ZFZenohConnectorDescriptor::Receiver(r) => write!(f, "{} - Kind: Zenoh-Receiver", r),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFZenohConnectorInfo {
-    pub name: String,
-    pub resource: String,
-    pub link_id: ZFLinkId,
-    pub runtime: Option<String>,
-}
-
-impl std::fmt::Display for ZFZenohConnectorInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} - {} ", self.name, self.resource)
-    }
-}
 
 pub struct ZFZenohSender {
     pub session: Arc<Session>,

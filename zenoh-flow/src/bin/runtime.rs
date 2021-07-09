@@ -70,11 +70,42 @@ async fn main() {
     // instantiating
     dataflow_graph.load(&opt.runtime).unwrap();
 
-    dataflow_graph.make_connections(&opt.runtime).await;
+    dataflow_graph.make_connections(&opt.runtime).await.unwrap();
 
-    // // let inputs = dataflow_graph.get_inputs();
-    let runners = dataflow_graph.get_runners();
-    for runner in runners {
+    // let mut runners = dataflow_graph.get_sinks();
+    // for runner in runners.drain(..) {
+    //     async_std::task::spawn(async move {
+    //         let mut runner = runner.lock().await;
+    //         runner.run().await.unwrap();
+    //     });
+    // }
+
+    let mut sinks = dataflow_graph.get_sinks();
+    for runner in sinks.drain(..) {
+        async_std::task::spawn(async move {
+            let mut runner = runner.lock().await;
+            runner.run().await.unwrap();
+        });
+    }
+
+    let mut operators = dataflow_graph.get_operarators();
+    for runner in operators.drain(..) {
+        async_std::task::spawn(async move {
+            let mut runner = runner.lock().await;
+            runner.run().await.unwrap();
+        });
+    }
+
+    let mut connectors = dataflow_graph.get_connectors();
+    for runner in connectors.drain(..) {
+        async_std::task::spawn(async move {
+            let mut runner = runner.lock().await;
+            runner.run().await.unwrap();
+        });
+    }
+
+    let mut sources = dataflow_graph.get_sources();
+    for runner in sources.drain(..) {
         async_std::task::spawn(async move {
             let mut runner = runner.lock().await;
             runner.run().await.unwrap();
