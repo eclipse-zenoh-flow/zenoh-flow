@@ -215,7 +215,7 @@ impl SinkTrait for VideoSink {
 
 #[async_std::main]
 async fn main() {
-    let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new(None);
+    let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new();
 
     let source = Box::new(CameraSource::new());
     let sink = Box::new(VideoSink::new());
@@ -223,7 +223,7 @@ async fn main() {
     zf_graph
         .add_static_source(
             "camera-source".to_string(),
-            "camera".to_string(),
+            // "camera".to_string(),
             String::from(SOURCE),
             source,
             None,
@@ -233,7 +233,7 @@ async fn main() {
     zf_graph
         .add_static_sink(
             "video-sink".to_string(),
-            "window".to_string(),
+            // "window".to_string(),
             String::from(INPUT),
             sink,
             None,
@@ -243,11 +243,11 @@ async fn main() {
     zf_graph
         .add_link(
             ZFFromEndpoint {
-                name: "camera".to_string(),
+                id: "camera-source".to_string(),
                 output: String::from(SOURCE),
             },
             ZFToEndpoint {
-                name: "window".to_string(),
+                id: "video-sink".to_string(),
                 input: String::from(INPUT),
             },
             None,

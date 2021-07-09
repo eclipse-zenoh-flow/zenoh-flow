@@ -12,8 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::{ZFRuntimeID, ZFLinkId};
-use crate::serde::{Serialize, Deserialize};
+use crate::serde::{Deserialize, Serialize};
+use crate::{ZFLinkId, ZFRuntimeID};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ZFConnectorKind {

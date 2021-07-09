@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::types::{ZFLinkId, ZFOperatorName};
+use crate::{types::ZFLinkId, ZFOperatorId};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -26,12 +26,12 @@ pub struct ZFLinkDescriptor {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFFromEndpoint {
-    pub name: ZFOperatorName,
+    pub id: ZFOperatorId,
     pub output: ZFLinkId,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFToEndpoint {
-    pub name: ZFOperatorName,
+    pub id: ZFOperatorId,
     pub input: ZFLinkId,
 }

@@ -12,12 +12,12 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::model::connector::{ZFConnectorRecord, ZFConnectorKind};
+use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
+use crate::model::link::{ZFFromEndpoint, ZFLinkDescriptor, ZFToEndpoint};
 use crate::model::operator::{
     ZFOperatorDescriptor, ZFOperatorRecord, ZFSinkDescriptor, ZFSinkRecord, ZFSourceDescriptor,
     ZFSourceRecord,
 };
-use crate::model::link::{ZFFromEndpoint, ZFLinkDescriptor, ZFToEndpoint};
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{ZFError, ZFOperatorId, ZFResult, ZFRuntimeID};
@@ -39,17 +39,16 @@ impl DataFlowDescriptor {
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))?)
     }
 
-    pub fn find_node(&self, id: ZFOperatorId) -> Option<DataFlowNode> {
-        match self.get_operator(id.clone()) {
-            Some(o) => Some(DataFlowNode::Operator(o)),
-            None => match self.get_source(id.clone()) {
-                Some(s) => Some(DataFlowNode::Source(s)),
-                None => match self.get_sink(id) {
-                    Some(s) => Some(DataFlowNode::Sink(s)),
-                    None => None,
-                },
-            },
-        }
+    pub fn from_json(data: String) -> ZFResult<Self> {
+        Ok(serde_json::from_str::<DataFlowDescriptor>(&data)
+            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?)
+    }
+    pub fn to_json(&self) -> ZFResult<String> {
+        Ok(serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)?)
+    }
+
+    pub fn to_yaml(&self) -> ZFResult<String> {
+        Ok(serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)?)
     }
 
     fn get_operator(&self, id: ZFOperatorId) -> Option<ZFOperatorDescriptor> {
@@ -73,13 +72,24 @@ impl DataFlowDescriptor {
         }
     }
 
-    fn get_mapping(&self, id: ZFOperatorId) -> Option<ZFRuntimeID> {
+    pub fn get_mapping(&self, id: &ZFOperatorId) -> Option<ZFRuntimeID> {
         match &self.mapping {
-            Some(mapping) => match mapping.iter().find(|&o| o.id == id) {
+            Some(mapping) => match mapping.iter().find(|&o| o.id == *id) {
                 Some(m) => Some(m.runtime.clone()),
                 None => None,
             },
             None => None,
+        }
+    }
+
+    pub fn add_mapping(&mut self, mapping: Mapping) {
+        match self.mapping.as_mut() {
+            Some(m) => m.push(mapping),
+            None => {
+                let mut mappings = Vec::new();
+                mappings.push(mapping);
+                self.mapping = Some(mappings)
+            }
         }
     }
 }
@@ -112,6 +122,14 @@ impl DataFlowRecord {
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))?)
     }
 
+    pub fn to_json(&self) -> ZFResult<String> {
+        Ok(serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)?)
+    }
+
+    pub fn to_yaml(&self) -> ZFResult<String> {
+        Ok(serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)?)
+    }
+
     pub fn find_component_runtime(&self, id: &ZFOperatorId) -> Option<ZFRuntimeID> {
         match self.get_operator(id) {
             Some(o) => Some(o.runtime.clone()),
@@ -120,6 +138,22 @@ impl DataFlowRecord {
                 None => match self.get_sink(id) {
                     Some(s) => Some(s.runtime.clone()),
                     None => None,
+                },
+            },
+        }
+    }
+
+    pub fn find_node(&self, id: &ZFOperatorId) -> Option<DataFlowNode> {
+        match self.get_operator(id) {
+            Some(o) => Some(DataFlowNode::Operator(o)),
+            None => match self.get_source(id) {
+                Some(s) => Some(DataFlowNode::Source(s)),
+                None => match self.get_sink(id) {
+                    Some(s) => Some(DataFlowNode::Sink(s)),
+                    None => match self.get_connector(id) {
+                        Some(c) => Some(DataFlowNode::Connector(c)),
+                        None => None,
+                    },
                 },
             },
         }
@@ -152,10 +186,7 @@ impl DataFlowRecord {
             None => None,
         }
     }
-}
-
-impl DataFlowRecord {
-    fn from_dataflow_descriptor(d: DataFlowDescriptor) -> ZFResult<Self> {
+    pub fn from_dataflow_descriptor(d: DataFlowDescriptor) -> ZFResult<Self> {
         let mut dfr = DataFlowRecord {
             uuid: Uuid::nil(), // all 0s uuid, placeholder
             flow: d.flow.clone(),
@@ -167,11 +198,11 @@ impl DataFlowRecord {
         };
 
         for o in &d.operators {
-            match d.get_mapping(o.id.clone()) {
+            match d.get_mapping(&o.id) {
                 Some(m) => {
                     let or = ZFOperatorRecord {
                         id: o.id.clone(),
-                        name: o.name.clone(),
+                        // name: o.name.clone(),
                         inputs: o.inputs.clone(),
                         outputs: o.outputs.clone(),
                         uri: o.uri.clone(),
@@ -180,16 +211,21 @@ impl DataFlowRecord {
                     };
                     dfr.operators.push(or)
                 }
-                None => return Err(ZFError::Uncompleted),
+                None => {
+                    return Err(ZFError::Uncompleted(format!(
+                        "Missing mapping for {}",
+                        o.id.clone()
+                    )))
+                }
             }
         }
 
         for s in &d.sources {
-            match d.get_mapping(s.id.clone()) {
+            match d.get_mapping(&s.id) {
                 Some(m) => {
                     let sr = ZFSourceRecord {
                         id: s.id.clone(),
-                        name: s.name.clone(),
+                        // name: s.name.clone(),
                         output: s.output.clone(),
                         uri: s.uri.clone(),
                         configuration: s.configuration.clone(),
@@ -197,16 +233,21 @@ impl DataFlowRecord {
                     };
                     dfr.sources.push(sr)
                 }
-                None => return Err(ZFError::Uncompleted),
+                None => {
+                    return Err(ZFError::Uncompleted(format!(
+                        "Missing mapping for {}",
+                        s.id.clone()
+                    )))
+                }
             }
         }
 
         for s in &d.sinks {
-            match d.get_mapping(s.id.clone()) {
+            match d.get_mapping(&s.id) {
                 Some(m) => {
                     let sr = ZFSinkRecord {
                         id: s.id.clone(),
-                        name: s.name.clone(),
+                        // name: s.name.clone(),
                         input: s.input.clone(),
                         uri: s.uri.clone(),
                         configuration: s.configuration.clone(),
@@ -214,23 +255,41 @@ impl DataFlowRecord {
                     };
                     dfr.sinks.push(sr)
                 }
-                None => return Err(ZFError::Uncompleted),
+                None => {
+                    return Err(ZFError::Uncompleted(format!(
+                        "Missing mapping for {}",
+                        s.id.clone()
+                    )))
+                }
             }
         }
 
         for l in &d.links {
             if l.from.output != l.to.input {
-                return Err(ZFError::PortIdNotMatching((l.from.output.clone(), l.to.input.clone())))
+                return Err(ZFError::PortIdNotMatching((
+                    l.from.output.clone(),
+                    l.to.input.clone(),
+                )));
             }
 
-            let from_runtime = match dfr.find_component_runtime(&l.from.name) {
+            let from_runtime = match dfr.find_component_runtime(&l.from.id) {
                 Some(rt) => rt,
-                None => return Err(ZFError::Uncompleted),
+                None => {
+                    return Err(ZFError::Uncompleted(format!(
+                        "Unable to find runtime for {}",
+                        &l.from.id
+                    )))
+                }
             };
 
-            let to_runtime = match dfr.find_component_runtime(&l.to.name) {
+            let to_runtime = match dfr.find_component_runtime(&l.to.id) {
                 Some(rt) => rt,
-                None => return Err(ZFError::Uncompleted),
+                None => {
+                    return Err(ZFError::Uncompleted(format!(
+                        "Unable to find runtime for {}",
+                        &l.to.id
+                    )))
+                }
             };
 
             if from_runtime == to_runtime {
@@ -241,27 +300,30 @@ impl DataFlowRecord {
                 // here we have to create the connectors information
                 // and add the new links
 
-
                 //creating zenoh resource name
-                let z_resource_name = format!("/zf/data/{}/{}/{}/{}",
-                &dfr.flow, &dfr.uuid,&l.from.name, &l.from.output);
+                let z_resource_name = format!(
+                    "/zf/data/{}/{}/{}/{}",
+                    &dfr.flow, &dfr.uuid, &l.from.id, &l.from.output
+                );
 
                 //creating sender
-                let sender_id = format!("sender-{}-{}-{}-{}", &dfr.flow, &dfr.uuid,&l.from.name, &l.from.output);
+                let sender_id = format!(
+                    "sender-{}-{}-{}-{}",
+                    &dfr.flow, &dfr.uuid, &l.from.id, &l.from.output
+                );
                 let sender = ZFConnectorRecord {
-                    kind : ZFConnectorKind::Sender,
-                    id : sender_id.clone(),
-                    resource : z_resource_name.clone(),
+                    kind: ZFConnectorKind::Sender,
+                    id: sender_id.clone(),
+                    resource: z_resource_name.clone(),
                     link_id: l.from.output.clone(),
-                    runtime: from_runtime
+                    runtime: from_runtime,
                 };
-
 
                 //creating link between component and sender
                 let link_sender = ZFLinkDescriptor {
                     from: l.from.clone(),
                     to: ZFToEndpoint {
-                        name: sender_id,
+                        id: sender_id,
                         input: sender.link_id.clone(),
                     },
                     size: None,
@@ -275,19 +337,22 @@ impl DataFlowRecord {
 
                 // creating receiver
 
-                let receiver_id = format!("sender-{}-{}-{}-{}", &dfr.flow, &dfr.uuid,&l.to.name, &l.to.input);
+                let receiver_id = format!(
+                    "receiver-{}-{}-{}-{}",
+                    &dfr.flow, &dfr.uuid, &l.to.id, &l.to.input
+                );
                 let receiver = ZFConnectorRecord {
-                    kind : ZFConnectorKind::Receiver,
-                    id : receiver_id.clone(),
-                    resource : z_resource_name.clone(),
+                    kind: ZFConnectorKind::Receiver,
+                    id: receiver_id.clone(),
+                    resource: z_resource_name.clone(),
                     link_id: l.to.input.clone(),
-                    runtime: to_runtime
+                    runtime: to_runtime,
                 };
 
                 //creating link between receiver and component
                 let link_receiver = ZFLinkDescriptor {
                     from: ZFFromEndpoint {
-                        name: receiver_id,
+                        id: receiver_id,
                         output: receiver.link_id.clone(),
                     },
                     to: l.to.clone(),
@@ -299,9 +364,7 @@ impl DataFlowRecord {
                 // storing info in the data flow record
                 dfr.connectors.push(receiver);
                 dfr.links.push(link_receiver);
-
             }
-
         }
         Ok(dfr)
     }

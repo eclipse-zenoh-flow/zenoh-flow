@@ -63,6 +63,7 @@ impl Runner {
     }
 }
 
+#[repr(C)]
 pub struct ZFOperatorDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,

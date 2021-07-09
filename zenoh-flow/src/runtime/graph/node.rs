@@ -12,17 +12,17 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::model::operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor};
-use crate::runtime::connectors::ZFZenohConnectorDescriptor;
-use crate::{ZFLinkId, ZFOperatorId, ZFOperatorName, ZFRuntimeID};
+use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
+use crate::model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord};
+use crate::{ZFLinkId, ZFOperatorId, ZFRuntimeID};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum DataFlowNode {
-    Operator(ZFOperatorDescriptor),
-    Source(ZFSourceDescriptor),
-    Sink(ZFSinkDescriptor),
-    Connector(ZFZenohConnectorDescriptor),
+    Operator(ZFOperatorRecord),
+    Source(ZFSourceRecord),
+    Sink(ZFSinkRecord),
+    Connector(ZFConnectorRecord),
 }
 
 impl std::fmt::Display for DataFlowNode {
@@ -45,9 +45,9 @@ impl DataFlowNode {
             },
             DataFlowNode::Source(_) => false,
             DataFlowNode::Sink(sink) => sink.input == id,
-            DataFlowNode::Connector(zc) => match zc {
-                ZFZenohConnectorDescriptor::Receiver(_) => false,
-                ZFZenohConnectorDescriptor::Sender(tx) => tx.link_id == id,
+            DataFlowNode::Connector(zc) => match zc.kind {
+                ZFConnectorKind::Receiver => false,
+                ZFConnectorKind::Sender => zc.link_id == id,
             },
         }
     }
@@ -60,9 +60,9 @@ impl DataFlowNode {
             },
             DataFlowNode::Sink(_) => false,
             DataFlowNode::Source(source) => source.output == id,
-            DataFlowNode::Connector(zc) => match zc {
-                ZFZenohConnectorDescriptor::Receiver(rx) => rx.link_id == id,
-                ZFZenohConnectorDescriptor::Sender(_) => false,
+            DataFlowNode::Connector(zc) => match zc.kind {
+                ZFConnectorKind::Receiver => zc.link_id == id,
+                ZFConnectorKind::Sender => false,
             },
         }
     }
@@ -72,33 +72,21 @@ impl DataFlowNode {
             DataFlowNode::Operator(op) => op.id.clone(),
             DataFlowNode::Sink(s) => s.id.clone(),
             DataFlowNode::Source(s) => s.id.clone(),
-            DataFlowNode::Connector(zc) => match zc {
-                ZFZenohConnectorDescriptor::Receiver(rx) => rx.name.clone(),
-                ZFZenohConnectorDescriptor::Sender(tx) => tx.name.clone(),
+            DataFlowNode::Connector(zc) => match zc.kind {
+                ZFConnectorKind::Receiver => zc.id.clone(),
+                ZFConnectorKind::Sender => zc.id.clone(),
             },
         }
     }
 
-    pub fn get_name(&self) -> ZFOperatorName {
-        match self {
-            DataFlowNode::Operator(op) => op.name.clone(),
-            DataFlowNode::Sink(s) => s.name.clone(),
-            DataFlowNode::Source(s) => s.name.clone(),
-            DataFlowNode::Connector(zc) => match zc {
-                ZFZenohConnectorDescriptor::Receiver(rx) => rx.name.clone(),
-                ZFZenohConnectorDescriptor::Sender(tx) => tx.name.clone(),
-            },
-        }
-    }
-
-    pub fn get_runtime(&self) -> Option<ZFRuntimeID> {
+    pub fn get_runtime(&self) -> ZFRuntimeID {
         match self {
             DataFlowNode::Operator(op) => op.runtime.clone(),
             DataFlowNode::Sink(s) => s.runtime.clone(),
             DataFlowNode::Source(s) => s.runtime.clone(),
-            DataFlowNode::Connector(zc) => match zc {
-                ZFZenohConnectorDescriptor::Receiver(rx) => rx.runtime.clone(),
-                ZFZenohConnectorDescriptor::Sender(tx) => tx.runtime.clone(),
+            DataFlowNode::Connector(zc) => match zc.kind {
+                ZFConnectorKind::Receiver => zc.runtime.clone(),
+                ZFConnectorKind::Sender => zc.runtime.clone(),
             },
         }
     }

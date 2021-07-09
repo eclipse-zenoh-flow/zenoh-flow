@@ -1,19 +1,17 @@
 flow: ZVideoPipeline
 operators: []
 sources:
-  - id : camera-source
-    name : Camera
+  - id : Camera
     uri: file://./target/debug/examples/libcamera_source.dylib
     output: Frame
 sinks:
-  - id : zsink
-    name : ZSink
+  - id : ZSink
     uri: file://./target/debug/examples/libzenoh_sink.dylib
     input: Frame
 links:
 - from:
-    name : Camera
+    id : Camera
     output : Frame
   to:
-    name : ZSink
+    id : ZSink
     input : Frame

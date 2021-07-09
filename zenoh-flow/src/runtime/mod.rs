@@ -1,3 +1,8 @@
+use crate::{
+    model::dataflow::{DataFlowDescriptor, Mapping},
+    ZFResult, ZFRuntimeID,
+};
+
 //
 // Copyright (c) 2017, 2021 ADLINK Technology Inc.
 //
@@ -17,3 +22,60 @@ pub mod graph;
 pub mod loader;
 pub mod message;
 pub mod runner;
+
+pub async fn map_to_infrastructure(
+    mut descriptor: DataFlowDescriptor,
+    runtime: &ZFRuntimeID,
+) -> ZFResult<DataFlowDescriptor> {
+    log::debug!("[Dataflow mapping] Begin mapping for: {}", descriptor.flow);
+
+    // Initial "stupid" mapping, if an operator is not mapped, we map to the local runtime.
+    // function is async because it could involve other nodes.
+
+    let mut mappings = Vec::new();
+
+    for o in &descriptor.operators {
+        match descriptor.get_mapping(&o.id) {
+            Some(_) => (),
+            None => {
+                let mapping = Mapping {
+                    id: o.id.clone(),
+                    runtime: (*runtime).clone(),
+                };
+                mappings.push(mapping);
+            }
+        }
+    }
+
+    for o in &descriptor.sources {
+        match descriptor.get_mapping(&o.id) {
+            Some(_) => (),
+            None => {
+                let mapping = Mapping {
+                    id: o.id.clone(),
+                    runtime: (*runtime).clone(),
+                };
+                mappings.push(mapping);
+            }
+        }
+    }
+
+    for o in &descriptor.sinks {
+        match descriptor.get_mapping(&o.id) {
+            Some(_) => (),
+            None => {
+                let mapping = Mapping {
+                    id: o.id.clone(),
+                    runtime: (*runtime).clone(),
+                };
+                mappings.push(mapping);
+            }
+        }
+    }
+
+    for m in mappings {
+        descriptor.add_mapping(m)
+    }
+
+    Ok(descriptor)
+}

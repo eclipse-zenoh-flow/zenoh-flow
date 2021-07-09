@@ -1,19 +1,17 @@
 flow: VideoPipeline
 operators: []
 sources:
-  - id : camera-source
-    name : Camera
+  - id : Camera
     uri: file://./target/debug/examples/libcamera_source.so
     output: Frame
 sinks:
-  - id : video-sink
-    name : Window
+  - id : Window
     uri: file://./target/debug/examples/libvideo_sink.so
     input: Frame
 links:
 - from:
-    name : Camera
+    id : Camera
     output : Frame
   to:
-    name : Window
+    id : Window
     input : Frame

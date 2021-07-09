@@ -13,9 +13,10 @@
 
 // TODO: this should become a deamon.
 
-use std::fs;
-use std::fs::File;
+use std::fs::{File, *};
 use std::io::prelude::*;
+use std::io::{BufWriter, Write};
+use std::path::Path;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -29,16 +30,36 @@ struct Opt {
     runtime: String,
 }
 
+fn write_record_to_file(record: zenoh_flow::model::dataflow::DataFlowRecord, filename: &str) {
+    let path = Path::new(filename);
+    let mut write_file = File::create(path).unwrap();
+    write!(write_file, "{}", record.to_yaml().unwrap()).unwrap();
+}
+
 #[async_std::main]
 async fn main() {
     env_logger::init();
 
     let opt = Opt::from_args();
-    let yaml_df = fs::read_to_string(opt.graph_file).unwrap();
+    let yaml_df = read_to_string(opt.graph_file).unwrap();
 
+    // loading the descriptor
     let df = zenoh_flow::model::dataflow::DataFlowDescriptor::from_yaml(yaml_df).unwrap();
 
-    let mut dataflow_graph = zenoh_flow::runtime::graph::DataFlowGraph::new(Some(df));
+    // mapping to infrastructure
+    let mapped = zenoh_flow::runtime::map_to_infrastructure(df, &opt.runtime)
+        .await
+        .unwrap();
+
+    // creating record
+    let dfr =
+        zenoh_flow::model::dataflow::DataFlowRecord::from_dataflow_descriptor(mapped).unwrap();
+
+    //write_record_to_file(dfr.clone(), "computed-record.yaml");
+
+    // creating graph
+    let mut dataflow_graph =
+        zenoh_flow::runtime::graph::DataFlowGraph::from_dataflow_record(dfr).unwrap();
 
     let dot_notation = dataflow_graph.to_dot_notation();
 
@@ -46,6 +67,7 @@ async fn main() {
     write!(file, "{}", dot_notation).unwrap();
     file.sync_all().unwrap();
 
+    // instantiating
     dataflow_graph.load(&opt.runtime).unwrap();
 
     dataflow_graph.make_connections(&opt.runtime).await;

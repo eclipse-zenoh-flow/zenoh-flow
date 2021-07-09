@@ -1,19 +1,17 @@
 flow: RandomGeneration
 operators: []
 sources:
-  - id : sender
-    name : RandomGenerator
+  - id : RandomGenerator
     uri: file://./target/debug/examples/librandom_source.dylib
     output: Number
 sinks:
-  - id : receiver
-    name : PrintSink
+  - id : PrintSink
     uri: file://./target/debug/examples/libgeneric_sink.dylib
     input: Number
 links:
 - from:
-    name : RandomGenerator
+    id : RandomGenerator
     output : Number
   to:
-    name : PrintSink
+    id : PrintSink
     input : Number
