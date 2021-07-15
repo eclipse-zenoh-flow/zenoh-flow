@@ -35,49 +35,40 @@ pub struct DataFlowDescriptor {
 
 impl DataFlowDescriptor {
     pub fn from_yaml(data: String) -> ZFResult<Self> {
-        Ok(serde_yaml::from_str::<DataFlowDescriptor>(&data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?)
+        serde_yaml::from_str::<DataFlowDescriptor>(&data)
+            .map_err(|e| ZFError::ParsingError(format!("{}", e)))
     }
 
     pub fn from_json(data: String) -> ZFResult<Self> {
-        Ok(serde_json::from_str::<DataFlowDescriptor>(&data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?)
+        serde_json::from_str::<DataFlowDescriptor>(&data)
+            .map_err(|e| ZFError::ParsingError(format!("{}", e)))
     }
     pub fn to_json(&self) -> ZFResult<String> {
-        Ok(serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)?)
+        serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
     pub fn to_yaml(&self) -> ZFResult<String> {
-        Ok(serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)?)
+        serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
-    fn get_operator(&self, id: ZFOperatorId) -> Option<ZFOperatorDescriptor> {
-        match self.operators.iter().find(|&o| o.id == id) {
-            Some(o) => Some(o.clone()),
-            None => None,
-        }
+    fn _get_operator(&self, id: ZFOperatorId) -> Option<ZFOperatorDescriptor> {
+        self.operators.iter().find(|&o| o.id == id).cloned()
     }
 
-    fn get_source(&self, id: ZFOperatorId) -> Option<ZFSourceDescriptor> {
-        match self.sources.iter().find(|&o| o.id == id) {
-            Some(s) => Some(s.clone()),
-            None => None,
-        }
+    fn _get_source(&self, id: ZFOperatorId) -> Option<ZFSourceDescriptor> {
+        self.sources.iter().find(|&o| o.id == id).cloned()
     }
 
-    fn get_sink(&self, id: ZFOperatorId) -> Option<ZFSinkDescriptor> {
-        match self.sinks.iter().find(|&o| o.id == id) {
-            Some(s) => Some(s.clone()),
-            None => None,
-        }
+    fn _get_sink(&self, id: ZFOperatorId) -> Option<ZFSinkDescriptor> {
+        self.sinks.iter().find(|&o| o.id == id).cloned()
     }
 
     pub fn get_mapping(&self, id: &ZFOperatorId) -> Option<ZFRuntimeID> {
         match &self.mapping {
-            Some(mapping) => match mapping.iter().find(|&o| o.id == *id) {
-                Some(m) => Some(m.runtime.clone()),
-                None => None,
-            },
+            Some(mapping) => mapping
+                .iter()
+                .find(|&o| o.id == *id)
+                .map(|m| m.runtime.clone()),
             None => None,
         }
     }
@@ -85,11 +76,7 @@ impl DataFlowDescriptor {
     pub fn add_mapping(&mut self, mapping: Mapping) {
         match self.mapping.as_mut() {
             Some(m) => m.push(mapping),
-            None => {
-                let mut mappings = Vec::new();
-                mappings.push(mapping);
-                self.mapping = Some(mappings)
-            }
+            None => self.mapping = Some(vec![mapping]),
         }
     }
 }
@@ -113,30 +100,30 @@ pub struct DataFlowRecord {
 
 impl DataFlowRecord {
     pub fn from_yaml(data: String) -> ZFResult<Self> {
-        Ok(serde_yaml::from_str::<DataFlowRecord>(&data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?)
+        serde_yaml::from_str::<DataFlowRecord>(&data)
+            .map_err(|e| ZFError::ParsingError(format!("{}", e)))
     }
 
     pub fn from_json(data: String) -> ZFResult<Self> {
-        Ok(serde_json::from_str::<DataFlowRecord>(&data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?)
+        serde_json::from_str::<DataFlowRecord>(&data)
+            .map_err(|e| ZFError::ParsingError(format!("{}", e)))
     }
 
     pub fn to_json(&self) -> ZFResult<String> {
-        Ok(serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)?)
+        serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
     pub fn to_yaml(&self) -> ZFResult<String> {
-        Ok(serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)?)
+        serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
     pub fn find_component_runtime(&self, id: &ZFOperatorId) -> Option<ZFRuntimeID> {
         match self.get_operator(id) {
-            Some(o) => Some(o.runtime.clone()),
+            Some(o) => Some(o.runtime),
             None => match self.get_source(id) {
-                Some(s) => Some(s.runtime.clone()),
+                Some(s) => Some(s.runtime),
                 None => match self.get_sink(id) {
-                    Some(s) => Some(s.runtime.clone()),
+                    Some(s) => Some(s.runtime),
                     None => None,
                 },
             },
@@ -150,42 +137,28 @@ impl DataFlowRecord {
                 Some(s) => Some(DataFlowNode::Source(s)),
                 None => match self.get_sink(id) {
                     Some(s) => Some(DataFlowNode::Sink(s)),
-                    None => match self.get_connector(id) {
-                        Some(c) => Some(DataFlowNode::Connector(c)),
-                        None => None,
-                    },
+                    None => self.get_connector(id).map(DataFlowNode::Connector),
                 },
             },
         }
     }
 
     fn get_operator(&self, id: &ZFOperatorId) -> Option<ZFOperatorRecord> {
-        match self.operators.iter().find(|&o| o.id == *id) {
-            Some(o) => Some(o.clone()),
-            None => None,
-        }
+        self.operators.iter().find(|&o| o.id == *id).cloned()
     }
 
     fn get_source(&self, id: &ZFOperatorId) -> Option<ZFSourceRecord> {
-        match self.sources.iter().find(|&o| o.id == *id) {
-            Some(s) => Some(s.clone()),
-            None => None,
-        }
+        self.sources.iter().find(|&o| o.id == *id).cloned()
     }
 
     fn get_sink(&self, id: &ZFOperatorId) -> Option<ZFSinkRecord> {
-        match self.sinks.iter().find(|&o| o.id == *id) {
-            Some(s) => Some(s.clone()),
-            None => None,
-        }
+        self.sinks.iter().find(|&o| o.id == *id).cloned()
     }
 
     fn get_connector(&self, id: &String) -> Option<ZFConnectorRecord> {
-        match self.connectors.iter().find(|&o| o.id == *id) {
-            Some(s) => Some(s.clone()),
-            None => None,
-        }
+        self.connectors.iter().find(|&o| o.id == *id).cloned()
     }
+
     pub fn from_dataflow_descriptor(d: DataFlowDescriptor) -> ZFResult<Self> {
         let mut dfr = DataFlowRecord {
             uuid: Uuid::nil(), // all 0s uuid, placeholder

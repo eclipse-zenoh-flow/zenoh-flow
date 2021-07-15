@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::types::{ZFLinkId, ZFOperatorId, ZFOperatorName, ZFRuntimeID};
+use crate::types::{ZFLinkId, ZFOperatorId, ZFRuntimeID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

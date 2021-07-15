@@ -14,8 +14,7 @@
 // TODO: this should become a deamon.
 
 use std::fs::{File, *};
-use std::io::prelude::*;
-use std::io::{BufWriter, Write};
+use std::io::Write;
 use std::path::Path;
 use structopt::StructOpt;
 
@@ -30,7 +29,7 @@ struct Opt {
     runtime: String,
 }
 
-fn write_record_to_file(record: zenoh_flow::model::dataflow::DataFlowRecord, filename: &str) {
+fn _write_record_to_file(record: zenoh_flow::model::dataflow::DataFlowRecord, filename: &str) {
     let path = Path::new(filename);
     let mut write_file = File::create(path).unwrap();
     write!(write_file, "{}", record.to_yaml().unwrap()).unwrap();

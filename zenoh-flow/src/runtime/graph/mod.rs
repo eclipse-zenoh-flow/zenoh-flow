@@ -30,7 +30,7 @@ use crate::runtime::loader::{load_operator, load_sink, load_source};
 use crate::runtime::message::ZFMessage;
 use crate::runtime::runner::{Runner, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner};
 use crate::{
-    model::connector::{ZFConnectorKind, ZFConnectorRecord},
+    model::connector::ZFConnectorKind,
     model::link::{ZFFromEndpoint, ZFLinkDescriptor, ZFToEndpoint},
     model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord},
     runtime::graph::link::link,
@@ -97,7 +97,7 @@ impl DataFlowGraph {
             if l.from.output != l.to.input {
                 return Err(ZFError::PortIdNotMatching((
                     l.from.output.clone(),
-                    l.to.input.clone(),
+                    l.to.input,
                 )));
             }
 
@@ -150,10 +150,7 @@ impl DataFlowGraph {
     }
 
     pub fn to_dot_notation(&self) -> String {
-        String::from(format!(
-            "{}",
-            Dot::with_config(&self.graph, &[Config::EdgeNoLabel])
-        ))
+        format!("{}", Dot::with_config(&self.graph, &[Config::EdgeNoLabel]))
     }
 
     pub fn add_static_operator(
@@ -320,7 +317,6 @@ impl DataFlowGraph {
                         }
                         None => {
                             // this is a static operator.
-                            ()
                         }
                     }
                 }
@@ -336,7 +332,6 @@ impl DataFlowGraph {
                         }
                         None => {
                             // static source
-                            ()
                         }
                     }
                 }
@@ -352,7 +347,6 @@ impl DataFlowGraph {
                         }
                         None => {
                             //static sink
-                            ()
                         }
                     }
                 }
@@ -442,16 +436,15 @@ impl DataFlowGraph {
     }
 
     pub fn get_runner(&self, operator_id: &ZFOperatorId) -> Option<Arc<Mutex<Runner>>> {
-        match self.operators_runners.get(operator_id) {
-            Some((r, _)) => Some(r.clone()),
-            None => None,
-        }
+        self.operators_runners
+            .get(operator_id)
+            .map(|(r, _)| r.clone())
     }
 
     pub fn get_runners(&self) -> Vec<Arc<Mutex<Runner>>> {
         let mut runners = vec![];
 
-        for (_, (runner, _)) in &self.operators_runners {
+        for (runner, _) in self.operators_runners.values() {
             runners.push(runner.clone());
         }
         runners
@@ -460,10 +453,9 @@ impl DataFlowGraph {
     pub fn get_sources(&self) -> Vec<Arc<Mutex<Runner>>> {
         let mut runners = vec![];
 
-        for (_, (runner, kind)) in &self.operators_runners {
-            match kind {
-                DataFlowNodeKind::Source => runners.push(runner.clone()),
-                _ => (),
+        for (runner, kind) in self.operators_runners.values() {
+            if let DataFlowNodeKind::Source = kind {
+                runners.push(runner.clone());
             }
         }
         runners
@@ -472,10 +464,9 @@ impl DataFlowGraph {
     pub fn get_sinks(&self) -> Vec<Arc<Mutex<Runner>>> {
         let mut runners = vec![];
 
-        for (_, (runner, kind)) in &self.operators_runners {
-            match kind {
-                DataFlowNodeKind::Sink => runners.push(runner.clone()),
-                _ => (),
+        for (runner, kind) in self.operators_runners.values() {
+            if let DataFlowNodeKind::Sink = kind {
+                runners.push(runner.clone());
             }
         }
         runners
@@ -484,10 +475,9 @@ impl DataFlowGraph {
     pub fn get_operarators(&self) -> Vec<Arc<Mutex<Runner>>> {
         let mut runners = vec![];
 
-        for (_, (runner, kind)) in &self.operators_runners {
-            match kind {
-                DataFlowNodeKind::Operator => runners.push(runner.clone()),
-                _ => (),
+        for (runner, kind) in self.operators_runners.values() {
+            if let DataFlowNodeKind::Operator = kind {
+                runners.push(runner.clone());
             }
         }
         runners
@@ -496,10 +486,9 @@ impl DataFlowGraph {
     pub fn get_connectors(&self) -> Vec<Arc<Mutex<Runner>>> {
         let mut runners = vec![];
 
-        for (_, (runner, kind)) in &self.operators_runners {
-            match kind {
-                DataFlowNodeKind::Connector => runners.push(runner.clone()),
-                _ => (),
+        for (runner, kind) in self.operators_runners.values() {
+            if let DataFlowNodeKind::Connector = kind {
+                runners.push(runner.clone());
             }
         }
         runners
