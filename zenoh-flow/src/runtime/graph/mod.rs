@@ -472,7 +472,7 @@ impl DataFlowGraph {
         runners
     }
 
-    pub fn get_operarators(&self) -> Vec<Arc<Mutex<Runner>>> {
+    pub fn get_operators(&self) -> Vec<Arc<Mutex<Runner>>> {
         let mut runners = vec![];
 
         for (runner, kind) in self.operators_runners.values() {

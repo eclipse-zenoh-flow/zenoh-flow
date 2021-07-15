@@ -87,7 +87,7 @@ async fn main() {
         });
     }
 
-    let mut operators = dataflow_graph.get_operarators();
+    let mut operators = dataflow_graph.get_operators();
     for runner in operators.drain(..) {
         async_std::task::spawn(async move {
             let mut runner = runner.lock().await;
