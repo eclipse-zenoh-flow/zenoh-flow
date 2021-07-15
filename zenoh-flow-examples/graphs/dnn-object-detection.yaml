@@ -33,12 +33,3 @@ links:
   to:
     id : Window
     input : Frame
-
-
-mapping:
-  - id: Window
-    runtime: foo
-  - id: Camera0
-    runtime: bar
-  - id: ObjectDetection
-    runtime: cuda

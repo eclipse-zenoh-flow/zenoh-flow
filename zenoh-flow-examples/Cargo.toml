@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 zenoh-flow = { path = "../zenoh-flow" }
-env_logger = "0.8.3"
+env_logger = "0.9"
 serde = { version = "1.0.55", features = ["derive"] }
 opencv = "0.53.0"
 async-std = { version = "=1.9.0", features = ["attributes"] }
