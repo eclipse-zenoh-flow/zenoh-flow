@@ -133,7 +133,7 @@ In a third machine, run:
 
 :warning: This example works only on Linux and it require OpenCV with CUDA enabled to be installed, please follow the instruction on [this gits](https://gist.github.com/raulqf/f42c718a658cddc16f9df07ecc627be7) to install it.
 
-:warning: This example works only on Linux and it require a CUDA capable NVIDIA GPU, as well as NVIDIA CUDA and CuDNN to be installed, please follow [CUDA instructions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html) and [CuDNN instructions](https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html).
+:warning: This example works only on Linux and it require a **CUDA** capable **NVIDIA GPU**, as well as NVIDIA CUDA and CuDNN to be installed, please follow [CUDA instructions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html) and [CuDNN instructions](https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html).
 
 :warning: You need a machine equipped of a webcam in order to run this example.
 
@@ -146,6 +146,8 @@ cargo build --example camera-source --example object-detection-dnn --example vid
 ```
 
 This will create, depending on your OS, the libraries that the pipeline will fetch.
+
+Then please update the files `zenoh-flow-examples/graphs/dnn-object-detection.yaml` and `zenoh-flow-examples/graphs/dnn-object-detection-multi-runtime.yaml` by changing the `neural-network`, `network-weights`, and `network-classes` to match the absolute path of your *Neural Network* configuration
 
 #### Single runtime
 
