@@ -86,9 +86,7 @@ impl CameraSource {
         if !opened {
             panic!("Unable to open default camera!");
         }
-        let mut encode_options = opencv::types::VectorOfi32::new();
-        encode_options.push(opencv::imgcodecs::IMWRITE_JPEG_QUALITY);
-        encode_options.push(90);
+        let encode_options = opencv::types::VectorOfi32::new();
         let inner = InnerCameraAccess {
             camera: Arc::new(Mutex::new(camera)),
             encode_options: Arc::new(Mutex::new(encode_options)),
@@ -130,7 +128,7 @@ impl CameraSource {
             .unwrap();
 
             let mut buf = opencv::types::VectorOfu8::new();
-            opencv::imgcodecs::imencode(".jpeg", &reduced, &mut buf, &encode_options).unwrap();
+            opencv::imgcodecs::imencode(".jpg", &reduced, &mut buf, &encode_options).unwrap();
 
             // let data = ZFOpenCVBytes {bytes: Mutex::new(RefCell::new(buf))};
 

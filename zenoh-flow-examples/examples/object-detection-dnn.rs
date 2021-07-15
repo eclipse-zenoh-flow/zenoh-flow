@@ -18,6 +18,11 @@ use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io;
+use std::{
+    fs::File,
+    io::{prelude::*, BufReader},
+    path::Path,
+};
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
     runtime::message::ZFMessage,
@@ -42,7 +47,7 @@ static INPUT: &str = "Frame";
 static OUTPUT: &str = "Frame";
 
 #[derive(Debug)]
-struct FaceDetection {
+struct ObjDetection {
     pub state: FDState,
 }
 #[derive(Clone)]
@@ -59,6 +64,15 @@ struct FDState {
     pub inner: Option<FDInnerState>,
 }
 
+
+fn lines_from_file(filename: impl AsRef<Path>) -> Vec<String> {
+    let file = File::open(filename).expect("no such file");
+    let buf = BufReader::new(file);
+    buf.lines()
+        .map(|l| l.expect("Could not parse line"))
+        .collect()
+}
+
 // because of opencv
 impl std::fmt::Debug for FDState {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -66,7 +80,9 @@ impl std::fmt::Debug for FDState {
     }
 }
 
-impl FaceDetection {
+
+
+impl ObjDetection {
     fn init(configuration: HashMap<String, String>) -> ZFResult<Self> {
         let net_cfg = match configuration.get("neural-network") {
             Some(net) => net,
@@ -83,11 +99,10 @@ impl FaceDetection {
             None => return Err(ZFError::MissingConfiguration),
         };
 
+        let classes = lines_from_file(net_classes);
 
         let mut net = opencv::dnn::read_net_from_darknet(net_cfg, net_weights).unwrap();
-        let mut encode_options = opencv::types::VectorOfi32::new();
-        encode_options.push(opencv::imgcodecs::IMWRITE_JPEG_QUALITY);
-        encode_options.push(90);
+        let encode_options = opencv::types::VectorOfi32::new();
 
         net.set_preferable_backend(opencv::dnn::DNN_BACKEND_CUDA)
             .unwrap();
@@ -98,7 +113,7 @@ impl FaceDetection {
 
         let inner = Some(FDInnerState {
             dnn: Arc::new(Mutex::new(net)),
-            classes : Arc::new(Mutex::new(Vec::new())),
+            classes : Arc::new(Mutex::new(classes)),
             encode_options: Arc::new(Mutex::new(encode_options)),
             outputs: Arc::new(Mutex::new(output_names)),
         });
@@ -127,9 +142,7 @@ impl FaceDetection {
 
         let mut detections: opencv::types::VectorOfMat = core::Vector::new();
 
-        let mut boxes : core::Vector<core::Rect> = core::Vector::new();
-        let mut scores : core::Vector<f32> = core::Vector::new();
-        let mut indices : core::Vector<i32> = core::Vector::new();
+
 
         let mut guard = ctx.lock(); //getting state
         let _state = downcast!(FDState, guard.state).unwrap(); //downcasting to right type
@@ -141,6 +154,16 @@ impl FaceDetection {
         let mut classes = zf_spin_lock!(inner.classes);
         let outputs = zf_spin_lock!(inner.outputs);
 
+        let mut boxes : Vec<core::Vector<core::Rect>> = vec![core::Vector::new(); classes.len()];
+        let mut scores : Vec<core::Vector<f32>> = vec![core::Vector::new(); classes.len()];
+        let mut indices : Vec<core::Vector<i32>> = vec![core::Vector::new(); classes.len()];
+
+        let colors : Vec<core::Scalar> = vec![
+            core::Scalar::new(0f64, 255f64, 0f64, -1f64),
+            core::Scalar::new(255f64, 255f64, 0f64, -1f64),
+            core::Scalar::new(0f64, 255f64, 255f64, -1f64),
+            core::Scalar::new(255f64, 0f64, 0f64, -1f64),
+        ];
 
         let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
@@ -202,53 +225,65 @@ impl FaceDetection {
 
 
 
-                let conf = *obj.at_2d::<f32>(i, 5).unwrap();
-                if conf >= 0.4 {
-                    boxes.push(scaled_obj);
-                    scores.push(conf);
+                for c in 0..classes.len() {
+                    let conf = *obj.at_2d::<f32>(i, 5 + (c as i32) ).unwrap();
+                    if conf >= 0.4 {
+                        boxes[c].push(scaled_obj);
+                        scores[c].push(conf);
+                    }
                 }
             }
 
         }
 
         //remove duplicates
-        opencv::dnn::nms_boxes(&boxes, &scores, 0.0, 0.4, &mut indices, 1.0, 0).unwrap();
+        for c in 0..classes.len() {
+            opencv::dnn::nms_boxes(&boxes[c], &scores[c], 0.0, 0.4, &mut indices[c], 1.0, 0).unwrap();
+        }
+
+        let mut detected = 0;
 
         // add boxes with score
-        for i in &indices {
-            let rect = boxes.get(i as usize ).unwrap();
-            let score = scores.get(i as usize).unwrap();
+        for c in 0..classes.len() {
+            for i in &indices[c] {
+                let rect = boxes[c].get(i as usize ).unwrap();
+                let score = scores[c].get(i as usize).unwrap();
 
-            imgproc::rectangle(
-                &mut frame,
-                rect,
-                core::Scalar::new(0f64, 255f64, 0f64, -1f64), //green
-                5,
-                1,
-                0,
-            )
-            .unwrap();
+                let color = colors[c % 4];
 
-            let label = format!("Face {}", score);
-            let mut baseline  = 0;
-            imgproc::get_text_size(&label, opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL, 1.0, 1, &mut baseline).unwrap();
+                imgproc::rectangle(
+                    &mut frame,
+                    rect,
+                    color, //green
+                    2,
+                    1,
+                    0,
+                )
+                .unwrap();
 
-            imgproc::put_text(
-                &mut frame,
-                &label,
-                core::Point_::new(rect.x, rect.y -  baseline - 5),
-                opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL,
-                1.0,
-                core::Scalar::new(0f64, 255f64, 0f64, -1f64), //black
-                2,
-                8,
-                false,
-            )
-            .unwrap();
+                let label = format!("{}: {}", classes[c], score);
+                let mut baseline  = 0;
+                imgproc::get_text_size(&label, opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL, 1.0, 1, &mut baseline).unwrap();
+
+                imgproc::put_text(
+                    &mut frame,
+                    &label,
+                    core::Point_::new(rect.x, rect.y -  baseline - 5),
+                    opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL,
+                    1.0,
+                    color, //black
+                    2,
+                    8,
+                    false,
+                )
+                .unwrap();
+
+                detected += 1;
+            }
         }
 
         // add label to frame with info
-        let label = format!("DNN Time: {} us - Faces {}", elapsed, indices.len());
+        let label = format!("DNN Time: {} us - Detected: {}", elapsed, detected);
         let mut baseline = 0;
 
         let bg_size = imgproc::get_text_size(&label, opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL, 1.0, 1, &mut baseline).unwrap();
@@ -284,7 +319,7 @@ impl FaceDetection {
 
         // encode and send
         let mut buf = opencv::types::VectorOfu8::new();
-        opencv::imgcodecs::imencode(".jpeg", &frame, &mut buf, &encode_options).unwrap();
+        opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
         let data = ZFBytes {
             bytes: buf.to_vec(),
@@ -309,7 +344,7 @@ impl FaceDetection {
     }
 }
 
-impl OperatorTrait for FaceDetection {
+impl OperatorTrait for ObjDetection {
     fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
         Box::new(Self::ir_1)
     }
@@ -335,9 +370,9 @@ extern "C" fn register(
 ) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
     match configuration {
         Some(config) => {
-            Ok(Box::new(FaceDetection::init(config)?) as Box<dyn zenoh_flow::OperatorTrait + Send>)
+            Ok(Box::new(ObjDetection::init(config)?) as Box<dyn zenoh_flow::OperatorTrait + Send>)
         }
-        None => Ok(Box::new(FaceDetection::init(HashMap::new())?)
+        None => Ok(Box::new(ObjDetection::init(HashMap::new())?)
             as Box<dyn zenoh_flow::OperatorTrait + Send>),
     }
 }

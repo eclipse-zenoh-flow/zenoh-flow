@@ -70,9 +70,7 @@ impl FaceDetection {
 
         let xml = core::find_file(neural_network, true, false).unwrap();
         let mut face = objdetect::CascadeClassifier::new(&xml).unwrap();
-        let mut encode_options = opencv::types::VectorOfi32::new();
-        encode_options.push(opencv::imgcodecs::IMWRITE_JPEG_QUALITY);
-        encode_options.push(90);
+        let encode_options = opencv::types::VectorOfi32::new();
 
         let inner = Some(FDInnerState {
             face: Arc::new(Mutex::new(face)),
@@ -165,7 +163,7 @@ impl FaceDetection {
         }
 
         let mut buf = opencv::types::VectorOfu8::new();
-        opencv::imgcodecs::imencode(".jpeg", &frame, &mut buf, &encode_options).unwrap();
+        opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
         let data = ZFBytes {
             bytes: buf.to_vec(),

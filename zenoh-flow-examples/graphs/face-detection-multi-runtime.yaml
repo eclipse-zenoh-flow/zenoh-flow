@@ -2,7 +2,6 @@ flow: FacePipeline # it should have a id, from this we will have an Instance of 
 operators:
   - id : FaceDetection # this should be unique in the graph
     uri: file://./target/release/examples/libface_detection.so
-    runtime: foo
     inputs: [Frame]
     outputs: [Frame] #port id = String
     # configuration:
@@ -17,12 +16,10 @@ sources: # sources can have only ONE output
       camera: /dev/video0
       resolution: 800x600
       fps: 24
-    runtime: bar
 sinks: # sources can have only ONE input
   - id : Window
     uri: file://./target/release/examples/libvideo_sink.so
     input: Frame
-    runtime: foo
 links:
 - from:
     id : Camera0

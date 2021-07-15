@@ -5,24 +5,21 @@ operators:
     uri: file://./target/debug/examples/libexample_fizz.dylib
     inputs: [Int]
     outputs: [Int, Str]
-    runtime: foo
+
   - id: BuzzOperator
     uri: file://./target/debug/examples/libexample_buzz.dylib
     inputs: [Int, Str]
     outputs: [Str]
-    runtime: bar
 
 sources:
   - id: ManualSenderOperator
     uri: file://./target/debug/examples/libmanual_source.dylib
     output: Int
-    runtime: foo
 
 sinks:
   - id: ReceiverOperator
     uri: file://./target/debug/examples/libgeneric_sink.dylib
     input: Str
-    runtime: bar
 
 links:
   - from:
