@@ -1,0 +1,343 @@
+//
+// Copyright (c) 2017, 2021 ADLINK Technology Inc.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+// which is available at https://www.apache.org/licenses/LICENSE-2.0.
+//
+// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+//
+// Contributors:
+//   ADLINK zenoh team, <zenoh@adlink-labs.tech>
+//
+
+use async_std::sync::{Arc, Mutex};
+use rand::Rng;
+use std::any::Any;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::io;
+use zenoh_flow::{
+    downcast, downcast_mut, get_input,
+    runtime::message::ZFMessage,
+    serde::{Deserialize, Serialize},
+    types::{
+        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
+        OutputRuleResult, RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFLinkId,
+        ZFResult,
+    },
+    zenoh_flow_derive::ZFState,
+    zf_data, zf_spin_lock,
+};
+use zenoh_flow_examples::{ZFBytes, ZFOpenCVBytes};
+
+use opencv::core::prelude::MatTrait;
+use opencv::dnn::NetTrait;
+use opencv::{core, highgui, imgproc, objdetect, prelude::*, types, videoio, Result};
+use std::time::{Duration, Instant};
+
+
+static INPUT: &str = "Frame";
+static OUTPUT: &str = "Frame";
+
+#[derive(Debug)]
+struct FaceDetection {
+    pub state: FDState,
+}
+#[derive(Clone)]
+struct FDInnerState {
+    pub dnn: Arc<Mutex<opencv::dnn::Net>>,
+    pub classes: Arc<Mutex<Vec<String>>>,
+    pub encode_options: Arc<Mutex<opencv::types::VectorOfi32>>,
+    pub outputs : Arc<Mutex<opencv::core::Vector<String>>>,
+}
+
+#[derive(Serialize, Deserialize, ZFState, Clone)]
+struct FDState {
+    #[serde(skip_serializing, skip_deserializing)]
+    pub inner: Option<FDInnerState>,
+}
+
+// because of opencv
+impl std::fmt::Debug for FDState {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "FDState:...",)
+    }
+}
+
+impl FaceDetection {
+    fn init(configuration: HashMap<String, String>) -> ZFResult<Self> {
+        let net_cfg = match configuration.get("neural-network") {
+            Some(net) => net,
+            None => return Err(ZFError::MissingConfiguration),
+        };
+
+        let net_weights = match configuration.get("network-weights") {
+            Some(weights) => weights,
+            None => return Err(ZFError::MissingConfiguration),
+        };
+
+        let net_classes = match configuration.get("network-classes") {
+            Some(classes) => classes,
+            None => return Err(ZFError::MissingConfiguration),
+        };
+
+
+        let mut net = opencv::dnn::read_net_from_darknet(net_cfg, net_weights).unwrap();
+        let mut encode_options = opencv::types::VectorOfi32::new();
+        encode_options.push(opencv::imgcodecs::IMWRITE_JPEG_QUALITY);
+        encode_options.push(90);
+
+        net.set_preferable_backend(opencv::dnn::DNN_BACKEND_CUDA)
+            .unwrap();
+        net.set_preferable_target(opencv::dnn::DNN_TARGET_CUDA)
+            .unwrap();
+
+        let output_names = net.get_unconnected_out_layers_names().unwrap();
+
+        let inner = Some(FDInnerState {
+            dnn: Arc::new(Mutex::new(net)),
+            classes : Arc::new(Mutex::new(Vec::new())),
+            encode_options: Arc::new(Mutex::new(encode_options)),
+            outputs: Arc::new(Mutex::new(output_names)),
+        });
+        let state = FDState { inner };
+
+        Ok(Self { state })
+    }
+
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+        if let Some(token) = inputs.get(INPUT) {
+            match token {
+                Token::Ready(_) => Ok(true),
+                Token::NotReady(_) => Ok(false),
+            }
+        } else {
+            Err(ZFError::MissingInput(String::from(INPUT)))
+        }
+    }
+
+    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
+
+        let scale = 1.0/255.0;
+        let mean = core::Scalar::new(0f64, 0f64, 0f64, 0f64);
+
+        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+
+        let mut detections: opencv::types::VectorOfMat = core::Vector::new();
+
+        let mut boxes : core::Vector<core::Rect> = core::Vector::new();
+        let mut scores : core::Vector<f32> = core::Vector::new();
+        let mut indices : core::Vector<i32> = core::Vector::new();
+
+        let mut guard = ctx.lock(); //getting state
+        let _state = downcast!(FDState, guard.state).unwrap(); //downcasting to right type
+
+        let inner = _state.inner.as_ref().unwrap();
+
+        let mut net = zf_spin_lock!(inner.dnn);
+        let mut encode_options = zf_spin_lock!(inner.encode_options);
+        let mut classes = zf_spin_lock!(inner.classes);
+        let outputs = zf_spin_lock!(inner.outputs);
+
+
+        let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+
+        // Decode Image
+        let mut frame = opencv::imgcodecs::imdecode(
+            &opencv::types::VectorOfu8::from_iter(data.bytes.clone()),
+            opencv::imgcodecs::IMREAD_COLOR,
+        )
+        .unwrap();
+
+
+        // create blob
+        let blob = opencv::dnn::blob_from_image(
+            &frame,
+            scale,
+            core::Size {
+                width: 512,
+                height: 512, //416 //608
+            },
+            mean,
+            true,
+            false,
+            opencv::core::CV_32F, //CV_32F
+        )
+        .unwrap();
+
+        //set the input
+        net.set_input(
+            &blob,
+            "",
+            1.0,
+            core::Scalar::new(0f64, 0f64, 0f64, 0f64),
+        )
+        .unwrap();
+
+        //run the DNN
+        let now = Instant::now();
+        net.forward(&mut detections, &outputs).unwrap();
+        let elapsed = now.elapsed().as_micros();
+
+
+        // loop on the detected objects
+        for obj in detections {
+            let num_boxes = obj.rows();
+
+
+            for i in 0..num_boxes {
+                let x = obj.at_2d::<f32>(i, 0).unwrap() * frame.cols() as f32;
+                let y = obj.at_2d::<f32>(i, 1).unwrap() * frame.rows() as f32;
+                let width = obj.at_2d::<f32>(i, 2).unwrap() * frame.cols() as f32;
+                let height = obj.at_2d::<f32>(i, 3).unwrap() * frame.rows() as f32;
+
+                let scaled_obj = core::Rect {
+                    x: (x - width /2.0) as i32,
+                    y: (y - height/2.0) as i32,
+                    width: width as i32,
+                    height: height as i32,
+                };
+
+
+
+                let conf = *obj.at_2d::<f32>(i, 5).unwrap();
+                if conf >= 0.4 {
+                    boxes.push(scaled_obj);
+                    scores.push(conf);
+                }
+            }
+
+        }
+
+        //remove duplicates
+        opencv::dnn::nms_boxes(&boxes, &scores, 0.0, 0.4, &mut indices, 1.0, 0).unwrap();
+
+        // add boxes with score
+        for i in &indices {
+            let rect = boxes.get(i as usize ).unwrap();
+            let score = scores.get(i as usize).unwrap();
+
+            imgproc::rectangle(
+                &mut frame,
+                rect,
+                core::Scalar::new(0f64, 255f64, 0f64, -1f64), //green
+                5,
+                1,
+                0,
+            )
+            .unwrap();
+
+            let label = format!("Face {}", score);
+            let mut baseline  = 0;
+            imgproc::get_text_size(&label, opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL, 1.0, 1, &mut baseline).unwrap();
+
+            imgproc::put_text(
+                &mut frame,
+                &label,
+                core::Point_::new(rect.x, rect.y -  baseline - 5),
+                opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL,
+                1.0,
+                core::Scalar::new(0f64, 255f64, 0f64, -1f64), //black
+                2,
+                8,
+                false,
+            )
+            .unwrap();
+        }
+
+        // add label to frame with info
+        let label = format!("DNN Time: {} us - Faces {}", elapsed, indices.len());
+        let mut baseline = 0;
+
+        let bg_size = imgproc::get_text_size(&label, opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL, 1.0, 1, &mut baseline).unwrap();
+        let rect = core::Rect {
+            x: 0,
+            y: 0,
+            width: bg_size.width,
+            height: bg_size.height + 10,
+        };
+
+        imgproc::rectangle(
+            &mut frame,
+            rect,
+            core::Scalar::new(0f64, 0f64, 0f64, -1f64), //black
+            imgproc::FILLED,
+            1,
+            0,
+        )
+        .unwrap();
+        imgproc::put_text(
+            &mut frame,
+            &label,
+            core::Point_::new(0, bg_size.height+5),
+            opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL,
+            1.0,
+            core::Scalar::new(255f64, 255f64, 0f64, -1f64), //yellow
+            2,
+            8,
+            false,
+        )
+        .unwrap();
+
+
+        // encode and send
+        let mut buf = opencv::types::VectorOfu8::new();
+        opencv::imgcodecs::imencode(".jpeg", &frame, &mut buf, &encode_options).unwrap();
+
+        let data = ZFBytes {
+            bytes: buf.to_vec(),
+        };
+
+        results.insert(String::from(OUTPUT), zf_data!(data));
+
+
+        Ok(results)
+    }
+
+    pub fn or_1(
+        _ctx: ZFContext,
+        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
+    ) -> OutputRuleResult {
+        let mut results = HashMap::new();
+        for (k, v) in outputs {
+            // should be ZFMessage::from_data
+            results.insert(k, Arc::new(ZFMessage::from_data(v)));
+        }
+        Ok(results)
+    }
+}
+
+impl OperatorTrait for FaceDetection {
+    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+        Box::new(Self::ir_1)
+    }
+
+    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+        Box::new(Self::or_1)
+    }
+
+    fn get_run(&self, ctx: ZFContext) -> Box<FnRun> {
+        Box::new(Self::run_1)
+    }
+
+    fn get_state(&self) -> Box<dyn StateTrait> {
+        Box::new(self.state.clone())
+    }
+}
+
+// //Also generated by macro
+zenoh_flow::export_operator!(register);
+
+extern "C" fn register(
+    configuration: Option<HashMap<String, String>>,
+) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
+    match configuration {
+        Some(config) => {
+            Ok(Box::new(FaceDetection::init(config)?) as Box<dyn zenoh_flow::OperatorTrait + Send>)
+        }
+        None => Ok(Box::new(FaceDetection::init(HashMap::new())?)
+            as Box<dyn zenoh_flow::OperatorTrait + Send>),
+    }
+}

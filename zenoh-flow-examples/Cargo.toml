@@ -14,7 +14,7 @@ async-std = { version = "=1.9.0", features = ["attributes"] }
 typetag = "0.1"
 log = "0.4"
 bincode = "1"
-zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
+zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master", default-features = false, features = ["transport_tcp","transport_udp"]  }
 
 [dev-dependencies]
 rand = "0.8.0"
@@ -64,6 +64,10 @@ crate-type = ["cdylib"]
 
 [[example]]
 name = "face-detection"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "object-detection-dnn"
 crate-type = ["cdylib"]
 
 [[example]]
