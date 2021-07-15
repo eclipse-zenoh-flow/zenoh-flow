@@ -77,9 +77,12 @@ In a second machine, run:
 
 :warning: Without configuration, the different machines need to be on the _same local network_ for this example to work. See how to add a [Zenoh router](https://zenoh.io/docs/getting-started/key-concepts/#zenoh-router) if you want to connect them through the internet.
 
+---
+
 ### OpenCV FaceDetection - Haarcascades
 
 :warning: This example works only on Linux and it require OpenCV to be installed, please follow the instruction on the [OpenCV documentation](https://docs.opencv.org/4.5.2/d7/d9f/tutorial_linux_install.html) to install it.
+
 :warning: You need a machine equipped of a webcam in order to run this example.
 
 First, compile the relevant examples:
@@ -124,12 +127,16 @@ In a third machine, run:
 
 :warning: Without configuration, the different machines need to be on the _same local network_ for this example to work. See how to add a [Zenoh router](https://zenoh.io/docs/getting-started/key-concepts/#zenoh-router) if you want to connect them through the internet.
 
+---
 
 ### OpenCV Object Detection - Deep Neural Network - CUDA powered
 
 :warning: This example works only on Linux and it require OpenCV with CUDA enabled to be installed, please follow the instruction on [this gits](https://gist.github.com/raulqf/f42c718a658cddc16f9df07ecc627be7) to install it.
+
 :warning: This example works only on Linux and it require a CUDA capable NVIDIA GPU, as well as NVIDIA CUDA and CuDNN to be installed, please follow [CUDA instructions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html) and [CuDNN instructions](https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html).
+
 :warning: You need a machine equipped of a webcam in order to run this example.
+
 :warning: You need to download a YOLOv3 configuration, weights and classes, you can use the ones from [this GitHub repository](https://github.com/sthanhng/yoloface).
 
 First, compile the relevant examples:
