@@ -42,7 +42,6 @@ use opencv::dnn::NetTrait;
 use opencv::{core, highgui, imgproc, objdetect, prelude::*, types, videoio, Result};
 use std::time::{Duration, Instant};
 
-
 static INPUT: &str = "Frame";
 static OUTPUT: &str = "Frame";
 
@@ -55,7 +54,7 @@ struct FDInnerState {
     pub dnn: Arc<Mutex<opencv::dnn::Net>>,
     pub classes: Arc<Mutex<Vec<String>>>,
     pub encode_options: Arc<Mutex<opencv::types::VectorOfi32>>,
-    pub outputs : Arc<Mutex<opencv::core::Vector<String>>>,
+    pub outputs: Arc<Mutex<opencv::core::Vector<String>>>,
 }
 
 #[derive(Serialize, Deserialize, ZFState, Clone)]
@@ -63,7 +62,6 @@ struct FDState {
     #[serde(skip_serializing, skip_deserializing)]
     pub inner: Option<FDInnerState>,
 }
-
 
 fn lines_from_file(filename: impl AsRef<Path>) -> Vec<String> {
     let file = File::open(filename).expect("no such file");
@@ -79,8 +77,6 @@ impl std::fmt::Debug for FDState {
         write!(f, "FDState:...",)
     }
 }
-
-
 
 impl ObjDetection {
     fn init(configuration: HashMap<String, String>) -> ZFResult<Self> {
@@ -113,7 +109,7 @@ impl ObjDetection {
 
         let inner = Some(FDInnerState {
             dnn: Arc::new(Mutex::new(net)),
-            classes : Arc::new(Mutex::new(classes)),
+            classes: Arc::new(Mutex::new(classes)),
             encode_options: Arc::new(Mutex::new(encode_options)),
             outputs: Arc::new(Mutex::new(output_names)),
         });
@@ -134,15 +130,12 @@ impl ObjDetection {
     }
 
     pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
-
-        let scale = 1.0/255.0;
+        let scale = 1.0 / 255.0;
         let mean = core::Scalar::new(0f64, 0f64, 0f64, 0f64);
 
         let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut detections: opencv::types::VectorOfMat = core::Vector::new();
-
-
 
         let mut guard = ctx.lock(); //getting state
         let _state = downcast!(FDState, guard.state).unwrap(); //downcasting to right type
@@ -154,11 +147,11 @@ impl ObjDetection {
         let mut classes = zf_spin_lock!(inner.classes);
         let outputs = zf_spin_lock!(inner.outputs);
 
-        let mut boxes : Vec<core::Vector<core::Rect>> = vec![core::Vector::new(); classes.len()];
-        let mut scores : Vec<core::Vector<f32>> = vec![core::Vector::new(); classes.len()];
-        let mut indices : Vec<core::Vector<i32>> = vec![core::Vector::new(); classes.len()];
+        let mut boxes: Vec<core::Vector<core::Rect>> = vec![core::Vector::new(); classes.len()];
+        let mut scores: Vec<core::Vector<f32>> = vec![core::Vector::new(); classes.len()];
+        let mut indices: Vec<core::Vector<i32>> = vec![core::Vector::new(); classes.len()];
 
-        let colors : Vec<core::Scalar> = vec![
+        let colors: Vec<core::Scalar> = vec![
             core::Scalar::new(0f64, 255f64, 0f64, -1f64),
             core::Scalar::new(255f64, 255f64, 0f64, -1f64),
             core::Scalar::new(0f64, 255f64, 255f64, -1f64),
@@ -173,7 +166,6 @@ impl ObjDetection {
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
-
 
         // create blob
         let blob = opencv::dnn::blob_from_image(
@@ -191,24 +183,17 @@ impl ObjDetection {
         .unwrap();
 
         //set the input
-        net.set_input(
-            &blob,
-            "",
-            1.0,
-            core::Scalar::new(0f64, 0f64, 0f64, 0f64),
-        )
-        .unwrap();
+        net.set_input(&blob, "", 1.0, core::Scalar::new(0f64, 0f64, 0f64, 0f64))
+            .unwrap();
 
         //run the DNN
         let now = Instant::now();
         net.forward(&mut detections, &outputs).unwrap();
         let elapsed = now.elapsed().as_micros();
 
-
         // loop on the detected objects
         for obj in detections {
             let num_boxes = obj.rows();
-
 
             for i in 0..num_boxes {
                 let x = obj.at_2d::<f32>(i, 0).unwrap() * frame.cols() as f32;
@@ -217,28 +202,26 @@ impl ObjDetection {
                 let height = obj.at_2d::<f32>(i, 3).unwrap() * frame.rows() as f32;
 
                 let scaled_obj = core::Rect {
-                    x: (x - width /2.0) as i32,
-                    y: (y - height/2.0) as i32,
+                    x: (x - width / 2.0) as i32,
+                    y: (y - height / 2.0) as i32,
                     width: width as i32,
                     height: height as i32,
                 };
 
-
-
                 for c in 0..classes.len() {
-                    let conf = *obj.at_2d::<f32>(i, 5 + (c as i32) ).unwrap();
+                    let conf = *obj.at_2d::<f32>(i, 5 + (c as i32)).unwrap();
                     if conf >= 0.4 {
                         boxes[c].push(scaled_obj);
                         scores[c].push(conf);
                     }
                 }
             }
-
         }
 
         //remove duplicates
         for c in 0..classes.len() {
-            opencv::dnn::nms_boxes(&boxes[c], &scores[c], 0.0, 0.4, &mut indices[c], 1.0, 0).unwrap();
+            opencv::dnn::nms_boxes(&boxes[c], &scores[c], 0.0, 0.4, &mut indices[c], 1.0, 0)
+                .unwrap();
         }
 
         let mut detected = 0;
@@ -246,29 +229,32 @@ impl ObjDetection {
         // add boxes with score
         for c in 0..classes.len() {
             for i in &indices[c] {
-                let rect = boxes[c].get(i as usize ).unwrap();
+                let rect = boxes[c].get(i as usize).unwrap();
                 let score = scores[c].get(i as usize).unwrap();
 
                 let color = colors[c % 4];
 
                 imgproc::rectangle(
-                    &mut frame,
-                    rect,
-                    color, //green
-                    2,
-                    1,
-                    0,
+                    &mut frame, rect, color, //green
+                    2, 1, 0,
                 )
                 .unwrap();
 
                 let label = format!("{}: {}", classes[c], score);
-                let mut baseline  = 0;
-                imgproc::get_text_size(&label, opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL, 1.0, 1, &mut baseline).unwrap();
+                let mut baseline = 0;
+                imgproc::get_text_size(
+                    &label,
+                    opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL,
+                    1.0,
+                    1,
+                    &mut baseline,
+                )
+                .unwrap();
 
                 imgproc::put_text(
                     &mut frame,
                     &label,
-                    core::Point_::new(rect.x, rect.y -  baseline - 5),
+                    core::Point_::new(rect.x, rect.y - baseline - 5),
                     opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL,
                     1.0,
                     color, //black
@@ -286,7 +272,14 @@ impl ObjDetection {
         let label = format!("DNN Time: {} us - Detected: {}", elapsed, detected);
         let mut baseline = 0;
 
-        let bg_size = imgproc::get_text_size(&label, opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL, 1.0, 1, &mut baseline).unwrap();
+        let bg_size = imgproc::get_text_size(
+            &label,
+            opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL,
+            1.0,
+            1,
+            &mut baseline,
+        )
+        .unwrap();
         let rect = core::Rect {
             x: 0,
             y: 0,
@@ -306,7 +299,7 @@ impl ObjDetection {
         imgproc::put_text(
             &mut frame,
             &label,
-            core::Point_::new(0, bg_size.height+5),
+            core::Point_::new(0, bg_size.height + 5),
             opencv::imgproc::FONT_HERSHEY_COMPLEX_SMALL,
             1.0,
             core::Scalar::new(255f64, 255f64, 0f64, -1f64), //yellow
@@ -315,7 +308,6 @@ impl ObjDetection {
             false,
         )
         .unwrap();
-
 
         // encode and send
         let mut buf = opencv::types::VectorOfu8::new();
@@ -326,7 +318,6 @@ impl ObjDetection {
         };
 
         results.insert(String::from(OUTPUT), zf_data!(data));
-
 
         Ok(results)
     }

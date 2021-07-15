@@ -17,7 +17,7 @@ members = [
   "zenoh-flow",
   "zenoh-flow-derive",
   "zenoh-flow-examples",
-  "zenoh-flow-deamon",
+  "zenoh-flow-daemon",
 ]
 
 [profile.dev]

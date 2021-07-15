@@ -1,7 +1,16 @@
 [package]
 name = "zenoh-flow-examples"
 version = "0.1.0"
+repository = "https://github.com/eclipse-zenoh/zenoh-flow"
+homepage = "http://zenoh.io"
+authors = ["kydos <angelo@icorsaro.net>",
+           "gabrik <gabriele.baldoni@gmail.com>",
+           "Julien Loudet <julien.loudet@adlinktech.com>",]
 edition = "2018"
+license = " EPL-2.0 OR Apache-2.0"
+categories = ["network-programming"]
+description = "Zenoh-Flow: zenoh-based data-flow programming framework for computations that span from the cloud to the device."
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
