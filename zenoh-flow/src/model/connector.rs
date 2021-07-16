@@ -15,7 +15,7 @@
 use crate::serde::{Deserialize, Serialize};
 use crate::{ZFLinkId, ZFRuntimeID};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Serialize, Deserialize, Debug, Clone)]
 pub enum ZFConnectorKind {
     Sender,
     Receiver,

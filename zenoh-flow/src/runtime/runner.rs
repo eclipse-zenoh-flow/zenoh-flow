@@ -76,7 +76,7 @@ pub struct ZFOperatorRunner {
     pub operator: Box<dyn OperatorTrait + Send>,
     pub lib: Option<Library>,
     pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
-    pub outputs: Vec<ZFLinkSender<ZFMessage>>,
+    pub outputs: HashMap<ZFLinkId, Vec<ZFLinkSender<ZFMessage>>>,
 }
 
 impl ZFOperatorRunner {
@@ -85,7 +85,7 @@ impl ZFOperatorRunner {
             operator,
             lib,
             inputs: vec![],
-            outputs: vec![],
+            outputs: HashMap::new(),
         }
     }
 
@@ -94,7 +94,12 @@ impl ZFOperatorRunner {
     }
 
     pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {
-        self.outputs.push(output);
+        let key = output.id();
+        if let Some(links) = self.outputs.get_mut(&key) {
+            links.push(output);
+        } else {
+            self.outputs.insert(key, vec![output]);
+        }
     }
 
     pub async fn run(&mut self) -> ZFResult<()> {
@@ -129,25 +134,27 @@ impl ZFOperatorRunner {
 
             let outputs = run_fn(ctx.clone(), data)?;
 
-            //Output
+            // Output
             let out_fn = self.operator.get_output_rule(ctx.clone());
 
             let out_msgs = out_fn(ctx.clone(), outputs)?;
 
             // Send to Links
             for (id, zf_msg) in out_msgs {
-                //getting link
+                // getting link
                 log::debug!("id: {:?}, zf_msg: {:?}", id, zf_msg);
-                let tx = self.outputs.iter().find(|&x| x.id() == id).unwrap();
-                log::debug!("Sending on: {:?}", tx);
-                //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
-                match zf_msg.msg {
-                    Message::Data(_) => {
-                        tx.send(zf_msg).await?;
-                    }
-                    Message::Ctrl(_) => {
-                        // here we process should process control messages (eg. change mode)
-                        //tx.send(zf_msg);
+                if let Some(links) = self.outputs.get(&id) {
+                    for tx in links {
+                        log::debug!("Sending on: {:?}", tx);
+                        match zf_msg.msg {
+                            Message::Data(_) => {
+                                tx.send(zf_msg.clone()).await?;
+                            }
+                            Message::Ctrl(_) => {
+                                // here we process should process control messages (eg. change mode)
+                                // tx.send(zf_msg);
+                            }
+                        }
                     }
                 }
             }
