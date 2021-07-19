@@ -1,8 +1,0 @@
----
-    uuid: 00000000-0000-0000-0000-000000000000
-    pid_file : /var/zenoh-flow/runtime.pid
-    path : /etc/zenoh-flow
-    zenoh :
-      kind: peer
-      listen: ["tcp/0.0.0.0:7447"]
-      locators: []
