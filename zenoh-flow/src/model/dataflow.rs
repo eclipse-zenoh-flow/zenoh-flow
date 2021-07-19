@@ -159,6 +159,121 @@ impl DataFlowRecord {
         self.connectors.iter().find(|&o| o.id == *id).cloned()
     }
 
+    fn add_links(&mut self, links: &[ZFLinkDescriptor]) -> ZFResult<()> {
+        for l in links {
+            if l.from.output != l.to.input {
+                return Err(ZFError::PortIdNotMatching((
+                    l.from.output.clone(),
+                    l.to.input.clone(),
+                )));
+            }
+
+            let from_runtime = match self.find_component_runtime(&l.from.id) {
+                Some(rt) => rt,
+                None => {
+                    return Err(ZFError::Uncompleted(format!(
+                        "Unable to find runtime for {}",
+                        &l.from.id
+                    )))
+                }
+            };
+
+            let to_runtime = match self.find_component_runtime(&l.to.id) {
+                Some(rt) => rt,
+                None => {
+                    return Err(ZFError::Uncompleted(format!(
+                        "Unable to find runtime for {}",
+                        &l.to.id
+                    )))
+                }
+            };
+
+            if from_runtime == to_runtime {
+                // link between components on the same runtime
+                self.links.push(l.clone())
+            } else {
+                // link between component on different runtime
+                // here we have to create the connectors information
+                // and add the new links
+
+                // creating zenoh resource name
+                let z_resource_name = format!(
+                    "/zf/data/{}/{}/{}/{}",
+                    &self.flow, &self.uuid, &l.from.id, &l.from.output
+                );
+
+                // We only create a sender if none was created for the same resource. The rationale
+                // is to avoid creating multiple publisher for the same resource in case an operator
+                // acts as a multiplexor.
+                if !self
+                    .connectors
+                    .iter()
+                    .any(|c| c.kind == ZFConnectorKind::Sender && c.resource == z_resource_name)
+                {
+                    // creating sender
+                    let sender_id = format!(
+                        "sender-{}-{}-{}-{}",
+                        &self.flow, &self.uuid, &l.from.id, &l.from.output
+                    );
+                    let sender = ZFConnectorRecord {
+                        kind: ZFConnectorKind::Sender,
+                        id: sender_id.clone(),
+                        resource: z_resource_name.clone(),
+                        link_id: l.from.output.clone(),
+                        runtime: from_runtime,
+                    };
+
+                    // creating link between component and sender
+                    let link_sender = ZFLinkDescriptor {
+                        from: l.from.clone(),
+                        to: ZFToEndpoint {
+                            id: sender_id,
+                            input: sender.link_id.clone(),
+                        },
+                        size: None,
+                        queueing_policy: None,
+                        priority: None,
+                    };
+
+                    // storing info in the dataflow record
+                    self.connectors.push(sender);
+                    self.links.push(link_sender);
+                }
+
+                // creating receiver
+                let receiver_id = format!(
+                    "receiver-{}-{}-{}-{}",
+                    &self.flow, &self.uuid, &l.to.id, &l.to.input
+                );
+                let receiver = ZFConnectorRecord {
+                    kind: ZFConnectorKind::Receiver,
+                    id: receiver_id.clone(),
+                    resource: z_resource_name.clone(),
+                    link_id: l.to.input.clone(),
+                    runtime: to_runtime,
+                };
+
+                //creating link between receiver and component
+                let link_receiver = ZFLinkDescriptor {
+                    from: ZFFromEndpoint {
+                        id: receiver_id,
+                        output: receiver.link_id.clone(),
+                    },
+                    to: l.to.clone(),
+                    size: None,
+                    queueing_policy: None,
+                    priority: None,
+                };
+
+                // storing info in the data flow record
+                self.connectors.push(receiver);
+                self.links.push(link_receiver);
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn from_dataflow_descriptor(d: DataFlowDescriptor) -> ZFResult<Self> {
         let mut dfr = DataFlowRecord {
             uuid: Uuid::nil(), // all 0s uuid, placeholder
@@ -237,108 +352,7 @@ impl DataFlowRecord {
             }
         }
 
-        for l in &d.links {
-            if l.from.output != l.to.input {
-                return Err(ZFError::PortIdNotMatching((
-                    l.from.output.clone(),
-                    l.to.input.clone(),
-                )));
-            }
-
-            let from_runtime = match dfr.find_component_runtime(&l.from.id) {
-                Some(rt) => rt,
-                None => {
-                    return Err(ZFError::Uncompleted(format!(
-                        "Unable to find runtime for {}",
-                        &l.from.id
-                    )))
-                }
-            };
-
-            let to_runtime = match dfr.find_component_runtime(&l.to.id) {
-                Some(rt) => rt,
-                None => {
-                    return Err(ZFError::Uncompleted(format!(
-                        "Unable to find runtime for {}",
-                        &l.to.id
-                    )))
-                }
-            };
-
-            if from_runtime == to_runtime {
-                // link between components on the same runtime
-                dfr.links.push(l.clone())
-            } else {
-                // link between component on different runtime
-                // here we have to create the connectors information
-                // and add the new links
-
-                //creating zenoh resource name
-                let z_resource_name = format!(
-                    "/zf/data/{}/{}/{}/{}",
-                    &dfr.flow, &dfr.uuid, &l.from.id, &l.from.output
-                );
-
-                //creating sender
-                let sender_id = format!(
-                    "sender-{}-{}-{}-{}",
-                    &dfr.flow, &dfr.uuid, &l.from.id, &l.from.output
-                );
-                let sender = ZFConnectorRecord {
-                    kind: ZFConnectorKind::Sender,
-                    id: sender_id.clone(),
-                    resource: z_resource_name.clone(),
-                    link_id: l.from.output.clone(),
-                    runtime: from_runtime,
-                };
-
-                //creating link between component and sender
-                let link_sender = ZFLinkDescriptor {
-                    from: l.from.clone(),
-                    to: ZFToEndpoint {
-                        id: sender_id,
-                        input: sender.link_id.clone(),
-                    },
-                    size: None,
-                    queueing_policy: None,
-                    priority: None,
-                };
-
-                // storing info in the data flow record
-                dfr.connectors.push(sender);
-                dfr.links.push(link_sender);
-
-                // creating receiver
-
-                let receiver_id = format!(
-                    "receiver-{}-{}-{}-{}",
-                    &dfr.flow, &dfr.uuid, &l.to.id, &l.to.input
-                );
-                let receiver = ZFConnectorRecord {
-                    kind: ZFConnectorKind::Receiver,
-                    id: receiver_id.clone(),
-                    resource: z_resource_name.clone(),
-                    link_id: l.to.input.clone(),
-                    runtime: to_runtime,
-                };
-
-                //creating link between receiver and component
-                let link_receiver = ZFLinkDescriptor {
-                    from: ZFFromEndpoint {
-                        id: receiver_id,
-                        output: receiver.link_id.clone(),
-                    },
-                    to: l.to.clone(),
-                    size: None,
-                    queueing_policy: None,
-                    priority: None,
-                };
-
-                // storing info in the data flow record
-                dfr.connectors.push(receiver);
-                dfr.links.push(link_receiver);
-            }
-        }
+        dfr.add_links(&d.links)?;
         Ok(dfr)
     }
 }
