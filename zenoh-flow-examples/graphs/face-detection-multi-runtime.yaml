@@ -1,0 +1,44 @@
+flow: FacePipeline # it should have a id, from this we will have an Instance of the graph, UUID => flow
+operators:
+  - id : FaceDetection # this should be unique in the graph
+    uri: file://./target/release/examples/libface_detection.so
+    inputs: [Frame]
+    outputs: [Frame] #port id = String
+    # configuration:
+      # neural-network: haarcascades/haarcascade_frontalface_alt_tree.xml
+      # neural-network: haarcascades/haarcascade_eye.xml #eyes only
+      # more configurations can be found in opencv: /usr/share/opencv4/haarcascades
+sources: # sources can have only ONE output
+  - id : Camera0
+    uri: file://./target/release/examples/libcamera_source.so
+    output: Frame
+    configuration:
+      camera: /dev/video0
+      resolution: 800x600
+      fps: 24
+sinks: # sources can have only ONE input
+  - id : Window
+    uri: file://./target/release/examples/libvideo_sink.so
+    input: Frame
+links:
+- from:
+    id : Camera0
+    output : Frame # Output
+  to:
+    id : FaceDetection
+    input : Frame # Input
+- from:
+    id : FaceDetection
+    output : Frame
+  to:
+    id : Window
+    input : Frame
+
+
+mapping:
+  - id: Window
+    runtime: gigot
+  - id: Camera0
+    runtime: nuc
+  - id: FaceDetection
+    runtime: leia

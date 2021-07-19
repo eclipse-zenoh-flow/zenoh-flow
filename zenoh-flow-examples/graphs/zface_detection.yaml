@@ -1,0 +1,27 @@
+flow: zface-detection
+operators:
+  - id : FaceDetection
+    uri: file://./target/debug/examples/libface_detection.dylib
+    inputs: [Frame]
+    outputs: [Frame]
+sources:
+  - id : Camera0
+    uri: file://./target/debug/examples/libcamera_source.dylib
+    output: Frame
+sinks:
+  - id : ZSink
+    uri: file://./target/debug/examples/libzenoh_sink.dylib
+    input: Frame
+links:
+- from:
+    id : Camera0
+    output : Frame
+  to:
+    id : FaceDetection
+    input : Frame
+- from:
+    id : FaceDetection
+    output : Frame
+  to:
+    id : ZSink
+    input : Frame

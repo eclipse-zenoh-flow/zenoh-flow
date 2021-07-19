@@ -1,0 +1,27 @@
+flow: SimplePipeline
+operators:
+  - id : SumOperator
+    uri: file://./target/debug/examples/libsum_and_send.dylib
+    inputs: [Number]
+    outputs: [Number]
+sources:
+  - id : Counter
+    uri: file://./target/debug/examples/libcounter_source.dylib
+    output: Number
+sinks:
+  - id : PrintSink
+    uri: file://./target/debug/examples/libgeneric_sink.dylib
+    input: Number
+links:
+- from:
+    id : Counter
+    output : Number
+  to:
+    id : SumOperator
+    input : Number
+- from:
+    id : SumOperator
+    output : Number
+  to:
+    id : PrintSink
+    input : Number

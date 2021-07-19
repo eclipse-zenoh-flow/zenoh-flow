@@ -1,0 +1,35 @@
+flow: DNNPipeline # it should have a id, from this we will have an Instance of the graph, UUID => flow
+operators:
+  - id : ObjectDetection # this should be unique in the graph
+    uri: file://./target/release/examples/libobject_detection_dnn.so
+    inputs: [Frame]
+    outputs: [Frame] #port id = String
+    configuration:
+      neural-network: /home/gabri/Workspace/experiments/yolov3-face.cfg
+      network-weights: /home/gabri/Workspace/experiments/yolov3-wider_16000.weights
+      network-classes: /home/gabri/Workspace/experiments/face_classes.txt
+sources: # sources can have only ONE output
+  - id : Camera0
+    uri: file://./target/release/examples/libcamera_source.so
+    output: Frame
+    configuration:
+      camera: /dev/video0
+      resolution: 800x600
+      fps: 24
+sinks: # sources can have only ONE input
+  - id : Window
+    uri: file://./target/release/examples/libvideo_sink.so
+    input: Frame
+links:
+- from:
+    id : Camera0
+    output : Frame # Output
+  to:
+    id : ObjectDetection
+    input : Frame # Input
+- from:
+    id : ObjectDetection
+    output : Frame
+  to:
+    id : Window
+    input : Frame

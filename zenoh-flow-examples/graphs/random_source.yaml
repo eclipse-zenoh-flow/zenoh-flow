@@ -1,0 +1,17 @@
+flow: RandomGeneration
+operators: []
+sources:
+  - id : RandomGenerator
+    uri: file://./target/debug/examples/librandom_source.dylib
+    output: Number
+sinks:
+  - id : PrintSink
+    uri: file://./target/debug/examples/libgeneric_sink.dylib
+    input: Number
+links:
+- from:
+    id : RandomGenerator
+    output : Number
+  to:
+    id : PrintSink
+    input : Number
