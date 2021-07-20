@@ -33,7 +33,7 @@ static LINK_ID_OUTPUT_INT: &str = "Int";
 static LINK_ID_OUTPUT_STR: &str = "Str";
 
 impl FizzOperator {
-    fn input_rule(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    fn input_rule(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         for token in inputs.values() {
             match token {
                 Token::Ready(_) => continue,
@@ -45,7 +45,7 @@ impl FizzOperator {
     }
 
     fn run(_ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
-        let mut results = HashMap::<ZFLinkId, Arc<dyn DataTrait>>::with_capacity(2);
+        let mut results = HashMap::<String, Arc<dyn DataTrait>>::with_capacity(2);
 
         let mut fizz = ZFString::from("");
 
@@ -63,7 +63,7 @@ impl FizzOperator {
 
     fn output_rule(
         _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
+        outputs: HashMap<String, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
         let mut zf_outputs: HashMap<ZFLinkId, Message> = HashMap::with_capacity(2);
 

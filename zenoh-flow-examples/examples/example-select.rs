@@ -14,10 +14,10 @@ async fn send<T: Clone>(sender: ZFLinkSender<T>, interveal: Duration, data: T) {
 
 #[async_std::main]
 async fn main() {
-    let (s1, mut r1) = link::<u8>(Some(10), String::from("0"));
-    let (s2, mut r2) = link::<u8>(Some(10), String::from("1"));
-    let (s3, mut r3) = link::<u8>(Some(10), String::from("2"));
-    let (s4, mut r4) = link::<u8>(Some(10), String::from("3"));
+    let (s1, mut r1) = link::<u8>(Some(10), String::from("0"), String::from("10"));
+    let (s2, mut r2) = link::<u8>(Some(10), String::from("1"), String::from("11"));
+    let (s3, mut r3) = link::<u8>(Some(10), String::from("2"), String::from("12"));
+    let (s4, mut r4) = link::<u8>(Some(10), String::from("3"), String::from("13"));
 
     let _h1 = async_std::task::spawn(async move {
         send(s1, Duration::from_secs(1), 0u8).await;

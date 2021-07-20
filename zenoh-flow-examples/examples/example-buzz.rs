@@ -32,7 +32,7 @@ static LINK_ID_INPUT_STR: &str = "Str";
 static LINK_ID_OUTPUT_STR: &str = "Str";
 
 impl BuzzOperator {
-    fn input_rule(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    fn input_rule(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         for token in inputs.values() {
             match token {
                 Token::Ready(_) => continue,
@@ -44,7 +44,7 @@ impl BuzzOperator {
     }
 
     fn run(_ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
-        let mut results = HashMap::<ZFLinkId, Arc<dyn DataTrait>>::with_capacity(1);
+        let mut results = HashMap::<String, Arc<dyn DataTrait>>::with_capacity(1);
 
         let mut buzz = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?.clone();
 
@@ -61,7 +61,7 @@ impl BuzzOperator {
 
     fn output_rule(
         _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
+        outputs: HashMap<String, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
         let mut zf_outputs: HashMap<ZFLinkId, Message> = HashMap::with_capacity(1);
 

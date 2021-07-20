@@ -118,7 +118,7 @@ impl ObjDetection {
         Ok(Self { state })
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -133,7 +133,7 @@ impl ObjDetection {
         let scale = 1.0 / 255.0;
         let mean = core::Scalar::new(0f64, 0f64, 0f64, 0f64);
 
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut detections: opencv::types::VectorOfMat = core::Vector::new();
 
@@ -327,7 +327,7 @@ impl ObjDetection {
 
     pub fn or_1(
         _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
+        outputs: HashMap<String, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {

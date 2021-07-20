@@ -45,7 +45,7 @@ impl VideoSink {
         Self {}
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -57,7 +57,7 @@ impl VideoSink {
     }
 
     pub async fn run_1(_ctx: ZFContext, mut inputs: ZFInput) -> ZFResult<()> {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let window_name = &format!("Video-Sink");
 

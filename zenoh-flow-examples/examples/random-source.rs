@@ -25,14 +25,14 @@ use zenoh_flow::{
 };
 use zenoh_flow_examples::RandomData;
 
-static SOURCE: &str = "Number";
+static SOURCE: &str = "Random";
 
 #[derive(Serialize, Deserialize, Debug, ZFState)]
 struct ExampleRandomSource {}
 
 impl ExampleRandomSource {
     async fn run_1(_ctx: ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
         let d = RandomData {
             d: rand::random::<u64>(),
         };

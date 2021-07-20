@@ -29,7 +29,7 @@ static LINK_ID_INPUT_INT: &str = "Int";
 
 impl ManualSource {
     async fn run(_ctx: ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::with_capacity(1);
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::with_capacity(1);
 
         println!("> Please input a number: ");
         let mut number = String::new();

@@ -81,7 +81,7 @@ impl FaceDetection {
         Self { state }
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -93,7 +93,7 @@ impl FaceDetection {
     }
 
     pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.lock(); //getting state
         let _state = downcast!(FDState, guard.state).unwrap(); //downcasting to right type
@@ -195,7 +195,7 @@ impl OperatorTrait for FaceDetection {
     }
 
     fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
-        Box::new(Self::or_1)
+        Box::new(zenoh_flow::default_output_rule)
     }
 
     fn get_run(&self, ctx: ZFContext) -> Box<FnRun> {

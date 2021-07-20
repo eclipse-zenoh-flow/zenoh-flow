@@ -30,7 +30,7 @@ use zenoh::net::config;
 use zenoh::net::{open, Session};
 use zenoh::ZFuture;
 
-static INPUT: &str = "Frame";
+static INPUT: &str = "Data";
 
 #[derive(Debug)]
 struct ExampleGenericZenohSink {
@@ -59,7 +59,7 @@ impl ExampleGenericZenohSink {
         }
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),

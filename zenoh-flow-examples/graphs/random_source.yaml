@@ -3,15 +3,19 @@ operators: []
 sources:
   - id : RandomGenerator
     uri: file://./target/debug/examples/librandom_source.dylib
-    output: Number
+    output:
+        name: Random
+        type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/debug/examples/libgeneric_sink.dylib
-    input: Number
+    input:
+        name: Data
+        type: usize
 links:
 - from:
     id : RandomGenerator
-    output : Number
+    output : Random
   to:
     id : PrintSink
-    input : Number
+    input : Data

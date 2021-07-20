@@ -74,7 +74,7 @@ impl FrameConcat {
     }
 
     pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.lock(); //getting state
         let _state = downcast!(ConcatState, guard.state).unwrap(); //downcasting to right type

@@ -3,23 +3,39 @@ flow: FizzBuzz
 operators:
   - id: FizzOperator
     uri: file://./target/debug/examples/libexample_fizz.dylib
-    inputs: [Int]
-    outputs: [Int, Str]
+    inputs:
+      - name: Int
+        type: u64
+    outputs:
+      - name: Int
+        type: u64
+      - name: Str
+        type: string
 
   - id: BuzzOperator
     uri: file://./target/debug/examples/libexample_buzz.dylib
-    inputs: [Int, Str]
-    outputs: [Str]
+    inputs:
+      - name: Int
+        type: u64
+      - name: Str
+        type: string
+    outputs:
+      - name: Str
+        type: string
 
 sources:
   - id: ManualSenderOperator
     uri: file://./target/debug/examples/libmanual_source.dylib
-    output: Int
+    output:
+      name: Int
+      type: u64
 
 sinks:
   - id: ReceiverOperator
     uri: file://./target/debug/examples/libgeneric_sink.dylib
-    input: Str
+    input:
+      name: Str
+      type: string
 
 links:
   - from:

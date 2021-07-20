@@ -92,7 +92,7 @@ impl VideoSource {
     }
 
     async fn run_1(ctx: ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.async_lock().await;
         let mut _state = downcast_mut!(VideoState, guard.state).unwrap(); //downcasting to right type
