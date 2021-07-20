@@ -74,7 +74,10 @@ impl SumAndSend {
         Ok(results)
     }
 
-    pub fn or_1(_ctx: ZFContext, outputs: HashMap<String, Arc<dyn DataTrait>>) -> OutputRuleResult {
+    pub fn or_1(
+        _ctx: ZFContext,
+        outputs: HashMap<String, Arc<dyn DataTrait>>,
+    ) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {
             // should be ZFMessage::from_data
