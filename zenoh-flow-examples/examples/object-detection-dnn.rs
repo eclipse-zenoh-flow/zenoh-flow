@@ -269,7 +269,10 @@ impl ObjDetection {
         }
 
         // add label to frame with info
-        let label = format!("DNN Time: {} us - Detected: {}", elapsed, detected);
+        let label = format!(
+            "DNN Inference Time: {} us - Detected: {}",
+            elapsed, detected
+        );
         let mut baseline = 0;
 
         let bg_size = imgproc::get_text_size(

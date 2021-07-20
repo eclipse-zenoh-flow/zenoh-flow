@@ -89,3 +89,10 @@ name = "example-select"
 [[example]]
 name = "video-pipeline"
 
+[[example]]
+name = "video-file-source"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "frame-concat"
+crate-type = ["cdylib"]

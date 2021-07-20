@@ -1,0 +1,43 @@
+flow: CarVideoPipeline # it should have a id, from this we will have an Instance of the graph, UUID => flow
+operators:
+  - id : ObjectDetection # this should be unique in the graph
+    uri: file://./target/release/examples/libobject_detection_dnn.so
+    inputs: [Frame]
+    outputs: [Frame] #port id = String
+    configuration:
+      neural-network: /root/Workspace/experiments/yolov3-road.cfg
+      network-weights: /root/Workspace/experiments/yolov3-road.weights
+      network-classes: /root/Workspace/experiments/coco.names
+sources: # sources can have only ONE output
+  - id : Camera0
+    uri: file://./target/release/examples/libvideo_file_source.dylib
+    output: Frame
+    configuration:
+      file: /Users/gabri/Workspace/experiments/I2.mp4
+      fps: 15
+sinks: # sources can have only ONE input
+  - id : Window
+    uri: file://./target/release/examples/libvideo_sink.so
+    input: Frame
+links:
+- from:
+    id : Camera0
+    output : Frame # Output
+  to:
+    id : ObjectDetection
+    input : Frame # Input
+- from:
+    id : ObjectDetection
+    output : Frame
+  to:
+    id : Window
+    input : Frame
+
+
+mapping:
+  - id: Window
+    runtime: gigot
+  - id: Camera0
+    runtime: macbook
+  - id: ObjectDetection
+    runtime: cuda
