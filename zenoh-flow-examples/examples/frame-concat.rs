@@ -115,6 +115,7 @@ impl FrameConcat {
 
         Ok(results)
     }
+
 }
 
 impl OperatorTrait for FrameConcat {
