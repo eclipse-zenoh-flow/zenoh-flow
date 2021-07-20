@@ -1,26 +1,26 @@
-# Eclipse Zenoh Flow
+# Eclipse Zenoh-Flow
 
-Zenoh Flow aims at providing a Zenoh-based dataflow programming framework for computations that span from the cloud to the device.
+Zenoh-Flow provides a zenoh-based dataflow programming framework for computations that span from the cloud to the device.
 
 :warning: **This software is still in alpha status and should _not_ be used in production. Breaking changes are likely to happen and the API is not stable.**
 
 -----------
 ## Description
 
-Users can describe a dataflow "pipeline" that should run on one or multiple Zenoh Flow instances via a `yaml` file. This file constitutes the entry point of Zenoh Flow.
+Zenoh-Flow allow users to declare a dataflow graph, via a YAML file, and use tags to express location affinity and requirements for the operators that makeup the graph. When deploying the dataflow graph, Zenoh-Flow automatically deals with distribution by linking remote operators through zenoh. 
 
-A pipeline is composed of set of _sources_ — producing data, _operators_ — computing over the data, and _sinks_ — consuming the resulting data. These components are _dynamically_ loaded at runtime.
+A dataflow is composed of set of _sources_ — producing data, _operators_ — computing over the data, and _sinks_ — consuming the resulting data. These components are _dynamically_ loaded at runtime.
 
-The different instances leverage Zenoh’s publish-subscribe model to communicate in a transparent manner for the user, i.e. without any configuration or intervention as Zenoh is built-in.
+Remote source, operators, and sinks leverage zenoh to communicate in a transparent manner. In other terms, the dataflow the dafalow graph retails location transparency and could be deployed in different ways depending on specific needs.
 
-We provide several working examples that illustrate how to author components and the yaml file describing a dataflow pipeline.
+Zenoh-Flow provides several working examples that illustrate how to define operators, sources and sinks as well as how to declaratively define they dataflow graph by means of a YAML file.
 
 -----------
 ## How to build it
 
 Install [Cargo and Rust](https://doc.rust-lang.org/cargo/getting-started/installation.html). Zenoh Flow can be successfully compiled with Rust stable (>= 1.5.1), so no special configuration is required — except for certain examples.
 
-To build Zenoh Flow, just type the following command after having followed the previous instructions:
+To build Zenoh-Flow, just type the following command after having followed the previous instructions:
 
 ```bash
 $ cargo build --release
@@ -29,7 +29,7 @@ $ cargo build --release
 -----------
 ## How to run
 
-If you launched the previous command, the Zenoh Flow runtime is located in `target/release/runtime`. This executable expects the following arguments:
+Assuming that the previous steps completed successfully, you'll find the  the Zenoh-Flow runtime under `target/release/runtime`. This executable expects the following arguments:
 
 - the path of the dataflow graph to execute: `--graph-file zenoh-flow-examples/graphs/fizz_buzz_pipeline.yaml`,
 - a name for the runtime: `--runtime foo`.
