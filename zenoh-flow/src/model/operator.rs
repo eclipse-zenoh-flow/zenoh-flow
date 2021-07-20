@@ -81,6 +81,16 @@ impl std::fmt::Display for ZFSinkRecord {
     }
 }
 
+impl ZFSinkRecord {
+    pub fn get_input_type(&self, id: &str) -> Option<String> {
+        if self.input.name == *id {
+            return Some(self.input.type_name.clone());
+        } else {
+            return None;
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSourceRecord {
     pub id: ZFOperatorId,
@@ -93,6 +103,16 @@ pub struct ZFSourceRecord {
 impl std::fmt::Display for ZFSourceRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Source", self.id)
+    }
+}
+
+impl ZFSourceRecord {
+    pub fn get_output_type(&self, id: &str) -> Option<String> {
+        if self.output.name == *id {
+            return Some(self.output.type_name.clone());
+        } else {
+            return None;
+        }
     }
 }
 
@@ -109,5 +129,21 @@ pub struct ZFOperatorRecord {
 impl std::fmt::Display for ZFOperatorRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Operator", self.id)
+    }
+}
+
+impl ZFOperatorRecord {
+    pub fn get_output_type(&self, id: &str) -> Option<String> {
+        match self.outputs.iter().find(|&lid| *lid.name == *id) {
+            Some(lid) => Some(lid.type_name.clone()),
+            None => None,
+        }
+    }
+
+    pub fn get_input_type(&self, id: &str) -> Option<String> {
+        match self.inputs.iter().find(|&lid| *lid.name == *id) {
+            Some(lid) => Some(lid.type_name.clone()),
+            None => None,
+        }
     }
 }

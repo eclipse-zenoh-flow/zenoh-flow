@@ -54,7 +54,7 @@ async fn main() {
     let dfr =
         zenoh_flow::model::dataflow::DataFlowRecord::from_dataflow_descriptor(mapped).unwrap();
 
-    //write_record_to_file(dfr.clone(), "computed-record.yaml");
+    _write_record_to_file(dfr.clone(), "computed-record.yaml");
 
     // creating graph
     let mut dataflow_graph =

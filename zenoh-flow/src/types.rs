@@ -28,8 +28,15 @@ pub type ZFOperatorId = String;
 pub type ZFZenohResource = String;
 pub type ZFOperatorName = String;
 pub type ZFTimestamp = usize; //TODO: improve it, usize is just a placeholder
-pub type ZFLinkId = String; // TODO: improve it, String is just a placeholder
+
 pub type ZFRuntimeID = String;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ZFLinkId {
+    pub name: String,
+    #[serde(alias = "type")]
+    pub type_name: String,
+}
 
 #[derive(Debug, PartialEq)]
 pub enum ZFError {
@@ -44,13 +51,14 @@ pub enum ZFError {
     VersionMismatch,
     Disconnected,
     Uncompleted(String),
-    PortIdNotMatching((ZFLinkId, ZFLinkId)),
+    // PortIdNotMatching((ZFLinkId, ZFLinkId)),
+    PortTypeNotMatching((String, String)),
     OperatorNotFound(ZFOperatorId),
-    PortNotFound((ZFOperatorId, ZFLinkId)),
+    PortNotFound((ZFOperatorId, String)),
     RecvError(flume::RecvError),
     SendError(String),
-    MissingInput(ZFLinkId),
-    InvalidData(ZFLinkId),
+    MissingInput(String),
+    InvalidData(String),
     IOError(String),
     ZenohError(String),
     LoadingError(String),
@@ -149,16 +157,16 @@ pub type InputRuleResult = ZFResult<bool>;
 
 // CAUTION, USER CAN DO NASTY THINGS, eg. remove a link we have passed to him.
 pub type FnInputRule =
-    dyn Fn(ZFContext, &mut HashMap<ZFLinkId, Token>) -> InputRuleResult + Send + Sync + 'static;
+    dyn Fn(ZFContext, &mut HashMap<String, Token>) -> InputRuleResult + Send + Sync + 'static;
 
 pub type OutputRuleResult = ZFResult<HashMap<ZFLinkId, Message>>;
 
-pub type FnOutputRule = dyn Fn(ZFContext, HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> OutputRuleResult
+pub type FnOutputRule = dyn Fn(ZFContext, HashMap<String, Arc<dyn DataTrait>>) -> OutputRuleResult
     + Send
     + Sync
     + 'static;
 
-pub type RunResult = ZFResult<HashMap<ZFLinkId, Arc<dyn DataTrait>>>;
+pub type RunResult = ZFResult<HashMap<String, Arc<dyn DataTrait>>>;
 
 pub type FnRun = dyn Fn(ZFContext, ZFInput) -> RunResult + Send + Sync + 'static;
 
@@ -388,29 +396,29 @@ impl From<TokenData> for ZFData {
 }
 
 #[derive(Debug, Clone)]
-pub struct ZFInput(HashMap<ZFLinkId, ZFData>);
+pub struct ZFInput(HashMap<String, ZFData>);
 
 impl ZFInput {
     pub fn new() -> Self {
         Self(HashMap::new())
     }
 
-    pub fn insert(&mut self, id: ZFLinkId, data: ZFData) -> Option<ZFData> {
+    pub fn insert(&mut self, id: String, data: ZFData) -> Option<ZFData> {
         self.0.insert(id, data)
     }
 
-    pub fn get(&self, id: &ZFLinkId) -> Option<&ZFData> {
+    pub fn get(&self, id: &String) -> Option<&ZFData> {
         self.0.get(id)
     }
 
-    pub fn get_mut(&mut self, id: &ZFLinkId) -> Option<&mut ZFData> {
+    pub fn get_mut(&mut self, id: &String) -> Option<&mut ZFData> {
         self.0.get_mut(id)
     }
 }
 
 impl<'a> IntoIterator for &'a ZFInput {
-    type Item = (&'a ZFLinkId, &'a ZFData);
-    type IntoIter = std::collections::hash_map::Iter<'a, ZFLinkId, ZFData>;
+    type Item = (&'a String, &'a ZFData);
+    type IntoIter = std::collections::hash_map::Iter<'a, String, ZFData>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
@@ -433,7 +441,7 @@ impl StateTrait for EmptyState {
 
 pub fn default_output_rule(
     _ctx: ZFContext,
-    outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
+    outputs: HashMap<String, Arc<dyn DataTrait>>,
 ) -> OutputRuleResult {
     let mut results = HashMap::new();
     for (k, v) in outputs {
@@ -446,7 +454,7 @@ pub fn default_output_rule(
 
 pub fn default_input_rule(
     _ctx: ZFContext,
-    inputs: &mut HashMap<ZFLinkId, Token>,
+    inputs: &mut HashMap<String, Token>,
 ) -> InputRuleResult {
     for token in inputs.values() {
         match token {

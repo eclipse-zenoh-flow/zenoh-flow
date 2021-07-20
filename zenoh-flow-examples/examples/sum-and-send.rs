@@ -36,7 +36,7 @@ struct SumAndSendState {
 }
 
 static INPUT: &str = "Number";
-static OUTPUT: &str = "Number";
+static OUTPUT: &str = "Sum";
 
 impl SumAndSend {
     pub fn new() -> Self {
@@ -47,7 +47,7 @@ impl SumAndSend {
         }
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -59,7 +59,7 @@ impl SumAndSend {
     }
 
     pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.lock(); //getting the context
         let mut _state = downcast_mut!(SumAndSendState, guard.state).unwrap(); //getting and downcasting  state to right type
@@ -76,7 +76,7 @@ impl SumAndSend {
 
     pub fn or_1(
         _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
+        outputs: HashMap<String, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {

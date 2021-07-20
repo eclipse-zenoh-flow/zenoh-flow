@@ -27,11 +27,11 @@ pub struct ZFLinkDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFFromEndpoint {
     pub id: ZFOperatorId,
-    pub output: ZFLinkId,
+    pub output: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFToEndpoint {
     pub id: ZFOperatorId,
-    pub input: ZFLinkId,
+    pub input: String,
 }

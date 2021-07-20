@@ -27,7 +27,7 @@ use zenoh_flow::{
 struct ExampleGenericSink {}
 
 impl ExampleGenericSink {
-    pub fn ir_1(_ctx: ZFContext, _inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, _inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         Ok(true)
     }
 
