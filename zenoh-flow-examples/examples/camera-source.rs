@@ -180,6 +180,6 @@ extern "C" fn register(
         Some(config) => {
             Ok(Box::new(CameraSource::new(config)) as Box<dyn zenoh_flow::SourceTrait + Send>)
         }
-        None => Err(ZFError::MissingConfiguration),
+        None => Ok(Box::new(CameraSource::new(HashMap::new())) as Box<dyn zenoh_flow::SourceTrait + Send>),
     }
 }
