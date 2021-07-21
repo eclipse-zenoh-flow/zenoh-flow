@@ -257,18 +257,18 @@ impl ZFSourceRunner {
             let timestamp = self.hlc.new_timestamp();
 
             // Send to Links
-            for (id, message) in out_msgs.drain() {
-                log::debug!("Sending on {:?} data: {:?}", id, message);
-
-                if let Some(links) = self.outputs.get(&id) {
-                    let zf_msg = Arc::new(ZFMessage {
-                        timestamp: timestamp.clone(),
-                        message,
-                    });
-
-                    for tx in links {
-                        log::debug!("Sending on: {:?}", tx);
-                        tx.send(zf_msg.clone()).await?;
+            for (id, zf_msg) in out_msgs {
+                log::debug!("Sending on {:?} data: {:?}", id, zf_msg);
+                //getting link
+                let tx = self.outputs.iter().find(|&x| x.id() == id).ok_or(ZFError::MissingOutput(id))?;
+                //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
+                match zf_msg.msg {
+                    Message::Data(_) => {
+                        tx.send(zf_msg).await?;
+                    }
+                    Message::Ctrl(_) => {
+                        // here we process should process control messages (eg. change mode)
+                        //tx.send(zf_msg);
                     }
                 }
             }
