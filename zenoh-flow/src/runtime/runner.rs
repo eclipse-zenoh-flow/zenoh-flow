@@ -16,7 +16,7 @@ use crate::async_std::sync::Arc;
 use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::{Message, ZFMessage};
-use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFLinkId, ZFResult};
+use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFLinkId, ZFResult, ZFError};
 use crate::{OperatorTrait, SinkTrait, SourceTrait};
 use futures::future;
 use libloading::Library;

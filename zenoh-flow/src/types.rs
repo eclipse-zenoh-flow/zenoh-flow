@@ -51,13 +51,13 @@ pub enum ZFError {
     VersionMismatch,
     Disconnected,
     Uncompleted(String),
-    // PortIdNotMatching((ZFLinkId, ZFLinkId)),
     PortTypeNotMatching((String, String)),
     OperatorNotFound(ZFOperatorId),
     PortNotFound((ZFOperatorId, String)),
     RecvError(flume::RecvError),
     SendError(String),
     MissingInput(String),
+    MissingOutput(String),
     InvalidData(String),
     IOError(String),
     ZenohError(String),
@@ -452,10 +452,7 @@ pub fn default_output_rule(
     Ok(results)
 }
 
-pub fn default_input_rule(
-    _ctx: ZFContext,
-    inputs: &mut HashMap<String, Token>,
-) -> InputRuleResult {
+pub fn default_input_rule(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
     for token in inputs.values() {
         match token {
             Token::Ready(_) => continue,

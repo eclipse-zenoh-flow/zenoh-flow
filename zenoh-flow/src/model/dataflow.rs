@@ -20,7 +20,7 @@ use crate::model::operator::{
 };
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{ZFError, ZFOperatorId, ZFResult, ZFRuntimeID, ZFLinkId};
+use crate::types::{ZFError, ZFLinkId, ZFOperatorId, ZFResult, ZFRuntimeID};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -212,7 +212,12 @@ impl DataFlowRecord {
 
             let from_type = match self.find_component_output_type(&l.from.id, &l.from.output) {
                 Some(t) => t,
-                None => return Err(ZFError::PortNotFound((l.from.id.clone(), l.from.output.clone()))),
+                None => {
+                    return Err(ZFError::PortNotFound((
+                        l.from.id.clone(),
+                        l.from.output.clone(),
+                    )))
+                }
             };
 
             let to_type = match self.find_component_input_type(&l.to.id, &l.to.input) {
