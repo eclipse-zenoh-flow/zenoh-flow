@@ -5,9 +5,9 @@ operators:
     inputs: [Frame]
     outputs: [Frame] #port id = String
     configuration:
-      neural-network: /home/gabri/Workspace/experiments/yolov3-face.cfg
-      network-weights: /home/gabri/Workspace/experiments/yolov3-wider_16000.weights
-      network-classes: /home/gabri/Workspace/experiments/face_classes.txt
+      neural-network: /home/luca/Workspace/experiments/yolov3-face.cfg
+      network-weights: /home/luca/Workspace/experiments/yolov3-wider_16000.weights
+      network-classes: /home/luca/Workspace/experiments/face_classes.txt
 sources: # sources can have only ONE output
   - id : Camera0
     uri: file://./target/release/examples/libcamera_source.so

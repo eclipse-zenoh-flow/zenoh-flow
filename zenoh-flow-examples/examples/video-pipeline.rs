@@ -258,7 +258,7 @@ async fn main() {
         )
         .unwrap();
 
-    zf_graph.make_connections("local").await;
+    zf_graph.make_connections("self").await;
 
     let runners = zf_graph.get_runners();
     for runner in runners {

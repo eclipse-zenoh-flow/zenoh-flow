@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::io;
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
-    runtime::message::ZFMessage,
+    runtime::message::Message,
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
@@ -116,17 +116,6 @@ impl FrameConcat {
         Ok(results)
     }
 
-    pub fn or_1(
-        _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
-    ) -> OutputRuleResult {
-        let mut results = HashMap::new();
-        for (k, v) in outputs {
-            // should be ZFMessage::from_data
-            results.insert(k, Arc::new(ZFMessage::from_data(v)));
-        }
-        Ok(results)
-    }
 }
 
 impl OperatorTrait for FrameConcat {
