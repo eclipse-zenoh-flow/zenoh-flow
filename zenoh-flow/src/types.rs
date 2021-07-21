@@ -21,6 +21,7 @@ use std::collections::HashMap;
 use std::convert::From;
 use std::fmt::Debug;
 use std::pin::Pin;
+use uhlc::Timestamp;
 
 // Placeholder types
 pub type ZFOperatorId = String;
@@ -105,18 +106,15 @@ pub struct ZFContext(Arc<Mutex<ZFInnerCtx>>); //TODO: have only state inside Mut
 
 impl ZFContext {
     pub fn new(state: Box<dyn StateTrait>, mode: usize) -> Self {
-        let inner = Arc::new(Mutex::new(ZFInnerCtx {
-            mode: mode,
-            state: state,
-        }));
+        let inner = Arc::new(Mutex::new(ZFInnerCtx { state, mode }));
         Self(inner)
     }
 
-    pub async fn async_lock<'a>(&'a self) -> MutexGuard<'a, ZFInnerCtx> {
+    pub async fn async_lock(&'_ self) -> MutexGuard<'_, ZFInnerCtx> {
         self.0.lock().await
     }
 
-    pub fn lock<'a>(&'a self) -> MutexGuard<'a, ZFInnerCtx> {
+    pub fn lock(&self) -> MutexGuard<ZFInnerCtx> {
         crate::zf_spin_lock!(self.0)
     }
 }
@@ -153,7 +151,7 @@ pub type InputRuleResult = ZFResult<bool>;
 pub type FnInputRule =
     dyn Fn(ZFContext, &mut HashMap<ZFLinkId, Token>) -> InputRuleResult + Send + Sync + 'static;
 
-pub type OutputRuleResult = ZFResult<HashMap<ZFLinkId, Arc<ZFMessage>>>;
+pub type OutputRuleResult = ZFResult<HashMap<ZFLinkId, Message>>;
 
 pub type FnOutputRule = dyn Fn(ZFContext, HashMap<ZFLinkId, Arc<dyn DataTrait>>) -> OutputRuleResult
     + Send
@@ -208,16 +206,7 @@ pub enum TokenAction {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct NotReadyToken {
-    pub ts: ZFTimestamp,
-}
-
-impl NotReadyToken {
-    /// Creates a `NotReadyToken` with its timestamp set to 0.
-    pub fn new() -> Self {
-        NotReadyToken { ts: 0 }
-    }
-}
+pub struct NotReadyToken;
 
 #[derive(Debug, Clone)]
 pub enum TokenData {
@@ -244,28 +233,31 @@ impl TokenData {
 //TODO: improve
 #[derive(Debug, Clone)]
 pub struct ReadyToken {
-    pub ts: ZFTimestamp,
+    pub timestamp: Timestamp,
     pub data: TokenData,
     pub action: TokenAction,
 }
 
 #[derive(Debug, Clone)]
 pub enum Token {
-    NotReady(NotReadyToken),
+    NotReady,
     Ready(ReadyToken),
 }
 
 impl Token {
-    pub fn new_ready(ts: ZFTimestamp, data: TokenData) -> Self {
+    pub fn new_ready(timestamp: Timestamp, data: TokenData) -> Self {
         Self::Ready(ReadyToken {
-            ts,
+            timestamp,
             data,
             action: TokenAction::Consume,
         })
     }
 
-    pub fn new_not_ready(ts: ZFTimestamp) -> Self {
-        Self::NotReady(NotReadyToken { ts })
+    pub fn get_timestamp(&self) -> Option<Timestamp> {
+        match self {
+            Self::NotReady => None,
+            Self::Ready(token) => Some(token.timestamp.clone()),
+        }
     }
 
     pub fn is_ready(&self) -> bool {
@@ -277,7 +269,7 @@ impl Token {
 
     pub fn is_not_ready(&self) -> bool {
         match self {
-            Self::NotReady(_) => true,
+            Self::NotReady => true,
             _ => false,
         }
     }
@@ -332,30 +324,30 @@ impl Token {
     pub fn action<'a>(&'a self) -> &'a TokenAction {
         match self {
             Self::Ready(ready) => &ready.action,
-            Self::NotReady(_) => &TokenAction::Wait,
+            Self::NotReady => &TokenAction::Wait,
         }
     }
 
     pub fn split(self) -> (Option<TokenData>, TokenAction) {
         match self {
             Self::Ready(ready) => (Some(ready.data), ready.action),
-            Self::NotReady(_) => (None, TokenAction::Wait),
+            Self::NotReady => (None, TokenAction::Wait),
         }
     }
 }
 
 impl From<Arc<ZFMessage>> for Token {
     fn from(msg: Arc<ZFMessage>) -> Self {
-        match &msg.msg {
-            Message::Ctrl(_) => Token::NotReady(NotReadyToken { ts: msg.ts }),
+        match &msg.message {
+            Message::Ctrl(_) => Token::NotReady,
             Message::Data(data_msg) => match data_msg {
                 ZFDataMessage::Serialized(ser) => Token::Ready(ReadyToken {
-                    ts: msg.ts,
+                    timestamp: msg.timestamp.clone(),
                     action: TokenAction::Consume,
                     data: TokenData::Serialized(ser.clone()), //Use ZBuf
                 }),
                 ZFDataMessage::Deserialized(de) => Token::Ready(ReadyToken {
-                    ts: msg.ts,
+                    timestamp: msg.timestamp.clone(),
                     action: TokenAction::Consume,
                     data: TokenData::Deserialized(de.clone()),
                 }),
@@ -446,8 +438,9 @@ pub fn default_output_rule(
     let mut results = HashMap::new();
     for (k, v) in outputs {
         // should be ZFMessage::from_data
-        results.insert(k, Arc::new(ZFMessage::from_data(v)));
+        results.insert(k, Message::from_data(v));
     }
+
     Ok(results)
 }
 
@@ -458,7 +451,7 @@ pub fn default_input_rule(
     for token in inputs.values() {
         match token {
             Token::Ready(_) => continue,
-            Token::NotReady(_) => return Ok(false),
+            Token::NotReady => return Ok(false),
         }
     }
 

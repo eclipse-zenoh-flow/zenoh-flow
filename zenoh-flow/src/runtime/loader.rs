@@ -17,8 +17,10 @@ use crate::runtime::runner::{
     ZFSourceRunner,
 };
 use crate::types::{ZFError, ZFResult};
+use async_std::sync::Arc;
 use libloading::Library;
 use std::collections::HashMap;
+use uhlc::HLC;
 use url::Url;
 
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -30,18 +32,20 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 ///
 /// TODO remove all copy-pasted code, make macros/functions instead
 pub fn load_operator(
+    hlc: Arc<HLC>,
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFOperatorRunner> {
     let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_operator(make_file_path(uri), configuration) },
+        "file" => unsafe { load_lib_operator(hlc, make_file_path(uri), configuration) },
         _ => Err(ZFError::Unimplemented),
     }
 }
 
 pub unsafe fn load_lib_operator(
+    hlc: Arc<HLC>,
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFOperatorRunner> {
@@ -59,25 +63,27 @@ pub unsafe fn load_lib_operator(
 
     let operator = (decl.register)(configuration)?;
 
-    let runner = ZFOperatorRunner::new(operator, Some(library));
+    let runner = ZFOperatorRunner::new(hlc, operator, Some(library));
     Ok(runner)
 }
 
 // SOURCE
 
 pub fn load_source(
+    hlc: Arc<HLC>,
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFSourceRunner> {
     let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_source(make_file_path(uri), configuration) },
+        "file" => unsafe { load_lib_source(hlc, make_file_path(uri), configuration) },
         _ => Err(ZFError::Unimplemented),
     }
 }
 
 pub unsafe fn load_lib_source(
+    hlc: Arc<HLC>,
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFSourceRunner> {
@@ -94,7 +100,7 @@ pub unsafe fn load_lib_source(
 
     let source = (decl.register)(configuration)?;
 
-    let runner = ZFSourceRunner::new(source, Some(library));
+    let runner = ZFSourceRunner::new(hlc, source, Some(library));
     Ok(runner)
 }
 

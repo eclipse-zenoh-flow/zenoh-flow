@@ -14,12 +14,13 @@
 
 extern crate serde;
 
-use crate::{DataTrait, ZFTimestamp};
+use crate::DataTrait;
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use uhlc::Timestamp;
 
-//TODO: improve
+// TODO: improve
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ZFDataMessage {
     Serialized(Arc<Vec<u8>>),
@@ -66,36 +67,42 @@ pub enum Message {
     Ctrl(ZFCtrlMessage),
 }
 
-//TODO: improve
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ZFMessage {
-    pub ts: ZFTimestamp,
-    pub msg: Message,
-}
-
-impl ZFMessage {
+impl Message {
     pub fn from_raw(data: Arc<Vec<u8>>) -> Self {
-        Self {
-            ts: 0, //placeholder
-            msg: Message::Data(ZFDataMessage::new_serialized(data)),
-        }
+        Message::Data(ZFDataMessage::new_serialized(data))
     }
 
     pub fn from_data(data: Arc<dyn DataTrait>) -> Self {
+        Message::Data(ZFDataMessage::new_deserialized(data))
+    }
+}
+
+// TODO: improve
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ZFMessage {
+    pub timestamp: Timestamp,
+    pub message: Message,
+}
+
+impl ZFMessage {
+    pub fn from_raw(timestamp: Timestamp, data: Arc<Vec<u8>>) -> Self {
         Self {
-            ts: 0, //placeholder
-            msg: Message::Data(ZFDataMessage::new_deserialized(data)),
+            timestamp,
+            message: Message::from_raw(data),
         }
     }
 
-    pub fn from_message(msg: ZFDataMessage) -> Self {
+    pub fn from_data(timestamp: Timestamp, data: Arc<dyn DataTrait>) -> Self {
         Self {
-            ts: 0, //placeholder
-            msg: Message::Data(msg),
+            timestamp,
+            message: Message::from_data(data),
         }
     }
 
-    pub fn timestamp(&self) -> &ZFTimestamp {
-        &self.ts
+    pub fn from_message(timestamp: Timestamp, msg: ZFDataMessage) -> Self {
+        Self {
+            timestamp,
+            message: Message::Data(msg),
+        }
     }
 }

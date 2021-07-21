@@ -16,7 +16,7 @@ use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
     export_operator, get_input,
-    runtime::message::ZFMessage,
+    runtime::message::Message,
     types::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait, ZFInput, ZFResult,
@@ -36,7 +36,7 @@ impl BuzzOperator {
         for token in inputs.values() {
             match token {
                 Token::Ready(_) => continue,
-                Token::NotReady(_) => return Ok(false),
+                Token::NotReady => return Ok(false),
             }
         }
 
@@ -63,13 +63,11 @@ impl BuzzOperator {
         _ctx: ZFContext,
         outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
-        let mut zf_outputs: HashMap<ZFLinkId, Arc<ZFMessage>> = HashMap::with_capacity(1);
+        let mut zf_outputs: HashMap<ZFLinkId, Message> = HashMap::with_capacity(1);
 
         zf_outputs.insert(
             String::from(LINK_ID_OUTPUT_STR),
-            Arc::new(ZFMessage::from_data(
-                outputs.get(LINK_ID_OUTPUT_STR).unwrap().clone(),
-            )),
+            Message::from_data(outputs.get(LINK_ID_OUTPUT_STR).unwrap().clone()),
         );
 
         Ok(zf_outputs)

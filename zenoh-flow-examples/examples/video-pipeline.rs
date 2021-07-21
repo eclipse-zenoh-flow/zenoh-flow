@@ -169,7 +169,7 @@ impl VideoSink {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
-                Token::NotReady(_) => Ok(false),
+                Token::NotReady => Ok(false),
             }
         } else {
             Err(ZFError::MissingInput(String::from(INPUT)))
@@ -219,9 +219,11 @@ async fn main() {
 
     let source = Box::new(CameraSource::new());
     let sink = Box::new(VideoSink::new());
+    let hlc = Arc::new(uhlc::HLC::default());
 
     zf_graph
         .add_static_source(
+            hlc,
             "camera-source".to_string(),
             // "camera".to_string(),
             String::from(SOURCE),

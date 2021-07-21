@@ -63,7 +63,7 @@ impl ExampleGenericZenohSink {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
-                Token::NotReady(_) => Ok(false),
+                Token::NotReady => Ok(false),
             }
         } else {
             Err(ZFError::MissingInput(String::from(INPUT)))

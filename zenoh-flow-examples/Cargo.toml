@@ -24,6 +24,7 @@ typetag = "0.1"
 log = "0.4"
 bincode = "1"
 zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master", default-features = false, features = ["transport_tcp","transport_udp"]  }
+uhlc = { git = "https://github.com/atolab/uhlc-rs.git", branch = "master" }
 
 [dev-dependencies]
 rand = "0.8.0"

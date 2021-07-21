@@ -21,6 +21,7 @@ use crate::{OperatorTrait, SinkTrait, SourceTrait};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
+use uhlc::HLC;
 use zenoh::net::Session;
 
 pub enum Runner {
@@ -73,6 +74,7 @@ pub struct ZFOperatorDeclaration {
 }
 
 pub struct ZFOperatorRunner {
+    pub hlc: Arc<HLC>,
     pub operator: Box<dyn OperatorTrait + Send>,
     pub lib: Option<Library>,
     pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
@@ -80,8 +82,13 @@ pub struct ZFOperatorRunner {
 }
 
 impl ZFOperatorRunner {
-    pub fn new(operator: Box<dyn OperatorTrait + Send>, lib: Option<Library>) -> Self {
+    pub fn new(
+        hlc: Arc<HLC>,
+        operator: Box<dyn OperatorTrait + Send>,
+        lib: Option<Library>,
+    ) -> Self {
         Self {
+            hlc,
             operator,
             lib,
             inputs: vec![],
@@ -111,7 +118,7 @@ impl ZFOperatorRunner {
             let mut msgs: HashMap<ZFLinkId, Token> = HashMap::new();
 
             for i in &self.inputs {
-                msgs.insert(i.id(), Token::new_not_ready(0));
+                msgs.insert(i.id(), Token::NotReady);
             }
 
             let ir_fn = self.operator.get_input_rule(ctx.clone());
@@ -126,11 +133,29 @@ impl ZFOperatorRunner {
             // Running
             let run_fn = self.operator.get_run(ctx.clone());
             let mut data = ZFInput::new();
+            let mut max_token_timestamp = None;
 
-            for (id, v) in msgs {
-                let (d, _) = v.split();
+            for (id, token) in msgs {
+                // Keep the biggest timestamp (i.e. most recent) associated to the inputs. This
+                // timestamp will be reported to all outputs.
+                let token_timestamp = token.get_timestamp();
+                max_token_timestamp = match (&max_token_timestamp, &token_timestamp) {
+                    (None, _) => token_timestamp,
+                    (Some(_), None) => max_token_timestamp,
+                    (Some(max_time), Some(time)) => {
+                        if max_time < time {
+                            token_timestamp
+                        } else {
+                            max_token_timestamp
+                        }
+                    }
+                };
+
+                let (d, _) = token.split();
                 data.insert(id, ZFData::from(d.unwrap()));
             }
+
+            let timestamp = max_token_timestamp.unwrap_or_else(|| self.hlc.new_timestamp());
 
             let outputs = run_fn(ctx.clone(), data)?;
 
@@ -140,21 +165,18 @@ impl ZFOperatorRunner {
             let out_msgs = out_fn(ctx.clone(), outputs)?;
 
             // Send to Links
-            for (id, zf_msg) in out_msgs {
+            for (id, message) in out_msgs {
                 // getting link
-                log::debug!("id: {:?}, zf_msg: {:?}", id, zf_msg);
+                log::debug!("id: {:?}, message: {:?}", id, message);
                 if let Some(links) = self.outputs.get(&id) {
+                    let zf_msg = Arc::new(ZFMessage {
+                        timestamp: timestamp.clone(),
+                        message,
+                    });
+
                     for tx in links {
                         log::debug!("Sending on: {:?}", tx);
-                        match zf_msg.msg {
-                            Message::Data(_) => {
-                                tx.send(zf_msg.clone()).await?;
-                            }
-                            Message::Ctrl(_) => {
-                                // here we process should process control messages (eg. change mode)
-                                // tx.send(zf_msg);
-                            }
-                        }
+                        tx.send(zf_msg.clone()).await?;
                     }
                 }
             }
@@ -190,22 +212,29 @@ pub trait ZFSourceRegistrarTrait {
 }
 
 pub struct ZFSourceRunner {
+    pub hlc: Arc<HLC>,
     pub operator: Box<dyn SourceTrait + Send>,
     pub lib: Option<Library>,
-    pub outputs: Vec<ZFLinkSender<ZFMessage>>,
+    pub outputs: HashMap<ZFLinkId, Vec<ZFLinkSender<ZFMessage>>>,
 }
 
 impl ZFSourceRunner {
-    pub fn new(operator: Box<dyn SourceTrait + Send>, lib: Option<Library>) -> Self {
+    pub fn new(hlc: Arc<HLC>, operator: Box<dyn SourceTrait + Send>, lib: Option<Library>) -> Self {
         Self {
+            hlc,
             operator,
             lib,
-            outputs: vec![],
+            outputs: HashMap::new(),
         }
     }
 
     pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {
-        self.outputs.push(output);
+        let key = output.id();
+        if let Some(links) = self.outputs.get_mut(&key) {
+            links.push(output);
+        } else {
+            self.outputs.insert(key, vec![output]);
+        }
     }
 
     pub async fn run(&mut self) -> ZFResult<()> {
@@ -217,25 +246,27 @@ impl ZFSourceRunner {
             let run_fn = self.operator.get_run(ctx.clone());
             let outputs = run_fn(ctx.clone()).await?;
 
-            //Output
+            // Output
             let out_fn = self.operator.get_output_rule(ctx.clone());
 
-            let out_msgs = out_fn(ctx.clone(), outputs)?;
+            let mut out_msgs = out_fn(ctx.clone(), outputs)?;
             log::debug!("Outputs: {:?}", self.outputs);
 
+            let timestamp = self.hlc.new_timestamp();
+
             // Send to Links
-            for (id, zf_msg) in out_msgs {
-                log::debug!("Sending on {:?} data: {:?}", id, zf_msg);
-                //getting link
-                let tx = self.outputs.iter().find(|&x| x.id() == id).unwrap();
-                //println!("Tx: {:?} Receivers: {:?}", tx.inner.tx, tx.inner.tx.receiver_count());
-                match zf_msg.msg {
-                    Message::Data(_) => {
-                        tx.send(zf_msg).await?;
-                    }
-                    Message::Ctrl(_) => {
-                        // here we process should process control messages (eg. change mode)
-                        //tx.send(zf_msg);
+            for (id, message) in out_msgs.drain() {
+                log::debug!("Sending on {:?} data: {:?}", id, message);
+
+                if let Some(links) = self.outputs.get(&id) {
+                    let zf_msg = Arc::new(ZFMessage {
+                        timestamp: timestamp.clone(),
+                        message,
+                    });
+
+                    for tx in links {
+                        log::debug!("Sending on: {:?}", tx);
+                        tx.send(zf_msg.clone()).await?;
                     }
                 }
             }
@@ -292,7 +323,7 @@ impl ZFSinkRunner {
             let mut msgs: HashMap<ZFLinkId, Token> = HashMap::new();
 
             for i in self.inputs.iter() {
-                msgs.insert(i.id(), Token::new_not_ready(0));
+                msgs.insert(i.id(), Token::NotReady);
             }
 
             let ir_fn = self.operator.get_input_rule(ctx.clone());
@@ -334,7 +365,7 @@ macro_rules! run_input_rules {
             match future::select_all($links).await {
                 // this could be "slow" as suggested by LC
                 (Ok((id, msg)), _i, remaining) => {
-                    match &msg.msg {
+                    match &msg.message {
                         Message::Data(_) => {
                             $tokens.insert(id, Token::from(msg));
 

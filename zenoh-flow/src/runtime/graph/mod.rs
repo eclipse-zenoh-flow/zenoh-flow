@@ -22,6 +22,7 @@ use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 use std::collections::HashMap;
+use uhlc::HLC;
 use zenoh::ZFuture;
 
 use crate::model::dataflow::DataFlowRecord;
@@ -155,6 +156,7 @@ impl DataFlowGraph {
 
     pub fn add_static_operator(
         &mut self,
+        hlc: Arc<HLC>,
         id: ZFOperatorId,
         inputs: Vec<ZFLinkId>,
         outputs: Vec<ZFLinkId>,
@@ -174,7 +176,7 @@ impl DataFlowGraph {
                 .add_node(DataFlowNode::Operator(descriptor.clone())),
             DataFlowNode::Operator(descriptor),
         ));
-        let runner = Runner::Operator(ZFOperatorRunner::new(operator, None));
+        let runner = Runner::Operator(ZFOperatorRunner::new(hlc, operator, None));
         self.operators_runners.insert(
             id,
             (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Operator),
@@ -184,6 +186,7 @@ impl DataFlowGraph {
 
     pub fn add_static_source(
         &mut self,
+        hlc: Arc<HLC>,
         id: ZFOperatorId,
         output: ZFLinkId,
         source: Box<dyn crate::SourceTrait + Send>,
@@ -201,7 +204,7 @@ impl DataFlowGraph {
                 .add_node(DataFlowNode::Source(descriptor.clone())),
             DataFlowNode::Source(descriptor),
         ));
-        let runner = Runner::Source(ZFSourceRunner::new(source, None));
+        let runner = Runner::Source(ZFSourceRunner::new(hlc, source, None));
         self.operators_runners
             .insert(id, (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Source));
         Ok(())
@@ -299,6 +302,8 @@ impl DataFlowGraph {
 
     pub fn load(&mut self, runtime: &str) -> ZFResult<()> {
         let session = Arc::new(zenoh::net::open(zenoh::net::config::peer()).wait()?);
+        let hlc = Arc::new(uhlc::HLC::default());
+
         for (_, op) in &self.operators {
             if op.get_runtime() != runtime {
                 continue;
@@ -308,7 +313,11 @@ impl DataFlowGraph {
                 DataFlowNode::Operator(inner) => {
                     match &inner.uri {
                         Some(uri) => {
-                            let runner = load_operator(uri.clone(), inner.configuration.clone())?;
+                            let runner = load_operator(
+                                hlc.clone(),
+                                uri.clone(),
+                                inner.configuration.clone(),
+                            )?;
                             let runner = Runner::Operator(runner);
                             self.operators_runners.insert(
                                 inner.id.clone(),
@@ -323,7 +332,8 @@ impl DataFlowGraph {
                 DataFlowNode::Source(inner) => {
                     match &inner.uri {
                         Some(uri) => {
-                            let runner = load_source(uri.clone(), inner.configuration.clone())?;
+                            let runner =
+                                load_source(hlc.clone(), uri.clone(), inner.configuration.clone())?;
                             let runner = Runner::Source(runner);
                             self.operators_runners.insert(
                                 inner.id.clone(),

@@ -25,7 +25,7 @@ use std::{
 };
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
-    runtime::message::ZFMessage,
+    runtime::message::Message,
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
@@ -122,7 +122,7 @@ impl ObjDetection {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
-                Token::NotReady(_) => Ok(false),
+                Token::NotReady => Ok(false),
             }
         } else {
             Err(ZFError::MissingInput(String::from(INPUT)))
@@ -331,8 +331,7 @@ impl ObjDetection {
     ) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {
-            // should be ZFMessage::from_data
-            results.insert(k, Arc::new(ZFMessage::from_data(v)));
+            results.insert(k, Message::from_data(v));
         }
         Ok(results)
     }
