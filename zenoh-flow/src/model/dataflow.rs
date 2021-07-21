@@ -20,7 +20,7 @@ use crate::model::operator::{
 };
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{ZFError, ZFLinkId, ZFOperatorId, ZFResult, ZFRuntimeID};
+use crate::types::{ZFError, ZFOperatorId, ZFPortDescriptor, ZFResult, ZFRuntimeID};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -210,19 +210,24 @@ impl DataFlowRecord {
                 }
             };
 
-            let from_type = match self.find_component_output_type(&l.from.id, &l.from.output) {
+            let from_type = match self.find_component_output_type(&l.from.id, &l.from.output_id) {
                 Some(t) => t,
                 None => {
                     return Err(ZFError::PortNotFound((
                         l.from.id.clone(),
-                        l.from.output.clone(),
+                        l.from.output_id.clone(),
                     )))
                 }
             };
 
-            let to_type = match self.find_component_input_type(&l.to.id, &l.to.input) {
+            let to_type = match self.find_component_input_type(&l.to.id, &l.to.input_id) {
                 Some(t) => t,
-                None => return Err(ZFError::PortNotFound((l.to.id.clone(), l.to.input.clone()))),
+                None => {
+                    return Err(ZFError::PortNotFound((
+                        l.to.id.clone(),
+                        l.to.input_id.clone(),
+                    )))
+                }
             };
 
             if from_type != to_type {
@@ -243,7 +248,7 @@ impl DataFlowRecord {
                 // creating zenoh resource name
                 let z_resource_name = format!(
                     "/zf/data/{}/{}/{}/{}",
-                    &self.flow, &self.uuid, &l.from.id, &l.from.output
+                    &self.flow, &self.uuid, &l.from.id, &l.from.output_id
                 );
 
                 // We only create a sender if none was created for the same resource. The rationale
@@ -257,15 +262,15 @@ impl DataFlowRecord {
                     // creating sender
                     let sender_id = format!(
                         "sender-{}-{}-{}-{}",
-                        &self.flow, &self.uuid, &l.from.id, &l.from.output
+                        &self.flow, &self.uuid, &l.from.id, &l.from.output_id
                     );
                     let sender = ZFConnectorRecord {
                         kind: ZFConnectorKind::Sender,
                         id: sender_id.clone(),
                         resource: z_resource_name.clone(),
-                        link_id: ZFLinkId {
-                            name: l.from.output.clone(),
-                            type_name: String::from(from_type),
+                        link_id: ZFPortDescriptor {
+                            port_id: l.from.output_id.clone(),
+                            port_type: String::from(from_type),
                         },
 
                         runtime: from_runtime,
@@ -276,7 +281,7 @@ impl DataFlowRecord {
                         from: l.from.clone(),
                         to: ZFToEndpoint {
                             id: sender_id,
-                            input: l.from.output.clone(),
+                            input_id: l.from.output_id.clone(),
                         },
                         size: None,
                         queueing_policy: None,
@@ -291,15 +296,15 @@ impl DataFlowRecord {
                 // creating receiver
                 let receiver_id = format!(
                     "receiver-{}-{}-{}-{}",
-                    &self.flow, &self.uuid, &l.to.id, &l.to.input
+                    &self.flow, &self.uuid, &l.to.id, &l.to.input_id
                 );
                 let receiver = ZFConnectorRecord {
                     kind: ZFConnectorKind::Receiver,
                     id: receiver_id.clone(),
                     resource: z_resource_name.clone(),
-                    link_id: ZFLinkId {
-                        name: l.to.input.clone(),
-                        type_name: String::from(to_type),
+                    link_id: ZFPortDescriptor {
+                        port_id: l.to.input_id.clone(),
+                        port_type: String::from(to_type),
                     },
 
                     runtime: to_runtime,
@@ -309,7 +314,7 @@ impl DataFlowRecord {
                 let link_receiver = ZFLinkDescriptor {
                     from: ZFFromEndpoint {
                         id: receiver_id,
-                        output: l.to.input.clone(),
+                        output_id: l.to.input_id.clone(),
                     },
                     to: l.to.clone(),
                     size: None,

@@ -4,18 +4,18 @@ sources:
   - id : Camera
     uri: file://./target/debug/examples/libcamera_source.dylib
     output:
-      name: Frame
+      id: Frame
       type: image
 sinks:
   - id : ZSink
     uri: file://./target/debug/examples/libzenoh_sink.dylib
     input:
-      name: Data
+      id: Data
       type: image
 links:
 - from:
     id : Camera
-    output : Frame
+    output_id : Frame
   to:
     id : ZSink
-    input : Data
+    input_id : Data

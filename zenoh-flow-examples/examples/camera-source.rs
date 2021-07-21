@@ -20,7 +20,7 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
-        ZFContext, ZFError, ZFLinkId, ZFResult,
+        ZFContext, ZFError, ZFPortDescriptor, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
@@ -180,6 +180,9 @@ extern "C" fn register(
         Some(config) => {
             Ok(Box::new(CameraSource::new(config)) as Box<dyn zenoh_flow::SourceTrait + Send>)
         }
-        None => Ok(Box::new(CameraSource::new(HashMap::new())) as Box<dyn zenoh_flow::SourceTrait + Send>),
+        None => {
+            Ok(Box::new(CameraSource::new(HashMap::new()))
+                as Box<dyn zenoh_flow::SourceTrait + Send>)
+        }
     }
 }

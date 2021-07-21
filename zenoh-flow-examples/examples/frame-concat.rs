@@ -24,8 +24,8 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
-        OutputRuleResult, RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFLinkId,
-        ZFResult,
+        OutputRuleResult, RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput,
+        ZFPortDescriptor, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,

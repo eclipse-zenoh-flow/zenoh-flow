@@ -3,10 +3,10 @@ operators:
   - id : ObjectDetection # this should be unique in the graph
     uri: file://./target/release/examples/libobject_detection_dnn.so
     inputs:
-      - name: Frame
+      - id: Frame
         type: image
     outputs:
-      - name: Frame
+      - id: Frame
         type: image
     configuration:
       neural-network: /home/luca/Workspace/experiments/yolov3-face.cfg
@@ -16,7 +16,7 @@ sources: # sources can have only ONE output
   - id : Camera0
     uri: file://./target/release/examples/libcamera_source.so
     output:
-      name: Frame
+      id: Frame
       type: image
     configuration:
       camera: /dev/video0
@@ -26,18 +26,18 @@ sinks: # sources can have only ONE input
   - id : Window
     uri: file://./target/release/examples/libvideo_sink.so
     input:
-      name: Frame
+      id: Frame
       type: image
 links:
 - from:
     id : Camera0
-    output : Frame # Output
+    output_id : Frame # Output
   to:
     id : ObjectDetection
-    input : Frame # Input
+    input_id : Frame # Input
 - from:
     id : ObjectDetection
-    output : Frame
+    output_id : Frame
   to:
     id : Window
-    input : Frame
+    input_id : Frame

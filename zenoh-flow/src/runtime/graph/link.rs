@@ -14,7 +14,6 @@
 
 use async_std::sync::Arc;
 
-use crate::types::ZFLinkId;
 use crate::ZFResult;
 
 #[derive(Clone, Debug)]
@@ -31,7 +30,7 @@ pub struct ZFLinkReceiver<T> {
 }
 
 impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
-    // pub async fn peek(&mut self) -> ZFResult<(ZFLinkId, Arc<T>)> {
+    // pub async fn peek(&mut self) -> ZFResult<(String, Arc<T>)> {
     //     match &self.last_message {
     //         Some(message) => Ok((self.id, message.clone())),
     //         None => {

@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::types::{ZFLinkId, ZFOperatorId, ZFRuntimeID};
+use crate::types::{ZFOperatorId, ZFPortDescriptor, ZFRuntimeID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -21,7 +21,7 @@ use std::collections::HashMap;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkDescriptor {
     pub id: ZFOperatorId,
-    pub input: ZFLinkId,
+    pub input: ZFPortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<ZFRuntimeID>, // to be removed
@@ -36,7 +36,7 @@ impl std::fmt::Display for ZFSinkDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSourceDescriptor {
     pub id: ZFOperatorId,
-    pub output: ZFLinkId,
+    pub output: ZFPortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<ZFRuntimeID>, // to be removed
@@ -51,8 +51,8 @@ impl std::fmt::Display for ZFSourceDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFOperatorDescriptor {
     pub id: ZFOperatorId,
-    pub inputs: Vec<ZFLinkId>,
-    pub outputs: Vec<ZFLinkId>,
+    pub inputs: Vec<ZFPortDescriptor>,
+    pub outputs: Vec<ZFPortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<ZFRuntimeID>, // to be removed
@@ -69,7 +69,7 @@ impl std::fmt::Display for ZFOperatorDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkRecord {
     pub id: ZFOperatorId,
-    pub input: ZFLinkId,
+    pub input: ZFPortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: ZFRuntimeID,
@@ -83,8 +83,8 @@ impl std::fmt::Display for ZFSinkRecord {
 
 impl ZFSinkRecord {
     pub fn get_input_type(&self, id: &str) -> Option<String> {
-        if self.input.name == *id {
-            return Some(self.input.type_name.clone());
+        if self.input.port_id == *id {
+            return Some(self.input.port_type.clone());
         } else {
             return None;
         }
@@ -94,7 +94,7 @@ impl ZFSinkRecord {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSourceRecord {
     pub id: ZFOperatorId,
-    pub output: ZFLinkId,
+    pub output: ZFPortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: ZFRuntimeID,
@@ -108,8 +108,8 @@ impl std::fmt::Display for ZFSourceRecord {
 
 impl ZFSourceRecord {
     pub fn get_output_type(&self, id: &str) -> Option<String> {
-        if self.output.name == *id {
-            return Some(self.output.type_name.clone());
+        if self.output.port_id == *id {
+            return Some(self.output.port_type.clone());
         } else {
             return None;
         }
@@ -119,8 +119,8 @@ impl ZFSourceRecord {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFOperatorRecord {
     pub id: ZFOperatorId,
-    pub inputs: Vec<ZFLinkId>,
-    pub outputs: Vec<ZFLinkId>,
+    pub inputs: Vec<ZFPortDescriptor>,
+    pub outputs: Vec<ZFPortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: ZFRuntimeID,
@@ -134,15 +134,15 @@ impl std::fmt::Display for ZFOperatorRecord {
 
 impl ZFOperatorRecord {
     pub fn get_output_type(&self, id: &str) -> Option<String> {
-        match self.outputs.iter().find(|&lid| *lid.name == *id) {
-            Some(lid) => Some(lid.type_name.clone()),
+        match self.outputs.iter().find(|&lid| *lid.port_id == *id) {
+            Some(lid) => Some(lid.port_type.clone()),
             None => None,
         }
     }
 
     pub fn get_input_type(&self, id: &str) -> Option<String> {
-        match self.inputs.iter().find(|&lid| *lid.name == *id) {
-            Some(lid) => Some(lid.type_name.clone()),
+        match self.inputs.iter().find(|&lid| *lid.port_id == *id) {
+            Some(lid) => Some(lid.port_type.clone()),
             None => None,
         }
     }

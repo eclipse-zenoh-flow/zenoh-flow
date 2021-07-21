@@ -19,7 +19,7 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
-        Token, ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult,
+        Token, ZFContext, ZFError, ZFInput, ZFPortDescriptor, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_empty_state, zf_spin_lock,

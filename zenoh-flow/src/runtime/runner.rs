@@ -16,7 +16,7 @@ use crate::async_std::sync::Arc;
 use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::{Message, ZFMessage};
-use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFLinkId, ZFResult, ZFError};
+use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFResult};
 use crate::{OperatorTrait, SinkTrait, SourceTrait};
 use futures::future;
 use libloading::Library;
@@ -116,7 +116,7 @@ impl ZFOperatorRunner {
         let ctx = ZFContext::new(self.operator.get_state(), 0);
 
         loop {
-            // we should start from an HashMap with all ZFLinkId and not ready tokens
+            // we should start from an HashMap with all PortId and not ready tokens
             let mut msgs: HashMap<String, Token> = HashMap::new();
 
             for i in &self.inputs {
@@ -321,7 +321,7 @@ impl ZFSinkRunner {
         let ctx = ZFContext::new(self.operator.get_state(), 0);
 
         loop {
-            // we should start from an HashMap with all ZFLinkId and not ready tokens
+            // we should start from an HashMap with all PortId and not ready tokens
             let mut msgs: HashMap<String, Token> = HashMap::new();
 
             for i in self.inputs.iter() {

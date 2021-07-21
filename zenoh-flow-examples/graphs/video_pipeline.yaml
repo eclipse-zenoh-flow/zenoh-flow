@@ -4,19 +4,19 @@ sources:
   - id : Camera
     uri: file://./target/debug/examples/libcamera_source.so
     output:
-      name: Frame
+      id: Frame
       type: image
 sinks:
   - id : Window
     uri: file://./target/debug/examples/libvideo_sink.so
     input:
-      name: Frame
+      id: Frame
       type: image
 
 links:
 - from:
     id : Camera
-    output : Frame
+    output_id : Frame
   to:
     id : Window
-    input : Frame
+    input_id : Frame

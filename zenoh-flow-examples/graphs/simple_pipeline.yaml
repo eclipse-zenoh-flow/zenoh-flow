@@ -3,34 +3,34 @@ operators:
   - id : SumOperator
     uri: file://./target/debug/examples/libsum_and_send.dylib
     inputs:
-      - name: Number
+      - id: Number
         type: usize
     outputs:
-      - name: Sum
+      - id: Sum
         type: usize
 sources:
   - id : Counter
     uri: file://./target/debug/examples/libcounter_source.dylib
     output:
-      name: Counter
+      id: Counter
       type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/debug/examples/libgeneric_sink.dylib
     input:
-      name: Data
+      id: Data
       type: usize
 
 links:
 - from:
     id : Counter
-    output : Counter
+    output_id : Counter
   to:
     id : SumOperator
-    input : Number
+    input_id : Number
 - from:
     id : SumOperator
-    output : Sum
+    output_id : Sum
   to:
     id : PrintSink
-    input : Data
+    input_id : Data

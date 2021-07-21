@@ -4,67 +4,67 @@ operators:
   - id: FizzOperator
     uri: file://./target/debug/examples/libexample_fizz.dylib
     inputs:
-      - name: Int
+      - id: Int
         type: u64
     outputs:
-      - name: Int
+      - id: Int
         type: u64
-      - name: Str
+      - id: Str
         type: string
 
   - id: BuzzOperator
     uri: file://./target/debug/examples/libexample_buzz.dylib
     inputs:
-      - name: Int
+      - id: Int
         type: u64
-      - name: Str
+      - id: Str
         type: string
     outputs:
-      - name: Str
+      - id: Str
         type: string
 
 sources:
   - id: ManualSenderOperator
     uri: file://./target/debug/examples/libmanual_source.dylib
     output:
-      name: Int
+      id: Int
       type: u64
 
 sinks:
   - id: ReceiverOperator
     uri: file://./target/debug/examples/libgeneric_sink.dylib
     input:
-      name: Str
+      id: Str
       type: string
 
 links:
   - from:
       id: ManualSenderOperator
-      output: Int
+      output_id: Int
     to:
       id: FizzOperator
-      input: Int
+      input_id: Int
 
   - from:
       id: FizzOperator
-      output: Int
+      output_id: Int
     to:
       id: BuzzOperator
-      input: Int
+      input_id: Int
 
   - from:
       id: FizzOperator
-      output: Str
+      output_id: Str
     to:
       id: BuzzOperator
-      input: Str
+      input_id: Str
 
   - from:
       id: BuzzOperator
-      output: Str
+      output_id: Str
     to:
       id: ReceiverOperator
-      input: Str
+      input_id: Str
 
 
 mapping:

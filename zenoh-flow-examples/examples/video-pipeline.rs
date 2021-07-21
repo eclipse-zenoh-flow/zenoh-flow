@@ -13,7 +13,10 @@
 //
 
 use async_std::sync::{Arc, Mutex};
+use opencv::{core, highgui, prelude::*, videoio};
 use std::collections::HashMap;
+use std::fs::{File, *};
+use std::io::Write;
 use zenoh_flow::model::link::{ZFFromEndpoint, ZFToEndpoint};
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
@@ -21,15 +24,12 @@ use zenoh_flow::{
     types::{
         DataTrait, FnInputRule, FnOutputRule, FnSinkRun, FnSourceRun, FutRunResult, FutSinkResult,
         InputRuleResult, RunResult, SinkTrait, SourceTrait, StateTrait, Token, ZFContext, ZFError,
-        ZFInput, ZFLinkId, ZFResult,
+        ZFInput, ZFPortDescriptor, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
 };
 use zenoh_flow_examples::ZFBytes;
-use std::fs::{File, *};
-use opencv::{core, highgui, prelude::*, videoio};
-use std::io::Write;
 
 static SOURCE: &str = "Frame";
 static INPUT: &str = "Frame";
@@ -216,7 +216,6 @@ impl SinkTrait for VideoSink {
 
 #[async_std::main]
 async fn main() {
-
     env_logger::init();
 
     let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new();
@@ -227,9 +226,9 @@ async fn main() {
     zf_graph
         .add_static_source(
             "camera-source".to_string(),
-            ZFLinkId {
-                name: String::from(SOURCE),
-                type_name: String::from("image"),
+            ZFPortDescriptor {
+                port_id: String::from(SOURCE),
+                port_type: String::from("image"),
             },
             source,
             None,
@@ -239,9 +238,9 @@ async fn main() {
     zf_graph
         .add_static_sink(
             "video-sink".to_string(),
-            ZFLinkId {
-                name: String::from(INPUT),
-                type_name: String::from("image"),
+            ZFPortDescriptor {
+                port_id: String::from(INPUT),
+                port_type: String::from("image"),
             },
             sink,
             None,
@@ -252,18 +251,17 @@ async fn main() {
         .add_link(
             ZFFromEndpoint {
                 id: "camera-source".to_string(),
-                output: String::from(SOURCE),
+                output_id: String::from(SOURCE),
             },
             ZFToEndpoint {
                 id: "video-sink".to_string(),
-                input: String::from(INPUT),
+                input_id: String::from(INPUT),
             },
             None,
             None,
             None,
         )
         .unwrap();
-
 
     let dot_notation = zf_graph.to_dot_notation();
 
@@ -272,8 +270,6 @@ async fn main() {
     file.sync_all().unwrap();
 
     zf_graph.make_connections("self").await.unwrap();
-
-
 
     let runners = zf_graph.get_runners();
     for runner in runners {

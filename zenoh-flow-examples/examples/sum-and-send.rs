@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use zenoh_flow::runtime::message::Message;
 use zenoh_flow::types::{
     DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult,
-    RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult,
+    RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFPortDescriptor, ZFResult,
 };
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{downcast_mut, get_input, zf_data};

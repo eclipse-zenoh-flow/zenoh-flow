@@ -19,7 +19,7 @@ use zenoh_flow::{
     types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
     },
-    zf_data, zf_empty_state, ZFContext, ZFError, ZFLinkId, ZFResult,
+    zf_data, zf_empty_state, ZFContext, ZFError, ZFPortDescriptor, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 

@@ -20,7 +20,7 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
-        ZFContext, ZFError, ZFLinkId, ZFResult,
+        ZFContext, ZFError, ZFPortDescriptor, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,

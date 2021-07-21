@@ -4,18 +4,18 @@ sources:
   - id : RandomGenerator
     uri: file://./target/debug/examples/librandom_source.dylib
     output:
-        name: Random
+        id: Random
         type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/debug/examples/libgeneric_sink.dylib
     input:
-        name: Data
+        id: Data
         type: usize
 links:
 - from:
     id : RandomGenerator
-    output : Random
+    output_id : Random
   to:
     id : PrintSink
-    input : Data
+    input_id : Data

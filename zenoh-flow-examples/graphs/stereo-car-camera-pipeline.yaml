@@ -3,18 +3,18 @@ operators:
   - id : Concatenation # this should be unique in the graph
     uri: file://./target/release/examples/libframe_concat.so
     inputs:
-      - name: Frame1
+      - id: Frame1
         type: image
-      - name: Frame2
+      - id: Frame2
         type: image
     outputs:
-      - name: Frame
+      - id: Frame
         type: image  #port id = String
 sources: # sources can have only ONE output
   - id : Camera0
     uri: file://./target/release/examples/libvideo_file_source.so
     output:
-        name: Frame
+        id: Frame
         type: image
     configuration:
       file: /home/luca/Workspace/experiments/I2.mp4
@@ -22,7 +22,7 @@ sources: # sources can have only ONE output
   - id : Camera1
     uri: file://./target/release/examples/libvideo_file_source.so
     output:
-        name: Frame
+        id: Frame
         type: image
     configuration:
       file: /home/luca/Workspace/experiments/I1.mp4
@@ -31,24 +31,24 @@ sinks: # sources can have only ONE input
   - id : Window
     uri: file://./target/release/examples/libvideo_sink.so
     input:
-      name: Frame
+      id: Frame
       type: image
 links:
 - from:
     id : Camera0
-    output : Frame # Output
+    output_id : Frame # Output
   to:
     id : Concatenation
-    input : Frame1 # Input
+    input_id : Frame1 # Input
 - from:
     id : Camera1
-    output : Frame
+    output_id : Frame
   to:
     id : Concatenation
-    input : Frame2
+    input_id : Frame2
 - from:
       id: Concatenation
-      output: Frame
+      output_id : Frame
   to:
       id: Window
-      input: Frame
+      input_id : Frame

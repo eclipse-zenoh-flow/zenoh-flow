@@ -21,7 +21,7 @@ use zenoh_flow::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait, ZFInput, ZFResult,
     },
-    zf_data, zf_empty_state, Token, ZFContext, ZFLinkId,
+    zf_data, zf_empty_state, Token, ZFContext, ZFPortDescriptor,
 };
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
