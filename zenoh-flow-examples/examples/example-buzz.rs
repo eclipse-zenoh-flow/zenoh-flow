@@ -63,7 +63,7 @@ impl BuzzOperator {
         _ctx: ZFContext,
         outputs: HashMap<String, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
-        let mut zf_outputs: HashMap<ZFLinkId, Message> = HashMap::with_capacity(1);
+        let mut zf_outputs: HashMap<String, Message> = HashMap::with_capacity(1);
 
         zf_outputs.insert(
             String::from(LINK_ID_OUTPUT_STR),

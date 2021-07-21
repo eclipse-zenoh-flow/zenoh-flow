@@ -178,7 +178,7 @@ impl FaceDetection {
 
     pub fn or_1(
         _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
+        outputs: HashMap<String, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {

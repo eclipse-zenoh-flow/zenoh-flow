@@ -217,7 +217,7 @@ pub struct ZFSourceRunner {
     pub hlc: Arc<HLC>,
     pub operator: Box<dyn SourceTrait + Send>,
     pub lib: Option<Library>,
-    pub outputs: HashMap<ZFLinkId, Vec<ZFLinkSender<ZFMessage>>>,
+    pub outputs: HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
 }
 
 impl ZFSourceRunner {

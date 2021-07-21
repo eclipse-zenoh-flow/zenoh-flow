@@ -65,7 +65,7 @@ impl FizzOperator {
         _ctx: ZFContext,
         outputs: HashMap<String, Arc<dyn DataTrait>>,
     ) -> OutputRuleResult {
-        let mut zf_outputs: HashMap<ZFLinkId, Message> = HashMap::with_capacity(2);
+        let mut zf_outputs: HashMap<String, Message> = HashMap::with_capacity(2);
 
         zf_outputs.insert(
             String::from(LINK_ID_OUTPUT_INT),
