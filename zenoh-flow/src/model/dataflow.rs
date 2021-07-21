@@ -13,7 +13,7 @@
 //
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
-use crate::model::link::{ZFFromEndpoint, ZFLinkDescriptor, ZFToEndpoint};
+use crate::model::link::{ZFLinkDescriptor, ZFPortFrom, ZFPortTo};
 use crate::model::operator::{
     ZFOperatorDescriptor, ZFOperatorRecord, ZFSinkDescriptor, ZFSinkRecord, ZFSourceDescriptor,
     ZFSourceRecord,
@@ -279,7 +279,7 @@ impl DataFlowRecord {
                     // creating link between component and sender
                     let link_sender = ZFLinkDescriptor {
                         from: l.from.clone(),
-                        to: ZFToEndpoint {
+                        to: ZFPortTo {
                             id: sender_id,
                             input_id: l.from.output_id.clone(),
                         },
@@ -312,7 +312,7 @@ impl DataFlowRecord {
 
                 //creating link between receiver and component
                 let link_receiver = ZFLinkDescriptor {
-                    from: ZFFromEndpoint {
+                    from: ZFPortFrom {
                         id: receiver_id,
                         output_id: l.to.input_id.clone(),
                     },

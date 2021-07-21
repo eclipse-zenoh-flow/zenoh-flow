@@ -17,7 +17,7 @@ use opencv::{core, highgui, prelude::*, videoio};
 use std::collections::HashMap;
 use std::fs::{File, *};
 use std::io::Write;
-use zenoh_flow::model::link::{ZFFromEndpoint, ZFToEndpoint};
+use zenoh_flow::model::link::{ZFPortFrom, ZFPortTo};
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
     serde::{Deserialize, Serialize},
@@ -249,11 +249,11 @@ async fn main() {
 
     zf_graph
         .add_link(
-            ZFFromEndpoint {
+            ZFPortFrom {
                 id: "camera-source".to_string(),
                 output_id: String::from(SOURCE),
             },
-            ZFToEndpoint {
+            ZFPortTo {
                 id: "video-sink".to_string(),
                 input_id: String::from(INPUT),
             },

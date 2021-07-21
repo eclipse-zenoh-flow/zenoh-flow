@@ -17,21 +17,21 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFLinkDescriptor {
-    pub from: ZFFromEndpoint,
-    pub to: ZFToEndpoint,
+    pub from: ZFPortFrom,
+    pub to: ZFPortTo,
     pub size: Option<usize>,
     pub queueing_policy: Option<String>,
     pub priority: Option<usize>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFFromEndpoint {
+pub struct ZFPortFrom {
     pub id: ZFOperatorId,
     pub output_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFToEndpoint {
+pub struct ZFPortTo {
     pub id: ZFOperatorId,
     pub input_id: String,
 }
