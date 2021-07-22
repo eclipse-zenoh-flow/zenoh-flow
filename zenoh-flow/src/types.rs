@@ -160,7 +160,7 @@ pub type InputRuleResult = ZFResult<bool>;
 pub type FnInputRule =
     dyn Fn(ZFContext, &mut HashMap<String, Token>) -> InputRuleResult + Send + Sync + 'static;
 
-pub type OutputRuleResult = ZFResult<HashMap<String, Arc<ZFMessage>>>;
+pub type OutputRuleResult = ZFResult<HashMap<String, Message>>;
 
 pub type FnOutputRule = dyn Fn(ZFContext, HashMap<String, Arc<dyn DataTrait>>) -> OutputRuleResult
     + Send
