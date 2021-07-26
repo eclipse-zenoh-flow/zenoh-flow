@@ -23,6 +23,28 @@ operators:
       - id: Str
         type: string
 
+  - id: BuzzOperator2
+    uri: file://./target/debug/examples/libexample_buzz2.dylib
+    inputs:
+      - id: Int
+        type: u64
+      - id: Str
+        type: string
+    outputs:
+      - id: Str
+        type: string
+
+  - id: BuzzOperator3
+    uri: file://./target/debug/examples/libexample_buzz3.dylib
+    inputs:
+      - id: Int
+        type: u64
+      - id: Str
+        type: string
+    outputs:
+      - id: Str
+        type: string
+
 sources:
   - id: ManualSenderOperator
     uri: file://./target/debug/examples/libmanual_source.dylib
@@ -37,6 +59,18 @@ sinks:
       id: Str
       type: string
 
+  - id: ReceiverOperator2
+    uri: file://./target/debug/examples/libgeneric_sink.dylib
+    input:
+      id: Str
+      type: string
+
+  - id: ReceiverOperator3
+    uri: file://./target/debug/examples/libgeneric_sink.dylib
+    input:
+      id: Str
+      type: string
+
 links:
   - from:
       id: ManualSenderOperator
@@ -45,6 +79,7 @@ links:
       id: FizzOperator
       input_id: Int
 
+  # FizzOperator -> BuzzOperator
   - from:
       id: FizzOperator
       output_id: Int
@@ -66,13 +101,65 @@ links:
       id: ReceiverOperator
       input_id: Str
 
+  # FizzOperator -> BuzzOperator2
+  - from:
+      id: FizzOperator
+      output_id: Int
+    to:
+      id: BuzzOperator2
+      input_id: Int
+
+  - from:
+      id: FizzOperator
+      output_id: Str
+    to:
+      id: BuzzOperator2
+      input_id: Str
+
+  - from:
+      id: BuzzOperator2
+      output_id: Str
+    to:
+      id: ReceiverOperator2
+      input_id: Str
+
+  # FizzOperator -> BuzzOperator3
+  - from:
+      id: FizzOperator
+      output_id: Int
+    to:
+      id: BuzzOperator3
+      input_id: Int
+
+  - from:
+      id: FizzOperator
+      output_id: Str
+    to:
+      id: BuzzOperator3
+      input_id: Str
+
+  - from:
+      id: BuzzOperator3
+      output_id: Str
+    to:
+      id: ReceiverOperator3
+      input_id: Str
+
 
 mapping:
+  - id: ManualSenderOperator
+    runtime: foo
   - id: FizzOperator
     runtime: foo
   - id: BuzzOperator
     runtime: bar
-  - id: ManualSenderOperator
-    runtime: foo
   - id: ReceiverOperator
     runtime: bar
+  - id: BuzzOperator2
+    runtime: baz
+  - id: ReceiverOperator2
+    runtime: baz
+  - id: BuzzOperator3
+    runtime: foo
+  - id: ReceiverOperator3
+    runtime: foo

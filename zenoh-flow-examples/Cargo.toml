@@ -45,6 +45,14 @@ name = "example-buzz"
 crate-type = ["cdylib"]
 
 [[example]]
+name = "example-buzz2"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "example-buzz3"
+crate-type = ["cdylib"]
+
+[[example]]
 name = "random-source"
 crate-type = ["cdylib"]
 
