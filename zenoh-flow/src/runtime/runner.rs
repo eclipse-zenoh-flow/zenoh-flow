@@ -16,7 +16,7 @@ use crate::async_std::sync::Arc;
 use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::{Message, ZFMessage};
-use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFResult, ZFError};
+use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFResult};
 use crate::{OperatorTrait, SinkTrait, SourceTrait};
 use futures::future;
 use libloading::Library;
@@ -130,16 +130,14 @@ impl ZFOperatorRunner {
                 futs.push(rx.recv()); // this should be peek(), but both requires mut
             }
 
+            // Input Rules
             crate::run_input_rules!(ir_fn, msgs, futs, ctx);
-
-            // Running
-            let run_fn = self.operator.get_run(ctx.clone());
             let mut data = ZFInput::new();
             let mut max_token_timestamp = None;
 
             for (id, token) in msgs {
                 // Keep the biggest timestamp (i.e. most recent) associated to the inputs. This
-                // timestamp will be reported to all outputs.
+                // timestamp will be reported to all outputs and used to update the HLC.
                 let token_timestamp = token.get_timestamp();
                 max_token_timestamp = match (&max_token_timestamp, &token_timestamp) {
                     (None, _) => token_timestamp,
@@ -157,13 +155,29 @@ impl ZFOperatorRunner {
                 data.insert(id, ZFData::from(d.unwrap()));
             }
 
-            let timestamp = max_token_timestamp.unwrap_or_else(|| self.hlc.new_timestamp());
+            let timestamp = {
+                match max_token_timestamp {
+                    Some(max_timestamp) => {
+                        if let Err(error) = self.hlc.update_with_timestamp(&max_timestamp) {
+                            log::warn!(
+                                "[HLC] Could not update HLC with timestamp {:?}: {:?}",
+                                max_timestamp,
+                                error
+                            );
+                        }
 
+                        max_timestamp
+                    }
+                    None => self.hlc.new_timestamp(),
+                }
+            };
+
+            // Running
+            let run_fn = self.operator.get_run(ctx.clone());
             let outputs = run_fn(ctx.clone(), data)?;
 
-            // Output
+            // Output rules
             let out_fn = self.operator.get_output_rule(ctx.clone());
-
             let out_msgs = out_fn(ctx.clone(), outputs)?;
 
             // Send to Links
