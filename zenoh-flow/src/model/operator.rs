@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::types::{ZFOperatorId, ZFPortDescriptor, ZFRuntimeID};
+use crate::types::{ZFOperatorId, ZFPeriodDescriptor, ZFPortDescriptor, ZFRuntimeID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -37,6 +37,7 @@ impl std::fmt::Display for ZFSinkDescriptor {
 pub struct ZFSourceDescriptor {
     pub id: ZFOperatorId,
     pub output: ZFPortDescriptor,
+    pub period: Option<ZFPeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<ZFRuntimeID>, // to be removed
@@ -95,6 +96,7 @@ impl ZFSinkRecord {
 pub struct ZFSourceRecord {
     pub id: ZFOperatorId,
     pub output: ZFPortDescriptor,
+    pub period: Option<ZFPeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: ZFRuntimeID,

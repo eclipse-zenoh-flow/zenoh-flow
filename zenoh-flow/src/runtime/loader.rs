@@ -12,11 +12,14 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::runtime::runner::{
-    ZFOperatorDeclaration, ZFOperatorRunner, ZFSinkDeclaration, ZFSinkRunner, ZFSourceDeclaration,
-    ZFSourceRunner,
-};
 use crate::types::{ZFError, ZFResult};
+use crate::{
+    runtime::runner::{
+        ZFOperatorDeclaration, ZFOperatorRunner, ZFSinkDeclaration, ZFSinkRunner,
+        ZFSourceDeclaration, ZFSourceRunner,
+    },
+    PeriodicHLC,
+};
 use async_std::sync::Arc;
 use libloading::Library;
 use std::collections::HashMap;
@@ -70,7 +73,7 @@ pub unsafe fn load_lib_operator(
 // SOURCE
 
 pub fn load_source(
-    hlc: Arc<HLC>,
+    hlc: PeriodicHLC,
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFSourceRunner> {
@@ -83,7 +86,7 @@ pub fn load_source(
 }
 
 pub unsafe fn load_lib_source(
-    hlc: Arc<HLC>,
+    hlc: PeriodicHLC,
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFSourceRunner> {

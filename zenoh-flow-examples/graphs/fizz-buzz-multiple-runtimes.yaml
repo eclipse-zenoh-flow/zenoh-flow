@@ -48,6 +48,9 @@ operators:
 sources:
   - id: ManualSenderOperator
     uri: file://./target/debug/examples/libmanual_source.dylib
+    period:
+      duration: 500
+      unit: ms
     output:
       id: Int
       type: u64

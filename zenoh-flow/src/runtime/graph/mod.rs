@@ -25,7 +25,6 @@ use std::collections::HashMap;
 use uhlc::HLC;
 use zenoh::ZFuture;
 
-use crate::model::dataflow::DataFlowRecord;
 use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::loader::{load_operator, load_sink, load_source};
 use crate::runtime::message::ZFMessage;
@@ -38,6 +37,7 @@ use crate::{
     runtime::graph::node::DataFlowNodeKind,
     types::{ZFError, ZFOperatorId, ZFOperatorName, ZFPortDescriptor, ZFResult},
 };
+use crate::{model::dataflow::DataFlowRecord, PeriodicHLC};
 use uuid::Uuid;
 
 pub struct DataFlowGraph {
@@ -223,6 +223,7 @@ impl DataFlowGraph {
         let descriptor = ZFSourceRecord {
             id: id.clone(),
             output,
+            period: None,
             uri: None,
             configuration,
             runtime: String::from("self"),
@@ -232,7 +233,8 @@ impl DataFlowGraph {
                 .add_node(DataFlowNode::Source(descriptor.clone())),
             DataFlowNode::Source(descriptor),
         ));
-        let runner = Runner::Source(ZFSourceRunner::new(hlc, source, None));
+        let non_periodic_hlc = PeriodicHLC::new_non_periodic(hlc);
+        let runner = Runner::Source(ZFSourceRunner::new(non_periodic_hlc, source, None));
         self.operators_runners
             .insert(id, (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Source));
         Ok(())
@@ -365,8 +367,11 @@ impl DataFlowGraph {
                 DataFlowNode::Source(inner) => {
                     match &inner.uri {
                         Some(uri) => {
-                            let runner =
-                                load_source(hlc.clone(), uri.clone(), inner.configuration.clone())?;
+                            let runner = load_source(
+                                PeriodicHLC::new(hlc.clone(), inner.period.clone()),
+                                uri.clone(),
+                                inner.configuration.clone(),
+                            )?;
                             let runner = Runner::Source(runner);
                             self.operators_runners.insert(
                                 inner.id.clone(),

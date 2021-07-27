@@ -370,7 +370,7 @@ impl DataFlowRecord {
                 Some(m) => {
                     let sr = ZFSourceRecord {
                         id: s.id.clone(),
-                        // name: s.name.clone(),
+                        period: s.period.clone(),
                         output: s.output.clone(),
                         uri: s.uri.clone(),
                         configuration: s.configuration.clone(),

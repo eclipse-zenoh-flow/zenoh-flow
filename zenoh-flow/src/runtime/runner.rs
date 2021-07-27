@@ -12,11 +12,11 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::async_std::sync::Arc;
 use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::{Message, ZFMessage};
 use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFResult};
+use crate::{async_std::sync::Arc, PeriodicHLC};
 use crate::{OperatorTrait, SinkTrait, SourceTrait};
 use futures::future;
 use libloading::Library;
@@ -228,14 +228,18 @@ pub trait ZFSourceRegistrarTrait {
 }
 
 pub struct ZFSourceRunner {
-    pub hlc: Arc<HLC>,
+    pub hlc: PeriodicHLC,
     pub operator: Box<dyn SourceTrait + Send>,
     pub lib: Option<Library>,
     pub outputs: HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
 }
 
 impl ZFSourceRunner {
-    pub fn new(hlc: Arc<HLC>, operator: Box<dyn SourceTrait + Send>, lib: Option<Library>) -> Self {
+    pub fn new(
+        hlc: PeriodicHLC,
+        operator: Box<dyn SourceTrait + Send>,
+        lib: Option<Library>,
+    ) -> Self {
         Self {
             hlc,
             operator,
