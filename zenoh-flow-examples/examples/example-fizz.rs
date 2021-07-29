@@ -23,7 +23,7 @@ use zenoh_flow::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
         OutputRuleResult, RunResult, StateTrait, ZFInput, ZFResult,
     },
-    zf_data, zf_empty_state, Token, ZFContext, ZFPortDescriptor,
+    zf_data, zf_empty_state, Token, ZFContext,
 };
 
 struct FizzOperator;
@@ -49,7 +49,7 @@ impl FizzOperator {
 
         let mut fizz = ZFString::from("");
 
-        let zfusize = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
+        let (_, zfusize) = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
 
         if zfusize.0 % 2 == 0 {
             fizz = ZFString::from("Fizz");

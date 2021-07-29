@@ -299,32 +299,8 @@ pub enum TokenAction {
 pub struct NotReadyToken;
 
 #[derive(Debug, Clone)]
-pub enum TokenData {
-    Serialized(Arc<Vec<u8>>),
-    Deserialized(Arc<dyn DataTrait>),
-}
-
-impl TokenData {
-    pub fn get_data(self) -> ZFResult<Arc<dyn DataTrait>> {
-        match self {
-            Self::Serialized(_) => Err(ZFError::GenericError),
-            Self::Deserialized(de) => Ok(de),
-        }
-    }
-
-    pub fn get_raw(self) -> ZFResult<Arc<Vec<u8>>> {
-        match self {
-            Self::Serialized(ser) => Ok(ser),
-            Self::Deserialized(_) => Err(ZFError::GenericError),
-        }
-    }
-}
-
-//TODO: improve
-#[derive(Debug, Clone)]
 pub struct ReadyToken {
-    pub timestamp: Timestamp,
-    pub data: TokenData,
+    pub data: ZFData,
     pub action: TokenAction,
 }
 
@@ -335,9 +311,8 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn new_ready(timestamp: Timestamp, data: TokenData) -> Self {
+    pub fn new_ready(data: ZFData) -> Self {
         Self::Ready(ReadyToken {
-            timestamp,
             data,
             action: TokenAction::Consume,
         })
@@ -346,7 +321,7 @@ impl Token {
     pub fn get_timestamp(&self) -> Option<Timestamp> {
         match self {
             Self::NotReady => None,
-            Self::Ready(token) => Some(token.timestamp.clone()),
+            Self::Ready(token) => Some(token.data.timestamp.clone()),
         }
     }
 
@@ -404,7 +379,7 @@ impl Token {
         }
     }
 
-    pub fn data(&self) -> ZFResult<TokenData> {
+    pub fn data(&self) -> ZFResult<ZFData> {
         match self {
             Self::Ready(ready) => Ok(ready.data.clone()),
             _ => Err(ZFError::GenericError),
@@ -418,7 +393,7 @@ impl Token {
         }
     }
 
-    pub fn split(self) -> (Option<TokenData>, TokenAction) {
+    pub fn split(self) -> (Option<ZFData>, TokenAction) {
         match self {
             Self::Ready(ready) => (Some(ready.data), ready.action),
             Self::NotReady => (None, TokenAction::Wait),
@@ -432,14 +407,12 @@ impl From<Arc<ZFMessage>> for Token {
             Message::Ctrl(_) => Token::NotReady,
             Message::Data(data_msg) => match data_msg {
                 ZFDataMessage::Serialized(ser) => Token::Ready(ReadyToken {
-                    timestamp: msg.timestamp.clone(),
                     action: TokenAction::Consume,
-                    data: TokenData::Serialized(ser.clone()), //Use ZBuf
+                    data: ZFData::new_serialized(msg.timestamp.clone(), ser.clone()),
                 }),
                 ZFDataMessage::Deserialized(de) => Token::Ready(ReadyToken {
-                    timestamp: msg.timestamp.clone(),
                     action: TokenAction::Consume,
-                    data: TokenData::Deserialized(de.clone()),
+                    data: ZFData::new_deserialized(msg.timestamp.clone(), de.clone()),
                 }),
             },
         }
@@ -447,34 +420,45 @@ impl From<Arc<ZFMessage>> for Token {
 }
 
 #[derive(Debug, Clone)]
-pub enum ZFData {
-    Serialized(Arc<Vec<u8>>),
-    Deserialized(Arc<dyn DataTrait>),
+pub struct ZFData {
+    pub timestamp: Timestamp,
+    pub value: ZFValue,
 }
 
 impl ZFData {
+    pub fn new_deserialized(timestamp: Timestamp, value: Arc<dyn DataTrait>) -> Self {
+        Self {
+            timestamp,
+            value: ZFValue::Deserialized(value),
+        }
+    }
+
+    pub fn new_serialized(timestamp: Timestamp, value: Arc<Vec<u8>>) -> Self {
+        Self {
+            timestamp,
+            value: ZFValue::Serialized(value),
+        }
+    }
+
     pub fn get_serialized(&self) -> &Arc<Vec<u8>> {
-        match self {
-            Self::Serialized(ser) => ser,
-            Self::Deserialized(_) => panic!(),
+        match &self.value {
+            ZFValue::Serialized(ser) => ser,
+            ZFValue::Deserialized(_) => panic!(),
         }
     }
 
     pub fn get_deserialized(&self) -> &Arc<dyn DataTrait> {
-        match self {
-            Self::Deserialized(de) => de,
-            Self::Serialized(_) => panic!(),
+        match &self.value {
+            ZFValue::Deserialized(de) => de,
+            ZFValue::Serialized(_) => panic!(),
         }
     }
 }
 
-impl From<TokenData> for ZFData {
-    fn from(d: TokenData) -> Self {
-        match d {
-            TokenData::Serialized(ser) => ZFData::Serialized(ser),
-            TokenData::Deserialized(de) => ZFData::Deserialized(de),
-        }
-    }
+#[derive(Debug, Clone)]
+pub enum ZFValue {
+    Serialized(Arc<Vec<u8>>),
+    Deserialized(Arc<dyn DataTrait>),
 }
 
 #[derive(Debug, Clone)]

@@ -46,10 +46,10 @@ impl BuzzOperator {
     fn run(_ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
         let mut results = HashMap::<String, Arc<dyn DataTrait>>::with_capacity(1);
 
-        let mut buzz = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?.clone();
+        let (_, fizz) = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?;
+        let (_, value) = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
 
-        let value = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
-
+        let mut buzz = fizz;
         if value.0 % 3 == 0 {
             buzz.0.push_str("Buzz3");
         }

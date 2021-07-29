@@ -19,7 +19,7 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
-        Token, ZFContext, ZFError, ZFInput, ZFPortDescriptor, ZFResult,
+        Token, ZFContext, ZFError, ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
 };
@@ -77,11 +77,11 @@ impl ExampleGenericZenohSink {
         let inner = _state.inner.as_ref().unwrap();
 
         let path = format!("/zf/probe/{}", String::from(INPUT));
-        let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
         inner
             .session
-            .write(&path.into(), data.bytes.clone().into())
+            .write(&path.into(), data.bytes.into())
             .wait()
             .unwrap();
         Ok(())
@@ -93,7 +93,7 @@ impl SinkTrait for ExampleGenericZenohSink {
         Box::new(Self::ir_1)
     }
 
-    fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
+    fn get_run(&self, _ctx: ZFContext) -> FnSinkRun {
         Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
             Box::pin(Self::run_1(ctx, inputs))
         })

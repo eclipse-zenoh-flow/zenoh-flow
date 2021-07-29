@@ -15,7 +15,7 @@
 use async_std::sync::{Arc, Mutex};
 use opencv::{core, highgui, prelude::*, videoio};
 use std::collections::HashMap;
-use std::fs::{File, *};
+use std::fs::File;
 use std::io::Write;
 use zenoh_flow::model::link::{ZFPortFrom, ZFPortTo};
 use zenoh_flow::{
@@ -67,7 +67,7 @@ impl std::fmt::Debug for CameraState {
 
 impl CameraSource {
     fn new() -> Self {
-        let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap(); // 0 is the default camera
+        let camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap(); // 0 is the default camera
         let opened = videoio::VideoCapture::is_opened(&camera).unwrap();
         if !opened {
             panic!("Unable to open default camera!");
@@ -133,7 +133,7 @@ impl CameraSource {
 }
 
 impl SourceTrait for CameraSource {
-    fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
+    fn get_run(&self, _ctx: ZFContext) -> FnSourceRun {
         Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) })
     }
 
@@ -158,7 +158,7 @@ struct VideoState {
 
 impl VideoSink {
     pub fn new() -> Self {
-        let window_name = &format!("Video-Sink");
+        let window_name = &"Video-Sink".to_string();
         highgui::named_window(window_name, 1).unwrap();
         let state = VideoState {
             window_name: window_name.to_string(),
@@ -181,10 +181,10 @@ impl VideoSink {
         let guard = ctx.async_lock().await; //getting state,
         let _state = downcast!(VideoState, guard.state).unwrap(); //downcasting to right type
 
-        let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
         let decoded = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(data.bytes.clone()),
+            &opencv::types::VectorOfu8::from_iter(data.bytes),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
@@ -199,11 +199,11 @@ impl VideoSink {
 }
 
 impl SinkTrait for VideoSink {
-    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
         Box::new(Self::ir_1)
     }
 
-    fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
+    fn get_run(&self, _ctx: ZFContext) -> FnSinkRun {
         Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
             Box::pin(Self::run_1(ctx, inputs))
         })

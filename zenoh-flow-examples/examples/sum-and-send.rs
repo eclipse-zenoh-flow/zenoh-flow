@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use zenoh_flow::runtime::message::Message;
 use zenoh_flow::types::{
     DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult,
-    RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFPortDescriptor, ZFResult,
+    RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFResult,
 };
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{downcast_mut, get_input, zf_data};
@@ -64,7 +64,7 @@ impl SumAndSend {
         let mut guard = ctx.lock(); //getting the context
         let mut _state = downcast_mut!(SumAndSendState, guard.state).unwrap(); //getting and downcasting  state to right type
 
-        let data = get_input!(RandomData, String::from(INPUT), inputs)?;
+        let (_, data) = get_input!(RandomData, String::from(INPUT), inputs)?;
 
         let res = _state.x.d + data.d;
         let res = RandomData { d: res };

@@ -152,7 +152,7 @@ impl ZFOperatorRunner {
                 };
 
                 let (d, _) = token.split();
-                data.insert(id, ZFData::from(d.unwrap()));
+                data.insert(id, d.unwrap());
             }
 
             let timestamp = {

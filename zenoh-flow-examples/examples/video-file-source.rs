@@ -20,12 +20,12 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
-        ZFContext, ZFError, ZFPortDescriptor, ZFResult,
+        ZFContext, ZFError, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
 };
-use zenoh_flow_examples::{ZFBytes, ZFOpenCVBytes};
+use zenoh_flow_examples::ZFBytes;
 
 #[derive(Debug)]
 struct VideoSource {
@@ -71,7 +71,7 @@ impl VideoSource {
             None => 40,
         };
 
-        let mut camera = videoio::VideoCapture::from_file(source_file, videoio::CAP_ANY).unwrap(); // 0 is the default camera
+        let camera = videoio::VideoCapture::from_file(source_file, videoio::CAP_ANY).unwrap(); // 0 is the default camera
         let opened = videoio::VideoCapture::is_opened(&camera).unwrap();
         if !opened {
             panic!("Unable to open default camera!");
@@ -142,7 +142,7 @@ impl VideoSource {
             drop(frame);
         }
 
-        async_std::task::sleep(std::time::Duration::from_millis(_state.delay.clone())).await;
+        async_std::task::sleep(std::time::Duration::from_millis(_state.delay)).await;
 
         Ok(results)
     }

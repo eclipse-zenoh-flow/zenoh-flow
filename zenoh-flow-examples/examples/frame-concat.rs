@@ -13,26 +13,20 @@
 //
 
 use async_std::sync::{Arc, Mutex};
-use rand::Rng;
-use std::any::Any;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io;
 use zenoh_flow::{
-    downcast, downcast_mut, get_input,
-    runtime::message::Message,
+    downcast, get_input,
     serde::{Deserialize, Serialize},
     types::{
-        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
-        OutputRuleResult, RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput,
-        ZFPortDescriptor, ZFResult,
+        DataTrait, FnInputRule, FnOutputRule, FnRun, OperatorTrait, RunResult, StateTrait,
+        ZFContext, ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
 };
-use zenoh_flow_examples::{ZFBytes, ZFOpenCVBytes};
+use zenoh_flow_examples::ZFBytes;
 
-use opencv::{core, highgui, imgproc, objdetect, prelude::*, types, videoio, Result};
+use opencv::core;
 
 static INPUT1: &str = "Frame1";
 static INPUT2: &str = "Frame2";
@@ -76,25 +70,25 @@ impl FrameConcat {
     pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
         let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
-        let mut guard = ctx.lock(); //getting state
+        let guard = ctx.lock(); //getting state
         let _state = downcast!(ConcatState, guard.state).unwrap(); //downcasting to right type
 
         let inner = _state.inner.as_ref().unwrap();
 
         let encode_options = zf_spin_lock!(inner.encode_options);
 
-        let frame1 = get_input!(ZFBytes, String::from(INPUT1), inputs)?.clone();
-        let frame2 = get_input!(ZFBytes, String::from(INPUT2), inputs)?;
+        let (_, frame1) = get_input!(ZFBytes, String::from(INPUT1), inputs)?;
+        let (_, frame2) = get_input!(ZFBytes, String::from(INPUT2), inputs)?;
 
         // Decode Image
-        let mut frame1 = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(frame1.bytes.clone()),
+        let frame1 = opencv::imgcodecs::imdecode(
+            &opencv::types::VectorOfu8::from_iter(frame1.bytes),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
 
-        let mut frame2 = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(frame2.bytes.clone()),
+        let frame2 = opencv::imgcodecs::imdecode(
+            &opencv::types::VectorOfu8::from_iter(frame2.bytes),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
@@ -118,15 +112,15 @@ impl FrameConcat {
 }
 
 impl OperatorTrait for FrameConcat {
-    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
         Box::new(zenoh_flow::default_input_rule)
     }
 
-    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
         Box::new(zenoh_flow::default_output_rule)
     }
 
-    fn get_run(&self, ctx: ZFContext) -> Box<FnRun> {
+    fn get_run(&self, _ctx: ZFContext) -> Box<FnRun> {
         Box::new(Self::run_1)
     }
 
