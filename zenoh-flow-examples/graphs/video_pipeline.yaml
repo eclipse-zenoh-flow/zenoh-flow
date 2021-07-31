@@ -14,9 +14,5 @@ sinks:
       type: image
 
 links:
-- from:
-    id : Camera
-    output_id : Frame
-  to:
-    id : Window
-    input_id : Frame
+- from: Camera.Frame
+  to: Window.Frame

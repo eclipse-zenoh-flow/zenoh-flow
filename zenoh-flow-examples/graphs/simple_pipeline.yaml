@@ -22,15 +22,7 @@ sinks:
       type: usize
 
 links:
-- from:
-    id : Counter
-    output_id : Counter
-  to:
-    id : SumOperator
-    input_id : Number
-- from:
-    id : SumOperator
-    output_id : Sum
-  to:
-    id : PrintSink
-    input_id : Data
+- from: Counter.Counter
+  to: SumOperator.Number
+- from: SumOperator.Sum
+  to: PrintSink.Data

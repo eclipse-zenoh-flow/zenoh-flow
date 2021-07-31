@@ -33,22 +33,11 @@ sinks: # sources can have only ONE input
     input:
       id: Frame
       type: image
+
 links:
-- from:
-    id : Camera0
-    output_id : Frame # Output
-  to:
-    id : Concatenation
-    input_id : Frame1 # Input
-- from:
-    id : Camera1
-    output_id : Frame
-  to:
-    id : Concatenation
-    input_id : Frame2
-- from:
-      id: Concatenation
-      output_id : Frame
-  to:
-      id: Window
-      input_id : Frame
+- from: Camera0.Frame
+  to: Concatenation.Frame1
+- from: Camera1.Frame
+  to: Concatenation.Frame2
+- from: Concatenation.Frame
+  to: Window.Frame

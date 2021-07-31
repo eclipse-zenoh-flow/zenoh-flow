@@ -28,19 +28,12 @@ sinks: # sources can have only ONE input
     input:
       id: Frame
       type: image
+
 links:
-- from:
-    id : Camera0
-    output_id : Frame # Output
-  to:
-    id : FaceDetection
-    input_id : Frame # Input
-- from:
-    id : FaceDetection
-    output_id : Frame
-  to:
-    id : Window
-    input_id : Frame
+- from: Camera0.Frame
+  to: FaceDetection.Frame
+- from: FaceDetection.Frame
+  to: Window.Frame
 
 
 mapping:
