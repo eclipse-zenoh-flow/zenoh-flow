@@ -32,11 +32,11 @@ use crate::runtime::runner::{Runner, ZFOperatorRunner, ZFSinkRunner, ZFSourceRun
 use crate::{
     model::connector::ZFConnectorKind,
     model::dataflow::DataFlowRecord,
-    model::link::{ZFLinkDescriptor, ZFPortFrom, ZFPortTo},
+    model::link::{ZFLinkDescriptor, ZFPortDescriptor, ZFPortFrom, ZFPortTo},
     model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord},
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
-    types::{ZFError, ZFOperatorId, ZFOperatorName, ZFPortDescriptor, ZFResult},
+    types::{ZFError, ZFOperatorId, ZFOperatorName, ZFResult},
     utils::hlc::PeriodicHLC,
 };
 use uuid::Uuid;
