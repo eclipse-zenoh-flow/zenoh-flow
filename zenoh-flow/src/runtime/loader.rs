@@ -12,13 +12,13 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::types::{ZFError, ZFResult};
 use crate::{
     runtime::runner::{
         ZFOperatorDeclaration, ZFOperatorRunner, ZFSinkDeclaration, ZFSinkRunner,
         ZFSourceDeclaration, ZFSourceRunner,
     },
-    PeriodicHLC,
+    types::{ZFError, ZFResult},
+    utils::hlc::PeriodicHLC,
 };
 use async_std::sync::Arc;
 use libloading::Library;

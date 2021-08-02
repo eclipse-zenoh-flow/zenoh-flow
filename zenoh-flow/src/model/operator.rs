@@ -12,7 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::types::{ZFOperatorId, ZFPeriodDescriptor, ZFPortDescriptor, ZFRuntimeID};
+use crate::model::period::ZFPeriodDescriptor;
+use crate::types::{ZFOperatorId, ZFPortDescriptor, ZFRuntimeID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
