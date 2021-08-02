@@ -16,12 +16,12 @@ use crate::async_std::sync::{Arc, Mutex, MutexGuard};
 use crate::runtime::message::{Message, ZFDataMessage, ZFMessage};
 use crate::serde::{Deserialize, Serialize};
 use futures::Future;
+use std::any::Any;
 use std::collections::HashMap;
 use std::convert::From;
 use std::fmt::Debug;
 use std::pin::Pin;
-use std::{any::Any, time::Duration};
-use uhlc::{Timestamp, HLC, NTP64};
+use uhlc::Timestamp;
 
 // Placeholder types
 pub type ZFOperatorId = String;
@@ -37,87 +37,6 @@ pub struct ZFPortDescriptor {
     pub port_id: String,
     #[serde(alias = "type")]
     pub port_type: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ZFPeriodDescriptor {
-    pub duration: u64,
-    pub unit: String,
-}
-
-impl ZFPeriodDescriptor {
-    pub const SUPPORTED_UNITS: [&'static str; 3] = ["us", "ms", "s"];
-
-    /// Check if the period is valid, i.e. its unit is supported.
-    ///
-    /// The following units are currently supported:
-    /// - "us": microseconds,
-    /// - "ms": milliseconds,
-    /// - "s": seconds.
-    ///
-    /// The unit string is not case-sensitive, a `to_lowercase` conversion is performed.
-    pub fn validate(&self) -> bool {
-        Self::SUPPORTED_UNITS.contains(&self.unit.to_lowercase().as_str())
-    }
-
-    /// Converts the period to a `std::core::Duration`.
-    ///
-    /// ## Panics
-    ///
-    /// This method panics if `self.unit` is not supported. See the method `validate` to make sure
-    /// that the period can be "translated" and prevent a panic.
-    pub fn to_duration(&self) -> Duration {
-        match self.unit.to_lowercase().as_str() {
-            "us" => Duration::from_micros(self.duration),
-            "ms" => Duration::from_millis(self.duration),
-            "s" => Duration::from_secs(self.duration),
-            _ => {
-                log::error!("Unsupported unit type: {:?}", self.unit);
-                panic!("Unsupported unit type: {:?}", self.unit)
-            }
-        }
-    }
-}
-
-pub struct PeriodicHLC {
-    hlc: Arc<HLC>,
-    period: Option<ZFPeriodDescriptor>,
-}
-
-impl PeriodicHLC {
-    pub fn new(hlc: Arc<HLC>, period: Option<ZFPeriodDescriptor>) -> Self {
-        Self { hlc, period }
-    }
-
-    pub fn new_non_periodic(hlc: Arc<HLC>) -> Self {
-        Self { hlc, period: None }
-    }
-
-    pub fn new_timestamp(&self) -> Timestamp {
-        let mut timestamp = self.hlc.new_timestamp();
-        log::debug!("Timestamp generated: {:?}", timestamp);
-
-        if let Some(period) = &self.period {
-            let period_us = period.to_duration().as_secs_f64();
-            let orig_timestamp_us = timestamp.get_time().to_duration().as_secs_f64();
-
-            let nb_period_floored = f64::floor(orig_timestamp_us / period_us);
-            let periodic_timestamp_us = Duration::from_secs_f64(period_us * nb_period_floored);
-
-            timestamp = Timestamp::new(
-                NTP64::from(periodic_timestamp_us),
-                timestamp.get_id().to_owned(),
-            );
-            log::debug!(
-                "Periodic timestamp: {:?} — period = {:?} — original = {:?}",
-                periodic_timestamp_us,
-                period_us,
-                orig_timestamp_us,
-            );
-        }
-
-        timestamp
-    }
 }
 
 #[derive(Debug, PartialEq)]

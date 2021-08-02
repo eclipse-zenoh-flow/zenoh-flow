@@ -31,13 +31,14 @@ use crate::runtime::message::ZFMessage;
 use crate::runtime::runner::{Runner, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner};
 use crate::{
     model::connector::ZFConnectorKind,
+    model::dataflow::DataFlowRecord,
     model::link::{ZFLinkDescriptor, ZFPortFrom, ZFPortTo},
     model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord},
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
     types::{ZFError, ZFOperatorId, ZFOperatorName, ZFPortDescriptor, ZFResult},
+    utils::hlc::PeriodicHLC,
 };
-use crate::{model::dataflow::DataFlowRecord, PeriodicHLC};
 use uuid::Uuid;
 
 pub struct DataFlowGraph {
@@ -233,7 +234,7 @@ impl DataFlowGraph {
                 .add_node(DataFlowNode::Source(descriptor.clone())),
             DataFlowNode::Source(descriptor),
         ));
-        let non_periodic_hlc = PeriodicHLC::new_non_periodic(hlc);
+        let non_periodic_hlc = PeriodicHLC::new(hlc, None);
         let runner = Runner::Source(ZFSourceRunner::new(non_periodic_hlc, source, None));
         self.operators_runners
             .insert(id, (Arc::new(Mutex::new(runner)), DataFlowNodeKind::Source));
