@@ -231,10 +231,7 @@ impl DataFlowRecord {
             };
 
             if from_type != to_type {
-                return Err(ZFError::PortTypeNotMatching((
-                    String::from(from_type),
-                    String::from(to_type),
-                )));
+                return Err(ZFError::PortTypeNotMatching((from_type, to_type)));
             }
 
             if from_runtime == to_runtime {
@@ -270,7 +267,7 @@ impl DataFlowRecord {
                         resource: z_resource_name.clone(),
                         link_id: ZFPortDescriptor {
                             port_id: l.from.output_id.clone(),
-                            port_type: String::from(from_type),
+                            port_type: from_type,
                         },
 
                         runtime: from_runtime,
@@ -304,7 +301,7 @@ impl DataFlowRecord {
                     resource: z_resource_name.clone(),
                     link_id: ZFPortDescriptor {
                         port_id: l.to.input_id.clone(),
-                        port_type: String::from(to_type),
+                        port_type: to_type,
                     },
 
                     runtime: to_runtime,

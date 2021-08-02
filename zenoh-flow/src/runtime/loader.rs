@@ -146,6 +146,6 @@ pub unsafe fn load_lib_sink(
 pub fn make_file_path(uri: Url) -> String {
     match uri.host_str() {
         Some(h) => format!("{}{}", h, uri.path()),
-        None => format!("{}", uri.path()),
+        None => uri.path().to_string(),
     }
 }

@@ -86,9 +86,9 @@ impl std::fmt::Display for ZFSinkRecord {
 impl ZFSinkRecord {
     pub fn get_input_type(&self, id: &str) -> Option<String> {
         if self.input.port_id == *id {
-            return Some(self.input.port_type.clone());
+            Some(self.input.port_type.clone())
         } else {
-            return None;
+            None
         }
     }
 }
@@ -112,9 +112,9 @@ impl std::fmt::Display for ZFSourceRecord {
 impl ZFSourceRecord {
     pub fn get_output_type(&self, id: &str) -> Option<String> {
         if self.output.port_id == *id {
-            return Some(self.output.port_type.clone());
+            Some(self.output.port_type.clone())
         } else {
-            return None;
+            None
         }
     }
 }
@@ -137,16 +137,16 @@ impl std::fmt::Display for ZFOperatorRecord {
 
 impl ZFOperatorRecord {
     pub fn get_output_type(&self, id: &str) -> Option<String> {
-        match self.outputs.iter().find(|&lid| *lid.port_id == *id) {
-            Some(lid) => Some(lid.port_type.clone()),
-            None => None,
-        }
+        self.outputs
+            .iter()
+            .find(|&lid| *lid.port_id == *id)
+            .map(|lid| lid.port_type.clone())
     }
 
     pub fn get_input_type(&self, id: &str) -> Option<String> {
-        match self.inputs.iter().find(|&lid| *lid.port_id == *id) {
-            Some(lid) => Some(lid.port_type.clone()),
-            None => None,
-        }
+        self.inputs
+            .iter()
+            .find(|&lid| *lid.port_id == *id)
+            .map(|lid| lid.port_type.clone())
     }
 }

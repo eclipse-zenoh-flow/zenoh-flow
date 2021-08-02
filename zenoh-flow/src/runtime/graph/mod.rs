@@ -330,10 +330,10 @@ impl DataFlowGraph {
             return Ok(());
         }
 
-        return Err(ZFError::PortTypeNotMatching((
+        Err(ZFError::PortTypeNotMatching((
             String::from(from_type),
             String::from(to_type),
-        )));
+        )))
     }
 
     pub fn load(&mut self, runtime: &str) -> ZFResult<()> {
@@ -437,7 +437,7 @@ impl DataFlowGraph {
             let (up_runner, _) = self
                 .operators_runners
                 .get(&up_op.get_id())
-                .ok_or(ZFError::OperatorNotFound(up_op.get_id().clone()))?;
+                .ok_or_else(|| ZFError::OperatorNotFound(up_op.get_id()))?;
             let mut up_runner = up_runner.lock().await;
 
             if self.graph.contains_node(*idx) {
@@ -450,7 +450,7 @@ impl DataFlowGraph {
                         .links
                         .iter()
                         .find(|&(edge_index, _)| *edge_index == down_edge_index)
-                        .ok_or(ZFError::OperatorNotFound(up_op.get_id().clone()))?;
+                        .ok_or_else(|| ZFError::OperatorNotFound(up_op.get_id()))?;
 
                     let (link_id_from, link_id_to) = match self.graph.edge_weight(down_edge_index) {
                         Some(w) => w,
@@ -469,7 +469,7 @@ impl DataFlowGraph {
                     let (down_runner, _) = self
                         .operators_runners
                         .get(&down_op.get_id())
-                        .ok_or(ZFError::OperatorNotFound(down_op.get_id().clone()))?;
+                        .ok_or_else(|| ZFError::OperatorNotFound(down_op.get_id()))?;
                     let mut down_runner = down_runner.lock().await;
 
                     log::debug!(

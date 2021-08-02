@@ -245,17 +245,11 @@ impl Token {
     }
 
     pub fn is_ready(&self) -> bool {
-        match self {
-            Self::Ready(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Ready(_))
     }
 
     pub fn is_not_ready(&self) -> bool {
-        match self {
-            Self::NotReady => true,
-            _ => false,
-        }
+        matches!(self, Self::NotReady)
     }
 
     pub fn consume(&mut self) -> ZFResult<()> {
@@ -305,7 +299,7 @@ impl Token {
         }
     }
 
-    pub fn action<'a>(&'a self) -> &'a TokenAction {
+    pub fn action(&self) -> &TokenAction {
         match self {
             Self::Ready(ready) => &ready.action,
             Self::NotReady => &TokenAction::Wait,
