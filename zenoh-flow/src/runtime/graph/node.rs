@@ -69,18 +69,18 @@ impl DataFlowNode {
             DataFlowNode::Source(_) => Err(ZFError::PortNotFound((self.get_id(), id))),
             DataFlowNode::Sink(sink) => {
                 if sink.input.port_id == id {
-                    return Ok(&sink.input.port_type);
+                    Ok(&sink.input.port_type)
                 } else {
-                    return Err(ZFError::PortNotFound((self.get_id(), id)));
+                    Err(ZFError::PortNotFound((self.get_id(), id)))
                 }
             }
             DataFlowNode::Connector(zc) => match zc.kind {
                 ZFConnectorKind::Receiver => Err(ZFError::PortNotFound((self.get_id(), id))),
                 ZFConnectorKind::Sender => {
                     if zc.link_id.port_id == id {
-                        return Ok(&zc.link_id.port_type);
+                        Ok(&zc.link_id.port_type)
                     } else {
-                        return Err(ZFError::PortNotFound((self.get_id(), id)));
+                        Err(ZFError::PortNotFound((self.get_id(), id)))
                     }
                 }
             },
@@ -111,17 +111,17 @@ impl DataFlowNode {
             DataFlowNode::Sink(_) => Err(ZFError::PortNotFound((self.get_id(), id))),
             DataFlowNode::Source(source) => {
                 if source.output.port_id == id {
-                    return Ok(&source.output.port_type);
+                    Ok(&source.output.port_type)
                 } else {
-                    return Err(ZFError::PortNotFound((self.get_id(), id)));
+                    Err(ZFError::PortNotFound((self.get_id(), id)))
                 }
             }
             DataFlowNode::Connector(zc) => match zc.kind {
                 ZFConnectorKind::Receiver => {
                     if zc.link_id.port_id == id {
-                        return Ok(&zc.link_id.port_type);
+                        Ok(&zc.link_id.port_type)
                     } else {
-                        return Err(ZFError::PortNotFound((self.get_id(), id)));
+                        Err(ZFError::PortNotFound((self.get_id(), id)))
                     }
                 }
                 ZFConnectorKind::Sender => Err(ZFError::PortNotFound((self.get_id(), id))),

@@ -15,7 +15,7 @@
 use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::{Message, ZFMessage};
-use crate::types::{Token, ZFContext, ZFData, ZFInput, ZFResult};
+use crate::types::{Token, ZFContext, ZFInput, ZFResult};
 use crate::utils::hlc::PeriodicHLC;
 use crate::{OperatorTrait, SinkTrait, SourceTrait};
 use async_std::sync::Arc;
@@ -366,7 +366,7 @@ impl ZFSinkRunner {
                 if d.is_none() {
                     continue;
                 }
-                data.insert(id, ZFData::from(d.unwrap()));
+                data.insert(id, d.unwrap());
             }
 
             run_fn(ctx.clone(), data).await?;
