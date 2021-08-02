@@ -13,14 +13,14 @@
 //
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
-use crate::model::link::{ZFLinkDescriptor, ZFPortFrom, ZFPortTo};
+use crate::model::link::{ZFLinkDescriptor, ZFPortDescriptor, ZFPortFrom, ZFPortTo};
 use crate::model::operator::{
     ZFOperatorDescriptor, ZFOperatorRecord, ZFSinkDescriptor, ZFSinkRecord, ZFSourceDescriptor,
     ZFSourceRecord,
 };
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{ZFError, ZFOperatorId, ZFPortDescriptor, ZFResult, ZFRuntimeID};
+use crate::types::{ZFError, ZFOperatorId, ZFResult, ZFRuntimeID};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

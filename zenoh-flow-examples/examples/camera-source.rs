@@ -20,12 +20,12 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
-        ZFContext, ZFError, ZFPortDescriptor, ZFResult,
+        ZFContext, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
 };
-use zenoh_flow_examples::{ZFBytes, ZFOpenCVBytes};
+use zenoh_flow_examples::ZFBytes;
 
 #[derive(Debug)]
 struct CameraSource {

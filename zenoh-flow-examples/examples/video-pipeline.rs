@@ -20,11 +20,12 @@ use std::io::Write;
 use zenoh_flow::model::link::{ZFPortFrom, ZFPortTo};
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
+    model::link::ZFPortDescriptor,
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnInputRule, FnOutputRule, FnSinkRun, FnSourceRun, FutRunResult, FutSinkResult,
         InputRuleResult, RunResult, SinkTrait, SourceTrait, StateTrait, Token, ZFContext, ZFError,
-        ZFInput, ZFPortDescriptor, ZFResult,
+        ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,

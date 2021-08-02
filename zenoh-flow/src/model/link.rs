@@ -35,3 +35,11 @@ pub struct ZFPortTo {
     pub id: ZFOperatorId,
     pub input_id: String,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ZFPortDescriptor {
+    #[serde(alias = "id")]
+    pub port_id: String,
+    #[serde(alias = "type")]
+    pub port_type: String,
+}

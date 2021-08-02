@@ -31,14 +31,6 @@ pub type ZFTimestamp = usize; //TODO: improve it, usize is just a placeholder
 
 pub type ZFRuntimeID = String;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ZFPortDescriptor {
-    #[serde(alias = "id")]
-    pub port_id: String,
-    #[serde(alias = "type")]
-    pub port_type: String,
-}
-
 #[derive(Debug, PartialEq)]
 pub enum ZFError {
     GenericError,
