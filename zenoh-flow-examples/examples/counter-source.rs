@@ -19,14 +19,14 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
-        ZFContext, ZFLinkId, ZFResult,
+        ZFContext, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_empty_state,
 };
 use zenoh_flow_examples::RandomData;
 
-static SOURCE: &str = "Number";
+static SOURCE: &str = "Counter";
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -46,7 +46,7 @@ impl CountSource {
     }
 
     async fn run_1(_ctx: ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
         let d = RandomData {
             d: COUNTER.fetch_add(1, Ordering::AcqRel),
         };

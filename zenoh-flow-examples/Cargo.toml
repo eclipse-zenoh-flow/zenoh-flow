@@ -24,6 +24,7 @@ typetag = "0.1"
 log = "0.4"
 bincode = "1"
 zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master", default-features = false, features = ["transport_tcp","transport_udp"]  }
+uhlc = { git = "https://github.com/atolab/uhlc-rs.git", branch = "master" }
 
 [dev-dependencies]
 rand = "0.8.0"
@@ -41,6 +42,14 @@ crate-type = ["cdylib"]
 
 [[example]]
 name = "example-buzz"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "example-buzz2"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "example-buzz3"
 crate-type = ["cdylib"]
 
 [[example]]
@@ -89,3 +98,10 @@ name = "example-select"
 [[example]]
 name = "video-pipeline"
 
+[[example]]
+name = "video-file-source"
+crate-type = ["cdylib"]
+
+[[example]]
+name = "frame-concat"
+crate-type = ["cdylib"]

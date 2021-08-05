@@ -14,10 +14,10 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use zenoh_flow::runtime::message::ZFMessage;
+use zenoh_flow::runtime::message::Message;
 use zenoh_flow::types::{
     DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult,
-    RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult,
+    RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFResult,
 };
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{downcast_mut, get_input, zf_data};
@@ -36,7 +36,7 @@ struct SumAndSendState {
 }
 
 static INPUT: &str = "Number";
-static OUTPUT: &str = "Number";
+static OUTPUT: &str = "Sum";
 
 impl SumAndSend {
     pub fn new() -> Self {
@@ -47,11 +47,11 @@ impl SumAndSend {
         }
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
-                Token::NotReady(_) => Ok(false),
+                Token::NotReady => Ok(false),
             }
         } else {
             Err(ZFError::MissingInput(String::from(INPUT)))
@@ -59,12 +59,12 @@ impl SumAndSend {
     }
 
     pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.lock(); //getting the context
         let mut _state = downcast_mut!(SumAndSendState, guard.state).unwrap(); //getting and downcasting  state to right type
 
-        let data = get_input!(RandomData, String::from(INPUT), inputs)?;
+        let (_, data) = get_input!(RandomData, String::from(INPUT), inputs)?;
 
         let res = _state.x.d + data.d;
         let res = RandomData { d: res };
@@ -74,14 +74,11 @@ impl SumAndSend {
         Ok(results)
     }
 
-    pub fn or_1(
-        _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
-    ) -> OutputRuleResult {
+    pub fn or_1(_ctx: ZFContext, outputs: HashMap<String, Arc<dyn DataTrait>>) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {
             // should be ZFMessage::from_data
-            results.insert(k, Arc::new(ZFMessage::from_data(v)));
+            results.insert(k, Message::from_data(v));
         }
         Ok(results)
     }

@@ -13,34 +13,29 @@
 //
 
 use async_std::sync::{Arc, Mutex};
-use rand::Rng;
-use std::any::Any;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io;
 use std::{
     fs::File,
     io::{prelude::*, BufReader},
     path::Path,
 };
 use zenoh_flow::{
-    downcast, downcast_mut, get_input,
-    runtime::message::ZFMessage,
+    downcast, get_input,
+    runtime::message::Message,
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
-        OutputRuleResult, RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFLinkId,
-        ZFResult,
+        OutputRuleResult, RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
 };
-use zenoh_flow_examples::{ZFBytes, ZFOpenCVBytes};
+use zenoh_flow_examples::ZFBytes;
 
 use opencv::core::prelude::MatTrait;
 use opencv::dnn::NetTrait;
-use opencv::{core, highgui, imgproc, objdetect, prelude::*, types, videoio, Result};
-use std::time::{Duration, Instant};
+use opencv::{core, imgproc};
+use std::time::Instant;
 
 static INPUT: &str = "Frame";
 static OUTPUT: &str = "Frame";
@@ -118,11 +113,11 @@ impl ObjDetection {
         Ok(Self { state })
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
-                Token::NotReady(_) => Ok(false),
+                Token::NotReady => Ok(false),
             }
         } else {
             Err(ZFError::MissingInput(String::from(INPUT)))
@@ -133,18 +128,18 @@ impl ObjDetection {
         let scale = 1.0 / 255.0;
         let mean = core::Scalar::new(0f64, 0f64, 0f64, 0f64);
 
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut detections: opencv::types::VectorOfMat = core::Vector::new();
 
-        let mut guard = ctx.lock(); //getting state
+        let guard = ctx.lock(); //getting state
         let _state = downcast!(FDState, guard.state).unwrap(); //downcasting to right type
 
         let inner = _state.inner.as_ref().unwrap();
 
         let mut net = zf_spin_lock!(inner.dnn);
-        let mut encode_options = zf_spin_lock!(inner.encode_options);
-        let mut classes = zf_spin_lock!(inner.classes);
+        let encode_options = zf_spin_lock!(inner.encode_options);
+        let classes = zf_spin_lock!(inner.classes);
         let outputs = zf_spin_lock!(inner.outputs);
 
         let mut boxes: Vec<core::Vector<core::Rect>> = vec![core::Vector::new(); classes.len()];
@@ -158,11 +153,11 @@ impl ObjDetection {
             core::Scalar::new(255f64, 0f64, 0f64, -1f64),
         ];
 
-        let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
         // Decode Image
         let mut frame = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(data.bytes.clone()),
+            &opencv::types::VectorOfu8::from_iter(data.bytes),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
@@ -269,7 +264,10 @@ impl ObjDetection {
         }
 
         // add label to frame with info
-        let label = format!("DNN Time: {} us - Detected: {}", elapsed, detected);
+        let label = format!(
+            "DNN Inference Time: {} us - Detected: {}",
+            elapsed, detected
+        );
         let mut baseline = 0;
 
         let bg_size = imgproc::get_text_size(
@@ -322,29 +320,25 @@ impl ObjDetection {
         Ok(results)
     }
 
-    pub fn or_1(
-        _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
-    ) -> OutputRuleResult {
+    pub fn or_1(_ctx: ZFContext, outputs: HashMap<String, Arc<dyn DataTrait>>) -> OutputRuleResult {
         let mut results = HashMap::new();
         for (k, v) in outputs {
-            // should be ZFMessage::from_data
-            results.insert(k, Arc::new(ZFMessage::from_data(v)));
+            results.insert(k, Message::from_data(v));
         }
         Ok(results)
     }
 }
 
 impl OperatorTrait for ObjDetection {
-    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
         Box::new(Self::ir_1)
     }
 
-    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
+    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
         Box::new(Self::or_1)
     }
 
-    fn get_run(&self, ctx: ZFContext) -> Box<FnRun> {
+    fn get_run(&self, _ctx: ZFContext) -> Box<FnRun> {
         Box::new(Self::run_1)
     }
 

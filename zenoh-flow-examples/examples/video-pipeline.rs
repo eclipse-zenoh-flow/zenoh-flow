@@ -13,22 +13,24 @@
 //
 
 use async_std::sync::{Arc, Mutex};
+use opencv::{core, highgui, prelude::*, videoio};
 use std::collections::HashMap;
-use zenoh_flow::model::link::{ZFFromEndpoint, ZFToEndpoint};
+use std::fs::File;
+use std::io::Write;
+use zenoh_flow::model::link::{ZFPortFrom, ZFPortTo};
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
+    model::link::ZFPortDescriptor,
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnInputRule, FnOutputRule, FnSinkRun, FnSourceRun, FutRunResult, FutSinkResult,
         InputRuleResult, RunResult, SinkTrait, SourceTrait, StateTrait, Token, ZFContext, ZFError,
-        ZFInput, ZFLinkId, ZFResult,
+        ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
 };
 use zenoh_flow_examples::ZFBytes;
-
-use opencv::{core, highgui, prelude::*, videoio};
 
 static SOURCE: &str = "Frame";
 static INPUT: &str = "Frame";
@@ -66,7 +68,7 @@ impl std::fmt::Debug for CameraState {
 
 impl CameraSource {
     fn new() -> Self {
-        let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap(); // 0 is the default camera
+        let camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap(); // 0 is the default camera
         let opened = videoio::VideoCapture::is_opened(&camera).unwrap();
         if !opened {
             panic!("Unable to open default camera!");
@@ -89,7 +91,7 @@ impl CameraSource {
     }
 
     async fn run_1(ctx: ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.async_lock().await;
         let mut _state = downcast_mut!(CameraState, guard.state).unwrap(); //downcasting to right type
@@ -132,7 +134,7 @@ impl CameraSource {
 }
 
 impl SourceTrait for CameraSource {
-    fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
+    fn get_run(&self, _ctx: ZFContext) -> FnSourceRun {
         Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) })
     }
 
@@ -157,7 +159,7 @@ struct VideoState {
 
 impl VideoSink {
     pub fn new() -> Self {
-        let window_name = &format!("Video-Sink");
+        let window_name = &"Video-Sink".to_string();
         highgui::named_window(window_name, 1).unwrap();
         let state = VideoState {
             window_name: window_name.to_string(),
@@ -165,11 +167,11 @@ impl VideoSink {
         Self { state }
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
-                Token::NotReady(_) => Ok(false),
+                Token::NotReady => Ok(false),
             }
         } else {
             Err(ZFError::MissingInput(String::from(INPUT)))
@@ -180,10 +182,10 @@ impl VideoSink {
         let guard = ctx.async_lock().await; //getting state,
         let _state = downcast!(VideoState, guard.state).unwrap(); //downcasting to right type
 
-        let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
         let decoded = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(data.bytes.clone()),
+            &opencv::types::VectorOfu8::from_iter(data.bytes),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
@@ -198,11 +200,11 @@ impl VideoSink {
 }
 
 impl SinkTrait for VideoSink {
-    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
         Box::new(Self::ir_1)
     }
 
-    fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
+    fn get_run(&self, _ctx: ZFContext) -> FnSinkRun {
         Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
             Box::pin(Self::run_1(ctx, inputs))
         })
@@ -215,16 +217,22 @@ impl SinkTrait for VideoSink {
 
 #[async_std::main]
 async fn main() {
+    env_logger::init();
+
     let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new();
 
     let source = Box::new(CameraSource::new());
     let sink = Box::new(VideoSink::new());
+    let hlc = Arc::new(uhlc::HLC::default());
 
     zf_graph
         .add_static_source(
+            hlc,
             "camera-source".to_string(),
-            // "camera".to_string(),
-            String::from(SOURCE),
+            ZFPortDescriptor {
+                port_id: String::from(SOURCE),
+                port_type: String::from("image"),
+            },
             source,
             None,
         )
@@ -233,8 +241,10 @@ async fn main() {
     zf_graph
         .add_static_sink(
             "video-sink".to_string(),
-            // "window".to_string(),
-            String::from(INPUT),
+            ZFPortDescriptor {
+                port_id: String::from(INPUT),
+                port_type: String::from("image"),
+            },
             sink,
             None,
         )
@@ -242,13 +252,13 @@ async fn main() {
 
     zf_graph
         .add_link(
-            ZFFromEndpoint {
+            ZFPortFrom {
                 id: "camera-source".to_string(),
-                output: String::from(SOURCE),
+                output_id: String::from(SOURCE),
             },
-            ZFToEndpoint {
+            ZFPortTo {
                 id: "video-sink".to_string(),
-                input: String::from(INPUT),
+                input_id: String::from(INPUT),
             },
             None,
             None,
@@ -256,7 +266,13 @@ async fn main() {
         )
         .unwrap();
 
-    zf_graph.make_connections("local").await;
+    let dot_notation = zf_graph.to_dot_notation();
+
+    let mut file = File::create("video-pipeline.dot").unwrap();
+    write!(file, "{}", dot_notation).unwrap();
+    file.sync_all().unwrap();
+
+    zf_graph.make_connections("self").await.unwrap();
 
     let runners = zf_graph.get_runners();
     for runner in runners {

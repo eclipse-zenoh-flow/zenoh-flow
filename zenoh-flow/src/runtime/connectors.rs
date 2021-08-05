@@ -44,7 +44,7 @@ impl ZFZenohSender {
             while let Ok((_, msg)) = input.recv().await {
                 log::debug!("ZenohSender IN <= {:?} ", msg);
 
-                let serialized = match &msg.msg {
+                let serialized = match &msg.message {
                     Message::Data(data_msg) => match data_msg {
                         ZFDataMessage::Deserialized(de) => {
                             let se = Arc::new(
@@ -52,8 +52,8 @@ impl ZFZenohSender {
                                     .map_err(|_| ZFError::SerializationError)?,
                             );
                             let se_msg = ZFMessage {
-                                ts: msg.ts,
-                                msg: Message::Data(ZFDataMessage::new_serialized(se)),
+                                timestamp: msg.timestamp.clone(),
+                                message: Message::Data(ZFDataMessage::new_serialized(se)),
                             };
                             bincode::serialize(&se_msg).map_err(|_| ZFError::SerializationError)?
                         }

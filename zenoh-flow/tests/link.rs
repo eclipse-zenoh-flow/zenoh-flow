@@ -18,33 +18,34 @@ use zenoh_flow::{ZFError, ZFResult};
 
 async fn same_task_simple() {
     let size = 2;
-    let id = String::from("0");
-    let (sender, mut receiver) = link::<u8>(Some(size), id);
+    let send_id = String::from("0");
+    let recv_id = String::from("10");
+    let (sender, mut receiver) = link::<u8>(Some(size), send_id, recv_id);
 
     let mut d: u8 = 0;
     // Add the first element
     let res = sender.send(Arc::new(d)).await;
     assert_eq!(res, Ok(()));
     let res = receiver.recv().await;
-    assert_eq!(res, Ok((String::from("0"), Arc::new(0u8))));
+    assert_eq!(res, Ok((String::from("10"), Arc::new(0u8))));
 
     // Add the second element
     d = d + 1;
     let res = sender.send(Arc::new(d)).await;
     assert_eq!(res, Ok(()));
     let res = receiver.recv().await;
-    assert_eq!(res, Ok((String::from("0"), Arc::new(1u8))));
+    assert_eq!(res, Ok((String::from("10"), Arc::new(1u8))));
 }
 
 async fn recv_task_simple(mut receiver: ZFLinkReceiver<u8>) {
     let res = receiver.recv().await;
-    assert_eq!(res, Ok((String::from("0"), Arc::new(0u8))));
+    assert_eq!(res, Ok((String::from("10"), Arc::new(0u8))));
 
     let res = receiver.recv().await;
-    assert_eq!(res, Ok((String::from("0"), Arc::new(1u8))));
+    assert_eq!(res, Ok((String::from("10"), Arc::new(1u8))));
 
     let res = receiver.recv().await;
-    assert_eq!(res, Ok((String::from("0"), Arc::new(2u8))));
+    assert_eq!(res, Ok((String::from("10"), Arc::new(2u8))));
 }
 
 async fn send_task_simple(sender: ZFLinkSender<u8>) {
@@ -66,7 +67,7 @@ async fn send_task_simple(sender: ZFLinkSender<u8>) {
 async fn recv_task_more(mut receiver: ZFLinkReceiver<u8>) {
     for n in 0u8..255u8 {
         let res = receiver.recv().await;
-        assert_eq!(res, Ok((String::from("0"), Arc::new(n))));
+        assert_eq!(res, Ok((String::from("10"), Arc::new(n))));
     }
 }
 
@@ -85,8 +86,9 @@ fn ordered_fifo_simple_async() {
 #[test]
 fn ordered_fifo_simple_two_task_async() {
     let size = 2;
-    let id = String::from("0");
-    let (sender, receiver) = link::<u8>(Some(size), id);
+    let send_id = String::from("0");
+    let recv_id = String::from("10");
+    let (sender, receiver) = link::<u8>(Some(size), send_id, recv_id);
 
     let h1 = async_std::task::spawn(async move { send_task_simple(sender).await });
 
@@ -101,8 +103,9 @@ fn ordered_fifo_simple_two_task_async() {
 #[test]
 fn ordered_fifo_more_two_task_async() {
     let size = 20;
-    let id = String::from("0");
-    let (sender, receiver) = link::<u8>(Some(size), id);
+    let send_id = String::from("0");
+    let recv_id = String::from("10");
+    let (sender, receiver) = link::<u8>(Some(size), send_id, recv_id);
 
     let h1 = async_std::task::spawn(async move { send_task_more(sender).await });
 

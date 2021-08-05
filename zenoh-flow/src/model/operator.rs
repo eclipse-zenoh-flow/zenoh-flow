@@ -12,7 +12,9 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::types::{ZFLinkId, ZFOperatorId, ZFRuntimeID};
+use crate::model::link::ZFPortDescriptor;
+use crate::model::period::ZFPeriodDescriptor;
+use crate::types::{ZFOperatorId, ZFRuntimeID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -21,7 +23,7 @@ use std::collections::HashMap;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkDescriptor {
     pub id: ZFOperatorId,
-    pub input: ZFLinkId,
+    pub input: ZFPortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<ZFRuntimeID>, // to be removed
@@ -36,7 +38,8 @@ impl std::fmt::Display for ZFSinkDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSourceDescriptor {
     pub id: ZFOperatorId,
-    pub output: ZFLinkId,
+    pub output: ZFPortDescriptor,
+    pub period: Option<ZFPeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<ZFRuntimeID>, // to be removed
@@ -51,8 +54,8 @@ impl std::fmt::Display for ZFSourceDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFOperatorDescriptor {
     pub id: ZFOperatorId,
-    pub inputs: Vec<ZFLinkId>,
-    pub outputs: Vec<ZFLinkId>,
+    pub inputs: Vec<ZFPortDescriptor>,
+    pub outputs: Vec<ZFPortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<ZFRuntimeID>, // to be removed
@@ -69,7 +72,7 @@ impl std::fmt::Display for ZFOperatorDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkRecord {
     pub id: ZFOperatorId,
-    pub input: ZFLinkId,
+    pub input: ZFPortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: ZFRuntimeID,
@@ -81,10 +84,21 @@ impl std::fmt::Display for ZFSinkRecord {
     }
 }
 
+impl ZFSinkRecord {
+    pub fn get_input_type(&self, id: &str) -> Option<String> {
+        if self.input.port_id == *id {
+            Some(self.input.port_type.clone())
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSourceRecord {
     pub id: ZFOperatorId,
-    pub output: ZFLinkId,
+    pub output: ZFPortDescriptor,
+    pub period: Option<ZFPeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: ZFRuntimeID,
@@ -96,11 +110,21 @@ impl std::fmt::Display for ZFSourceRecord {
     }
 }
 
+impl ZFSourceRecord {
+    pub fn get_output_type(&self, id: &str) -> Option<String> {
+        if self.output.port_id == *id {
+            Some(self.output.port_type.clone())
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFOperatorRecord {
     pub id: ZFOperatorId,
-    pub inputs: Vec<ZFLinkId>,
-    pub outputs: Vec<ZFLinkId>,
+    pub inputs: Vec<ZFPortDescriptor>,
+    pub outputs: Vec<ZFPortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: ZFRuntimeID,
@@ -109,5 +133,21 @@ pub struct ZFOperatorRecord {
 impl std::fmt::Display for ZFOperatorRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Operator", self.id)
+    }
+}
+
+impl ZFOperatorRecord {
+    pub fn get_output_type(&self, id: &str) -> Option<String> {
+        self.outputs
+            .iter()
+            .find(|&lid| *lid.port_id == *id)
+            .map(|lid| lid.port_type.clone())
+    }
+
+    pub fn get_input_type(&self, id: &str) -> Option<String> {
+        self.inputs
+            .iter()
+            .find(|&lid| *lid.port_id == *id)
+            .map(|lid| lid.port_type.clone())
     }
 }

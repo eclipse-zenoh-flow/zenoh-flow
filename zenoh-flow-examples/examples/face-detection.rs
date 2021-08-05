@@ -13,26 +13,20 @@
 //
 
 use async_std::sync::{Arc, Mutex};
-use rand::Rng;
-use std::any::Any;
-use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io;
 use zenoh_flow::{
-    downcast, downcast_mut, get_input,
-    runtime::message::ZFMessage,
+    downcast, get_input,
     serde::{Deserialize, Serialize},
     types::{
-        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
-        OutputRuleResult, RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFLinkId,
-        ZFResult,
+        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, RunResult,
+        StateTrait, Token, ZFContext, ZFError, ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
 };
-use zenoh_flow_examples::{ZFBytes, ZFOpenCVBytes};
+use zenoh_flow_examples::ZFBytes;
 
-use opencv::{core, highgui, imgproc, objdetect, prelude::*, types, videoio, Result};
+use opencv::{core, imgproc, objdetect, prelude::*, types};
 
 static INPUT: &str = "Frame";
 static OUTPUT: &str = "Frame";
@@ -63,13 +57,13 @@ impl std::fmt::Debug for FDState {
 
 impl FaceDetection {
     fn new(configuration: HashMap<String, String>) -> Self {
-        let neural_network = match configuration.get("neural-network") {
-            Some(net) => net,
-            None => "haarcascades/haarcascade_frontalface_alt.xml",
-        };
+        let default_neural_network = "haarcascades/haarcascade_frontalface_alt.xml".to_owned();
+        let neural_network = configuration
+            .get("neural-network")
+            .unwrap_or(&default_neural_network);
 
         let xml = core::find_file(neural_network, true, false).unwrap();
-        let mut face = objdetect::CascadeClassifier::new(&xml).unwrap();
+        let face = objdetect::CascadeClassifier::new(&xml).unwrap();
         let encode_options = opencv::types::VectorOfi32::new();
 
         let inner = Some(FDInnerState {
@@ -81,11 +75,11 @@ impl FaceDetection {
         Self { state }
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
-                Token::NotReady(_) => Ok(false),
+                Token::NotReady => Ok(false),
             }
         } else {
             Err(ZFError::MissingInput(String::from(INPUT)))
@@ -93,9 +87,9 @@ impl FaceDetection {
     }
 
     pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
-        let mut guard = ctx.lock(); //getting state
+        let guard = ctx.lock(); //getting state
         let _state = downcast!(FDState, guard.state).unwrap(); //downcasting to right type
 
         let inner = _state.inner.as_ref().unwrap();
@@ -103,11 +97,11 @@ impl FaceDetection {
         let mut face = zf_spin_lock!(inner.face);
         let encode_options = zf_spin_lock!(inner.encode_options);
 
-        let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
         // Decode Image
         let mut frame = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(data.bytes.clone()),
+            &opencv::types::VectorOfu8::from_iter(data.bytes),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
@@ -175,30 +169,18 @@ impl FaceDetection {
 
         Ok(results)
     }
-
-    pub fn or_1(
-        _ctx: ZFContext,
-        outputs: HashMap<ZFLinkId, Arc<dyn DataTrait>>,
-    ) -> OutputRuleResult {
-        let mut results = HashMap::new();
-        for (k, v) in outputs {
-            // should be ZFMessage::from_data
-            results.insert(k, Arc::new(ZFMessage::from_data(v)));
-        }
-        Ok(results)
-    }
 }
 
 impl OperatorTrait for FaceDetection {
-    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
+    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
         Box::new(Self::ir_1)
     }
 
-    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
-        Box::new(Self::or_1)
+    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
+        Box::new(zenoh_flow::default_output_rule)
     }
 
-    fn get_run(&self, ctx: ZFContext) -> Box<FnRun> {
+    fn get_run(&self, _ctx: ZFContext) -> Box<FnRun> {
         Box::new(Self::run_1)
     }
 

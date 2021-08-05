@@ -17,7 +17,7 @@ use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
         FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait, Token,
-        ZFContext, ZFInput, ZFLinkId,
+        ZFContext, ZFInput,
     },
     zenoh_flow_derive::ZFState,
     zf_empty_state, ZFResult,
@@ -27,7 +27,7 @@ use zenoh_flow::{
 struct ExampleGenericSink {}
 
 impl ExampleGenericSink {
-    pub fn ir_1(_ctx: ZFContext, _inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, _inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         Ok(true)
     }
 

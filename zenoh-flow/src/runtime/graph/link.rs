@@ -14,24 +14,25 @@
 
 use async_std::sync::Arc;
 
-use crate::types::ZFLinkId;
 use crate::ZFResult;
 
 #[derive(Clone, Debug)]
 pub struct ZFLinkSender<T> {
-    pub id: ZFLinkId,
+    pub id: String,
     pub sender: flume::Sender<Arc<T>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ZFLinkReceiver<T> {
-    pub id: ZFLinkId,
+    pub id: String,
     pub receiver: flume::Receiver<Arc<T>>,
     pub last_message: Option<Arc<T>>,
 }
 
+pub type ZFLinkOutput<T> = ZFResult<(String, Arc<T>)>;
+
 impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
-    // pub async fn peek(&mut self) -> ZFResult<(ZFLinkId, Arc<T>)> {
+    // pub async fn peek(&mut self) -> ZFResult<(String, Arc<T>)> {
     //     match &self.last_message {
     //         Some(message) => Ok((self.id, message.clone())),
     //         None => {
@@ -45,9 +46,8 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
 
     pub fn peek(
         &mut self,
-    ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFResult<(ZFLinkId, Arc<T>)>> + '_>>
-    {
-        async fn __peek<T>(_self: &mut ZFLinkReceiver<T>) -> ZFResult<(ZFLinkId, Arc<T>)> {
+    ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_>> {
+        async fn __peek<T>(_self: &mut ZFLinkReceiver<T>) -> ZFResult<(String, Arc<T>)> {
             match &_self.last_message {
                 Some(message) => Ok((_self.id.clone(), message.clone())),
                 None => {
@@ -73,7 +73,7 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
     //     }
     // }
 
-    pub fn try_recv(&mut self) -> ZFResult<(ZFLinkId, Arc<T>)> {
+    pub fn try_recv(&mut self) -> ZFResult<(String, Arc<T>)> {
         match &self.last_message {
             Some(message) => {
                 let msg = message.clone();
@@ -87,10 +87,9 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
 
     pub fn recv(
         &mut self,
-    ) -> ::core::pin::Pin<
-        Box<dyn std::future::Future<Output = ZFResult<(ZFLinkId, Arc<T>)>> + '_ + Send + Sync>,
-    > {
-        async fn __recv<T>(_self: &mut ZFLinkReceiver<T>) -> ZFResult<(ZFLinkId, Arc<T>)> {
+    ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_ + Send + Sync>>
+    {
+        async fn __recv<T>(_self: &mut ZFLinkReceiver<T>) -> ZFResult<(String, Arc<T>)> {
             match &_self.last_message {
                 Some(message) => {
                     let msg = message.clone();
@@ -110,7 +109,7 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
         Ok(())
     }
 
-    pub fn id(&self) -> ZFLinkId {
+    pub fn id(&self) -> String {
         self.id.clone()
     }
 }
@@ -132,12 +131,16 @@ impl<T> ZFLinkSender<T> {
         self.sender.capacity()
     }
 
-    pub fn id(&self) -> ZFLinkId {
+    pub fn id(&self) -> String {
         self.id.clone()
     }
 }
 
-pub fn link<T>(capacity: Option<usize>, id: ZFLinkId) -> (ZFLinkSender<T>, ZFLinkReceiver<T>) {
+pub fn link<T>(
+    capacity: Option<usize>,
+    send_id: String,
+    recv_id: String,
+) -> (ZFLinkSender<T>, ZFLinkReceiver<T>) {
     let (sender, receiver) = match capacity {
         None => flume::unbounded(),
         Some(cap) => flume::bounded(cap),
@@ -145,11 +148,11 @@ pub fn link<T>(capacity: Option<usize>, id: ZFLinkId) -> (ZFLinkSender<T>, ZFLin
 
     (
         ZFLinkSender {
-            id: id.clone(),
+            id: send_id,
             sender,
         },
         ZFLinkReceiver {
-            id,
+            id: recv_id,
             receiver,
             last_message: None,
         },

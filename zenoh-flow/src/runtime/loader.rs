@@ -12,13 +12,18 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::runtime::runner::{
-    ZFOperatorDeclaration, ZFOperatorRunner, ZFSinkDeclaration, ZFSinkRunner, ZFSourceDeclaration,
-    ZFSourceRunner,
+use crate::{
+    runtime::runner::{
+        ZFOperatorDeclaration, ZFOperatorRunner, ZFSinkDeclaration, ZFSinkRunner,
+        ZFSourceDeclaration, ZFSourceRunner,
+    },
+    types::{ZFError, ZFResult},
+    utils::hlc::PeriodicHLC,
 };
-use crate::types::{ZFError, ZFResult};
+use async_std::sync::Arc;
 use libloading::Library;
 use std::collections::HashMap;
+use uhlc::HLC;
 use url::Url;
 
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -30,18 +35,27 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 ///
 /// TODO remove all copy-pasted code, make macros/functions instead
 pub fn load_operator(
+    hlc: Arc<HLC>,
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFOperatorRunner> {
     let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_operator(make_file_path(uri), configuration) },
+        "file" => unsafe { load_lib_operator(hlc, make_file_path(uri), configuration) },
         _ => Err(ZFError::Unimplemented),
     }
 }
 
+/// Load the library of the operator.
+///
+/// # Safety
+///
+/// This function dynamically loads an external library, things can go wrong:
+/// - it will panick if the symbol `zfoperator_declaration` is not found,
+/// - be sure to *trust* the code you are loading.
 pub unsafe fn load_lib_operator(
+    hlc: Arc<HLC>,
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFOperatorRunner> {
@@ -59,25 +73,34 @@ pub unsafe fn load_lib_operator(
 
     let operator = (decl.register)(configuration)?;
 
-    let runner = ZFOperatorRunner::new(operator, Some(library));
+    let runner = ZFOperatorRunner::new(hlc, operator, Some(library));
     Ok(runner)
 }
 
 // SOURCE
 
 pub fn load_source(
+    hlc: PeriodicHLC,
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFSourceRunner> {
     let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_source(make_file_path(uri), configuration) },
+        "file" => unsafe { load_lib_source(hlc, make_file_path(uri), configuration) },
         _ => Err(ZFError::Unimplemented),
     }
 }
 
+/// Load the library of a source.
+///
+/// # Safety
+///
+/// This function dynamically loads an external library, things can go wrong:
+/// - it will panick if the symbol `zfsource_declaration` is not found,
+/// - be sure to *trust* the code you are loading.
 pub unsafe fn load_lib_source(
+    hlc: PeriodicHLC,
     path: String,
     configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFSourceRunner> {
@@ -94,7 +117,7 @@ pub unsafe fn load_lib_source(
 
     let source = (decl.register)(configuration)?;
 
-    let runner = ZFSourceRunner::new(source, Some(library));
+    let runner = ZFSourceRunner::new(hlc, source, Some(library));
     Ok(runner)
 }
 
@@ -112,6 +135,13 @@ pub fn load_sink(
     }
 }
 
+/// Load the library of a sink.
+///
+/// # Safety
+///
+/// This function dynamically loads an external library, things can go wrong:
+/// - it will panick if the symbol `zfsink_declaration` is not found,
+/// - be sure to *trust* the code you are loading.
 pub unsafe fn load_lib_sink(
     path: String,
     configuration: Option<HashMap<String, String>>,
@@ -137,6 +167,6 @@ pub unsafe fn load_lib_sink(
 pub fn make_file_path(uri: Url) -> String {
     match uri.host_str() {
         Some(h) => format!("{}{}", h, uri.path()),
-        None => format!("{}", uri.path()),
+        None => uri.path().to_string(),
     }
 }

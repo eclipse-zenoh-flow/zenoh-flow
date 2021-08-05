@@ -1,6 +1,6 @@
 use crate::{
     model::dataflow::{DataFlowDescriptor, Mapping},
-    ZFResult, ZFRuntimeID,
+    ZFResult,
 };
 
 //
@@ -25,7 +25,7 @@ pub mod runner;
 
 pub async fn map_to_infrastructure(
     mut descriptor: DataFlowDescriptor,
-    runtime: &ZFRuntimeID,
+    runtime: &str,
 ) -> ZFResult<DataFlowDescriptor> {
     log::debug!("[Dataflow mapping] Begin mapping for: {}", descriptor.flow);
 
@@ -40,7 +40,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).clone(),
+                    runtime: runtime.to_string(),
                 };
                 mappings.push(mapping);
             }
@@ -53,7 +53,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).clone(),
+                    runtime: runtime.to_string(),
                 };
                 mappings.push(mapping);
             }
@@ -66,7 +66,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).clone(),
+                    runtime: runtime.to_string(),
                 };
                 mappings.push(mapping);
             }

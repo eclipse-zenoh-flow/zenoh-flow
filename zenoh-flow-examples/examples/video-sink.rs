@@ -15,16 +15,16 @@
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
-    downcast, downcast_mut, get_input,
+    get_input,
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
-        Token, ZFContext, ZFError, ZFInput, ZFLinkId, ZFResult,
+        Token, ZFContext, ZFError, ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
-    zf_empty_state, zf_spin_lock,
+    zf_empty_state,
 };
-use zenoh_flow_examples::{ZFBytes, ZFOpenCVBytes};
+use zenoh_flow_examples::ZFBytes;
 
 use opencv::{highgui, prelude::*};
 
@@ -40,16 +40,16 @@ struct VideoState {
 
 impl VideoSink {
     pub fn new() -> Self {
-        let window_name = &format!("Video-Sink");
+        let window_name = &"Video-Sink".to_string();
         highgui::named_window(window_name, 1).unwrap();
         Self {}
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<ZFLinkId, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
-                Token::NotReady(_) => Ok(false),
+                Token::NotReady => Ok(false),
             }
         } else {
             Err(ZFError::MissingInput(String::from(INPUT)))
@@ -57,14 +57,12 @@ impl VideoSink {
     }
 
     pub async fn run_1(_ctx: ZFContext, mut inputs: ZFInput) -> ZFResult<()> {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::new();
+        let window_name = &"Video-Sink".to_string();
 
-        let window_name = &format!("Video-Sink");
-
-        let data = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
         let decoded = match opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(data.bytes.clone()),
+            &opencv::types::VectorOfu8::from_iter(data.bytes),
             opencv::imgcodecs::IMREAD_COLOR,
         ) {
             Ok(d) => d,
@@ -89,7 +87,7 @@ impl SinkTrait for VideoSink {
         Box::new(Self::ir_1)
     }
 
-    fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
+    fn get_run(&self, _ctx: ZFContext) -> FnSinkRun {
         Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
             Box::pin(Self::run_1(ctx, inputs))
         })

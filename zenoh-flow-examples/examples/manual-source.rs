@@ -14,12 +14,11 @@
 
 use std::{collections::HashMap, sync::Arc, usize};
 
-use zenoh_flow::runtime::runner::ZFSourceRegistrarTrait;
 use zenoh_flow::{
     types::{
         DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
     },
-    zf_data, zf_empty_state, ZFContext, ZFError, ZFLinkId, ZFResult,
+    zf_data, zf_empty_state, ZFContext, ZFError, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -29,7 +28,7 @@ static LINK_ID_INPUT_INT: &str = "Int";
 
 impl ManualSource {
     async fn run(_ctx: ZFContext) -> RunResult {
-        let mut results: HashMap<ZFLinkId, Arc<dyn DataTrait>> = HashMap::with_capacity(1);
+        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::with_capacity(1);
 
         println!("> Please input a number: ");
         let mut number = String::new();

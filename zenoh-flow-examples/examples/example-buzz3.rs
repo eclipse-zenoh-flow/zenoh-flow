@@ -36,7 +36,7 @@ impl BuzzOperator {
         for token in inputs.values() {
             match token {
                 Token::Ready(_) => continue,
-                _ => return Ok(false),
+                Token::NotReady => return Ok(false),
             }
         }
 
@@ -49,9 +49,9 @@ impl BuzzOperator {
         let (_, fizz) = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?;
         let (_, value) = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
 
-        let mut buzz = fizz.clone();
+        let mut buzz = fizz;
         if value.0 % 3 == 0 {
-            buzz.0.push_str("Buzz");
+            buzz.0.push_str("Buzz3");
         }
 
         results.insert(String::from(LINK_ID_OUTPUT_STR), zf_data!(buzz));
