@@ -46,7 +46,7 @@ jobs:
         with:
           dir: ./opencv-install
           cached: ${{ steps.opencv-cache.outputs.cache-hit }}
-          opencv-version: '4.0.0'
+          opencv-version: '4.2.0'
 
       - name: Install LLVM
         uses: KyleMayes/install-llvm-action@v1
