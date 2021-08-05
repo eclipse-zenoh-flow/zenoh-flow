@@ -34,6 +34,21 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Install OpenCV
+        uses: Dovyski/setup-opencv-action@v1
+          with:
+            opencv-version: '4.3.0'
+
+      - name: Install LLVM
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "11"
+
+      - name: Symlink libclang.so (Linux)
+        if: contains(matrix.os, 'ubuntu-latest')
+        run: sudo ln -s libclang-11.so.1 /lib/x86_64-linux-gnu/libclang.so
+        working-directory: ${{ env.LLVM_PATH }}/lib
+
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
