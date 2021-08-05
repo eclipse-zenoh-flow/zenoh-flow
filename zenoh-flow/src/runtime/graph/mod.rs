@@ -50,6 +50,12 @@ pub struct DataFlowGraph {
     pub operators_runners: HashMap<ZFOperatorName, (Arc<Mutex<Runner>>, DataFlowNodeKind)>,
 }
 
+impl Default for DataFlowGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DataFlowGraph {
     pub fn new() -> Self {
         Self {
@@ -493,7 +499,7 @@ impl DataFlowGraph {
         Ok(())
     }
 
-    pub fn get_runner(&self, operator_id: &ZFOperatorId) -> Option<Arc<Mutex<Runner>>> {
+    pub fn get_runner(&self, operator_id: &str) -> Option<Arc<Mutex<Runner>>> {
         self.operators_runners
             .get(operator_id)
             .map(|(r, _)| r.clone())

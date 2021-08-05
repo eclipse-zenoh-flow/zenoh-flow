@@ -29,6 +29,8 @@ pub struct ZFLinkReceiver<T> {
     pub last_message: Option<Arc<T>>,
 }
 
+pub type ZFLinkOutput<T> = ZFResult<(String, Arc<T>)>;
+
 impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
     // pub async fn peek(&mut self) -> ZFResult<(String, Arc<T>)> {
     //     match &self.last_message {
@@ -44,8 +46,7 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
 
     pub fn peek(
         &mut self,
-    ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFResult<(String, Arc<T>)>> + '_>>
-    {
+    ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_>> {
         async fn __peek<T>(_self: &mut ZFLinkReceiver<T>) -> ZFResult<(String, Arc<T>)> {
             match &_self.last_message {
                 Some(message) => Ok((_self.id.clone(), message.clone())),
@@ -86,9 +87,8 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
 
     pub fn recv(
         &mut self,
-    ) -> ::core::pin::Pin<
-        Box<dyn std::future::Future<Output = ZFResult<(String, Arc<T>)>> + '_ + Send + Sync>,
-    > {
+    ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_ + Send + Sync>>
+    {
         async fn __recv<T>(_self: &mut ZFLinkReceiver<T>) -> ZFResult<(String, Arc<T>)> {
             match &_self.last_message {
                 Some(message) => {

@@ -369,6 +369,12 @@ pub enum ZFValue {
 #[derive(Debug, Clone)]
 pub struct ZFInput(HashMap<String, ZFData>);
 
+impl Default for ZFInput {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ZFInput {
     pub fn new() -> Self {
         Self(HashMap::new())
@@ -378,11 +384,11 @@ impl ZFInput {
         self.0.insert(id, data)
     }
 
-    pub fn get(&self, id: &String) -> Option<&ZFData> {
+    pub fn get(&self, id: &str) -> Option<&ZFData> {
         self.0.get(id)
     }
 
-    pub fn get_mut(&mut self, id: &String) -> Option<&mut ZFData> {
+    pub fn get_mut(&mut self, id: &str) -> Option<&mut ZFData> {
         self.0.get_mut(id)
     }
 }

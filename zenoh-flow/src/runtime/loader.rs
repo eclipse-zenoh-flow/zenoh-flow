@@ -47,6 +47,13 @@ pub fn load_operator(
     }
 }
 
+/// Load the library of the operator.
+///
+/// # Safety
+///
+/// This function dynamically loads an external library, things can go wrong:
+/// - it will panick if the symbol `zfoperator_declaration` is not found,
+/// - be sure to *trust* the code you are loading.
 pub unsafe fn load_lib_operator(
     hlc: Arc<HLC>,
     path: String,
@@ -85,6 +92,13 @@ pub fn load_source(
     }
 }
 
+/// Load the library of a source.
+///
+/// # Safety
+///
+/// This function dynamically loads an external library, things can go wrong:
+/// - it will panick if the symbol `zfsource_declaration` is not found,
+/// - be sure to *trust* the code you are loading.
 pub unsafe fn load_lib_source(
     hlc: PeriodicHLC,
     path: String,
@@ -121,6 +135,13 @@ pub fn load_sink(
     }
 }
 
+/// Load the library of a sink.
+///
+/// # Safety
+///
+/// This function dynamically loads an external library, things can go wrong:
+/// - it will panick if the symbol `zfsink_declaration` is not found,
+/// - be sure to *trust* the code you are loading.
 pub unsafe fn load_lib_sink(
     path: String,
     configuration: Option<HashMap<String, String>>,

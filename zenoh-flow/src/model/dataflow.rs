@@ -63,7 +63,7 @@ impl DataFlowDescriptor {
         self.sinks.iter().find(|&o| o.id == id).cloned()
     }
 
-    pub fn get_mapping(&self, id: &ZFOperatorId) -> Option<ZFRuntimeID> {
+    pub fn get_mapping(&self, id: &str) -> Option<ZFRuntimeID> {
         match &self.mapping {
             Some(mapping) => mapping
                 .iter()
@@ -117,7 +117,7 @@ impl DataFlowRecord {
         serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
-    pub fn find_component_runtime(&self, id: &ZFOperatorId) -> Option<ZFRuntimeID> {
+    pub fn find_component_runtime(&self, id: &str) -> Option<ZFRuntimeID> {
         match self.get_operator(id) {
             Some(o) => Some(o.runtime),
             None => match self.get_source(id) {
@@ -130,7 +130,7 @@ impl DataFlowRecord {
         }
     }
 
-    pub fn find_component_output_type(&self, id: &ZFOperatorId, output: &str) -> Option<String> {
+    pub fn find_component_output_type(&self, id: &str, output: &str) -> Option<String> {
         log::trace!("find_component_output_type({:?},{:?})", id, output);
         match self.get_operator(id) {
             Some(o) => o.get_output_type(output),
@@ -141,7 +141,7 @@ impl DataFlowRecord {
         }
     }
 
-    pub fn find_component_input_type(&self, id: &ZFOperatorId, input: &str) -> Option<String> {
+    pub fn find_component_input_type(&self, id: &str, input: &str) -> Option<String> {
         log::trace!("find_component_input_type({:?},{:?})", id, input);
         match self.get_operator(id) {
             Some(o) => o.get_input_type(input),
@@ -152,7 +152,7 @@ impl DataFlowRecord {
         }
     }
 
-    pub fn find_node(&self, id: &ZFOperatorId) -> Option<DataFlowNode> {
+    pub fn find_node(&self, id: &str) -> Option<DataFlowNode> {
         match self.get_operator(id) {
             Some(o) => Some(DataFlowNode::Operator(o)),
             None => match self.get_source(id) {
@@ -165,19 +165,19 @@ impl DataFlowRecord {
         }
     }
 
-    fn get_operator(&self, id: &ZFOperatorId) -> Option<ZFOperatorRecord> {
+    fn get_operator(&self, id: &str) -> Option<ZFOperatorRecord> {
         self.operators.iter().find(|&o| o.id == *id).cloned()
     }
 
-    fn get_source(&self, id: &ZFOperatorId) -> Option<ZFSourceRecord> {
+    fn get_source(&self, id: &str) -> Option<ZFSourceRecord> {
         self.sources.iter().find(|&o| o.id == *id).cloned()
     }
 
-    fn get_sink(&self, id: &ZFOperatorId) -> Option<ZFSinkRecord> {
+    fn get_sink(&self, id: &str) -> Option<ZFSinkRecord> {
         self.sinks.iter().find(|&o| o.id == *id).cloned()
     }
 
-    fn get_connector(&self, id: &String) -> Option<ZFConnectorRecord> {
+    fn get_connector(&self, id: &str) -> Option<ZFConnectorRecord> {
         self.connectors.iter().find(|&o| o.id == *id).cloned()
     }
 
