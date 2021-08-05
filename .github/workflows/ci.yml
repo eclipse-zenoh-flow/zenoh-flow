@@ -36,8 +36,8 @@ jobs:
 
       - name: Install OpenCV
         uses: Dovyski/setup-opencv-action@v1
-          with:
-            opencv-version: '4.3.0'
+        with:
+          opencv-version: '4.3.0'
 
       - name: Install LLVM
         uses: KyleMayes/install-llvm-action@v1
