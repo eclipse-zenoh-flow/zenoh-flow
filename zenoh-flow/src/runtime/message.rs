@@ -39,10 +39,10 @@ impl ZFDataMessage {
         Self { data, timestamp }
     }
 
-    pub fn new_serialized(data: Arc<Vec<u8>>, timestamp: Timestamp) -> Self {
-        Self {
-            data: ZFSerDeData::Serialized(data),
-            timestamp,
+    pub fn serialized_data(&self) -> &[u8] {
+        match self {
+            Self::Serialized(data) => data,
+            _ => panic!(),
         }
     }
 
