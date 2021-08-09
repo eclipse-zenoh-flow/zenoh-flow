@@ -36,7 +36,7 @@ impl ZFDataMessage {
 
     pub fn serialized_data(&self) -> &[u8] {
         match self {
-            Self::Serialized(data) => &data,
+            Self::Serialized(data) => data,
             _ => panic!(),
         }
     }

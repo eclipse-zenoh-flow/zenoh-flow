@@ -37,30 +37,14 @@ sinks:
       type: string
 
 links:
-  - from:
-      id: ManualSenderOperator
-      output_id: Int
-    to:
-      id: FizzOperator
-      input_id: Int
+  - from: ManualSenderOperator.Int
+    to: FizzOperator.Int
 
-  - from:
-      id: FizzOperator
-      output_id: Int
-    to:
-      id: BuzzOperator
-      input_id: Int
+  - from: FizzOperator.Int
+    to: BuzzOperator.Int
 
-  - from:
-      id: FizzOperator
-      output_id: Str
-    to:
-      id: BuzzOperator
-      input_id: Str
+  - from: FizzOperator.Str
+    to: BuzzOperator.Str
 
-  - from:
-      id: BuzzOperator
-      output_id: Str
-    to:
-      id: ReceiverOperator
-      input_id: Str
+  - from: BuzzOperator.Str
+    to: ReceiverOperator.Str

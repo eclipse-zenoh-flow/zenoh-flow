@@ -21,15 +21,7 @@ sinks:
       id: Data
       type: image
 links:
-- from:
-    id : Camera0
-    output_id : Frame
-  to:
-    id : FaceDetection
-    input_id : Frame
-- from:
-    id : FaceDetection
-    output_id : Frame
-  to:
-    id : ZSink
-    input_id : Data
+- from: Camera0.Frame
+  to: FaceDetection.Frame
+- from: FaceDetection.Frame
+  to: ZSink.Data

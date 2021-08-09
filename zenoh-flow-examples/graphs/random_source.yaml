@@ -13,9 +13,5 @@ sinks:
         id: Data
         type: usize
 links:
-- from:
-    id : RandomGenerator
-    output_id : Random
-  to:
-    id : PrintSink
-    input_id : Data
+- from: RandomGenerator.Random
+  to: PrintSink.Data
