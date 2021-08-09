@@ -58,14 +58,16 @@ impl<'de> Visitor<'de> for ZFLinkFromVisitor {
     where
         E: serde::de::Error,
     {
-        let tokens: Vec<&str> = v.split('.').collect();
-        if tokens.len() != 2 {
-            return Err(E::custom(format!("invalid 'from' descriptor: {}", v)));
-        }
+        let index_dot = match v.find('.') {
+            Some(index) => index,
+            None => return Err(E::custom(format!("invalid 'from' descriptor: {}", v))),
+        };
+
+        let (component_id, output_id) = v.split_at(index_dot);
 
         Ok(ZFLinkFromDescriptor {
-            component_id: tokens[0].to_string(),
-            output_id: tokens[1].to_string(),
+            component_id: component_id.to_string(),
+            output_id: output_id[1..].to_string(),
         })
     }
 
@@ -119,14 +121,16 @@ impl<'de> Visitor<'de> for ZFLinkToVisitor {
     where
         E: serde::de::Error,
     {
-        let tokens: Vec<&str> = v.split('.').collect();
-        if tokens.len() != 2 {
-            return Err(E::custom(format!("invalid 'to' descriptor: {}", v)));
-        }
+        let index_dot = match v.find('.') {
+            Some(index) => index,
+            None => return Err(E::custom(format!("invalid 'from' descriptor: {}", v))),
+        };
+
+        let (component_id, input_id) = v.split_at(index_dot);
 
         Ok(ZFLinkToDescriptor {
-            component_id: tokens[0].to_string(),
-            input_id: tokens[1].to_string(),
+            component_id: component_id.to_string(),
+            input_id: input_id[1..].to_string(),
         })
     }
 
