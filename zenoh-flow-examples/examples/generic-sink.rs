@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
-        FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait, Token,
+        FnInputRule, FnSinkRun, FutSinkOutput, InputRuleOutput, SinkTrait, StateTrait, Token,
         ZFContext, ZFInput,
     },
     zenoh_flow_derive::ZFState,
@@ -27,7 +27,7 @@ use zenoh_flow::{
 struct ExampleGenericSink {}
 
 impl ExampleGenericSink {
-    pub fn ir_1(_ctx: ZFContext, _inputs: &mut HashMap<String, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, _inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
         Ok(true)
     }
 
@@ -53,7 +53,7 @@ impl SinkTrait for ExampleGenericSink {
     fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
         let gctx = ctx.lock();
         match gctx.mode {
-            0 => Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
+            0 => Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkOutput {
                 Box::pin(Self::run_1(ctx, inputs))
             }),
             _ => panic!("No way"),

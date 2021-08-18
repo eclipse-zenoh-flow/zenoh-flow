@@ -19,13 +19,13 @@ use std::{
     io::{prelude::*, BufReader},
     path::Path,
 };
+use zenoh_flow::ZFComponentOutput;
 use zenoh_flow::{
     downcast, get_input,
-    runtime::message::Message,
     serde::{Deserialize, Serialize},
     types::{
-        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
-        OutputRuleResult, RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFResult,
+        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleOutput, OperatorTrait,
+        OutputRuleOutput, RunOutput, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
@@ -113,7 +113,7 @@ impl ObjDetection {
         Ok(Self { state })
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -124,7 +124,7 @@ impl ObjDetection {
         }
     }
 
-    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
+    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunOutput {
         let scale = 1.0 / 255.0;
         let mean = core::Scalar::new(0f64, 0f64, 0f64, 0f64);
 
@@ -320,10 +320,10 @@ impl ObjDetection {
         Ok(results)
     }
 
-    pub fn or_1(_ctx: ZFContext, outputs: HashMap<String, Arc<dyn DataTrait>>) -> OutputRuleResult {
+    pub fn or_1(_ctx: ZFContext, outputs: HashMap<String, Arc<dyn DataTrait>>) -> OutputRuleOutput {
         let mut results = HashMap::new();
         for (k, v) in outputs {
-            results.insert(k, Message::from_data(v));
+            results.insert(k, ZFComponentOutput::Data(v));
         }
         Ok(results)
     }

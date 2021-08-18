@@ -16,7 +16,7 @@ use std::{collections::HashMap, sync::Arc, usize};
 
 use zenoh_flow::{
     types::{
-        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
+        DataTrait, FnOutputRule, FnSourceRun, FutRunOutput, RunOutput, SourceTrait, StateTrait,
     },
     zf_data, zf_empty_state, ZFContext, ZFError, ZFResult,
 };
@@ -27,7 +27,7 @@ struct ManualSource;
 static LINK_ID_INPUT_INT: &str = "Int";
 
 impl ManualSource {
-    async fn run(_ctx: ZFContext) -> RunResult {
+    async fn run(_ctx: ZFContext) -> RunOutput {
         let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::with_capacity(1);
 
         println!("> Please input a number: ");
@@ -49,8 +49,8 @@ impl ManualSource {
 }
 
 impl SourceTrait for ManualSource {
-    fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
-        Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run(ctx)) })
+    fn get_run(&self, _ctx: ZFContext) -> FnSourceRun {
+        Box::new(|ctx: ZFContext| -> FutRunOutput { Box::pin(Self::run(ctx)) })
     }
 
     fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
@@ -65,7 +65,7 @@ impl SourceTrait for ManualSource {
 zenoh_flow::export_source!(register);
 
 extern "C" fn register(
-    configuration: Option<HashMap<String, String>>,
+    _configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::SourceTrait + Send>> {
     Ok(Box::new(ManualSource {}) as Box<dyn zenoh_flow::SourceTrait + Send>)
 }

@@ -14,7 +14,7 @@
 
 use crate::async_std::sync::Arc;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
-use crate::runtime::message::{Message, ZFDataMessage, ZFMessage};
+use crate::runtime::message::ZFMessage;
 use crate::{ZFError, ZFResult};
 use futures::prelude::*;
 use zenoh::net::{Reliability, Session, SubInfo, SubMode};
@@ -41,26 +41,10 @@ impl ZFZenohSender {
     pub async fn run(&mut self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.resource);
         if let Some(mut input) = self.input.take() {
-            while let Ok((_, msg)) = input.recv().await {
-                log::debug!("ZenohSender IN <= {:?} ", msg);
+            while let Ok((_, message)) = input.recv().await {
+                log::debug!("ZenohSender IN <= {:?} ", message);
 
-                let serialized = match &msg.message {
-                    Message::Data(data_msg) => match data_msg {
-                        ZFDataMessage::Deserialized(de) => {
-                            let se = Arc::new(
-                                bincode::serialize(&**de)
-                                    .map_err(|_| ZFError::SerializationError)?,
-                            );
-                            let se_msg = ZFMessage {
-                                timestamp: msg.timestamp.clone(),
-                                message: Message::Data(ZFDataMessage::new_serialized(se)),
-                            };
-                            bincode::serialize(&se_msg).map_err(|_| ZFError::SerializationError)?
-                        }
-                        _ => bincode::serialize(&*msg).map_err(|_| ZFError::SerializationError)?,
-                    },
-                    _ => bincode::serialize(&*msg).map_err(|_| ZFError::SerializationError)?,
-                };
+                let serialized = message.serialize_bincode()?;
                 log::debug!("ZenohSender - {}=>{:?} ", self.resource, serialized);
                 self.session
                     .write(&self.resource.clone().into(), serialized.into())

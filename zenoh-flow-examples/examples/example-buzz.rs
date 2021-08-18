@@ -16,12 +16,11 @@ use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::{
     export_operator, get_input,
-    runtime::message::Message,
     types::{
-        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait,
-        OutputRuleResult, RunResult, StateTrait, ZFInput, ZFResult,
+        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleOutput, OperatorTrait,
+        OutputRuleOutput, RunOutput, StateTrait, ZFInput, ZFResult,
     },
-    zf_data, zf_empty_state, Token, ZFContext,
+    zf_data, zf_empty_state, Token, ZFComponentOutput, ZFContext,
 };
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
@@ -32,7 +31,7 @@ static LINK_ID_INPUT_STR: &str = "Str";
 static LINK_ID_OUTPUT_STR: &str = "Str";
 
 impl BuzzOperator {
-    fn input_rule(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
+    fn input_rule(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
         for token in inputs.values() {
             match token {
                 Token::Ready(_) => continue,
@@ -43,13 +42,12 @@ impl BuzzOperator {
         Ok(true)
     }
 
-    fn run(_ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
+    fn run(_ctx: ZFContext, mut inputs: ZFInput) -> RunOutput {
         let mut results = HashMap::<String, Arc<dyn DataTrait>>::with_capacity(1);
 
-        let (_, fizz) = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?;
+        let (_, mut buzz) = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?;
         let (_, value) = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
 
-        let mut buzz = fizz.clone();
         if value.0 % 3 == 0 {
             buzz.0.push_str("Buzz");
         }
@@ -62,12 +60,12 @@ impl BuzzOperator {
     fn output_rule(
         _ctx: ZFContext,
         outputs: HashMap<String, Arc<dyn DataTrait>>,
-    ) -> OutputRuleResult {
-        let mut zf_outputs: HashMap<String, Message> = HashMap::with_capacity(1);
+    ) -> OutputRuleOutput {
+        let mut zf_outputs: HashMap<String, ZFComponentOutput> = HashMap::with_capacity(1);
 
         zf_outputs.insert(
             String::from(LINK_ID_OUTPUT_STR),
-            Message::from_data(outputs.get(LINK_ID_OUTPUT_STR).unwrap().clone()),
+            ZFComponentOutput::Data(outputs.get(LINK_ID_OUTPUT_STR).unwrap().clone()),
         );
 
         Ok(zf_outputs)
