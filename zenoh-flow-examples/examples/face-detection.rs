@@ -18,7 +18,7 @@ use zenoh_flow::{
     downcast, get_input,
     serde::{Deserialize, Serialize},
     types::{
-        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, RunResult,
+        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleOutput, OperatorTrait, RunOutput,
         StateTrait, Token, ZFContext, ZFError, ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
@@ -75,7 +75,7 @@ impl FaceDetection {
         Self { state }
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -86,7 +86,7 @@ impl FaceDetection {
         }
     }
 
-    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
+    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunOutput {
         let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let guard = ctx.lock(); //getting state

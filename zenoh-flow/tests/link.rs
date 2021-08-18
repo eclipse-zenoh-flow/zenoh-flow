@@ -14,7 +14,6 @@
 
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::runtime::graph::link::{link, ZFLinkReceiver, ZFLinkSender};
-use zenoh_flow::{ZFError, ZFResult};
 
 async fn same_task_simple() {
     let size = 2;

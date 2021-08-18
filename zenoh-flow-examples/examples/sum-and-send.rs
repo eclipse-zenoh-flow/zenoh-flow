@@ -14,13 +14,12 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use zenoh_flow::runtime::message::Message;
 use zenoh_flow::types::{
-    DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleResult, OperatorTrait, OutputRuleResult,
-    RunResult, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFResult,
+    DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleOutput, OperatorTrait, OutputRuleOutput,
+    RunOutput, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFResult,
 };
 use zenoh_flow::zenoh_flow_derive::ZFState;
-use zenoh_flow::{downcast_mut, get_input, zf_data};
+use zenoh_flow::{downcast_mut, get_input, zf_data, ZFComponentOutput};
 use zenoh_flow_examples::RandomData;
 
 use async_std::sync::Arc;
@@ -47,7 +46,7 @@ impl SumAndSend {
         }
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -58,7 +57,7 @@ impl SumAndSend {
         }
     }
 
-    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
+    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunOutput {
         let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.lock(); //getting the context
@@ -74,11 +73,10 @@ impl SumAndSend {
         Ok(results)
     }
 
-    pub fn or_1(_ctx: ZFContext, outputs: HashMap<String, Arc<dyn DataTrait>>) -> OutputRuleResult {
+    pub fn or_1(_ctx: ZFContext, outputs: HashMap<String, Arc<dyn DataTrait>>) -> OutputRuleOutput {
         let mut results = HashMap::new();
         for (k, v) in outputs {
-            // should be ZFMessage::from_data
-            results.insert(k, Message::from_data(v));
+            results.insert(k, ZFComponentOutput::Data(v));
         }
         Ok(results)
     }
@@ -118,7 +116,7 @@ impl OperatorTrait for SumAndSend {
 zenoh_flow::export_operator!(register);
 
 extern "C" fn register(
-    configuration: Option<HashMap<String, String>>,
+    _configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
     Ok(Box::new(SumAndSend::new()) as Box<dyn zenoh_flow::OperatorTrait + Send>)
 }

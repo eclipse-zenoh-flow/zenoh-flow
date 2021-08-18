@@ -117,23 +117,24 @@ macro_rules! get_state {
 macro_rules! get_input {
     ($ident : ident, $index : expr, $map : expr) => {
         match $map.get_mut(&$index) {
-            Some(mut data) => match &data.value {
-                zenoh_flow::types::ZFValue::Deserialized(de) => {
+            Some(mut data_message) => match &data_message.data {
+                zenoh_flow::runtime::message::ZFSerDeData::Deserialized(de) => {
                     match zenoh_flow::downcast!($ident, de) {
-                        Some(value) => Ok((data.timestamp.clone(), value.clone())),
+                        Some(data) => Ok((data_message.timestamp.clone(), data.clone())),
                         None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
                     }
                 }
-                zenoh_flow::types::ZFValue::Serialized(ser) => {
+                zenoh_flow::runtime::message::ZFSerDeData::Serialized(ser) => {
                     let de: Arc<dyn DataTrait> = bincode::deserialize(&ser)
                         .map_err(|_| zenoh_flow::types::ZFError::DeseralizationError)?;
 
-                    (*data).value = zenoh_flow::types::ZFValue::Deserialized(de);
+                    (*data_message).data =
+                        zenoh_flow::runtime::message::ZFSerDeData::Deserialized(de);
 
-                    match &data.value {
-                        zenoh_flow::types::ZFValue::Deserialized(de) => {
+                    match &data_message.data {
+                        zenoh_flow::runtime::message::ZFSerDeData::Deserialized(de) => {
                             match zenoh_flow::downcast!($ident, de) {
-                                Some(value) => Ok((data.timestamp.clone(), value.clone())),
+                                Some(data) => Ok((data_message.timestamp.clone(), data.clone())),
                                 None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
                             }
                         }

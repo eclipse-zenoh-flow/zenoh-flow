@@ -14,7 +14,7 @@
 
 use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
-use crate::runtime::message::{Message, ZFMessage};
+use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFContext, ZFInput, ZFResult};
 use crate::utils::hlc::PeriodicHLC;
 use crate::{OperatorTrait, SinkTrait, SourceTrait};
@@ -175,25 +175,23 @@ impl ZFOperatorRunner {
 
             // Running
             let run_fn = self.operator.get_run(ctx.clone());
-            let outputs = run_fn(ctx.clone(), data)?;
+            let run_outputs = run_fn(ctx.clone(), data)?;
 
             // Output rules
             let out_fn = self.operator.get_output_rule(ctx.clone());
-            let out_msgs = out_fn(ctx.clone(), outputs)?;
+            let outputs = out_fn(ctx.clone(), run_outputs)?;
 
             // Send to Links
-            for (id, message) in out_msgs {
+            for (id, output) in outputs {
                 // getting link
-                log::debug!("id: {:?}, message: {:?}", id, message);
+                log::debug!("id: {:?}, message: {:?}", id, output);
                 if let Some(links) = self.outputs.get(&id) {
-                    let zf_msg = Arc::new(ZFMessage {
-                        timestamp: timestamp.clone(),
-                        message,
-                    });
+                    let zf_message =
+                        Arc::new(ZFMessage::from_component_output(output, timestamp.clone()));
 
                     for tx in links {
                         log::debug!("Sending on: {:?}", tx);
-                        tx.send(zf_msg.clone()).await?;
+                        tx.send(zf_message.clone()).await?;
                     }
                 }
             }
@@ -265,29 +263,27 @@ impl ZFSourceRunner {
         loop {
             // Running
             let run_fn = self.operator.get_run(ctx.clone());
-            let outputs = run_fn(ctx.clone()).await?;
+            let run_outputs = run_fn(ctx.clone()).await?;
 
             // Output
             let out_fn = self.operator.get_output_rule(ctx.clone());
 
-            let mut out_msgs = out_fn(ctx.clone(), outputs)?;
+            let mut outputs = out_fn(ctx.clone(), run_outputs)?;
             log::debug!("Outputs: {:?}", self.outputs);
 
             let timestamp = self.hlc.new_timestamp();
 
             // Send to Links
-            for (id, message) in out_msgs.drain() {
-                log::debug!("Sending on {:?} data: {:?}", id, message);
+            for (id, output) in outputs.drain() {
+                log::debug!("Sending on {:?} data: {:?}", id, output);
 
                 if let Some(links) = self.outputs.get(&id) {
-                    let zf_msg = Arc::new(ZFMessage {
-                        timestamp: timestamp.clone(),
-                        message,
-                    });
+                    let zf_message =
+                        Arc::new(ZFMessage::from_component_output(output, timestamp.clone()));
 
                     for tx in links {
                         log::debug!("Sending on: {:?}", tx);
-                        tx.send(zf_msg.clone()).await?;
+                        tx.send(zf_message.clone()).await?;
                     }
                 }
             }
@@ -385,10 +381,10 @@ macro_rules! run_input_rules {
         while !$links.is_empty() {
             match future::select_all($links).await {
                 // this could be "slow" as suggested by LC
-                (Ok((id, msg)), _i, remaining) => {
-                    match &msg.message {
-                        Message::Data(_) => {
-                            $tokens.insert(id, Token::from(msg));
+                (Ok((id, message)), _i, remaining) => {
+                    match message.as_ref() {
+                        ZFMessage::Data(_) => {
+                            $tokens.insert(id, Token::from(message));
 
                             match $ir($ctx.clone(), &mut $tokens) {
                                 Ok(true) => {
@@ -408,7 +404,7 @@ macro_rules! run_input_rules {
                                 }
                             }
                         }
-                        Message::Ctrl(_) => {
+                        ZFMessage::Control(_) => {
                             //control message receiver, we should handle it
                             $links = remaining;
                         }

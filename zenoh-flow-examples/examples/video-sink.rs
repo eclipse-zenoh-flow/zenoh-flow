@@ -18,7 +18,7 @@ use zenoh_flow::{
     get_input,
     serde::{Deserialize, Serialize},
     types::{
-        DataTrait, FnInputRule, FnSinkRun, FutSinkResult, InputRuleResult, SinkTrait, StateTrait,
+        DataTrait, FnInputRule, FnSinkRun, FutSinkOutput, InputRuleOutput, SinkTrait, StateTrait,
         Token, ZFContext, ZFError, ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
@@ -45,7 +45,7 @@ impl VideoSink {
         Self {}
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -88,7 +88,7 @@ impl SinkTrait for VideoSink {
     }
 
     fn get_run(&self, _ctx: ZFContext) -> FnSinkRun {
-        Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
+        Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkOutput {
             Box::pin(Self::run_1(ctx, inputs))
         })
     }

@@ -19,7 +19,7 @@ use zenoh_flow::{
     downcast_mut,
     serde::{Deserialize, Serialize},
     types::{
-        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
+        DataTrait, FnOutputRule, FnSourceRun, FutRunOutput, RunOutput, SourceTrait, StateTrait,
         ZFContext, ZFError, ZFResult,
     },
     zenoh_flow_derive::ZFState,
@@ -91,7 +91,7 @@ impl VideoSource {
         Self { state }
     }
 
-    async fn run_1(ctx: ZFContext) -> RunResult {
+    async fn run_1(ctx: ZFContext) -> RunOutput {
         let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.async_lock().await;
@@ -152,7 +152,7 @@ impl SourceTrait for VideoSource {
     fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
         let gctx = ctx.lock();
         match gctx.mode {
-            0 => Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) }),
+            0 => Box::new(|ctx: ZFContext| -> FutRunOutput { Box::pin(Self::run_1(ctx)) }),
             _ => panic!("No way"),
         }
     }

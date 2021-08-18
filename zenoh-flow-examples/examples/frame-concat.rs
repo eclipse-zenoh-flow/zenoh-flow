@@ -18,7 +18,7 @@ use zenoh_flow::{
     downcast, get_input,
     serde::{Deserialize, Serialize},
     types::{
-        DataTrait, FnInputRule, FnOutputRule, FnRun, OperatorTrait, RunResult, StateTrait,
+        DataTrait, FnInputRule, FnOutputRule, FnRun, OperatorTrait, RunOutput, StateTrait,
         ZFContext, ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
@@ -67,7 +67,7 @@ impl FrameConcat {
         Self { state }
     }
 
-    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunResult {
+    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunOutput {
         let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let guard = ctx.lock(); //getting state

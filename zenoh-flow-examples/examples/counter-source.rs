@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
-        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
+        DataTrait, FnOutputRule, FnSourceRun, FutRunOutput, RunOutput, SourceTrait, StateTrait,
         ZFContext, ZFResult,
     },
     zenoh_flow_derive::ZFState,
@@ -38,14 +38,14 @@ impl CountSource {
         match configuration {
             Some(conf) => {
                 let initial = conf.get("initial").unwrap().parse::<u64>().unwrap();
-                COUNTER.store(initial, Ordering::AcqRel);
+                COUNTER.store(initial, Ordering::SeqCst);
                 CountSource {}
             }
             None => CountSource {},
         }
     }
 
-    async fn run_1(_ctx: ZFContext) -> RunResult {
+    async fn run_1(_ctx: ZFContext) -> RunOutput {
         let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
         let d = RandomData {
             d: COUNTER.fetch_add(1, Ordering::AcqRel),
@@ -60,7 +60,7 @@ impl SourceTrait for CountSource {
     fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
         let gctx = ctx.lock();
         match gctx.mode {
-            0 => Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) }),
+            0 => Box::new(|ctx: ZFContext| -> FutRunOutput { Box::pin(Self::run_1(ctx)) }),
             _ => panic!("No way"),
         }
     }

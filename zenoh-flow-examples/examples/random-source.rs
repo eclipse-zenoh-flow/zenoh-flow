@@ -17,11 +17,11 @@ use std::collections::HashMap;
 use zenoh_flow::{
     serde::{Deserialize, Serialize},
     types::{
-        DataTrait, FnOutputRule, FnSourceRun, FutRunResult, RunResult, SourceTrait, StateTrait,
+        DataTrait, FnOutputRule, FnSourceRun, FutRunOutput, RunOutput, SourceTrait, StateTrait,
         ZFContext, ZFResult,
     },
     zenoh_flow_derive::ZFState,
-    zf_data, zf_empty_state,
+    zf_data, zf_empty_state, ZFPortID,
 };
 use zenoh_flow_examples::RandomData;
 
@@ -31,8 +31,8 @@ static SOURCE: &str = "Random";
 struct ExampleRandomSource {}
 
 impl ExampleRandomSource {
-    async fn run_1(_ctx: ZFContext) -> RunResult {
-        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
+    async fn run_1(_ctx: ZFContext) -> RunOutput {
+        let mut results: HashMap<ZFPortID, Arc<dyn DataTrait>> = HashMap::new();
         let d = RandomData {
             d: rand::random::<u64>(),
         };
@@ -43,8 +43,8 @@ impl ExampleRandomSource {
 }
 
 impl SourceTrait for ExampleRandomSource {
-    fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
-        Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) })
+    fn get_run(&self, _ctx: ZFContext) -> FnSourceRun {
+        Box::new(|ctx: ZFContext| -> FutRunOutput { Box::pin(Self::run_1(ctx)) })
     }
 
     fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
@@ -60,7 +60,7 @@ impl SourceTrait for ExampleRandomSource {
 zenoh_flow::export_source!(register);
 
 extern "C" fn register(
-    configuration: Option<HashMap<String, String>>,
+    _configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::SourceTrait + Send>> {
     Ok(Box::new(ExampleRandomSource {}) as Box<dyn zenoh_flow::SourceTrait + Send>)
 }

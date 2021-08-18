@@ -23,8 +23,8 @@ use zenoh_flow::{
     model::link::ZFPortDescriptor,
     serde::{Deserialize, Serialize},
     types::{
-        DataTrait, FnInputRule, FnOutputRule, FnSinkRun, FnSourceRun, FutRunResult, FutSinkResult,
-        InputRuleResult, RunResult, SinkTrait, SourceTrait, StateTrait, Token, ZFContext, ZFError,
+        DataTrait, FnInputRule, FnOutputRule, FnSinkRun, FnSourceRun, FutRunOutput, FutSinkOutput,
+        InputRuleOutput, RunOutput, SinkTrait, SourceTrait, StateTrait, Token, ZFContext, ZFError,
         ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
@@ -90,7 +90,7 @@ impl CameraSource {
         Self { state }
     }
 
-    async fn run_1(ctx: ZFContext) -> RunResult {
+    async fn run_1(ctx: ZFContext) -> RunOutput {
         let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
 
         let mut guard = ctx.async_lock().await;
@@ -135,7 +135,7 @@ impl CameraSource {
 
 impl SourceTrait for CameraSource {
     fn get_run(&self, _ctx: ZFContext) -> FnSourceRun {
-        Box::new(|ctx: ZFContext| -> FutRunResult { Box::pin(Self::run_1(ctx)) })
+        Box::new(|ctx: ZFContext| -> FutRunOutput { Box::pin(Self::run_1(ctx)) })
     }
 
     fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
@@ -167,7 +167,7 @@ impl VideoSink {
         Self { state }
     }
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleResult {
+    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
         if let Some(token) = inputs.get(INPUT) {
             match token {
                 Token::Ready(_) => Ok(true),
@@ -205,7 +205,7 @@ impl SinkTrait for VideoSink {
     }
 
     fn get_run(&self, _ctx: ZFContext) -> FnSinkRun {
-        Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkResult {
+        Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkOutput {
             Box::pin(Self::run_1(ctx, inputs))
         })
     }
