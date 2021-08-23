@@ -1,8 +1,3 @@
-use crate::{
-    model::dataflow::{DataFlowDescriptor, Mapping},
-    ZFResult,
-};
-
 //
 // Copyright (c) 2017, 2021 ADLINK Technology Inc.
 //
@@ -17,14 +12,24 @@ use crate::{
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use crate::{
+    model::dataflow::{DataFlowDescriptor, Mapping},
+    ZFResult, ZFRuntimeID,
+};
+
+pub mod connectors;
 pub mod graph;
 pub mod loader;
 pub mod message;
-pub mod runners;
+pub mod resources;
+pub mod runner;
 
 pub async fn map_to_infrastructure(
     mut descriptor: DataFlowDescriptor,
-    runtime: &str,
+    runtime: &ZFRuntimeID,
 ) -> ZFResult<DataFlowDescriptor> {
     log::debug!("[Dataflow mapping] Begin mapping for: {}", descriptor.flow);
 
@@ -39,7 +44,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: runtime.to_string(),
+                    runtime: (*runtime).clone(),
                 };
                 mappings.push(mapping);
             }
@@ -52,7 +57,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: runtime.to_string(),
+                    runtime: (*runtime).clone(),
                 };
                 mappings.push(mapping);
             }
@@ -65,7 +70,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: runtime.to_string(),
+                    runtime: (*runtime).clone(),
                 };
                 mappings.push(mapping);
             }
@@ -77,4 +82,64 @@ pub async fn map_to_infrastructure(
     }
 
     Ok(descriptor)
+}
+
+// Runtime related types, maybe can be moved.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum RuntimeStatusEnum {
+    Ready,
+    NotReady,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RuntimeInfo {
+    pub id: Uuid,
+    pub name: String,
+    pub tags: Vec<String>,
+    pub status: RuntimeStatusEnum,
+    // Do we need/want also RAM usage?
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RuntimeStatus {
+    pub id: Uuid,
+    pub status: RuntimeStatusEnum,
+    pub running_flows: usize,
+    pub running_operators: usize,
+    pub running_sources: usize,
+    pub running_sinks: usize,
+    pub running_connectors: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum ZenohConfigKind {
+    Peer,
+    Client,
+}
+
+impl std::fmt::Display for ZenohConfigKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ZenohConfigKind::Peer => write!(f, "peer"),
+            ZenohConfigKind::Client => write!(f, "client"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ZenohConfig {
+    pub kind: ZenohConfigKind, // whether the runtime is a peer or a client
+    pub listen: Vec<String>,   // if the runtime is a peer, where it listens
+    pub locators: Vec<String>, // where to connect (eg. a router if the runtime is a client, or other peers/routers if the runtime is a peer)
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RuntimeConfig {
+    pub pid_file: String, //Where the PID file resides
+    pub path: String,     //Where the libraries are downloaded/located
+    pub name: Option<String>,
+    pub uuid: Option<Uuid>,
+    pub zenoh: ZenohConfig,
 }

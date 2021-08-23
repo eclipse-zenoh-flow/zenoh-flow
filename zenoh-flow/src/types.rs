@@ -109,6 +109,44 @@ impl From<libloading::Error> for ZFError {
     }
 }
 
+#[cfg(feature = "data_json")]
+impl From<serde_json::Error> for ZFError {
+    fn from(_err: serde_json::Error) -> Self {
+        Self::SerializationError
+    }
+}
+
+#[cfg(feature = "data_json")]
+impl From<std::str::Utf8Error> for ZFError {
+    fn from(_err: std::str::Utf8Error) -> Self {
+        Self::SerializationError
+    }
+}
+
+
+pub struct ZFInnerCtx {
+    pub state: Box<dyn StateTrait>,
+    pub mode: usize, //can be arc<atomic> and inside ZFContext
+}
+
+#[derive(Clone)]
+pub struct ZFContext(Arc<Mutex<ZFInnerCtx>>); //TODO: have only state inside Mutex
+
+impl ZFContext {
+    pub fn new(state: Box<dyn StateTrait>, mode: usize) -> Self {
+        let inner = Arc::new(Mutex::new(ZFInnerCtx { state, mode }));
+        Self(inner)
+    }
+
+    pub async fn async_lock(&'_ self) -> MutexGuard<'_, ZFInnerCtx> {
+        self.0.lock().await
+    }
+
+    pub fn lock(&self) -> MutexGuard<ZFInnerCtx> {
+        crate::zf_spin_lock!(self.0)
+    }
+}
+
 pub type ZFResult<T> = Result<T, ZFError>;
 
 /// ZFContext is a structure provided by Zenoh Flow to access the execution context directly from
