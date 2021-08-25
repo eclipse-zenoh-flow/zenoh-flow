@@ -61,6 +61,8 @@ To run all components on the same Zenoh Flow runtime:
 
 _Note: in that particular case the `--runtime foo` is discarded._
 
+:warning: _Note: the zenoh flow description  `fizz_buzz_pipeline.yaml`  is currently prepared to link libraries in MacOS environment (`.dylib`). Change the libraries extension accordingly if you run on a different OS, e.g. `.dylib`->`.so`  under Unix._
+
 #### Multiple runtimes
 
 In a first machine, run:
