@@ -169,8 +169,8 @@ pub struct ZFRuntimeConfig {
 /// (eg. another runtime, the cli, the mgmt API)
 #[znservice(
     timeout_s = 60,
-    prefix = "/fos/local",
-    service_uuid = "00000000-0000-0000-0000-000000000002"
+    prefix = "/zf/runtime",
+    service_uuid = "00000000-0000-0000-0000-000000000001"
 )]
 pub trait ZFRuntime {
     /// Sends an initiation request for the given [`FlowId`]

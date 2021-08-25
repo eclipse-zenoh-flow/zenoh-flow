@@ -68,14 +68,21 @@ impl Runtime {
             None => String::from(hostname::get()?.to_str().ok_or(ZFError::GenericError)?),
         };
 
-        let zenoh_properties = zenoh::Properties::from(format!(
+        let zn_properties = zenoh::Properties::from(format!(
             "mode={};peer={};listener={}",
             &config.zenoh.kind,
             &config.zenoh.locators.join(","),
             &config.zenoh.listen.join(",")
         ));
 
-        let zn = Arc::new(zenoh::net::open(zenoh_properties.clone().into()).wait()?);
+        let zenoh_properties = zenoh::Properties::from(format!(
+            "mode={};peer={},{}",
+            &config.zenoh.kind,
+            &config.zenoh.listen.join(","),
+            &config.zenoh.locators.join(","),
+        ));
+
+        let zn = Arc::new(zenoh::net::open(zn_properties.into()).wait()?);
         let z = Arc::new(zenoh::Zenoh::new(zenoh_properties.into()).wait()?);
 
         Ok(Self::new(zn, z, uuid, name, config))

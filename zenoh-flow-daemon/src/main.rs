@@ -13,6 +13,7 @@
 use structopt::StructOpt;
 
 use std::process;
+use async_ctrlc::CtrlC;
 use std::str;
 
 use std::collections::HashMap;
@@ -75,11 +76,20 @@ async fn main() {
     let config =
         serde_yaml::from_str::<ZFRuntimeConfig>(&(read_file(conf_file_path).await)).unwrap();
 
-    let mut rt = Runtime::from_config(config).unwrap();
+    let rt = Runtime::from_config(config).unwrap();
 
-    let (_, h) = rt.start().await;
+    let (s, h) = rt.start().await;
 
+    let ctrlc = CtrlC::new().expect("Unable to create Ctrl-C handler");
+    let mut stream = ctrlc.enumerate().take(1);
+    stream.next().await;
+    trace!("Received Ctrl-C start teardown");
+
+    //Here we send the stop signal to the rt object and waits that it ends
+    rt.stop(s).await;
+
+    //wait for the futures to ends
     h.await.unwrap();
 
-    println!("Hello, world!");
+
 }
