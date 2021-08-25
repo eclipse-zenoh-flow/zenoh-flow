@@ -24,7 +24,7 @@ extern crate serde_cbor;
 extern crate serde_json;
 
 use crate::model::dataflow::DataFlowRecord;
-use crate::runtime::{RuntimeConfig, RuntimeInfo, RuntimeStatus};
+use crate::runtime::{ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus};
 use crate::serde::{de::DeserializeOwned, Serialize};
 use crate::{async_std::sync::Arc, ZFError, ZFResult};
 use futures::StreamExt;
@@ -206,6 +206,7 @@ where
 }
 //
 
+#[derive(Clone)]
 pub struct ZFDataStore {
     //Name TBD
     z: Arc<zenoh::Zenoh>,
@@ -216,8 +217,7 @@ impl ZFDataStore {
         Self { z }
     }
 
-    pub async fn get_runtime_info(&self, rtid: Uuid) -> ZFResult<RuntimeInfo> {
-        // Return type to be defined, it should return a struct with the runtime information
+    pub async fn get_runtime_info(&self, rtid: Uuid) -> ZFResult<ZFRuntimeConfig> {
         let selector = zenoh::Selector::try_from(RT_INFO_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -231,7 +231,7 @@ impl ZFDataStore {
                 let kv = &data[0];
                 match &kv.value {
                     zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<RuntimeInfo>(&buf.to_vec())?;
+                        let ni = deserialize_data::<ZFRuntimeConfig>(&buf.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -249,16 +249,14 @@ impl ZFDataStore {
         Ok(ws.delete(&path).await?)
     }
 
-    pub async fn add_runtime_info(&self, rtid: Uuid, rt_info: RuntimeInfo) -> ZFResult<()> {
-        // TODO add parameter with the information
+    pub async fn add_runtime_info(&self, rtid: Uuid, rt_info: ZFRuntimeConfig) -> ZFResult<()> {
         let path = zenoh::Path::try_from(RT_INFO_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let encoded_info = serialize_data(&rt_info)?;
         Ok(ws.put(&path, encoded_info.into()).await?)
     }
 
-    pub async fn get_runtime_config(&self, rtid: Uuid) -> ZFResult<RuntimeConfig> {
-        // Return type to be defined, it should return a struct with the runtime information
+    pub async fn get_runtime_config(&self, rtid: Uuid) -> ZFResult<ZFRuntimeConfig> {
         let selector = zenoh::Selector::try_from(RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -272,7 +270,7 @@ impl ZFDataStore {
                 let kv = &data[0];
                 match &kv.value {
                     zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<RuntimeConfig>(&buf.to_vec())?;
+                        let ni = deserialize_data::<ZFRuntimeConfig>(&buf.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -290,16 +288,14 @@ impl ZFDataStore {
         Ok(ws.delete(&path).await?)
     }
 
-    pub async fn add_runtime_config(&self, rtid: Uuid, rt_info: RuntimeConfig) -> ZFResult<()> {
-        // TODO add parameter with the information
+    pub async fn add_runtime_config(&self, rtid: Uuid, rt_info: ZFRuntimeConfig) -> ZFResult<()> {
         let path = zenoh::Path::try_from(RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let encoded_info = serialize_data(&rt_info)?;
         Ok(ws.put(&path, encoded_info.into()).await?)
     }
 
-    pub async fn get_runtime_status(&self, rtid: Uuid) -> ZFResult<RuntimeStatus> {
-        // Return type to be defined, it should return a struct with the runtime information
+    pub async fn get_runtime_status(&self, rtid: Uuid) -> ZFResult<ZFRuntimeStatus> {
         let selector = zenoh::Selector::try_from(RT_STATUS_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -313,7 +309,7 @@ impl ZFDataStore {
                 let kv = &data[0];
                 match &kv.value {
                     zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<RuntimeStatus>(&buf.to_vec())?;
+                        let ni = deserialize_data::<ZFRuntimeStatus>(&buf.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -331,8 +327,7 @@ impl ZFDataStore {
         Ok(ws.delete(&path).await?)
     }
 
-    pub async fn add_runtime_status(&self, rtid: Uuid, rt_info: RuntimeStatus) -> ZFResult<()> {
-        // TODO add parameter with the information
+    pub async fn add_runtime_status(&self, rtid: Uuid, rt_info: ZFRuntimeStatus) -> ZFResult<()> {
         let path = zenoh::Path::try_from(RT_STATUS_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let encoded_info = serialize_data(&rt_info)?;
@@ -344,7 +339,6 @@ impl ZFDataStore {
         rtid: Uuid,
         iid: Uuid,
     ) -> ZFResult<DataFlowRecord> {
-        // Return type to be defined, it should return a struct with the runtime information
         let selector =
             zenoh::Selector::try_from(RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, rtid, iid))?;
         let ws = self.z.workspace(None).await?;
@@ -376,7 +370,6 @@ impl ZFDataStore {
         rtid: Uuid,
         fid: String,
     ) -> ZFResult<Vec<DataFlowRecord>> {
-        // Return type to be defined, it should return a struct with the runtime information
         let selector =
             zenoh::Selector::try_from(RT_FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, rtid, fid))?;
         let ws = self.z.workspace(None).await?;
@@ -400,7 +393,6 @@ impl ZFDataStore {
     }
 
     pub async fn get_flow_instances(&self, fid: String) -> ZFResult<Vec<DataFlowRecord>> {
-        // Return type to be defined, it should return a struct with the runtime information
         let selector = zenoh::Selector::try_from(FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, fid))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -438,7 +430,6 @@ impl ZFDataStore {
         rtid: Uuid,
         flow_instance: DataFlowRecord,
     ) -> ZFResult<()> {
-        // TODO add parameter with the information
         let path = zenoh::Path::try_from(RT_FLOW_PATH!(
             ROOT_STANDALONE,
             rtid,

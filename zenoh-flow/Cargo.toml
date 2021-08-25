@@ -30,6 +30,8 @@ zenoh-flow-derive = {path = "../zenoh-flow-derive"}
 log = "0.4"
 zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master", default-features = false, features = ["transport_tcp","transport_udp"] }
 zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
+zrpc = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
+znrpc-macros = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
 url = "2.2.2"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 uhlc = { git = "https://github.com/atolab/uhlc-rs.git", branch = "master" }
@@ -40,7 +42,7 @@ event-listener = "2.5.1"
 paste = "1.0"
 flume = "0.10"
 typetag = "0.1"
-futures-lite = "1.11.3"
+base64 = "0.13.0"
 
 [build-dependencies]
 rustc_version = "0.4.0"

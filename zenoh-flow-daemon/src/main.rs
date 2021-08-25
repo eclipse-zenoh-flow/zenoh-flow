@@ -25,7 +25,7 @@ use log::{error, info, trace};
 
 mod runtime;
 use runtime::Runtime;
-use zenoh_flow::runtime::{RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusEnum};
+use zenoh_flow::runtime::{ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus, ZFRuntimeStatusKind};
 
 static RUNTIME_CONFIG_FILE: &str = "/etc/zenoh-flow/runtime.yaml";
 
@@ -73,11 +73,11 @@ async fn main() {
 
     let conf_file_path = Path::new(&args.config);
     let config =
-        serde_yaml::from_str::<RuntimeConfig>(&(read_file(conf_file_path).await)).unwrap();
+        serde_yaml::from_str::<ZFRuntimeConfig>(&(read_file(conf_file_path).await)).unwrap();
 
     let mut rt = Runtime::from_config(config).unwrap();
 
-    let h = rt.run();
+    let (_, h) = rt.start().await;
 
     h.await.unwrap();
 

@@ -26,6 +26,8 @@ async-std = { version = "=1.9.0", features = ["attributes"] }
 uuid = { version = "0.8", features = ["serde", "v4"] }
 zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master", default-features = false, features = ["transport_tcp","transport_udp"] }
 zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
+zrpc = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
+znrpc-macros = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
 structopt = "0.3"
 hostname = "0.3.1"
 machine-uid = "0.2.0"

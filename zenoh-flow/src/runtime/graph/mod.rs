@@ -44,6 +44,7 @@ use crate::{
 };
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct DataFlowGraph {
     pub uuid: Uuid,
     pub flow: String,
