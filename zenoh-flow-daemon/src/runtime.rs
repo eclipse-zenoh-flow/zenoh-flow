@@ -14,7 +14,8 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use zenoh::net::Session as ZSession;
 use zenoh::ZFuture;
-use zenoh_flow::async_std::sync::Arc;
+use zenoh_flow::async_std::sync::{Arc, Mutex};
+use zenoh_flow::model::dataflow::DataFlowDescriptor;
 use zenoh_flow::model::{
     dataflow::DataFlowRecord,
     operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor},
@@ -22,21 +23,28 @@ use zenoh_flow::model::{
 use zenoh_flow::runtime::graph::DataFlowGraph;
 use zenoh_flow::runtime::message::ZFControlMessage;
 use zenoh_flow::runtime::resources::ZFDataStore;
-use zenoh_flow::runtime::{ZFRuntime, ZFRuntimeConfig};
+use zenoh_flow::runtime::{
+    ZFRuntime, ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus, ZFRuntimeStatusKind,
+};
 use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::types::{ZFError, ZFResult};
 
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
+
+pub struct RTState {
+    pub graphs : HashMap<String, DataFlowGraph>,
+    pub config : ZFRuntimeConfig,
+}
+
 #[derive(Clone)]
 pub struct Runtime {
     pub zn: Arc<ZSession>,
     pub store: ZFDataStore,
-    pub graphs: HashMap<String, DataFlowGraph>,
+    pub state : Arc<Mutex<RTState>>,
     pub runtime_uuid: Uuid,
     pub runtime_name: String,
-    pub config: ZFRuntimeConfig,
 }
 
 impl Runtime {
@@ -47,13 +55,18 @@ impl Runtime {
         runtime_name: String,
         config: ZFRuntimeConfig,
     ) -> Self {
+
+        let state = Arc::new(Mutex::new(RTState{
+            graphs: HashMap::new(),
+            config,
+        }));
+
         Self {
             zn,
             store: ZFDataStore::new(z),
             runtime_uuid,
             runtime_name,
-            config,
-            graphs: HashMap::new(),
+            state,
         }
     }
 
@@ -114,7 +127,7 @@ impl Runtime {
         let _ = stop
             .recv()
             .await
-            .map_err(|e| ZFError::RecvError(format!("{}", e)));
+            .map_err(|e| ZFError::RecvError(format!("{}", e)))?;
 
         rt_server
             .stop(srt)
@@ -135,21 +148,60 @@ impl Runtime {
 
     pub async fn start(
         &self,
-    ) -> (
+    ) -> ZFResult<(
         async_std::channel::Sender<()>,
         async_std::task::JoinHandle<ZFResult<()>>,
-    ) {
+    )> {
         // Starting main loop in a task
         let (s, r) = async_std::channel::bounded::<()>(1);
         let rt = self.clone();
+
+        let rt_info = ZFRuntimeInfo {
+            id: self.runtime_uuid.clone(),
+            name: self.runtime_name.clone(),
+            tags: Vec::new(),
+            status: ZFRuntimeStatusKind::NotReady,
+        };
+
+        let rt_status = ZFRuntimeStatus {
+            id: self.runtime_uuid.clone(),
+            status: ZFRuntimeStatusKind::NotReady,
+            running_flows: 0,
+            running_operators: 0,
+            running_sources: 0,
+            running_sinks: 0,
+            running_connectors: 0,
+        };
+
+        let _state = self.state.lock().await;
+        self.store
+            .add_runtime_config(self.runtime_uuid, _state.config.clone())
+            .await?;
+        drop(_state);
+
+        self.store
+            .add_runtime_info(self.runtime_uuid, rt_info)
+            .await?;
+        self.store
+            .add_runtime_status(self.runtime_uuid, rt_status)
+            .await?;
+
         let h = async_std::task::spawn_blocking(move || {
             async_std::task::block_on(async { rt.run(r).await })
         });
-        (s, h)
+        Ok((s, h))
     }
 
-    pub async fn stop(&self, stop: async_std::channel::Sender<()>) {
-        stop.send(()).await.unwrap();
+    pub async fn stop(&self, stop: async_std::channel::Sender<()>) -> ZFResult<()> {
+        stop.send(())
+            .await
+            .map_err(|e| ZFError::SendError(format!("{}", e)))?;
+
+        self.store.remove_runtime_config(self.runtime_uuid).await?;
+        self.store.remove_runtime_info(self.runtime_uuid).await?;
+        self.store.remove_runtime_status(self.runtime_uuid).await?;
+
+        Ok(())
     }
 }
 
@@ -161,8 +213,63 @@ pub fn get_machine_uuid() -> ZFResult<Uuid> {
 
 #[znserver]
 impl ZFRuntime for Runtime {
-    async fn instantiate(&self, flow_id: String) -> ZFResult<DataFlowRecord> {
-        Err(ZFError::Unimplemented)
+    async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
+
+        let flow_name = flow.flow.clone();
+
+        let mapped = zenoh_flow::runtime::map_to_infrastructure(flow, &self.runtime_name).await?;
+
+
+        let dfr = DataFlowRecord::from_dataflow_descriptor(mapped)?;
+
+
+        let mut dataflow_graph = DataFlowGraph::from_dataflow_record(dfr.clone())?;
+
+
+
+
+        dataflow_graph.load(&self.runtime_name)?;
+
+        dataflow_graph.make_connections(&self.runtime_name).await?;
+
+        let mut sinks = dataflow_graph.get_sinks();
+        for runner in sinks.drain(..) {
+            async_std::task::spawn(async move {
+                let mut runner = runner.lock().await;
+                runner.run().await.unwrap();
+            });
+        }
+
+        let mut operators = dataflow_graph.get_operators();
+        for runner in operators.drain(..) {
+            async_std::task::spawn(async move {
+                let mut runner = runner.lock().await;
+                runner.run().await.unwrap();
+            });
+        }
+
+        let mut connectors = dataflow_graph.get_connectors();
+        for runner in connectors.drain(..) {
+            async_std::task::spawn(async move {
+                let mut runner = runner.lock().await;
+                runner.run().await.unwrap();
+            });
+        }
+
+        let mut sources = dataflow_graph.get_sources();
+        for runner in sources.drain(..) {
+            async_std::task::spawn(async move {
+                let mut runner = runner.lock().await;
+                runner.run().await.unwrap();
+            });
+        }
+
+        let mut _state = self.state.lock().await;
+        _state.graphs.insert(flow_name, dataflow_graph);
+        drop(_state);
+
+
+        Ok(dfr)
     }
 
     async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {

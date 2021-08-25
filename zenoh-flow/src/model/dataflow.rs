@@ -331,6 +331,7 @@ impl DataFlowRecord {
         Ok(())
     }
 
+    //This should be a TryFrom
     pub fn from_dataflow_descriptor(d: DataFlowDescriptor) -> ZFResult<Self> {
         let mut dfr = DataFlowRecord {
             uuid: Uuid::nil(), // all 0s uuid, placeholder

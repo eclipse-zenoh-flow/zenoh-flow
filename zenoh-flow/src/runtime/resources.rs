@@ -27,7 +27,11 @@ use crate::model::dataflow::DataFlowRecord;
 use crate::runtime::{ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus};
 use crate::serde::{de::DeserializeOwned, Serialize};
 use crate::{async_std::sync::Arc, ZFError, ZFResult};
+use async_std::pin::Pin;
+use async_std::stream::Stream;
+use async_std::task::{Context, Poll};
 use futures::StreamExt;
+use pin_project_lite::pin_project;
 use std::convert::TryFrom;
 use uuid::Uuid;
 
@@ -206,6 +210,53 @@ where
 }
 //
 
+pin_project! {
+    pub struct ZFRuntimeConfigStream<'a> {
+        #[pin]
+        change_stream: zenoh::ChangeReceiver<'a>,
+    }
+}
+
+impl ZFRuntimeConfigStream<'_> {
+    pub async fn close(self) -> ZFResult<()> {
+        Ok(self.change_stream.close().await?)
+    }
+}
+
+impl Stream for ZFRuntimeConfigStream<'_> {
+    type Item = crate::runtime::ZFRuntimeConfig;
+
+    #[inline(always)]
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        match async_std::pin::Pin::new(self)
+            .change_stream
+            .poll_next_unpin(cx)
+        {
+            Poll::Ready(Some(change)) => match change.kind {
+                zenoh::ChangeKind::Put | zenoh::ChangeKind::Patch => match change.value {
+                    Some(value) => match value {
+                        zenoh::Value::Raw(_, buf) => {
+                            match deserialize_data::<crate::runtime::ZFRuntimeConfig>(&buf.to_vec())
+                            {
+                                Ok(info) => Poll::Ready(Some(info)),
+                                Err(_) => Poll::Pending,
+                            }
+                        }
+                        _ => Poll::Pending,
+                    },
+                    None => {
+                        log::warn!("Received empty change drop it");
+                        Poll::Pending
+                    }
+                },
+                zenoh::ChangeKind::Delete => Poll::Pending,
+            },
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct ZFDataStore {
     //Name TBD
@@ -217,7 +268,7 @@ impl ZFDataStore {
         Self { z }
     }
 
-    pub async fn get_runtime_info(&self, rtid: Uuid) -> ZFResult<ZFRuntimeConfig> {
+    pub async fn get_runtime_info(&self, rtid: Uuid) -> ZFResult<ZFRuntimeInfo> {
         let selector = zenoh::Selector::try_from(RT_INFO_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -231,7 +282,7 @@ impl ZFDataStore {
                 let kv = &data[0];
                 match &kv.value {
                     zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<ZFRuntimeConfig>(&buf.to_vec())?;
+                        let ni = deserialize_data::<ZFRuntimeInfo>(&buf.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -249,7 +300,7 @@ impl ZFDataStore {
         Ok(ws.delete(&path).await?)
     }
 
-    pub async fn add_runtime_info(&self, rtid: Uuid, rt_info: ZFRuntimeConfig) -> ZFResult<()> {
+    pub async fn add_runtime_info(&self, rtid: Uuid, rt_info: ZFRuntimeInfo) -> ZFResult<()> {
         let path = zenoh::Path::try_from(RT_INFO_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let encoded_info = serialize_data(&rt_info)?;
@@ -280,6 +331,19 @@ impl ZFDataStore {
                 "Got more than one data for a single runtime information",
             ))),
         }
+    }
+
+    pub async fn subscribe_runtime_config(
+        &self,
+        rtid: Uuid,
+    ) -> ZFResult<ZFRuntimeConfigStream<'_>> {
+        // let selector = zenoh::Selector::try_from(RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
+        // let ws = self.z.workspace(None).await?;
+        // Ok(ws
+        //     .subscribe(&selector)
+        //     .await
+        //     .map(|change_stream| ZFRuntimeConfigStream { change_stream })?)
+        Err(ZFError::Unimplemented)
     }
 
     pub async fn remove_runtime_config(&self, rtid: Uuid) -> ZFResult<()> {

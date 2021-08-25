@@ -179,7 +179,7 @@ pub trait ZFRuntime {
     /// and, creates the associated [`DataFlowRecord`].
     /// The record contains an [`Uuid`] that identifies the record.
     /// The actual instantiation process runs asynchronously in the runtime.
-    async fn instantiate(&self, flow_id: String) -> ZFResult<DataFlowRecord>;
+    async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord>;
 
     /// Sends a teardown request for the given record identified by the [`Uuid`]
     /// Note the request is asynchronous, the runtime that receives the request will

@@ -12,8 +12,8 @@
 //
 use structopt::StructOpt;
 
-use std::process;
 use async_ctrlc::CtrlC;
+use std::process;
 use std::str;
 
 use std::collections::HashMap;
@@ -78,7 +78,7 @@ async fn main() {
 
     let rt = Runtime::from_config(config).unwrap();
 
-    let (s, h) = rt.start().await;
+    let (s, h) = rt.start().await.unwrap();
 
     let ctrlc = CtrlC::new().expect("Unable to create Ctrl-C handler");
     let mut stream = ctrlc.enumerate().take(1);
@@ -90,6 +90,4 @@ async fn main() {
 
     //wait for the futures to ends
     h.await.unwrap();
-
-
 }
