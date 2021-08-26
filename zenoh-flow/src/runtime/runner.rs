@@ -127,7 +127,7 @@ impl ZFOperatorRunner {
             let ir_fn = self.operator.get_input_rule(ctx.clone());
 
             let mut futs = vec![];
-            for rx in self.inputs.iter_mut() {
+            for rx in self.inputs.iter() {
                 futs.push(rx.recv()); // this should be peek(), but both requires mut
             }
 
@@ -197,8 +197,8 @@ impl ZFOperatorRunner {
             }
 
             // This depends on the Tokens...
-            for rx in self.inputs.iter_mut() {
-                rx.drop()?;
+            for rx in self.inputs.iter() {
+                rx.discard().await?;
             }
         }
     }
@@ -346,7 +346,7 @@ impl ZFSinkRunner {
             let ir_fn = self.operator.get_input_rule(ctx.clone());
 
             let mut futs = vec![];
-            for rx in self.inputs.iter_mut() {
+            for rx in self.inputs.iter() {
                 futs.push(rx.recv()); // this should be peek(), but both requires mut
             }
 
@@ -368,8 +368,8 @@ impl ZFSinkRunner {
             run_fn(ctx.clone(), data).await?;
 
             //This depends on the Tokens...
-            for rx in self.inputs.iter_mut() {
-                rx.drop()?;
+            for rx in self.inputs.iter() {
+                rx.discard().await?;
             }
         }
     }
