@@ -65,6 +65,12 @@ impl From<flume::RecvError> for ZFError {
     }
 }
 
+impl From<async_std::channel::RecvError> for ZFError {
+    fn from(err: async_std::channel::RecvError) -> Self {
+        Self::IOError(format!("{}", err))
+    }
+}
+
 impl From<flume::TryRecvError> for ZFError {
     fn from(err: flume::TryRecvError) -> Self {
         match err {

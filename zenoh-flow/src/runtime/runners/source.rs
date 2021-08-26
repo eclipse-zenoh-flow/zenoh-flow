@@ -12,15 +12,14 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::runtime::graph::link::{ZFLinkSender};
+use crate::async_std::sync::Arc;
+use crate::runtime::graph::link::ZFLinkSender;
 use crate::runtime::message::ZFMessage;
 use crate::types::{ZFContext, ZFResult};
 use crate::utils::hlc::PeriodicHLC;
 use crate::SourceTrait;
-use crate::async_std::sync::Arc;
 use libloading::Library;
 use std::collections::HashMap;
-
 
 #[repr(C)]
 pub struct ZFSourceDeclaration {
@@ -30,7 +29,6 @@ pub struct ZFSourceDeclaration {
         Option<HashMap<String, String>>,
     ) -> ZFResult<Box<dyn SourceTrait + Send>>,
 }
-
 
 pub struct ZFSourceRunner {
     pub hlc: PeriodicHLC,

@@ -12,11 +12,11 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::runtime::graph::link::{ZFLinkReceiver};
+use crate::async_std::sync::Arc;
+use crate::runtime::graph::link::ZFLinkReceiver;
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFContext, ZFInput, ZFResult};
 use crate::SinkTrait;
-use crate::async_std::sync::Arc;
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;

@@ -12,17 +12,15 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-
+use crate::async_std::sync::Arc;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFContext, ZFInput, ZFResult};
 use crate::OperatorTrait;
-use crate::async_std::sync::Arc;
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 use uhlc::HLC;
-
 
 #[repr(C)]
 pub struct ZFOperatorDeclaration {
@@ -32,7 +30,6 @@ pub struct ZFOperatorDeclaration {
         Option<HashMap<String, String>>,
     ) -> ZFResult<Box<dyn OperatorTrait + Send>>,
 }
-
 
 pub struct ZFOperatorRunner {
     pub hlc: Arc<HLC>,

@@ -12,11 +12,14 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use async_std::sync::{Arc, Mutex};
+use async_ctrlc::CtrlC;
+
 use opencv::{core, highgui, prelude::*, videoio};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
+use zenoh_flow::async_std::stream::StreamExt;
+use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::{
     downcast, downcast_mut, get_input,
@@ -274,13 +277,24 @@ async fn main() {
 
     zf_graph.make_connections("self").await.unwrap();
 
+    let mut stoppers = vec![];
+    let mut handlers = vec![];
+
     let runners = zf_graph.get_runners();
     for runner in runners {
-        async_std::task::spawn(async move {
-            let mut runner = runner.lock().await;
-            runner.run().await.unwrap();
-        });
+        let (s, h) = runner.start();
+        stoppers.push(s);
+        handlers.push(h);
     }
 
-    let () = std::future::pending().await;
+    let ctrlc = CtrlC::new().expect("Unable to create Ctrl-C handler");
+    let mut stream = ctrlc.enumerate().take(1);
+    stream.next().await;
+    println!("Received Ctrl-C start teardown");
+
+    for s in stoppers.iter() {
+        s.send(()).await.unwrap();
+    }
+
+    futures::future::join_all(handlers).await;
 }
