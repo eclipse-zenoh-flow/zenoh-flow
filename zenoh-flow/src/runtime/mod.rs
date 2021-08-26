@@ -17,11 +17,10 @@ use crate::{
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-pub mod connectors;
 pub mod graph;
 pub mod loader;
 pub mod message;
-pub mod runner;
+pub mod runners;
 
 pub async fn map_to_infrastructure(
     mut descriptor: DataFlowDescriptor,

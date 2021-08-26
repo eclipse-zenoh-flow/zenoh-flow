@@ -25,10 +25,10 @@ use std::collections::HashMap;
 use uhlc::HLC;
 use zenoh::ZFuture;
 
-use crate::runtime::connectors::{ZFZenohReceiver, ZFZenohSender};
+use crate::runtime::runners::connector::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::loader::{load_operator, load_sink, load_source};
 use crate::runtime::message::ZFMessage;
-use crate::runtime::runner::{Runner, ZFOperatorRunner, ZFSinkRunner, ZFSourceRunner};
+use crate::runtime::runners::{Runner, operator::ZFOperatorRunner, sink::ZFSinkRunner, source::ZFSourceRunner};
 use crate::{
     model::connector::ZFConnectorKind,
     model::dataflow::DataFlowRecord,
