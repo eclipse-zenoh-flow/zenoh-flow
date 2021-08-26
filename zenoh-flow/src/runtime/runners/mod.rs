@@ -28,10 +28,35 @@ use crate::ZFError;
 
 use crate::async_std::prelude::*;
 use crate::async_std::{
-    channel::{bounded, Receiver, Sender},
+    channel::{bounded, Receiver, RecvError, Sender},
     sync::{Arc, Mutex},
     task::JoinHandle,
 };
+
+pub struct RunnerManager {
+    stopper: Sender<()>,
+    handler: JoinHandle<ZFResult<()>>,
+}
+
+impl RunnerManager {
+    pub fn new(stopper: Sender<()>, handler: JoinHandle<ZFResult<()>>) -> Self {
+        Self { stopper, handler }
+    }
+
+    pub async fn kill(&self) -> ZFResult<()> {
+        Ok(self.stopper.send(()).await?)
+    }
+
+    pub fn get_handler(&self) -> &JoinHandle<ZFResult<()>> {
+        &self.handler
+    }
+}
+
+pub enum RunAction {
+    RestartRun(Option<ZFError>),
+    Stop,
+    StopError(RecvError),
+}
 
 #[derive(Clone)]
 pub struct Runner(Arc<Mutex<RunnerInner>>);
@@ -46,25 +71,43 @@ impl Runner {
     }
 
     pub async fn run_stoppable(&self, stop: Receiver<()>) -> ZFResult<()> {
-        let run = async { self.0.lock().await.run().await };
-        let stopper = async {
-            stop.recv()
-                .await
-                .map_err(|e| ZFError::IOError(format!("{:?}", e)))
-        };
+        loop {
+            let run = async {
+                match self.0.lock().await.run().await {
+                    Ok(_) => RunAction::RestartRun(None),
+                    Err(e) => RunAction::RestartRun(Some(e)),
+                }
+            };
+            let stopper = async {
+                match stop.recv().await {
+                    Ok(_) => RunAction::Stop,
+                    Err(e) => RunAction::StopError(e),
+                }
+            };
 
-        match run.race(stopper).await {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
+            match run.race(stopper).await {
+                RunAction::RestartRun(e) => {
+                    log::error!("The run loop exited with {:?}, restarting...", e);
+                    continue;
+                }
+                RunAction::Stop => {
+                    log::trace!("Received kill command, killing runner");
+                    break Ok(());
+                }
+                RunAction::StopError(e) => {
+                    log::error!("The stopper recv got an error: {:?}, exiting...", e);
+                    break Err(e.into());
+                }
+            }
         }
     }
 
-    pub fn start(&self) -> (Sender<()>, JoinHandle<ZFResult<()>>) {
+    pub fn start(&self) -> RunnerManager {
         let (s, r) = bounded::<()>(1);
         let inner = self.clone();
 
         let h = async_std::task::spawn(async move { inner.run_stoppable(r).await });
-        (s, h)
+        RunnerManager::new(s, h)
     }
 
     pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {

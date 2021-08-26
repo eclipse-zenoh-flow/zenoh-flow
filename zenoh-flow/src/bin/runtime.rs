@@ -71,35 +71,30 @@ async fn main() {
 
     dataflow_graph.make_connections(&opt.runtime).await.unwrap();
 
-    let mut stoppers = vec![];
-    let mut handlers = vec![];
+    let mut managers = vec![];
 
     let mut sinks = dataflow_graph.get_sinks();
     for runner in sinks.drain(..) {
-        let (s, h) = runner.start();
-        stoppers.push(s);
-        handlers.push(h);
+        let m = runner.start();
+        managers.push(m);
     }
 
     let mut operators = dataflow_graph.get_operators();
     for runner in operators.drain(..) {
-        let (s, h) = runner.start();
-        stoppers.push(s);
-        handlers.push(h);
+        let m = runner.start();
+        managers.push(m);
     }
 
     let mut connectors = dataflow_graph.get_connectors();
     for runner in connectors.drain(..) {
-        let (s, h) = runner.start();
-        stoppers.push(s);
-        handlers.push(h);
+        let m = runner.start();
+        managers.push(m);
     }
 
     let mut sources = dataflow_graph.get_sources();
     for runner in sources.drain(..) {
-        let (s, h) = runner.start();
-        stoppers.push(s);
-        handlers.push(h);
+        let m = runner.start();
+        managers.push(m);
     }
 
     let () = std::future::pending().await;

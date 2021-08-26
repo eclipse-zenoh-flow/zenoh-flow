@@ -277,14 +277,12 @@ async fn main() {
 
     zf_graph.make_connections("self").await.unwrap();
 
-    let mut stoppers = vec![];
-    let mut handlers = vec![];
+    let mut managers = vec![];
 
     let runners = zf_graph.get_runners();
     for runner in runners {
-        let (s, h) = runner.start();
-        stoppers.push(s);
-        handlers.push(h);
+        let m = runner.start();
+        managers.push(m)
     }
 
     let ctrlc = CtrlC::new().expect("Unable to create Ctrl-C handler");
@@ -292,9 +290,7 @@ async fn main() {
     stream.next().await;
     println!("Received Ctrl-C start teardown");
 
-    for s in stoppers.iter() {
-        s.send(()).await.unwrap();
+    for m in managers.iter() {
+        m.kill().await.unwrap()
     }
-
-    futures::future::join_all(handlers).await;
 }
