@@ -18,6 +18,7 @@ use opencv::{core, highgui, prelude::*, videoio};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
+use std::sync::atomic::{AtomicU64, Ordering};
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
@@ -31,9 +32,8 @@ use zenoh_flow::{
         ZFInput, ZFResult,
     },
     zenoh_flow_derive::ZFState,
-    zf_data, zf_spin_lock, zf_empty_state
+    zf_data, zf_empty_state, zf_spin_lock,
 };
-use std::sync::atomic::{AtomicU64, Ordering};
 use zenoh_flow_examples::RandomData;
 
 static SOURCE: &str = "Counter";
@@ -133,7 +133,7 @@ async fn main() {
     let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new();
 
     let source = Box::new(CountSource::new(None));
-    let sink = Box::new(ExampleGenericSink{});
+    let sink = Box::new(ExampleGenericSink {});
     let hlc = Arc::new(uhlc::HLC::default());
 
     zf_graph

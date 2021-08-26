@@ -15,7 +15,7 @@
 pub mod link;
 pub mod node;
 
-use async_std::sync::{Arc, Mutex};
+use async_std::sync::Arc;
 use node::DataFlowNode;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::{EdgeIndex, NodeIndex};
