@@ -54,10 +54,9 @@ impl Runner {
         };
 
         match run.race(stopper).await {
-            Ok(_) => println!("Run has stopped"),
-            Err(e) => println!("Got an error: {:?}", e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
-        Ok(())
     }
 
     pub fn start(&self) -> (Sender<()>, JoinHandle<ZFResult<()>>) {
