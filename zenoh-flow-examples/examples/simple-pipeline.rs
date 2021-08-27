@@ -202,5 +202,5 @@ async fn main() {
         m.kill().await.unwrap()
     }
 
-    //futures::future::join_all(handlers).await;
+    futures::future::join_all(managers).await;
 }
