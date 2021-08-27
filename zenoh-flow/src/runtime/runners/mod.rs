@@ -33,9 +33,9 @@ use crate::async_std::{
     task::JoinHandle,
 };
 
+use futures_lite::future::FutureExt;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use futures_lite::future::FutureExt;
 
 pub struct RunnerManager {
     stopper: Sender<()>,
@@ -57,7 +57,7 @@ impl RunnerManager {
 }
 
 impl Future for RunnerManager {
-    type Output =  ZFResult<()>;
+    type Output = ZFResult<()>;
 
     fn poll(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
         self.handler.poll(ctx)
