@@ -24,6 +24,7 @@ use zenoh_flow::runtime::graph::DataFlowGraph;
 use zenoh_flow::runtime::message::ZFControlMessage;
 use zenoh_flow::runtime::resources::ZFDataStore;
 use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
+use zenoh_flow::runtime::ZFRuntimeClient;
 use zenoh_flow::runtime::{
     ZFRuntime, ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus, ZFRuntimeStatusKind,
 };
@@ -218,7 +219,9 @@ impl ZFRuntime for Runtime {
     async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow...
 
+        let record_uuid = Uuid::new_v4();
         let flow_name = flow.flow.clone();
+        let mut rt_clients = vec![];
 
         let mapped = zenoh_flow::runtime::map_to_infrastructure(flow, &self.runtime_name).await?;
 
@@ -227,48 +230,88 @@ impl ZFRuntime for Runtime {
             .into_iter()
             .filter(|rt| *rt != self.runtime_name)
             .collect::<Vec<String>>();
-        let record_uuid = Uuid::new_v4();
 
+        for rt in involved_runtimes.into_iter() {
+            let rt_info = self.store.get_runtime_info_by_name(rt).await?;
+            let client = ZFRuntimeClient::new(self.zn.clone(), rt_info.id);
+            rt_clients.push(client);
+        }
+
+        // remote prepare
+        for client in rt_clients.iter() {
+            client.prepare(mapped.clone(), record_uuid).await??;
+        }
+
+        // self prepare
         let dfr = self.prepare(mapped.clone(), record_uuid).await?;
 
+        // remote start
+        for client in rt_clients.iter() {
+            client.start(record_uuid).await??;
+        }
+
+        // self start
         ZFRuntime::start(self, record_uuid).await?;
 
+        // remote start sources
+        for client in rt_clients.iter() {
+            client.start_sources(record_uuid).await??;
+        }
+
+        // self start sources
         self.start_sources(record_uuid).await?;
 
         Ok(dfr)
     }
 
     async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
-        let data = {
-            let mut _state = self.state.lock().await;
-            let d = match _state.graphs.remove(&record_id) {
-                Some(data) => Some(data),
-                None => None,
-            };
-            drop(_state);
-            d
-        };
+        let mut rt_clients = vec![];
 
-        match data {
-            Some(r) => {
-                let (graph, managers) = r;
-                for m in managers.iter() {
-                    m.kill().await?;
-                }
+        let all_involved_runtimes = self.store.get_flow_instance_runtimes(record_id).await?;
 
-                let record = self
-                    .store
-                    .get_runtime_flow_by_instance(self.runtime_uuid, record_id)
-                    .await?;
+        let is_also_local = all_involved_runtimes.contains(&self.runtime_uuid);
 
-                self.store
-                    .remove_runtime_flow_instance(self.runtime_uuid, &record.flow, record.uuid)
-                    .await?;
+        let remote_involved_runtimes = all_involved_runtimes
+            .into_iter()
+            .filter(|rt| *rt != self.runtime_uuid)
+            .collect::<Vec<Uuid>>();
 
-                Ok(record)
-            }
-            None => Err(ZFError::InstanceNotFound(record_id)),
+        for rt in remote_involved_runtimes.into_iter() {
+            let client = ZFRuntimeClient::new(self.zn.clone(), rt);
+            rt_clients.push(client);
         }
+
+        // remote stop sources
+        for client in rt_clients.iter() {
+            client.stop_sources(record_id).await??;
+        }
+
+        // local stop sources
+        if is_also_local {
+            self.stop_sources(record_id).await?;
+        }
+
+        // remote stop
+        for client in rt_clients.iter() {
+            client.stop(record_id).await??;
+        }
+
+        // local stop
+        if is_also_local {
+            ZFRuntime::stop(self, record_id).await?;
+        }
+
+        // remote stop clean
+        for client in rt_clients.iter() {
+            client.clean(record_id).await??;
+        }
+
+        // local clean
+        if is_also_local {
+            self.clean(record_id).await;
+        }
+
+        Err(ZFError::Unimplemented)
     }
     async fn prepare(&self, flow: DataFlowDescriptor, record_id: Uuid) -> ZFResult<DataFlowRecord> {
         let flow_name = flow.flow.clone();
@@ -293,7 +336,31 @@ impl ZFRuntime for Runtime {
         Ok(dfr)
     }
     async fn clean(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
-        Err(ZFError::Unimplemented)
+        let data = {
+            let mut _state = self.state.lock().await;
+            let d = match _state.graphs.remove(&record_id) {
+                Some(data) => Some(data),
+                None => None,
+            };
+            drop(_state);
+            d
+        };
+
+        match data {
+            Some(r) => {
+                let record = self
+                    .store
+                    .get_runtime_flow_by_instance(self.runtime_uuid, record_id)
+                    .await?;
+
+                self.store
+                    .remove_runtime_flow_instance(self.runtime_uuid, &record.flow, record.uuid)
+                    .await?;
+
+                Ok(record)
+            }
+            None => Err(ZFError::InstanceNotFound(record_id)),
+        }
     }
 
     async fn start(&self, record_id: Uuid) -> ZFResult<()> {
@@ -350,7 +417,6 @@ impl ZFRuntime for Runtime {
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
-                //let (graph, mut managers) = d;
                 let mut to_be_removed = vec![];
 
                 for (i, m) in instance.1.iter().enumerate() {
@@ -362,6 +428,7 @@ impl ZFRuntime for Runtime {
                         }
                     }
                 }
+                to_be_removed.reverse();
                 for i in to_be_removed.iter() {
                     instance.1.remove(*i);
                 }
@@ -387,6 +454,7 @@ impl ZFRuntime for Runtime {
                         _ => continue,
                     }
                 }
+                to_be_removed.reverse();
                 for i in to_be_removed.iter() {
                     instance.1.remove(*i);
                 }

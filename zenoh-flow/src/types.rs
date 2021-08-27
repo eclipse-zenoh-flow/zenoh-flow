@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::convert::From;
 use uhlc::Timestamp;
 use uuid::Uuid;
+use zrpc::zrpcresult::ZRPCError;
 
 // Placeholder types
 pub type ZFOperatorId = String;
@@ -60,6 +61,13 @@ pub enum ZFError {
     #[serde(skip_serializing, skip_deserializing)]
     RunnerStopSendError(crate::async_std::channel::SendError<()>),
     InstanceNotFound(Uuid),
+    RPCError(ZRPCError),
+}
+
+impl From<ZRPCError> for ZFError {
+    fn from(err: ZRPCError) -> Self {
+        Self::RPCError(err)
+    }
 }
 
 impl From<flume::RecvError> for ZFError {

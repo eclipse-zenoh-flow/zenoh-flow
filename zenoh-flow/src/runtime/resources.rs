@@ -294,6 +294,29 @@ impl ZFDataStore {
         }
     }
 
+    pub async fn get_runtime_info_by_name(&self, rtid: String) -> ZFResult<ZFRuntimeInfo> {
+        let selector = zenoh::Selector::try_from(RT_INFO_PATH!(ROOT_STANDALONE, "*"))?;
+        let ws = self.z.workspace(None).await?;
+        let mut ds = ws.get(&selector).await?;
+
+        // Not sure this is needed...
+        let data = ds.collect::<Vec<zenoh::Data>>().await;
+
+        for kv in data.into_iter() {
+            match &kv.value {
+                zenoh::Value::Raw(_, buf) => {
+                    let ni = deserialize_data::<ZFRuntimeInfo>(&buf.to_vec())?;
+                    if ni.name == rtid {
+                        return Ok(ni);
+                    }
+                }
+                _ => return Err(ZFError::DeseralizationError),
+            }
+        }
+
+        Err(ZFError::Empty)
+    }
+
     pub async fn remove_runtime_info(&self, rtid: Uuid) -> ZFResult<()> {
         let path = zenoh::Path::try_from(RT_INFO_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
@@ -476,6 +499,25 @@ impl ZFDataStore {
         }
 
         Ok(instances)
+    }
+
+    pub async fn get_flow_instance_runtimes(&self, iid: Uuid) -> ZFResult<Vec<Uuid>> {
+        let selector =
+            zenoh::Selector::try_from(RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid))?;
+        let ws = self.z.workspace(None).await?;
+        let mut ds = ws.get(&selector).await?;
+
+        // Not sure this is needed...
+        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let mut runtimes = Vec::new();
+
+        for kv in data.into_iter() {
+            let path = String::from(kv.path.as_str());
+            let id = path.split("/").collect::<Vec<&str>>()[3];
+            runtimes.push(Uuid::parse_str(id).map_err(|_| ZFError::DeseralizationError)?);
+        }
+
+        Ok(runtimes)
     }
 
     pub async fn remove_runtime_flow_instance(
