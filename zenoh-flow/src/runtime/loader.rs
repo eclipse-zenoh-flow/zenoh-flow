@@ -13,9 +13,10 @@
 //
 
 use crate::{
-    runtime::runner::{
-        ZFOperatorDeclaration, ZFOperatorRunner, ZFSinkDeclaration, ZFSinkRunner,
-        ZFSourceDeclaration, ZFSourceRunner,
+    runtime::runners::{
+        operator::{ZFOperatorDeclaration, ZFOperatorRunner},
+        sink::{ZFSinkDeclaration, ZFSinkRunner},
+        source::{ZFSourceDeclaration, ZFSourceRunner},
     },
     types::{ZFError, ZFResult},
     utils::hlc::PeriodicHLC,

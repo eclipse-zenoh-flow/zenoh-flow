@@ -40,7 +40,7 @@ impl ZFZenohSender {
 
     pub async fn run(&mut self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.resource);
-        if let Some(mut input) = self.input.take() {
+        if let Some(input) = &self.input {
             while let Ok((_, message)) = input.recv().await {
                 log::debug!("ZenohSender IN <= {:?} ", message);
 

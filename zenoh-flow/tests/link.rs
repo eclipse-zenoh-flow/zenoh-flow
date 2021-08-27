@@ -19,7 +19,7 @@ async fn same_task_simple() {
     let size = 2;
     let send_id = String::from("0");
     let recv_id = String::from("10");
-    let (sender, mut receiver) = link::<u8>(Some(size), send_id, recv_id);
+    let (sender, receiver) = link::<u8>(Some(size), send_id, recv_id);
 
     let mut d: u8 = 0;
     // Add the first element
@@ -36,7 +36,7 @@ async fn same_task_simple() {
     assert_eq!(res, Ok((String::from("10"), Arc::new(1u8))));
 }
 
-async fn recv_task_simple(mut receiver: ZFLinkReceiver<u8>) {
+async fn recv_task_simple(receiver: ZFLinkReceiver<u8>) {
     let res = receiver.recv().await;
     assert_eq!(res, Ok((String::from("10"), Arc::new(0u8))));
 
@@ -63,7 +63,7 @@ async fn send_task_simple(sender: ZFLinkSender<u8>) {
     assert_eq!(res, Ok(()));
 }
 
-async fn recv_task_more(mut receiver: ZFLinkReceiver<u8>) {
+async fn recv_task_more(receiver: ZFLinkReceiver<u8>) {
     for n in 0u8..255u8 {
         let res = receiver.recv().await;
         assert_eq!(res, Ok((String::from("10"), Arc::new(n))));

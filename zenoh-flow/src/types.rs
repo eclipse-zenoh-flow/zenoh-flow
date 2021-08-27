@@ -57,11 +57,25 @@ pub enum ZFError {
     ZenohError(String),
     LoadingError(String),
     ParsingError(String),
+    RunnerStopError(crate::async_std::channel::RecvError),
+    RunnerStopSendError(crate::async_std::channel::SendError<()>),
 }
 
 impl From<flume::RecvError> for ZFError {
     fn from(err: flume::RecvError) -> Self {
         Self::RecvError(err)
+    }
+}
+
+impl From<crate::async_std::channel::RecvError> for ZFError {
+    fn from(err: async_std::channel::RecvError) -> Self {
+        Self::RunnerStopError(err)
+    }
+}
+
+impl From<crate::async_std::channel::SendError<()>> for ZFError {
+    fn from(err: async_std::channel::SendError<()>) -> Self {
+        Self::RunnerStopSendError(err)
     }
 }
 

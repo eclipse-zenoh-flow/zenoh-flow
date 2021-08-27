@@ -17,8 +17,9 @@ macro_rules! export_operator {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfoperator_declaration: $crate::runtime::runner::ZFOperatorDeclaration =
-            $crate::runtime::runner::ZFOperatorDeclaration {
+        pub static zfoperator_declaration:
+            $crate::runtime::runners::operator::ZFOperatorDeclaration =
+            $crate::runtime::runners::operator::ZFOperatorDeclaration {
                 rustc_version: $crate::runtime::loader::RUSTC_VERSION,
                 core_version: $crate::runtime::loader::CORE_VERSION,
                 register: $register,
@@ -31,8 +32,8 @@ macro_rules! export_source {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsource_declaration: $crate::runtime::runner::ZFSourceDeclaration =
-            $crate::runtime::runner::ZFSourceDeclaration {
+        pub static zfsource_declaration: $crate::runtime::runners::source::ZFSourceDeclaration =
+            $crate::runtime::runners::source::ZFSourceDeclaration {
                 rustc_version: $crate::runtime::loader::RUSTC_VERSION,
                 core_version: $crate::runtime::loader::CORE_VERSION,
                 register: $register,
@@ -45,8 +46,8 @@ macro_rules! export_sink {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsink_declaration: $crate::runtime::runner::ZFSinkDeclaration =
-            $crate::runtime::runner::ZFSinkDeclaration {
+        pub static zfsink_declaration: $crate::runtime::runners::sink::ZFSinkDeclaration =
+            $crate::runtime::runners::sink::ZFSinkDeclaration {
                 rustc_version: $crate::runtime::loader::RUSTC_VERSION,
                 core_version: $crate::runtime::loader::CORE_VERSION,
                 register: $register,
