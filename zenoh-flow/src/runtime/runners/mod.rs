@@ -107,7 +107,7 @@ impl Runner {
                     break Ok(());
                 }
                 RunAction::StopError(e) => {
-                    log::error!("The stopper recv got an error: {:?}, exiting...", e);
+                    log::error!("The stopper recv got an error: {}, exiting...", e);
                     break Err(e.into());
                 }
             }

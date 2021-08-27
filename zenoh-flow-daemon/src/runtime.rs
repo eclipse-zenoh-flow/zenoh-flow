@@ -23,6 +23,7 @@ use zenoh_flow::model::{
 use zenoh_flow::runtime::graph::DataFlowGraph;
 use zenoh_flow::runtime::message::ZFControlMessage;
 use zenoh_flow::runtime::resources::ZFDataStore;
+use zenoh_flow::runtime::runners::RunnerManager;
 use zenoh_flow::runtime::{
     ZFRuntime, ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus, ZFRuntimeStatusKind,
 };
@@ -32,17 +33,16 @@ use zenoh_flow::types::{ZFError, ZFResult};
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
-
 pub struct RTState {
-    pub graphs : HashMap<String, DataFlowGraph>,
-    pub config : ZFRuntimeConfig,
+    pub graphs: HashMap<Uuid, (DataFlowGraph, Vec<RunnerManager>)>,
+    pub config: ZFRuntimeConfig,
 }
 
 #[derive(Clone)]
 pub struct Runtime {
     pub zn: Arc<ZSession>,
     pub store: ZFDataStore,
-    pub state : Arc<Mutex<RTState>>,
+    pub state: Arc<Mutex<RTState>>,
     pub runtime_uuid: Uuid,
     pub runtime_name: String,
 }
@@ -55,8 +55,7 @@ impl Runtime {
         runtime_name: String,
         config: ZFRuntimeConfig,
     ) -> Self {
-
-        let state = Arc::new(Mutex::new(RTState{
+        let state = Arc::new(Mutex::new(RTState {
             graphs: HashMap::new(),
             config,
         }));
@@ -214,66 +213,87 @@ pub fn get_machine_uuid() -> ZFResult<Uuid> {
 #[znserver]
 impl ZFRuntime for Runtime {
     async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
+        //TODO: workaround - it should just take the ID of the flow...
 
         let flow_name = flow.flow.clone();
 
         let mapped = zenoh_flow::runtime::map_to_infrastructure(flow, &self.runtime_name).await?;
 
-
         let dfr = DataFlowRecord::from_dataflow_descriptor(mapped)?;
 
-
         let mut dataflow_graph = DataFlowGraph::from_dataflow_record(dfr.clone())?;
-
-
-
 
         dataflow_graph.load(&self.runtime_name)?;
 
         dataflow_graph.make_connections(&self.runtime_name).await?;
 
+        let mut managers = vec![];
+
         let mut sinks = dataflow_graph.get_sinks();
         for runner in sinks.drain(..) {
-            async_std::task::spawn(async move {
-                let mut runner = runner.lock().await;
-                runner.run().await.unwrap();
-            });
+            let m = runner.start();
+            managers.push(m);
         }
 
         let mut operators = dataflow_graph.get_operators();
         for runner in operators.drain(..) {
-            async_std::task::spawn(async move {
-                let mut runner = runner.lock().await;
-                runner.run().await.unwrap();
-            });
+            let m = runner.start();
+            managers.push(m);
         }
 
         let mut connectors = dataflow_graph.get_connectors();
         for runner in connectors.drain(..) {
-            async_std::task::spawn(async move {
-                let mut runner = runner.lock().await;
-                runner.run().await.unwrap();
-            });
+            let m = runner.start();
+            managers.push(m);
         }
 
         let mut sources = dataflow_graph.get_sources();
         for runner in sources.drain(..) {
-            async_std::task::spawn(async move {
-                let mut runner = runner.lock().await;
-                runner.run().await.unwrap();
-            });
+            let m = runner.start();
+            managers.push(m);
         }
 
         let mut _state = self.state.lock().await;
-        _state.graphs.insert(flow_name, dataflow_graph);
+        _state
+            .graphs
+            .insert(dfr.uuid.clone(), (dataflow_graph, managers));
         drop(_state);
-
+        self.store.add_runtime_flow(self.runtime_uuid, &dfr).await?;
 
         Ok(dfr)
     }
 
     async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
-        Err(ZFError::Unimplemented)
+        let data = {
+            let mut _state = self.state.lock().await;
+            let d = match _state.graphs.remove(&record_id) {
+                Some(data) => Some(data),
+                None => None,
+            };
+            drop(_state);
+            d
+        };
+
+        match data {
+            Some(r) => {
+                let (graph, managers) = r;
+                for m in managers.iter() {
+                    m.kill().await?;
+                }
+
+                let record = self
+                    .store
+                    .get_runtime_flow_by_instance(self.runtime_uuid, record_id)
+                    .await?;
+
+                self.store
+                    .remove_runtime_flow_instance(self.runtime_uuid, &record.flow, record.uuid)
+                    .await?;
+
+                Ok(record)
+            }
+            None => Err(ZFError::InstanceNotFound(record_id)),
+        }
     }
     async fn prepare(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
         Err(ZFError::Unimplemented)

@@ -86,7 +86,7 @@ async fn main() {
     trace!("Received Ctrl-C start teardown");
 
     //Here we send the stop signal to the rt object and waits that it ends
-    rt.stop(s).await;
+    rt.stop(s).await.unwrap();
 
     //wait for the futures to ends
     h.await.unwrap();

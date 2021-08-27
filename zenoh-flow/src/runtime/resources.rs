@@ -481,7 +481,7 @@ impl ZFDataStore {
     pub async fn remove_runtime_flow_instance(
         &self,
         rtid: Uuid,
-        fid: String,
+        fid: &String,
         iid: Uuid,
     ) -> ZFResult<()> {
         let path = zenoh::Path::try_from(RT_FLOW_PATH!(ROOT_STANDALONE, rtid, fid, iid))?;
@@ -492,16 +492,16 @@ impl ZFDataStore {
     pub async fn add_runtime_flow(
         &self,
         rtid: Uuid,
-        flow_instance: DataFlowRecord,
+        flow_instance: &DataFlowRecord,
     ) -> ZFResult<()> {
         let path = zenoh::Path::try_from(RT_FLOW_PATH!(
             ROOT_STANDALONE,
             rtid,
-            &flow_instance.flow,
-            &flow_instance.uuid
+            flow_instance.flow,
+            flow_instance.uuid
         ))?;
         let ws = self.z.workspace(None).await?;
-        let encoded_info = serialize_data(&flow_instance)?;
+        let encoded_info = serialize_data(flow_instance)?;
         Ok(ws.put(&path, encoded_info.into()).await?)
     }
 }

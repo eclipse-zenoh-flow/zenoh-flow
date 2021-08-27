@@ -12,8 +12,6 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use std::collections::HashMap;
-
 use crate::{
     model::{
         dataflow::DataFlowRecord,
@@ -28,10 +26,9 @@ use crate::{
     ZFResult, ZFRuntimeID,
 };
 
-use self::graph::link::ZFLinkOutput;
 use crate::runtime::message::ZFControlMessage;
 
-use znrpc_macros::{znserver, znservice};
+use znrpc_macros::znservice;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 
 // zrpc required modules
@@ -41,12 +38,11 @@ use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 // use zenoh::*;
 //
 
-pub mod connectors;
 pub mod graph;
 pub mod loader;
 pub mod message;
 pub mod resources;
-pub mod runner;
+pub mod runners;
 
 pub async fn map_to_infrastructure(
     mut descriptor: DataFlowDescriptor,
@@ -179,7 +175,7 @@ pub trait ZFRuntime {
     /// and, creates the associated [`DataFlowRecord`].
     /// The record contains an [`Uuid`] that identifies the record.
     /// The actual instantiation process runs asynchronously in the runtime.
-    async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord>;
+    async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord>; //TODO: workaround - it should just take the ID of the flow...
 
     /// Sends a teardown request for the given record identified by the [`Uuid`]
     /// Note the request is asynchronous, the runtime that receives the request will

@@ -19,6 +19,7 @@ use crate::{ZFDataTrait, ZFStateTrait};
 use std::collections::HashMap;
 use std::convert::From;
 use uhlc::Timestamp;
+use uuid::Uuid;
 
 // Placeholder types
 pub type ZFOperatorId = String;
@@ -54,8 +55,11 @@ pub enum ZFError {
     ZenohError(String),
     LoadingError(String),
     ParsingError(String),
+    #[serde(skip_serializing, skip_deserializing)]
     RunnerStopError(crate::async_std::channel::RecvError),
+    #[serde(skip_serializing, skip_deserializing)]
     RunnerStopSendError(crate::async_std::channel::SendError<()>),
+    InstanceNotFound(Uuid),
 }
 
 impl From<flume::RecvError> for ZFError {
