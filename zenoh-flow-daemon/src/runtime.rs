@@ -295,18 +295,103 @@ impl ZFRuntime for Runtime {
             None => Err(ZFError::InstanceNotFound(record_id)),
         }
     }
-    async fn prepare(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
-        Err(ZFError::Unimplemented)
+    async fn prepare(&self, flow: DataFlowDescriptor, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+        let flow_name = flow.flow.clone();
+
+        let dfr = DataFlowRecord::from_dataflow_descriptor(flow)?;
+
+        let mut dataflow_graph = DataFlowGraph::from_dataflow_record(dfr.clone())?;
+
+        dataflow_graph.load(&self.runtime_name)?;
+
+        dataflow_graph.make_connections(&self.runtime_name).await?;
+
+        let mut _state = self.state.lock().await;
+        _state
+            .graphs
+            .insert(dfr.uuid.clone(), (dataflow_graph, vec![]));
+        drop(_state);
+        self.store.add_runtime_flow(self.runtime_uuid, &dfr).await?;
+
+        Ok(dfr)
     }
     async fn clean(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
         Err(ZFError::Unimplemented)
     }
 
     async fn start(&self, record_id: Uuid) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+        let data = {
+            let mut _state = self.state.lock().await;
+            let d = match _state.graphs.remove(&record_id) {
+                Some(data) => Some(data),
+                None => None,
+            };
+            drop(_state);
+            d
+        };
+
+        match data {
+            Some(r) => {
+                let (graph, _) = r;
+
+                let mut managers = vec![];
+
+                let mut sinks = graph.get_sinks();
+                for runner in sinks.drain(..) {
+                    let m = runner.start();
+                    managers.push(m);
+                }
+
+                let mut operators = graph.get_operators();
+                for runner in operators.drain(..) {
+                    let m = runner.start();
+                    managers.push(m);
+                }
+
+                let mut connectors = graph.get_connectors();
+                for runner in connectors.drain(..) {
+                    let m = runner.start();
+                    managers.push(m);
+                }
+
+                let mut _state = self.state.lock().await;
+                _state.graphs.insert(record_id, (graph, managers));
+                drop(_state);
+
+                Ok(())
+            }
+            None => Err(ZFError::InstanceNotFound(record_id)),
+        }
     }
     async fn start_sources(&self, record_id: Uuid) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+        let data = {
+            let mut _state = self.state.lock().await;
+            let d = match _state.graphs.remove(&record_id) {
+                Some(data) => Some(data),
+                None => None,
+            };
+            drop(_state);
+            d
+        };
+
+        match data {
+            Some(r) => {
+                let (graph, mut managers) = r;
+
+                let mut sources = graph.get_sources();
+                for runner in sources.drain(..) {
+                    let m = runner.start();
+                    managers.push(m);
+                }
+
+                let mut _state = self.state.lock().await;
+                _state.graphs.insert(record_id, (graph, managers));
+                drop(_state);
+
+                Ok(())
+            }
+            None => Err(ZFError::InstanceNotFound(record_id)),
+        }
     }
     async fn stop(&self, record_id: Uuid) -> ZFResult<()> {
         Err(ZFError::Unimplemented)

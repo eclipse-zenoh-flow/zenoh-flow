@@ -182,11 +182,11 @@ pub trait ZFRuntime {
     /// return immediately, but the teardown process will run asynchronously in the runtime.
     async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
 
-    /// Prepares the runtime to run the given record identified by the [`Uuid`].
+    /// Prepares the runtime host the instance identified [`Uuid`] for the Flow identified by [`FlowId`].
     /// Preparing a runtime means, fetch the operators/source/sinks libraries,
     /// create the needed structures in memory, the links.
     /// Once everything is prepared the runtime should return the [`DataFlowRecord`]
-    async fn prepare(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
+    async fn prepare(&self, flow: DataFlowDescriptor, record_id: Uuid) -> ZFResult<DataFlowRecord>; //TODO: workaround - it should just take the ID of the flow...
 
     /// Cleans the runtime from the remains of the given record.
     /// Cleans means unload the libraries, drop data structures and destroy links.
