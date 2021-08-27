@@ -23,6 +23,7 @@ use crate::model::operator::{
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{ZFError, ZFOperatorId, ZFResult, ZFRuntimeID};
+use std::collections::HashSet;
 use std::convert::TryFrom;
 use uuid::Uuid;
 
@@ -81,6 +82,20 @@ impl DataFlowDescriptor {
             Some(m) => m.push(mapping),
             None => self.mapping = Some(vec![mapping]),
         }
+    }
+
+    pub fn get_runtimes(&self) -> Vec<ZFRuntimeID> {
+        let mut runtimes = HashSet::new();
+
+        match &self.mapping {
+            Some(mapping) => {
+                for component_mapping in mapping.iter() {
+                    runtimes.insert(component_mapping.runtime.clone());
+                }
+            }
+            None => (),
+        }
+        runtimes.into_iter().collect()
     }
 }
 

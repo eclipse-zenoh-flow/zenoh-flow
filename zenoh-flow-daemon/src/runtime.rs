@@ -222,46 +222,18 @@ impl ZFRuntime for Runtime {
 
         let mapped = zenoh_flow::runtime::map_to_infrastructure(flow, &self.runtime_name).await?;
 
-        let dfr = DataFlowRecord::try_from(mapped)?;
+        let involved_runtimes = mapped.get_runtimes();
+        let involved_runtimes = involved_runtimes
+            .into_iter()
+            .filter(|rt| *rt != self.runtime_name)
+            .collect::<Vec<String>>();
+        let record_uuid = Uuid::new_v4();
 
-        let mut dataflow_graph = DataFlowGraph::try_from(dfr.clone())?;
+        let dfr = self.prepare(mapped.clone(), record_uuid).await?;
 
-        dataflow_graph.load(&self.runtime_name)?;
+        ZFRuntime::start(self, record_uuid).await?;
 
-        dataflow_graph.make_connections(&self.runtime_name).await?;
-
-        let mut managers = vec![];
-
-        let mut sinks = dataflow_graph.get_sinks();
-        for runner in sinks.drain(..) {
-            let m = runner.start().await;
-            managers.push(m);
-        }
-
-        let mut operators = dataflow_graph.get_operators();
-        for runner in operators.drain(..) {
-            let m = runner.start().await;
-            managers.push(m);
-        }
-
-        let mut connectors = dataflow_graph.get_connectors();
-        for runner in connectors.drain(..) {
-            let m = runner.start().await;
-            managers.push(m);
-        }
-
-        let mut sources = dataflow_graph.get_sources();
-        for runner in sources.drain(..) {
-            let m = runner.start().await;
-            managers.push(m);
-        }
-
-        let mut _state = self.state.lock().await;
-        _state
-            .graphs
-            .insert(dfr.uuid.clone(), (dataflow_graph, managers));
-        drop(_state);
-        self.store.add_runtime_flow(self.runtime_uuid, &dfr).await?;
+        self.start_sources(record_uuid).await?;
 
         Ok(dfr)
     }
@@ -301,7 +273,9 @@ impl ZFRuntime for Runtime {
     async fn prepare(&self, flow: DataFlowDescriptor, record_id: Uuid) -> ZFResult<DataFlowRecord> {
         let flow_name = flow.flow.clone();
 
-        let dfr = DataFlowRecord::try_from(flow)?;
+        let mut dfr = DataFlowRecord::try_from(flow)?;
+
+        dfr.uuid = record_id;
 
         let mut dataflow_graph = DataFlowGraph::try_from(dfr.clone())?;
 
