@@ -269,7 +269,7 @@ async fn main() {
 
     let runners = zf_graph.get_runners();
     for runner in runners {
-        let m = runner.start();
+        let m = runner.start().await;
         managers.push(m)
     }
 

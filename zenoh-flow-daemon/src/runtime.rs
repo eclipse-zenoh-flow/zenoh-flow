@@ -23,7 +23,7 @@ use zenoh_flow::model::{
 use zenoh_flow::runtime::graph::DataFlowGraph;
 use zenoh_flow::runtime::message::ZFControlMessage;
 use zenoh_flow::runtime::resources::ZFDataStore;
-use zenoh_flow::runtime::runners::RunnerManager;
+use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::{
     ZFRuntime, ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus, ZFRuntimeStatusKind,
 };
@@ -231,25 +231,25 @@ impl ZFRuntime for Runtime {
 
         let mut sinks = dataflow_graph.get_sinks();
         for runner in sinks.drain(..) {
-            let m = runner.start();
+            let m = runner.start().await;
             managers.push(m);
         }
 
         let mut operators = dataflow_graph.get_operators();
         for runner in operators.drain(..) {
-            let m = runner.start();
+            let m = runner.start().await;
             managers.push(m);
         }
 
         let mut connectors = dataflow_graph.get_connectors();
         for runner in connectors.drain(..) {
-            let m = runner.start();
+            let m = runner.start().await;
             managers.push(m);
         }
 
         let mut sources = dataflow_graph.get_sources();
         for runner in sources.drain(..) {
-            let m = runner.start();
+            let m = runner.start().await;
             managers.push(m);
         }
 
@@ -320,43 +320,33 @@ impl ZFRuntime for Runtime {
     }
 
     async fn start(&self, record_id: Uuid) -> ZFResult<()> {
-        let data = {
-            let mut _state = self.state.lock().await;
-            let d = match _state.graphs.remove(&record_id) {
-                Some(data) => Some(data),
-                None => None,
-            };
-            drop(_state);
-            d
-        };
+        let mut _state = self.state.lock().await;
 
-        match data {
-            Some(r) => {
-                let (graph, _) = r;
+        match _state.graphs.get_mut(&record_id) {
+            Some(mut instance) => {
+                let mut sources = instance.0.get_sources();
+                for runner in sources.drain(..) {
+                    let m = runner.start().await;
+                    instance.1.push(m);
+                }
 
-                let mut managers = vec![];
-
-                let mut sinks = graph.get_sinks();
+                let mut sinks = instance.0.get_sinks();
                 for runner in sinks.drain(..) {
-                    let m = runner.start();
-                    managers.push(m);
+                    let m = runner.start().await;
+                    instance.1.push(m);
                 }
 
-                let mut operators = graph.get_operators();
+                let mut operators = instance.0.get_operators();
                 for runner in operators.drain(..) {
-                    let m = runner.start();
-                    managers.push(m);
+                    let m = runner.start().await;
+                    instance.1.push(m);
                 }
 
-                let mut connectors = graph.get_connectors();
+                let mut connectors = instance.0.get_connectors();
                 for runner in connectors.drain(..) {
-                    let m = runner.start();
-                    managers.push(m);
+                    let m = runner.start().await;
+                    instance.1.push(m);
                 }
-
-                let mut _state = self.state.lock().await;
-                _state.graphs.insert(record_id, (graph, managers));
-                drop(_state);
 
                 Ok(())
             }
@@ -364,40 +354,69 @@ impl ZFRuntime for Runtime {
         }
     }
     async fn start_sources(&self, record_id: Uuid) -> ZFResult<()> {
-        let data = {
-            let mut _state = self.state.lock().await;
-            let d = match _state.graphs.remove(&record_id) {
-                Some(data) => Some(data),
-                None => None,
-            };
-            drop(_state);
-            d
-        };
+        let mut _state = self.state.lock().await;
 
-        match data {
-            Some(r) => {
-                let (graph, mut managers) = r;
-
-                let mut sources = graph.get_sources();
+        match _state.graphs.get_mut(&record_id) {
+            Some(mut instance) => {
+                let mut sources = instance.0.get_sources();
                 for runner in sources.drain(..) {
-                    let m = runner.start();
-                    managers.push(m);
+                    let m = runner.start().await;
+                    instance.1.push(m);
                 }
-
-                let mut _state = self.state.lock().await;
-                _state.graphs.insert(record_id, (graph, managers));
-                drop(_state);
-
                 Ok(())
             }
             None => Err(ZFError::InstanceNotFound(record_id)),
         }
     }
     async fn stop(&self, record_id: Uuid) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+        let mut _state = self.state.lock().await;
+
+        match _state.graphs.get_mut(&record_id) {
+            Some(mut instance) => {
+                //let (graph, mut managers) = d;
+                let mut to_be_removed = vec![];
+
+                for (i, m) in instance.1.iter().enumerate() {
+                    match m.get_kind() {
+                        RunnerKind::Source => continue,
+                        _ => {
+                            m.kill().await?;
+                            to_be_removed.push(i);
+                        }
+                    }
+                }
+                for i in to_be_removed.iter() {
+                    instance.1.remove(*i);
+                }
+                Ok(())
+            }
+            None => Err(ZFError::InstanceNotFound(record_id)),
+        }
     }
     async fn stop_sources(&self, record_id: Uuid) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+        let mut _state = self.state.lock().await;
+
+        match _state.graphs.get_mut(&record_id) {
+            Some(mut instance) => {
+                //let (graph, mut managers) = d;
+                let mut to_be_removed = vec![];
+
+                for (i, m) in instance.1.iter().enumerate() {
+                    match m.get_kind() {
+                        RunnerKind::Source => {
+                            m.kill().await?;
+                            to_be_removed.push(i);
+                        }
+                        _ => continue,
+                    }
+                }
+                for i in to_be_removed.iter() {
+                    instance.1.remove(*i);
+                }
+                Ok(())
+            }
+            None => Err(ZFError::InstanceNotFound(record_id)),
+        }
     }
     async fn start_node(&self, record_id: Uuid, node: String) -> ZFResult<()> {
         Err(ZFError::Unimplemented)

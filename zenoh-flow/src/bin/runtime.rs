@@ -75,25 +75,25 @@ async fn main() {
 
     let mut sinks = dataflow_graph.get_sinks();
     for runner in sinks.drain(..) {
-        let m = runner.start();
+        let m = runner.start().await;
         managers.push(m);
     }
 
     let mut operators = dataflow_graph.get_operators();
     for runner in operators.drain(..) {
-        let m = runner.start();
+        let m = runner.start().await;
         managers.push(m);
     }
 
     let mut connectors = dataflow_graph.get_connectors();
     for runner in connectors.drain(..) {
-        let m = runner.start();
+        let m = runner.start().await;
         managers.push(m);
     }
 
     let mut sources = dataflow_graph.get_sources();
     for runner in sources.drain(..) {
-        let m = runner.start();
+        let m = runner.start().await;
         managers.push(m);
     }
 

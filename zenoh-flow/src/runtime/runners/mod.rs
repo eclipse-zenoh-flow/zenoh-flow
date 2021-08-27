@@ -37,14 +37,26 @@ use futures_lite::future::FutureExt;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+pub enum RunnerKind {
+    Source,
+    Operator,
+    Sink,
+    Connector,
+}
+
 pub struct RunnerManager {
     stopper: Sender<()>,
     handler: JoinHandle<ZFResult<()>>,
+    kind: RunnerKind,
 }
 
 impl RunnerManager {
-    pub fn new(stopper: Sender<()>, handler: JoinHandle<ZFResult<()>>) -> Self {
-        Self { stopper, handler }
+    pub fn new(stopper: Sender<()>, handler: JoinHandle<ZFResult<()>>, kind: RunnerKind) -> Self {
+        Self {
+            stopper,
+            handler,
+            kind,
+        }
     }
 
     pub async fn kill(&self) -> ZFResult<()> {
@@ -53,6 +65,10 @@ impl RunnerManager {
 
     pub fn get_handler(&self) -> &JoinHandle<ZFResult<()>> {
         &self.handler
+    }
+
+    pub fn get_kind(&self) -> &RunnerKind {
+        &self.kind
     }
 }
 
@@ -114,12 +130,14 @@ impl Runner {
         }
     }
 
-    pub fn start(&self) -> RunnerManager {
+    pub async fn start(&self) -> RunnerManager {
         let (s, r) = bounded::<()>(1);
         let inner = self.clone();
 
+        let kind = self.0.lock().await.get_kind();
+
         let h = async_std::task::spawn(async move { inner.run_stoppable(r).await });
-        RunnerManager::new(s, h)
+        RunnerManager::new(s, h, kind)
     }
 
     pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
@@ -169,6 +187,15 @@ impl RunnerInner {
             RunnerInner::Sink(_) => panic!("Sinks does not have output!"), // TODO this should return a ZFResult<()>
             RunnerInner::Sender(_) => panic!("Senders does not have output!"), // TODO this should return a ZFResult<()>
             RunnerInner::Receiver(runner) => runner.add_output(output),
+        }
+    }
+
+    pub fn get_kind(&self) -> RunnerKind {
+        match &self {
+            RunnerInner::Operator(_) => RunnerKind::Operator,
+            RunnerInner::Source(_) => RunnerKind::Source,
+            RunnerInner::Sink(_) => RunnerKind::Sink,
+            RunnerInner::Sender(_) | RunnerInner::Receiver(_) => RunnerKind::Connector,
         }
     }
 }
