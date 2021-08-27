@@ -23,6 +23,7 @@ use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::stable_graph::StableGraph;
 use petgraph::Direction;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use uhlc::HLC;
 use zenoh::ZFuture;
 
@@ -69,125 +70,6 @@ impl DataFlowGraph {
             graph: StableGraph::<DataFlowNode, (String, String)>::new(),
             operators_runners: HashMap::new(),
         }
-    }
-
-    //This should be a TryFrom
-    pub fn from_dataflow_record(dr: DataFlowRecord) -> ZFResult<Self> {
-        let mut graph = StableGraph::<DataFlowNode, (String, String)>::new();
-        let mut operators = Vec::new();
-        let mut links: Vec<(EdgeIndex, ZFLinkDescriptor)> = Vec::new();
-        for o in dr.operators {
-            operators.push((
-                graph.add_node(DataFlowNode::Operator(o.clone())),
-                DataFlowNode::Operator(o),
-            ));
-        }
-
-        for o in dr.sources {
-            operators.push((
-                graph.add_node(DataFlowNode::Source(o.clone())),
-                DataFlowNode::Source(o),
-            ));
-        }
-
-        for o in dr.sinks {
-            operators.push((
-                graph.add_node(DataFlowNode::Sink(o.clone())),
-                DataFlowNode::Sink(o),
-            ));
-        }
-
-        for o in dr.connectors {
-            operators.push((
-                graph.add_node(DataFlowNode::Connector(o.clone())),
-                DataFlowNode::Connector(o),
-            ));
-        }
-
-        for l in dr.links {
-            // First check if the LinkId are the same
-            // if l.from.output != l.to.input {
-            //     return Err(ZFError::PortIdNotMatching((
-            //         l.from.output.clone(),
-            //         l.to.input,
-            //     )));
-            // }
-
-            let (from_index, from_runtime, from_type) = match operators
-                .iter()
-                .find(|&(_, o)| o.get_id() == l.from.component_id)
-            {
-                Some((idx, op)) => match op.has_output(l.from.output_id.clone()) {
-                    true => (
-                        idx,
-                        op.get_runtime(),
-                        op.get_output_type(l.from.output_id.clone())?,
-                    ),
-                    false => {
-                        return Err(ZFError::PortNotFound((
-                            l.from.component_id,
-                            l.from.output_id.clone(),
-                        )))
-                    }
-                },
-                None => return Err(ZFError::OperatorNotFound(l.from.component_id)),
-            };
-
-            let (to_index, to_runtime, to_type) = match operators
-                .iter()
-                .find(|&(_, o)| o.get_id() == l.to.component_id)
-            {
-                Some((idx, op)) => match op.has_input(l.to.input_id.clone()) {
-                    true => (
-                        idx,
-                        op.get_runtime(),
-                        op.get_input_type(l.to.input_id.clone())?,
-                    ),
-                    false => {
-                        return Err(ZFError::PortNotFound((
-                            l.to.component_id,
-                            l.to.input_id.clone(),
-                        )))
-                    }
-                },
-                None => return Err(ZFError::OperatorNotFound(l.to.component_id)),
-            };
-
-            if to_type != from_type {
-                return Err(ZFError::PortTypeNotMatching((
-                    to_type.to_string(),
-                    from_type.to_string(),
-                )));
-            }
-
-            if from_runtime == to_runtime {
-                log::debug!("[Graph instantiation] [same runtime] Pushing link: {:?}", l);
-                links.push((
-                    graph.add_edge(
-                        *from_index,
-                        *to_index,
-                        (l.from.output_id.clone(), l.to.input_id.clone()),
-                    ),
-                    l.clone(),
-                ));
-            } else {
-                log::debug!(
-                    "[Graph instantiation] Link on different runtime detected: {:?}, this should not happen! :P",
-                    l
-                );
-
-                // We do nothing in this case... the links are already well created when creating the record, so this should NEVER happen
-            }
-        }
-
-        Ok(Self {
-            uuid: dr.uuid,
-            flow: dr.flow,
-            operators,
-            links,
-            graph,
-            operators_runners: HashMap::new(),
-        })
     }
 
     pub fn set_name(&mut self, name: String) {
@@ -569,5 +451,127 @@ impl DataFlowGraph {
             }
         }
         runners
+    }
+}
+
+impl TryFrom<DataFlowRecord> for DataFlowGraph {
+    type Error = ZFError;
+
+    fn try_from(dr: DataFlowRecord) -> Result<Self, Self::Error> {
+        let mut graph = StableGraph::<DataFlowNode, (String, String)>::new();
+        let mut operators = Vec::new();
+        let mut links: Vec<(EdgeIndex, ZFLinkDescriptor)> = Vec::new();
+        for o in dr.operators {
+            operators.push((
+                graph.add_node(DataFlowNode::Operator(o.clone())),
+                DataFlowNode::Operator(o),
+            ));
+        }
+
+        for o in dr.sources {
+            operators.push((
+                graph.add_node(DataFlowNode::Source(o.clone())),
+                DataFlowNode::Source(o),
+            ));
+        }
+
+        for o in dr.sinks {
+            operators.push((
+                graph.add_node(DataFlowNode::Sink(o.clone())),
+                DataFlowNode::Sink(o),
+            ));
+        }
+
+        for o in dr.connectors {
+            operators.push((
+                graph.add_node(DataFlowNode::Connector(o.clone())),
+                DataFlowNode::Connector(o),
+            ));
+        }
+
+        for l in dr.links {
+            // First check if the LinkId are the same
+            // if l.from.output != l.to.input {
+            //     return Err(ZFError::PortIdNotMatching((
+            //         l.from.output.clone(),
+            //         l.to.input,
+            //     )));
+            // }
+
+            let (from_index, from_runtime, from_type) = match operators
+                .iter()
+                .find(|&(_, o)| o.get_id() == l.from.component_id)
+            {
+                Some((idx, op)) => match op.has_output(l.from.output_id.clone()) {
+                    true => (
+                        idx,
+                        op.get_runtime(),
+                        op.get_output_type(l.from.output_id.clone())?,
+                    ),
+                    false => {
+                        return Err(ZFError::PortNotFound((
+                            l.from.component_id,
+                            l.from.output_id.clone(),
+                        )))
+                    }
+                },
+                None => return Err(ZFError::OperatorNotFound(l.from.component_id)),
+            };
+
+            let (to_index, to_runtime, to_type) = match operators
+                .iter()
+                .find(|&(_, o)| o.get_id() == l.to.component_id)
+            {
+                Some((idx, op)) => match op.has_input(l.to.input_id.clone()) {
+                    true => (
+                        idx,
+                        op.get_runtime(),
+                        op.get_input_type(l.to.input_id.clone())?,
+                    ),
+                    false => {
+                        return Err(ZFError::PortNotFound((
+                            l.to.component_id,
+                            l.to.input_id.clone(),
+                        )))
+                    }
+                },
+                None => return Err(ZFError::OperatorNotFound(l.to.component_id)),
+            };
+
+            if to_type != from_type {
+                return Err(ZFError::PortTypeNotMatching((
+                    to_type.to_string(),
+                    from_type.to_string(),
+                )));
+            }
+
+            if from_runtime == to_runtime {
+                log::debug!("[Graph instantiation] [same runtime] Pushing link: {:?}", l);
+                links.push((
+                    graph.add_edge(
+                        *from_index,
+                        *to_index,
+                        (l.from.output_id.clone(), l.to.input_id.clone()),
+                    ),
+                    l.clone(),
+                ));
+            } else {
+                log::debug!(
+                    "[Graph instantiation] Link on different runtime detected: {:?}, this should not happen! :P",
+                    l
+                );
+
+                // We do nothing in this case... the links are already well created when creating the record, so this should NEVER happen
+            }
+        }
+
+        Ok(Self {
+            uuid: dr.uuid,
+            flow: dr.flow,
+            operators,
+            links,
+            graph,
+            operators_runners: HashMap::new(),
+        })
     }
 }

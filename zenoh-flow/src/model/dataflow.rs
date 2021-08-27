@@ -23,6 +23,7 @@ use crate::model::operator::{
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{ZFError, ZFOperatorId, ZFResult, ZFRuntimeID};
+use std::convert::TryFrom;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -330,9 +331,12 @@ impl DataFlowRecord {
 
         Ok(())
     }
+}
 
-    //This should be a TryFrom
-    pub fn from_dataflow_descriptor(d: DataFlowDescriptor) -> ZFResult<Self> {
+impl TryFrom<DataFlowDescriptor> for DataFlowRecord {
+    type Error = ZFError;
+
+    fn try_from(d: DataFlowDescriptor) -> Result<Self, Self::Error> {
         let mut dfr = DataFlowRecord {
             uuid: Uuid::nil(), // all 0s uuid, placeholder
             flow: d.flow.clone(),

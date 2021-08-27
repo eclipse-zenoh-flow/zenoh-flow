@@ -30,6 +30,7 @@ use zenoh_flow::runtime::{
 use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::types::{ZFError, ZFResult};
 
+use std::convert::TryFrom;
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
@@ -103,7 +104,9 @@ impl Runtime {
     pub async fn run(&self, stop: async_std::channel::Receiver<()>) -> ZFResult<()> {
         log::info!("Runtime main loop starting");
 
-        let rt_server = self.clone().get_zf_runtime_server(self.zn.clone(), None);
+        let rt_server = self
+            .clone()
+            .get_zf_runtime_server(self.zn.clone(), Some(self.runtime_uuid));
         let (rt_stopper, _hrt) = rt_server
             .connect()
             .await
@@ -219,9 +222,9 @@ impl ZFRuntime for Runtime {
 
         let mapped = zenoh_flow::runtime::map_to_infrastructure(flow, &self.runtime_name).await?;
 
-        let dfr = DataFlowRecord::from_dataflow_descriptor(mapped)?;
+        let dfr = DataFlowRecord::try_from(mapped)?;
 
-        let mut dataflow_graph = DataFlowGraph::from_dataflow_record(dfr.clone())?;
+        let mut dataflow_graph = DataFlowGraph::try_from(dfr.clone())?;
 
         dataflow_graph.load(&self.runtime_name)?;
 
@@ -298,9 +301,9 @@ impl ZFRuntime for Runtime {
     async fn prepare(&self, flow: DataFlowDescriptor, record_id: Uuid) -> ZFResult<DataFlowRecord> {
         let flow_name = flow.flow.clone();
 
-        let dfr = DataFlowRecord::from_dataflow_descriptor(flow)?;
+        let dfr = DataFlowRecord::try_from(flow)?;
 
-        let mut dataflow_graph = DataFlowGraph::from_dataflow_record(dfr.clone())?;
+        let mut dataflow_graph = DataFlowGraph::try_from(dfr.clone())?;
 
         dataflow_graph.load(&self.runtime_name)?;
 
