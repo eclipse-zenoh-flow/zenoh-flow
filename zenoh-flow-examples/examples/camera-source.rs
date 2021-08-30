@@ -64,7 +64,7 @@ impl CameraSource {
     fn new(configuration: HashMap<String, String>) -> Self {
         let configured_resolution = match configuration.get("resolution") {
             Some(res) => {
-                let v = res.split("x").collect::<Vec<&str>>();
+                let v = res.split('x').collect::<Vec<&str>>();
                 (v[0].parse::<i32>().unwrap(), v[1].parse::<i32>().unwrap())
             }
             None => (800, 600),
