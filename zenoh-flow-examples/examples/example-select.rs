@@ -36,12 +36,7 @@ async fn main() {
     });
 
     loop {
-        let mut futs = vec![];
-
-        futs.push(r1.recv());
-        futs.push(r2.recv());
-        futs.push(r3.recv());
-        futs.push(r4.recv());
+        let mut futs = vec![r1.recv(), r2.recv(), r3.recv(), r4.recv()];
 
         while !futs.is_empty() {
             match future::select_all(futs).await {
