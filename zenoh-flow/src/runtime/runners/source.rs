@@ -21,13 +21,13 @@ use crate::SourceTrait;
 use libloading::Library;
 use std::collections::HashMap;
 
-#[repr(C)]
+pub type ZFSourceRegisterFn =
+    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn SourceTrait + Send>>;
+
 pub struct ZFSourceDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: unsafe extern "C" fn(
-        Option<HashMap<String, String>>,
-    ) -> ZFResult<Box<dyn SourceTrait + Send>>,
+    pub register: ZFSourceRegisterFn,
 }
 
 pub struct ZFSourceRunner {

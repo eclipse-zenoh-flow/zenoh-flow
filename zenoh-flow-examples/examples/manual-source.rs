@@ -64,7 +64,7 @@ impl SourceTrait for ManualSource {
 
 zenoh_flow::export_source!(register);
 
-extern "C" fn register(
+fn register(
     _configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::SourceTrait + Send>> {
     Ok(Box::new(ManualSource {}) as Box<dyn zenoh_flow::SourceTrait + Send>)

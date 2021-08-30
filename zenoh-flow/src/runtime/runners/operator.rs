@@ -22,13 +22,13 @@ use libloading::Library;
 use std::collections::HashMap;
 use uhlc::HLC;
 
-#[repr(C)]
+pub type ZFOperatorRegisterFn =
+    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn OperatorTrait + Send>>;
+
 pub struct ZFOperatorDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: unsafe extern "C" fn(
-        Option<HashMap<String, String>>,
-    ) -> ZFResult<Box<dyn OperatorTrait + Send>>,
+    pub register: ZFOperatorRegisterFn,
 }
 
 pub struct ZFOperatorRunner {
