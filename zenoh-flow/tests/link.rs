@@ -29,7 +29,7 @@ async fn same_task_simple() {
     assert_eq!(res, Ok((String::from("10"), Arc::new(0u8))));
 
     // Add the second element
-    d = d + 1;
+    d += 1;
     let res = sender.send(Arc::new(d)).await;
     assert_eq!(res, Ok(()));
     let res = receiver.recv().await;
@@ -53,12 +53,12 @@ async fn send_task_simple(sender: ZFLinkSender<u8>) {
     let res = sender.send(Arc::new(d)).await;
     assert_eq!(res, Ok(()));
     // Add the second element
-    d = d + 1;
+    d += 1;
     let res = sender.send(Arc::new(d)).await;
     assert_eq!(res, Ok(()));
 
     // Add the 3rd element
-    d = d + 1;
+    d += 1;
     let res = sender.send(Arc::new(d)).await;
     assert_eq!(res, Ok(()));
 }
