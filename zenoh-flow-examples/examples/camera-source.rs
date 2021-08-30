@@ -146,7 +146,7 @@ impl CameraSource {
             drop(reduced);
         }
 
-        async_std::task::sleep(std::time::Duration::from_millis(_state.delay.clone())).await;
+        async_std::task::sleep(std::time::Duration::from_millis(_state.delay)).await;
 
         Ok(results)
     }

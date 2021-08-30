@@ -141,8 +141,7 @@ impl ZFOperatorRunner {
                 // getting link
                 log::debug!("id: {:?}, message: {:?}", id, output);
                 if let Some(links) = self.outputs.get(&id) {
-                    let zf_message =
-                        Arc::new(ZFMessage::from_component_output(output, timestamp.clone()));
+                    let zf_message = Arc::new(ZFMessage::from_component_output(output, timestamp));
 
                     for tx in links {
                         log::debug!("Sending on: {:?}", tx);
