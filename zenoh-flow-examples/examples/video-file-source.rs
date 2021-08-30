@@ -112,7 +112,8 @@ impl VideoSource {
                     if !opened {
                         panic!("Unable to open default camera!");
                     }
-                    cam.read(&mut frame);
+                    cam.read(&mut frame)
+                        .map_err(|e| ZFError::IOError(format!("{}", e)))?;
                 }
                 Ok(true) => (),
                 Err(_) => {
@@ -122,7 +123,8 @@ impl VideoSource {
                     if !opened {
                         panic!("Unable to open default camera!");
                     }
-                    cam.read(&mut frame);
+                    cam.read(&mut frame)
+                        .map_err(|e| ZFError::IOError(format!("{}", e)))?;
                 }
             };
 

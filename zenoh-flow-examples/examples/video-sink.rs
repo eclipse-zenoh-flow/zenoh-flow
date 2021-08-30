@@ -76,7 +76,7 @@ impl VideoSink {
             };
         }
 
-        highgui::wait_key(10);
+        highgui::wait_key(10).map_err(|e| ZFError::IOError(format!("{}", e)))?;
 
         Ok(())
     }

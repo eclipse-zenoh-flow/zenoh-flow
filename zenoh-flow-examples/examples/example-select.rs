@@ -7,7 +7,7 @@ use zenoh_flow::runtime::graph::link::{link, ZFLinkSender};
 
 async fn send<T: Clone>(sender: ZFLinkSender<T>, interveal: Duration, data: T) {
     loop {
-        sender.send(Arc::new(data.clone())).await;
+        sender.send(Arc::new(data.clone())).await.unwrap();
         sleep(interveal).await;
     }
 }
