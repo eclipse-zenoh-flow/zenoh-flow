@@ -78,7 +78,7 @@ impl CameraSource {
             }
             None => 40,
         };
-        let mut camera = match configuration.get("camera") {
+        let camera = match configuration.get("camera") {
             Some(configured_camera) => {
                 videoio::VideoCapture::from_file(configured_camera, videoio::CAP_ANY).unwrap()
             }
