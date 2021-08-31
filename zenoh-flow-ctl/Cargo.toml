@@ -16,7 +16,7 @@ readme = "README.md"
 
 [dependencies]
 zenoh-flow = {path = "../zenoh-flow"}
-zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master", default-features = false, features = ["transport_tcp","transport_udp"] }
+zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
 zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
 zrpc = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
 znrpc-macros = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
