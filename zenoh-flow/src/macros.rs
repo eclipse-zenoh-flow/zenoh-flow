@@ -126,7 +126,7 @@ macro_rules! get_input {
                     }
                 }
                 zenoh_flow::runtime::message::ZFSerDeData::Serialized(ser) => {
-                    let de: Arc<dyn DataTrait> = bincode::deserialize(&ser)
+                    let de: Arc<dyn ZFDataTrait> = bincode::deserialize(&ser)
                         .map_err(|_| zenoh_flow::types::ZFError::DeseralizationError)?;
 
                     (*data_message).data =

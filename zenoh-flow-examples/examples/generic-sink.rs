@@ -12,28 +12,26 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use async_trait::async_trait;
 use std::collections::HashMap;
+use zenoh_flow::runtime::message::ZFDataMessage;
+use zenoh_flow::ZFSinkTrait;
 use zenoh_flow::{
-    serde::{Deserialize, Serialize},
-    types::{
-        FnInputRule, FnSinkRun, FutSinkOutput, InputRuleOutput, SinkTrait, StateTrait, Token,
-        ZFContext, ZFInput,
-    },
-    zenoh_flow_derive::ZFState,
-    zf_empty_state, ZFResult,
+    default_input_rule, export_sink, types::ZFResult, zf_empty_state, Token, ZFComponentInputRule,
+    ZFComponentState, ZFStateTrait,
 };
 
-#[derive(Serialize, Deserialize, Debug, ZFState)]
-struct ExampleGenericSink {}
+struct GenericSink;
 
-impl ExampleGenericSink {
-    pub fn ir_1(_ctx: ZFContext, _inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
-        Ok(true)
-    }
-
-    pub async fn run_1(_ctx: ZFContext, inputs: ZFInput) -> ZFResult<()> {
+#[async_trait]
+impl ZFSinkTrait for GenericSink {
+    async fn run(
+        &self,
+        _state: &mut Box<dyn ZFStateTrait>,
+        inputs: &mut HashMap<String, ZFDataMessage>,
+    ) -> ZFResult<()> {
         println!("#######");
-        for (k, v) in inputs.into_iter() {
+        for (k, v) in inputs {
             println!("Example Generic Sink Received on LinkId {:?} -> {:?}", k, v);
         }
         println!("#######");
@@ -41,34 +39,26 @@ impl ExampleGenericSink {
     }
 }
 
-impl SinkTrait for ExampleGenericSink {
-    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
-        let gctx = ctx.lock();
-        match gctx.mode {
-            0 => Box::new(Self::ir_1),
-            _ => panic!("No way"),
-        }
-    }
-
-    fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
-        let gctx = ctx.lock();
-        match gctx.mode {
-            0 => Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkOutput {
-                Box::pin(Self::run_1(ctx, inputs))
-            }),
-            _ => panic!("No way"),
-        }
-    }
-
-    fn get_state(&self) -> Box<dyn StateTrait> {
+impl ZFComponentState for GenericSink {
+    fn initial_state(&self) -> Box<dyn ZFStateTrait> {
         zf_empty_state!()
     }
 }
 
-zenoh_flow::export_sink!(register);
+impl ZFComponentInputRule for GenericSink {
+    fn input_rule(
+        &self,
+        state: &mut Box<dyn ZFStateTrait>,
+        tokens: &mut HashMap<String, Token>,
+    ) -> ZFResult<bool> {
+        default_input_rule(state, tokens)
+    }
+}
+
+export_sink!(register);
 
 fn register(
     _configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::SinkTrait + Send>> {
-    Ok(Box::new(ExampleGenericSink {}) as Box<dyn zenoh_flow::SinkTrait + Send>)
+) -> ZFResult<Box<dyn ZFSinkTrait + Send>> {
+    Ok(Box::new(GenericSink {}) as Box<dyn ZFSinkTrait + Send>)
 }

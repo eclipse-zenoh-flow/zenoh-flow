@@ -14,14 +14,14 @@
 
 use crate::runtime::graph::link::ZFLinkReceiver;
 use crate::runtime::message::ZFMessage;
-use crate::types::{Token, ZFContext, ZFInput, ZFResult};
-use crate::SinkTrait;
+use crate::types::{Token, ZFResult};
+use crate::{ZFSinkTrait, ZFStateTrait};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 
 pub type ZFSinkRegisterFn =
-    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn SinkTrait + Send>>;
+    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn ZFSinkTrait + Send>>;
 
 pub struct ZFSinkDeclaration {
     pub rustc_version: &'static str,
@@ -30,15 +30,17 @@ pub struct ZFSinkDeclaration {
 }
 
 pub struct ZFSinkRunner {
-    pub operator: Box<dyn SinkTrait + Send>,
+    pub sink: Box<dyn ZFSinkTrait + Send>,
     pub lib: Option<Library>,
     pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
+    pub state: Box<dyn ZFStateTrait>,
 }
 
 impl ZFSinkRunner {
-    pub fn new(operator: Box<dyn SinkTrait + Send>, lib: Option<Library>) -> Self {
+    pub fn new(sink: Box<dyn ZFSinkTrait + Send>, lib: Option<Library>) -> Self {
         Self {
-            operator,
+            state: sink.initial_state(),
+            sink,
             lib,
             inputs: vec![],
         }
@@ -49,9 +51,6 @@ impl ZFSinkRunner {
     }
 
     pub async fn run(&mut self) -> ZFResult<()> {
-        // WIP empty context
-        let ctx = ZFContext::new(self.operator.get_state(), 0);
-
         loop {
             // we should start from an HashMap with all PortId and not ready tokens
             let mut msgs: HashMap<String, Token> = HashMap::new();
@@ -60,18 +59,17 @@ impl ZFSinkRunner {
                 msgs.insert(i.id(), Token::NotReady);
             }
 
-            let ir_fn = self.operator.get_input_rule(ctx.clone());
+            // let ir_fn = self.operator.get_input_rule(context.clone());
 
             let mut futs = vec![];
             for rx in self.inputs.iter() {
                 futs.push(rx.recv()); // this should be peek(), but both requires mut
             }
 
-            crate::run_input_rules!(ir_fn, msgs, futs, ctx);
+            crate::run_input_rules!(self.sink, msgs, futs, &mut self.state);
 
             // Running
-            let run_fn = self.operator.get_run(ctx.clone());
-            let mut data = ZFInput::new();
+            let mut data = HashMap::with_capacity(msgs.len());
 
             for (id, v) in msgs {
                 log::debug!("[SINK] Sending data to run: {:?}", v);
@@ -82,7 +80,7 @@ impl ZFSinkRunner {
                 data.insert(id, d.unwrap());
             }
 
-            run_fn(ctx.clone(), data).await?;
+            self.sink.run(&mut self.state, &mut data).await?;
 
             //This depends on the Tokens...
             for rx in self.inputs.iter() {

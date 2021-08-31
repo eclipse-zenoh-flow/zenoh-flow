@@ -175,7 +175,7 @@ impl RunnerInner {
 
 #[macro_export]
 macro_rules! run_input_rules {
-    ($ir : expr, $tokens : expr, $links : expr, $ctx: expr) => {
+    ($component: expr, $tokens : expr, $links : expr, $state: expr) => {
         while !$links.is_empty() {
             match future::select_all($links).await {
                 // this could be "slow" as suggested by LC
@@ -184,7 +184,7 @@ macro_rules! run_input_rules {
                         ZFMessage::Data(_) => {
                             $tokens.insert(id, Token::from(message));
 
-                            match $ir($ctx.clone(), &mut $tokens) {
+                            match $component.input_rule($state, &mut $tokens) {
                                 Ok(true) => {
                                     // we can run
                                     log::debug!("IR: OK");
