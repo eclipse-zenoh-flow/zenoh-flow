@@ -127,6 +127,21 @@ impl Runtime {
             .await
             .map_err(|_e| ZFError::GenericError)?;
 
+        log::trace!("Setting state as Ready");
+
+        let mut rt_info = self.store.get_runtime_info(self.runtime_uuid).await?;
+        let mut rt_status = self.store.get_runtime_status(self.runtime_uuid).await?;
+
+        rt_info.status = ZFRuntimeStatusKind::Ready;
+        rt_status.status = ZFRuntimeStatusKind::Ready;
+
+        self.store
+            .add_runtime_info(self.runtime_uuid, rt_info)
+            .await?;
+        self.store
+            .add_runtime_status(self.runtime_uuid, rt_status)
+            .await?;
+
         let _ = stop
             .recv()
             .await
@@ -403,31 +418,34 @@ impl ZFRuntime for Runtime {
 
         let mut _state = self.state.lock().await;
 
+        let mut rt_status = self.store.get_runtime_status(self.runtime_uuid).await?;
+
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
-                let mut sources = instance.0.get_sources();
-                for runner in sources.drain(..) {
-                    let m = runner.start();
-                    instance.1.push(m);
-                }
-
                 let mut sinks = instance.0.get_sinks();
                 for runner in sinks.drain(..) {
                     let m = runner.start();
                     instance.1.push(m);
+                    rt_status.running_sinks += 1;
                 }
 
                 let mut operators = instance.0.get_operators();
                 for runner in operators.drain(..) {
                     let m = runner.start();
                     instance.1.push(m);
+                    rt_status.running_operators += 1;
                 }
 
                 let mut connectors = instance.0.get_connectors();
                 for runner in connectors.drain(..) {
                     let m = runner.start();
                     instance.1.push(m);
+                    rt_status.running_connectors += 1;
                 }
+
+                self.store
+                    .add_runtime_status(self.runtime_uuid, rt_status)
+                    .await?;
 
                 Ok(())
             }
@@ -438,13 +456,22 @@ impl ZFRuntime for Runtime {
         log::info!("Starting sources for Instance UUID: {}", record_id);
 
         let mut _state = self.state.lock().await;
+
+        let mut rt_status = self.store.get_runtime_status(self.runtime_uuid).await?;
+
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
                 let mut sources = instance.0.get_sources();
                 for runner in sources.drain(..) {
                     let m = runner.start();
                     instance.1.push(m);
+                    rt_status.running_sources += 1;
                 }
+
+                self.store
+                    .add_runtime_status(self.runtime_uuid, rt_status)
+                    .await?;
+
                 Ok(())
             }
             None => Err(ZFError::InstanceNotFound(record_id)),
@@ -458,6 +485,8 @@ impl ZFRuntime for Runtime {
 
         let mut _state = self.state.lock().await;
 
+        let mut rt_status = self.store.get_runtime_status(self.runtime_uuid).await?;
+
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
                 let mut to_be_removed = vec![];
@@ -465,9 +494,20 @@ impl ZFRuntime for Runtime {
                 for (i, m) in instance.1.iter().enumerate() {
                     match m.get_kind() {
                         RunnerKind::Source => continue,
-                        _ => {
+                        RunnerKind::Sink => {
                             m.kill().await?;
                             to_be_removed.push(i);
+                            rt_status.running_sinks -= 1;
+                        }
+                        RunnerKind::Operator => {
+                            m.kill().await?;
+                            to_be_removed.push(i);
+                            rt_status.running_operators -= 1;
+                        }
+                        RunnerKind::Connector => {
+                            m.kill().await?;
+                            to_be_removed.push(i);
+                            rt_status.running_connectors -= 1;
                         }
                     }
                 }
@@ -475,6 +515,11 @@ impl ZFRuntime for Runtime {
                 for i in to_be_removed.iter() {
                     instance.1.remove(*i);
                 }
+
+                self.store
+                    .add_runtime_status(self.runtime_uuid, rt_status)
+                    .await?;
+
                 Ok(())
             }
             None => Err(ZFError::InstanceNotFound(record_id)),
@@ -484,6 +529,7 @@ impl ZFRuntime for Runtime {
         log::info!("Stopping sources for Instance UUID: {}", record_id);
 
         let mut _state = self.state.lock().await;
+        let mut rt_status = self.store.get_runtime_status(self.runtime_uuid).await?;
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
@@ -495,6 +541,7 @@ impl ZFRuntime for Runtime {
                         RunnerKind::Source => {
                             m.kill().await?;
                             to_be_removed.push(i);
+                            rt_status.running_sources -= 1;
                         }
                         _ => continue,
                     }
@@ -503,6 +550,11 @@ impl ZFRuntime for Runtime {
                 for i in to_be_removed.iter() {
                     instance.1.remove(*i);
                 }
+
+                self.store
+                    .add_runtime_status(self.runtime_uuid, rt_status)
+                    .await?;
+
                 Ok(())
             }
             None => Err(ZFError::InstanceNotFound(record_id)),

@@ -23,6 +23,7 @@ extern crate exitfailure;
 use clap::arg_enum;
 use exitfailure::ExitFailure;
 use git_version::git_version;
+use prettytable::Table;
 use rand::seq::SliceRandom;
 use std::fs::{File, *};
 use structopt::StructOpt;
@@ -89,9 +90,8 @@ async fn main() {
         .await
         .unwrap();
     let entry_point = servers.choose(&mut rand::thread_rng()).unwrap();
-    println!("Selected entrypoint runtime: {:?}", entry_point);
-    // let client = ZFRuntimeClient::new(znsession, *entry_point);
-    let client = ZFRuntimeClient::new(znsession, Uuid::nil());
+    log::debug!("Selected entrypoint runtime: {:?}", entry_point);
+    let client = ZFRuntimeClient::new(znsession, *entry_point);
 
     let zsession = Arc::new(
         zenoh::Zenoh::new(Properties::from(String::from("mode=peer")).into())
@@ -110,7 +110,7 @@ async fn main() {
                 );
             }
             AddKind::Instance { descriptor_path } => {
-                println!(
+                log::debug!(
                     "This is going to store the flow described in {:?}",
                     descriptor_path
                 );
@@ -119,7 +119,8 @@ async fn main() {
                     zenoh_flow::model::dataflow::DataFlowDescriptor::from_yaml(yaml_df).unwrap();
 
                 let record = client.instantiate(df).await.unwrap().unwrap();
-                println!("Instantiated: {:?}", record);
+                log::debug!("Instantiated: {:?}", record);
+                println!("{}", record.uuid);
             } // AddKind::Instance { flow_id, rt_id } => {
               //     println!(
               //         "This is going to instantiate the flow {} in runtime {:?}",
@@ -135,10 +136,41 @@ async fn main() {
                 println!("This is going to get information for the instance {:?}", id);
             }
             GetKind::Runtime { id } => {
-                let runtimes = store.get_all_runtime_info().await.unwrap();
-                for r in runtimes {
-                    println!("{:?}", r);
+                let mut table = Table::new();
+                match id {
+                    Some(rtid) => {
+                        let runtime_info = store.get_runtime_info(rtid).await.unwrap();
+                        let runtime_status = store.get_runtime_status(rtid).await.unwrap();
+                        table.add_row(row![
+                            "UUID",
+                            "Name",
+                            "Status",
+                            "Running Flows",
+                            "Running Operators",
+                            "Running Sources",
+                            "Running Sinks",
+                            "Running Connectors"
+                        ]);
+                        table.add_row(row![
+                            runtime_status.id,
+                            runtime_info.name,
+                            format!("{:?}", runtime_status.status),
+                            runtime_status.running_flows,
+                            runtime_status.running_operators,
+                            runtime_status.running_sources,
+                            runtime_status.running_sinks,
+                            runtime_status.running_connectors,
+                        ]);
+                    }
+                    None => {
+                        table.add_row(row!["UUID", "Name", "Status",]);
+                        let runtimes = store.get_all_runtime_info().await.unwrap();
+                        for r in runtimes {
+                            table.add_row(row![r.id, r.name, format!("{:?}", r.status),]);
+                        }
+                    }
                 }
+                table.printstd();
             }
         },
         ZFCtl::Delete(dk) => match dk {
@@ -146,9 +178,10 @@ async fn main() {
                 println!("This is going to delete the flow {:?}", id);
             }
             DeleteKind::Instance { id } => {
-                println!("This is going to delete the instance {:?}", id);
+                log::debug!("This is going to delete the instance {:?}", id);
                 let record = client.teardown(id).await.unwrap().unwrap();
-                println!("Deleted: {:?}", record);
+                log::debug!("Deleted: {:?}", record);
+                println!("{}", record.uuid);
             }
         },
     }
