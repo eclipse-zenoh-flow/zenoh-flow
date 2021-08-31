@@ -225,10 +225,10 @@ pub trait ZFRuntime {
     /// Sends the `message` to `node` for the given record.
     /// This is useful for sending out-of-band notification to a node.
     /// eg. in the case of deadline miss notification.
-    async fn notify_node(
+    async fn notify_runtime(
         &self,
         record_id: Uuid,
-        node: String,
+        runtime: String,
         message: ZFControlMessage,
     ) -> ZFResult<()>;
 

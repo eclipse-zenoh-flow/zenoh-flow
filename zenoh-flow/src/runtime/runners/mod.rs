@@ -37,6 +37,7 @@ use futures_lite::future::FutureExt;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+#[derive(Clone, Debug)]
 pub enum RunnerKind {
     Source,
     Operator,
@@ -87,21 +88,34 @@ pub enum RunAction {
 }
 
 #[derive(Clone)]
-pub struct Runner(Arc<Mutex<RunnerInner>>);
+pub struct Runner {
+    inner: Arc<Mutex<RunnerInner>>,
+    kind: RunnerKind,
+}
 
 impl Runner {
     pub fn new(inner: RunnerInner) -> Self {
-        Self(Arc::new(Mutex::new(inner)))
+        let kind = match &inner {
+            RunnerInner::Operator(_) => RunnerKind::Operator,
+            RunnerInner::Source(_) => RunnerKind::Source,
+            RunnerInner::Sink(_) => RunnerKind::Sink,
+            RunnerInner::Sender(_) | RunnerInner::Receiver(_) => RunnerKind::Connector,
+        };
+
+        Self {
+            inner: Arc::new(Mutex::new(inner)),
+            kind,
+        }
     }
 
     pub async fn run(&self) -> ZFResult<()> {
-        self.0.lock().await.run().await
+        self.inner.lock().await.run().await
     }
 
     pub async fn run_stoppable(&self, stop: Receiver<()>) -> ZFResult<()> {
         loop {
             let run = async {
-                match self.0.lock().await.run().await {
+                match self.inner.lock().await.run().await {
                     Ok(_) => RunAction::RestartRun(None),
                     Err(e) => RunAction::RestartRun(Some(e)),
                 }
@@ -130,22 +144,24 @@ impl Runner {
         }
     }
 
-    pub async fn start(&self) -> RunnerManager {
+    pub fn start(&self) -> RunnerManager {
         let (s, r) = bounded::<()>(1);
-        let inner = self.clone();
+        let _self = self.clone();
 
-        let kind = self.0.lock().await.get_kind();
-
-        let h = async_std::task::spawn(async move { inner.run_stoppable(r).await });
-        RunnerManager::new(s, h, kind)
+        let h = async_std::task::spawn(async move { _self.run_stoppable(r).await });
+        RunnerManager::new(s, h, self.kind.clone())
     }
 
     pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
-        self.0.lock().await.add_input(input)
+        self.inner.lock().await.add_input(input)
     }
 
     pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
-        self.0.lock().await.add_output(output)
+        self.inner.lock().await.add_output(output)
+    }
+
+    pub fn get_kind(&self) -> &RunnerKind {
+        &self.kind
     }
 }
 
@@ -187,15 +203,6 @@ impl RunnerInner {
             RunnerInner::Sink(_) => panic!("Sinks does not have output!"), // TODO this should return a ZFResult<()>
             RunnerInner::Sender(_) => panic!("Senders does not have output!"), // TODO this should return a ZFResult<()>
             RunnerInner::Receiver(runner) => runner.add_output(output),
-        }
-    }
-
-    pub fn get_kind(&self) -> RunnerKind {
-        match &self {
-            RunnerInner::Operator(_) => RunnerKind::Operator,
-            RunnerInner::Source(_) => RunnerKind::Source,
-            RunnerInner::Sink(_) => RunnerKind::Sink,
-            RunnerInner::Sender(_) | RunnerInner::Receiver(_) => RunnerKind::Connector,
         }
     }
 }

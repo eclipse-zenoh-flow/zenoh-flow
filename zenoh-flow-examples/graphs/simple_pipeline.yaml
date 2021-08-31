@@ -26,3 +26,11 @@ links:
   to: SumOperator.Number
 - from: SumOperator.Sum
   to: PrintSink.Data
+
+mapping:
+  - id: SumOperator
+    runtime: MacBook
+  - id: Counter
+    runtime: MacBook2
+  - id: PrintSink
+    runtime: MacBook

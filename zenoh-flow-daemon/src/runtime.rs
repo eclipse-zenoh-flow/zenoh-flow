@@ -221,6 +221,13 @@ impl ZFRuntime for Runtime {
 
         let record_uuid = Uuid::new_v4();
         let flow_name = flow.flow.clone();
+
+        log::info!(
+            "Instantiating Flow {} - Instance UUID: {}",
+            flow_name,
+            record_uuid
+        );
+
         let mut rt_clients = vec![];
 
         let mapped = zenoh_flow::runtime::map_to_infrastructure(flow, &self.runtime_name).await?;
@@ -243,7 +250,7 @@ impl ZFRuntime for Runtime {
         }
 
         // self prepare
-        let dfr = self.prepare(mapped.clone(), record_uuid).await?;
+        let dfr = ZFRuntime::prepare(self, mapped.clone(), record_uuid).await?;
 
         // remote start
         for client in rt_clients.iter() {
@@ -259,12 +266,21 @@ impl ZFRuntime for Runtime {
         }
 
         // self start sources
-        self.start_sources(record_uuid).await?;
+        ZFRuntime::start_sources(self, record_uuid).await?;
+
+        log::info!(
+            "Done Instantiating Flow {} - Instance UUID: {}",
+            flow_name,
+            record_uuid
+        );
 
         Ok(dfr)
     }
 
     async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+        log::info!("Tearing down Instance UUID: {}", record_id);
+        let record = self.store.get_flow_by_instance(record_id).await?;
+
         let mut rt_clients = vec![];
 
         let all_involved_runtimes = self.store.get_flow_instance_runtimes(record_id).await?;
@@ -311,10 +327,18 @@ impl ZFRuntime for Runtime {
             self.clean(record_id).await;
         }
 
-        Err(ZFError::Unimplemented)
+        log::info!("Done teardown down Instance UUID: {}", record_id);
+
+        Ok(record)
     }
     async fn prepare(&self, flow: DataFlowDescriptor, record_id: Uuid) -> ZFResult<DataFlowRecord> {
         let flow_name = flow.flow.clone();
+
+        log::info!(
+            "Preparing for Flow {} Instance UUID: {}",
+            flow_name,
+            record_id
+        );
 
         let mut dfr = DataFlowRecord::try_from(flow)?;
 
@@ -333,9 +357,17 @@ impl ZFRuntime for Runtime {
         drop(_state);
         self.store.add_runtime_flow(self.runtime_uuid, &dfr).await?;
 
+        log::info!(
+            "Done preparation for Flow {} Instance UUID: {}",
+            flow_name,
+            record_id
+        );
+
         Ok(dfr)
     }
     async fn clean(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+        log::info!("Cleaning for Instance UUID: {}", record_id);
+
         let data = {
             let mut _state = self.state.lock().await;
             let d = match _state.graphs.remove(&record_id) {
@@ -364,31 +396,36 @@ impl ZFRuntime for Runtime {
     }
 
     async fn start(&self, record_id: Uuid) -> ZFResult<()> {
+        log::info!(
+            "Starting components (not sources) for Instance UUID: {}",
+            record_id
+        );
+
         let mut _state = self.state.lock().await;
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
                 let mut sources = instance.0.get_sources();
                 for runner in sources.drain(..) {
-                    let m = runner.start().await;
+                    let m = runner.start();
                     instance.1.push(m);
                 }
 
                 let mut sinks = instance.0.get_sinks();
                 for runner in sinks.drain(..) {
-                    let m = runner.start().await;
+                    let m = runner.start();
                     instance.1.push(m);
                 }
 
                 let mut operators = instance.0.get_operators();
                 for runner in operators.drain(..) {
-                    let m = runner.start().await;
+                    let m = runner.start();
                     instance.1.push(m);
                 }
 
                 let mut connectors = instance.0.get_connectors();
                 for runner in connectors.drain(..) {
-                    let m = runner.start().await;
+                    let m = runner.start();
                     instance.1.push(m);
                 }
 
@@ -398,13 +435,14 @@ impl ZFRuntime for Runtime {
         }
     }
     async fn start_sources(&self, record_id: Uuid) -> ZFResult<()> {
-        let mut _state = self.state.lock().await;
+        log::info!("Starting sources for Instance UUID: {}", record_id);
 
+        let mut _state = self.state.lock().await;
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
                 let mut sources = instance.0.get_sources();
                 for runner in sources.drain(..) {
-                    let m = runner.start().await;
+                    let m = runner.start();
                     instance.1.push(m);
                 }
                 Ok(())
@@ -413,6 +451,11 @@ impl ZFRuntime for Runtime {
         }
     }
     async fn stop(&self, record_id: Uuid) -> ZFResult<()> {
+        log::info!(
+            "Stopping components (not sources) for Instance UUID: {}",
+            record_id
+        );
+
         let mut _state = self.state.lock().await;
 
         match _state.graphs.get_mut(&record_id) {
@@ -438,6 +481,8 @@ impl ZFRuntime for Runtime {
         }
     }
     async fn stop_sources(&self, record_id: Uuid) -> ZFResult<()> {
+        log::info!("Stopping sources for Instance UUID: {}", record_id);
+
         let mut _state = self.state.lock().await;
 
         match _state.graphs.get_mut(&record_id) {
@@ -469,7 +514,7 @@ impl ZFRuntime for Runtime {
     async fn stop_node(&self, record_id: Uuid, node: String) -> ZFResult<()> {
         Err(ZFError::Unimplemented)
     }
-    async fn notify_node(
+    async fn notify_runtime(
         &self,
         record_id: Uuid,
         node: String,

@@ -294,6 +294,28 @@ impl ZFDataStore {
         }
     }
 
+    pub async fn get_all_runtime_info(&self) -> ZFResult<Vec<ZFRuntimeInfo>> {
+        let selector = zenoh::Selector::try_from(RT_INFO_PATH!(ROOT_STANDALONE, "*"))?;
+        let ws = self.z.workspace(None).await?;
+        let mut ds = ws.get(&selector).await?;
+
+        // Not sure this is needed...
+        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let mut runtimes = Vec::new();
+
+        for kv in data {
+            match &kv.value {
+                zenoh::Value::Raw(_, buf) => {
+                    let ni = deserialize_data::<ZFRuntimeInfo>(&buf.to_vec())?;
+                    runtimes.push(ni);
+                }
+                _ => return Err(ZFError::DeseralizationError),
+            }
+        }
+
+        Ok(runtimes)
+    }
+
     pub async fn get_runtime_info_by_name(&self, rtid: String) -> ZFResult<ZFRuntimeInfo> {
         let selector = zenoh::Selector::try_from(RT_INFO_PATH!(ROOT_STANDALONE, "*"))?;
         let ws = self.z.workspace(None).await?;
@@ -449,6 +471,30 @@ impl ZFDataStore {
             _ => Err(ZFError::InvalidData(String::from(
                 "Got more than one data for a single runtime information",
             ))),
+        }
+    }
+
+    pub async fn get_flow_by_instance(&self, iid: Uuid) -> ZFResult<DataFlowRecord> {
+        let selector =
+            zenoh::Selector::try_from(RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid))?;
+        let ws = self.z.workspace(None).await?;
+        let mut ds = ws.get(&selector).await?;
+
+        // Not sure this is needed...
+        let data = ds.collect::<Vec<zenoh::Data>>().await;
+
+        match data.len() {
+            0 => Err(ZFError::Empty),
+            _ => {
+                let kv = &data[0];
+                match &kv.value {
+                    zenoh::Value::Raw(_, buf) => {
+                        let ni = deserialize_data::<DataFlowRecord>(&buf.to_vec())?;
+                        Ok(ni)
+                    }
+                    _ => Err(ZFError::DeseralizationError),
+                }
+            }
         }
     }
 

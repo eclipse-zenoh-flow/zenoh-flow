@@ -1,8 +1,10 @@
 ---
     uuid: 00000000-0000-0000-0000-000000000000
     pid_file : /var/zenoh-flow/runtime.pid
+    name: MacBook
     path : /etc/zenoh-flow
     zenoh :
       kind: peer
       listen: ["tcp/0.0.0.0:7447"]
-      locators: []
+      # locators: [tcp/192.168.86.229:7887]
+      locators: [tcp/192.168.1.168:7887, tcp/192.168.1.168:7997]

@@ -29,6 +29,7 @@ use structopt::StructOpt;
 use uuid::Uuid;
 use zenoh::*;
 use zenoh_flow::async_std::sync::Arc;
+use zenoh_flow::runtime::resources::ZFDataStore;
 use zenoh_flow::runtime::ZFRuntimeClient;
 
 const GIT_VERSION: &str = git_version!(prefix = "v", cargo_prefix = "v");
@@ -78,18 +79,27 @@ async fn main() {
     let args = ZFCtl::from_args();
     log::debug!("Args: {:?}", args);
 
-    let zsession = Arc::new(
+    let znsession = Arc::new(
         zenoh::net::open(Properties::from(String::from("mode=peer")).into())
             .await
             .unwrap(),
     );
 
-    let servers = ZFRuntimeClient::find_servers(zsession.clone())
+    let servers = ZFRuntimeClient::find_servers(znsession.clone())
         .await
         .unwrap();
     let entry_point = servers.choose(&mut rand::thread_rng()).unwrap();
     println!("Selected entrypoint runtime: {:?}", entry_point);
-    let client = ZFRuntimeClient::new(zsession, *entry_point);
+    // let client = ZFRuntimeClient::new(znsession, *entry_point);
+    let client = ZFRuntimeClient::new(znsession, Uuid::nil());
+
+    let zsession = Arc::new(
+        zenoh::Zenoh::new(Properties::from(String::from("mode=peer")).into())
+            .await
+            .unwrap(),
+    );
+
+    let store = ZFDataStore::new(zsession);
 
     match args {
         ZFCtl::Add(ak) => match ak {
@@ -125,7 +135,10 @@ async fn main() {
                 println!("This is going to get information for the instance {:?}", id);
             }
             GetKind::Runtime { id } => {
-                println!("This is going to get information for the runtime {:?}", id);
+                let runtimes = store.get_all_runtime_info().await.unwrap();
+                for r in runtimes {
+                    println!("{:?}", r);
+                }
             }
         },
         ZFCtl::Delete(dk) => match dk {
