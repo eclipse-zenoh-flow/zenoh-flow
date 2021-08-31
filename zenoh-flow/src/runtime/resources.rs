@@ -559,7 +559,7 @@ impl ZFDataStore {
 
         for kv in data.into_iter() {
             let path = String::from(kv.path.as_str());
-            let id = path.split("/").collect::<Vec<&str>>()[3];
+            let id = path.split('/').collect::<Vec<&str>>()[3];
             runtimes.push(Uuid::parse_str(id).map_err(|_| ZFError::DeseralizationError)?);
         }
 
@@ -569,7 +569,7 @@ impl ZFDataStore {
     pub async fn remove_runtime_flow_instance(
         &self,
         rtid: Uuid,
-        fid: &String,
+        fid: &str,
         iid: Uuid,
     ) -> ZFResult<()> {
         let path = zenoh::Path::try_from(RT_FLOW_PATH!(ROOT_STANDALONE, rtid, fid, iid))?;

@@ -13,20 +13,15 @@
 use structopt::StructOpt;
 
 use async_ctrlc::CtrlC;
-use std::process;
 use std::str;
-
-use std::collections::HashMap;
 
 use async_std::fs;
 use async_std::path::Path;
 use async_std::prelude::*;
 
-use log::{error, info, trace};
-
 mod runtime;
 use runtime::Runtime;
-use zenoh_flow::runtime::{ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus, ZFRuntimeStatusKind};
+use zenoh_flow::runtime::ZFRuntimeConfig;
 
 static RUNTIME_CONFIG_FILE: &str = "/etc/zenoh-flow/runtime.yaml";
 
@@ -47,7 +42,7 @@ async fn read_file(path: &Path) -> String {
     fs::read_to_string(path).await.unwrap()
 }
 
-async fn write_file(path: &Path, content: Vec<u8>) {
+async fn _write_file(path: &Path, content: Vec<u8>) {
     let mut file = fs::File::create(path).await.unwrap();
     file.write_all(&content).await.unwrap();
     file.sync_all().await.unwrap();
@@ -83,7 +78,7 @@ async fn main() {
     let ctrlc = CtrlC::new().expect("Unable to create Ctrl-C handler");
     let mut stream = ctrlc.enumerate().take(1);
     stream.next().await;
-    trace!("Received Ctrl-C start teardown");
+    log::trace!("Received Ctrl-C start teardown");
 
     //Here we send the stop signal to the rt object and waits that it ends
     rt.stop(s).await.unwrap();

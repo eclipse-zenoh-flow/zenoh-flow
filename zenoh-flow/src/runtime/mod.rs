@@ -12,6 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+#![allow(clippy::manual_async_fn)]
+
 use crate::{
     model::{
         dataflow::DataFlowRecord,
@@ -23,7 +25,7 @@ use uuid::Uuid;
 
 use crate::{
     model::dataflow::{DataFlowDescriptor, Mapping},
-    ZFResult, ZFRuntimeID,
+    ZFResult,
 };
 
 use crate::runtime::message::ZFControlMessage;
@@ -46,7 +48,7 @@ pub mod runners;
 
 pub async fn map_to_infrastructure(
     mut descriptor: DataFlowDescriptor,
-    runtime: &ZFRuntimeID,
+    runtime: &str,
 ) -> ZFResult<DataFlowDescriptor> {
     log::debug!("[Dataflow mapping] Begin mapping for: {}", descriptor.flow);
 
@@ -61,7 +63,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).clone(),
+                    runtime: (*runtime).to_string(),
                 };
                 mappings.push(mapping);
             }
@@ -74,7 +76,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).clone(),
+                    runtime: (*runtime).to_string(),
                 };
                 mappings.push(mapping);
             }
@@ -87,7 +89,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).clone(),
+                    runtime: (*runtime).to_string(),
                 };
                 mappings.push(mapping);
             }

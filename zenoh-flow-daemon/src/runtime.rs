@@ -28,7 +28,6 @@ use zenoh_flow::runtime::ZFRuntimeClient;
 use zenoh_flow::runtime::{
     ZFRuntime, ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus, ZFRuntimeStatusKind,
 };
-use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::types::{ZFError, ZFResult};
 
 use std::convert::TryFrom;
@@ -122,7 +121,7 @@ impl Runtime {
             .map_err(|_e| ZFError::GenericError)?;
 
         log::trace!("Staring ZRPC Servers");
-        let (srt, hrt) = rt_server
+        let (srt, _hrt) = rt_server
             .start()
             .await
             .map_err(|_e| ZFError::GenericError)?;
@@ -175,14 +174,14 @@ impl Runtime {
         let rt = self.clone();
 
         let rt_info = ZFRuntimeInfo {
-            id: self.runtime_uuid.clone(),
+            id: self.runtime_uuid,
             name: self.runtime_name.clone(),
             tags: Vec::new(),
             status: ZFRuntimeStatusKind::NotReady,
         };
 
         let rt_status = ZFRuntimeStatus {
-            id: self.runtime_uuid.clone(),
+            id: self.runtime_uuid,
             status: ZFRuntimeStatusKind::NotReady,
             running_flows: 0,
             running_operators: 0,
@@ -304,10 +303,9 @@ impl ZFRuntime for Runtime {
 
         let remote_involved_runtimes = all_involved_runtimes
             .into_iter()
-            .filter(|rt| *rt != self.runtime_uuid)
-            .collect::<Vec<Uuid>>();
+            .filter(|rt| *rt != self.runtime_uuid);
 
-        for rt in remote_involved_runtimes.into_iter() {
+        for rt in remote_involved_runtimes {
             let client = ZFRuntimeClient::new(self.zn.clone(), rt);
             rt_clients.push(client);
         }
@@ -366,9 +364,7 @@ impl ZFRuntime for Runtime {
         dataflow_graph.make_connections(&self.runtime_name).await?;
 
         let mut _state = self.state.lock().await;
-        _state
-            .graphs
-            .insert(dfr.uuid.clone(), (dataflow_graph, vec![]));
+        _state.graphs.insert(dfr.uuid, (dataflow_graph, vec![]));
         drop(_state);
         self.store.add_runtime_flow(self.runtime_uuid, &dfr).await?;
 
@@ -385,10 +381,7 @@ impl ZFRuntime for Runtime {
 
         let data = {
             let mut _state = self.state.lock().await;
-            let d = match _state.graphs.remove(&record_id) {
-                Some(data) => Some(data),
-                None => None,
-            };
+            let d = _state.graphs.remove(&record_id);
             drop(_state);
             d
         };

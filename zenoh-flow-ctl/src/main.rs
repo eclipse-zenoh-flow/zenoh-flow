@@ -20,12 +20,11 @@ extern crate prettytable;
 
 extern crate base64;
 extern crate exitfailure;
-use clap::arg_enum;
-use exitfailure::ExitFailure;
+
 use git_version::git_version;
 use prettytable::Table;
 use rand::seq::SliceRandom;
-use std::fs::{File, *};
+use std::fs::read_to_string;
 use structopt::StructOpt;
 use uuid::Uuid;
 use zenoh::*;
