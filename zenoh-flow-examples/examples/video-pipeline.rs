@@ -101,37 +101,38 @@ impl CameraSource {
 
         let inner = _state.inner.as_ref().unwrap();
 
-        let mut cam = zf_spin_lock!(inner.camera);
-        let encode_options = zf_spin_lock!(inner.encode_options);
+        {
+            let mut cam = zf_spin_lock!(inner.camera);
+            let encode_options = zf_spin_lock!(inner.encode_options);
 
-        let mut frame = core::Mat::default();
-        cam.read(&mut frame).unwrap();
+            let mut frame = core::Mat::default();
+            cam.read(&mut frame).unwrap();
 
-        let mut reduced = Mat::default();
-        opencv::imgproc::resize(
-            &frame,
-            &mut reduced,
-            opencv::core::Size::new(_state.resolution.0, _state.resolution.0),
-            0.0,
-            0.0,
-            opencv::imgproc::INTER_LINEAR,
-        )
-        .unwrap();
+            let mut reduced = Mat::default();
+            opencv::imgproc::resize(
+                &frame,
+                &mut reduced,
+                opencv::core::Size::new(_state.resolution.0, _state.resolution.0),
+                0.0,
+                0.0,
+                opencv::imgproc::INTER_LINEAR,
+            )
+            .unwrap();
 
-        let mut buf = opencv::types::VectorOfu8::new();
-        opencv::imgcodecs::imencode(".jpeg", &reduced, &mut buf, &encode_options).unwrap();
+            let mut buf = opencv::types::VectorOfu8::new();
+            opencv::imgcodecs::imencode(".jpeg", &reduced, &mut buf, &encode_options).unwrap();
 
-        let data = ZFBytes {
-            bytes: buf.to_vec(),
-        };
+            let data = ZFBytes {
+                bytes: buf.to_vec(),
+            };
 
-        results.insert(String::from(SOURCE), zf_data!(data));
+            results.insert(String::from(SOURCE), zf_data!(data));
 
-        async_std::task::sleep(std::time::Duration::from_millis(_state.delay));
+            drop(cam);
+            drop(encode_options);
+        }
 
-        drop(cam);
-        drop(encode_options);
-
+        async_std::task::sleep(std::time::Duration::from_millis(_state.delay)).await;
         Ok(results)
     }
 }

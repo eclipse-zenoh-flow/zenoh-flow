@@ -89,7 +89,7 @@ impl ZFMessage {
                         Arc::new(bincode::serialize(&de).map_err(|_| ZFError::SerializationError)?);
                     let serialized_message = ZFMessage::Data(ZFDataMessage::new_serialized(
                         serialized_data,
-                        data_message.timestamp.clone(),
+                        data_message.timestamp,
                     ));
 
                     bincode::serialize(&serialized_message).map_err(|_| ZFError::SerializationError)

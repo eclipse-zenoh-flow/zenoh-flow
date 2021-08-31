@@ -14,25 +14,23 @@
 
 use async_ctrlc::CtrlC;
 
-use opencv::{core, highgui, prelude::*, videoio};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
 use zenoh_flow::async_std::stream::StreamExt;
-use zenoh_flow::async_std::sync::{Arc, Mutex};
+use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::{
-    downcast, downcast_mut, get_input,
     model::link::ZFPortDescriptor,
     serde::{Deserialize, Serialize},
     types::{
         DataTrait, FnInputRule, FnOutputRule, FnSinkRun, FnSourceRun, FutRunOutput, FutSinkOutput,
-        InputRuleOutput, RunOutput, SinkTrait, SourceTrait, StateTrait, Token, ZFContext, ZFError,
-        ZFInput, ZFResult,
+        InputRuleOutput, RunOutput, SinkTrait, SourceTrait, StateTrait, Token, ZFContext, ZFInput,
+        ZFResult,
     },
     zenoh_flow_derive::ZFState,
-    zf_data, zf_empty_state, zf_spin_lock,
+    zf_data, zf_empty_state,
 };
 use zenoh_flow_examples::RandomData;
 

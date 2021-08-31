@@ -20,13 +20,13 @@ use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 
-#[repr(C)]
+pub type ZFSinkRegisterFn =
+    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn SinkTrait + Send>>;
+
 pub struct ZFSinkDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: unsafe extern "C" fn(
-        Option<HashMap<String, String>>,
-    ) -> ZFResult<Box<dyn SinkTrait + Send>>,
+    pub register: ZFSinkRegisterFn,
 }
 
 pub struct ZFSinkRunner {

@@ -21,13 +21,13 @@ use crate::SourceTrait;
 use libloading::Library;
 use std::collections::HashMap;
 
-#[repr(C)]
+pub type ZFSourceRegisterFn =
+    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn SourceTrait + Send>>;
+
 pub struct ZFSourceDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: unsafe extern "C" fn(
-        Option<HashMap<String, String>>,
-    ) -> ZFResult<Box<dyn SourceTrait + Send>>,
+    pub register: ZFSourceRegisterFn,
 }
 
 pub struct ZFSourceRunner {
@@ -82,8 +82,7 @@ impl ZFSourceRunner {
                 log::debug!("Sending on {:?} data: {:?}", id, output);
 
                 if let Some(links) = self.outputs.get(&id) {
-                    let zf_message =
-                        Arc::new(ZFMessage::from_component_output(output, timestamp.clone()));
+                    let zf_message = Arc::new(ZFMessage::from_component_output(output, timestamp));
 
                     for tx in links {
                         log::debug!("Sending on: {:?}", tx);

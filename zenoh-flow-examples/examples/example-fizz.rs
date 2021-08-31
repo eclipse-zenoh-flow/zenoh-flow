@@ -99,7 +99,7 @@ impl OperatorTrait for FizzOperator {
 
 export_operator!(register);
 
-extern "C" fn register(
+fn register(
     _configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
     Ok(Box::new(FizzOperator) as Box<dyn OperatorTrait + Send>)

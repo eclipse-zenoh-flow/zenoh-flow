@@ -22,13 +22,13 @@ use libloading::Library;
 use std::collections::HashMap;
 use uhlc::HLC;
 
-#[repr(C)]
+pub type ZFOperatorRegisterFn =
+    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn OperatorTrait + Send>>;
+
 pub struct ZFOperatorDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: unsafe extern "C" fn(
-        Option<HashMap<String, String>>,
-    ) -> ZFResult<Box<dyn OperatorTrait + Send>>,
+    pub register: ZFOperatorRegisterFn,
 }
 
 pub struct ZFOperatorRunner {
@@ -141,8 +141,7 @@ impl ZFOperatorRunner {
                 // getting link
                 log::debug!("id: {:?}, message: {:?}", id, output);
                 if let Some(links) = self.outputs.get(&id) {
-                    let zf_message =
-                        Arc::new(ZFMessage::from_component_output(output, timestamp.clone()));
+                    let zf_message = Arc::new(ZFMessage::from_component_output(output, timestamp));
 
                     for tx in links {
                         log::debug!("Sending on: {:?}", tx);

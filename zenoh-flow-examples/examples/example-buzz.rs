@@ -92,7 +92,7 @@ impl OperatorTrait for BuzzOperator {
 
 export_operator!(register);
 
-extern "C" fn register(
+fn register(
     _configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
     Ok(Box::new(BuzzOperator) as Box<dyn OperatorTrait + Send>)

@@ -106,7 +106,7 @@ impl SinkTrait for ExampleGenericZenohSink {
 
 zenoh_flow::export_sink!(register);
 
-extern "C" fn register(
+fn register(
     _configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<Box<dyn zenoh_flow::SinkTrait + Send>> {
     Ok(Box::new(ExampleGenericZenohSink::new()) as Box<dyn zenoh_flow::SinkTrait + Send>)

@@ -7,17 +7,17 @@ use zenoh_flow::runtime::graph::link::{link, ZFLinkSender};
 
 async fn send<T: Clone>(sender: ZFLinkSender<T>, interveal: Duration, data: T) {
     loop {
-        sender.send(Arc::new(data.clone())).await;
+        sender.send(Arc::new(data.clone())).await.unwrap();
         sleep(interveal).await;
     }
 }
 
 #[async_std::main]
 async fn main() {
-    let (s1, mut r1) = link::<u8>(Some(10), String::from("0"), String::from("10"));
-    let (s2, mut r2) = link::<u8>(Some(10), String::from("1"), String::from("11"));
-    let (s3, mut r3) = link::<u8>(Some(10), String::from("2"), String::from("12"));
-    let (s4, mut r4) = link::<u8>(Some(10), String::from("3"), String::from("13"));
+    let (s1, r1) = link::<u8>(Some(10), String::from("0"), String::from("10"));
+    let (s2, r2) = link::<u8>(Some(10), String::from("1"), String::from("11"));
+    let (s3, r3) = link::<u8>(Some(10), String::from("2"), String::from("12"));
+    let (s4, r4) = link::<u8>(Some(10), String::from("3"), String::from("13"));
 
     let _h1 = async_std::task::spawn(async move {
         send(s1, Duration::from_secs(1), 0u8).await;
@@ -36,12 +36,7 @@ async fn main() {
     });
 
     loop {
-        let mut futs = vec![];
-
-        futs.push(r1.recv());
-        futs.push(r2.recv());
-        futs.push(r3.recv());
-        futs.push(r4.recv());
+        let mut futs = vec![r1.recv(), r2.recv(), r3.recv(), r4.recv()];
 
         while !futs.is_empty() {
             match future::select_all(futs).await {

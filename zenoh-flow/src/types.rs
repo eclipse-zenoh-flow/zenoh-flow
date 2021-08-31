@@ -261,7 +261,7 @@ impl Token {
     pub fn get_timestamp(&self) -> Option<Timestamp> {
         match self {
             Self::NotReady => None,
-            Self::Ready(token) => Some(token.data.timestamp.clone()),
+            Self::Ready(token) => Some(token.data.timestamp),
         }
     }
 
