@@ -12,13 +12,11 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc, usize};
-
 use zenoh_flow::{
-    types::{
-        DataTrait, FnOutputRule, FnSourceRun, FutRunOutput, RunOutput, SourceTrait, StateTrait,
-    },
-    zf_data, zf_empty_state, ZFContext, ZFError, ZFResult,
+    zf_data, zf_empty_state, ZFComponentOutputRule, ZFComponentState, ZFDataTrait, ZFError,
+    ZFPortID, ZFResult, ZFSourceTrait, ZFStateTrait,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -26,9 +24,13 @@ struct ManualSource;
 
 static LINK_ID_INPUT_INT: &str = "Int";
 
-impl ManualSource {
-    async fn run(_ctx: ZFContext) -> RunOutput {
-        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::with_capacity(1);
+#[async_trait]
+impl ZFSourceTrait for ManualSource {
+    async fn run(
+        &self,
+        _state: &mut Box<dyn ZFStateTrait>,
+    ) -> ZFResult<HashMap<ZFPortID, Arc<dyn ZFDataTrait>>> {
+        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::with_capacity(1);
 
         println!("> Please input a number: ");
         let mut number = String::new();
@@ -48,17 +50,19 @@ impl ManualSource {
     }
 }
 
-impl SourceTrait for ManualSource {
-    fn get_run(&self, _ctx: ZFContext) -> FnSourceRun {
-        Box::new(|ctx: ZFContext| -> FutRunOutput { Box::pin(Self::run(ctx)) })
-    }
-
-    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
-        Box::new(zenoh_flow::default_output_rule)
-    }
-
-    fn get_state(&self) -> Box<dyn StateTrait> {
+impl ZFComponentState for ManualSource {
+    fn initial_state(&self) -> Box<dyn ZFStateTrait> {
         zf_empty_state!()
+    }
+}
+
+impl ZFComponentOutputRule for ManualSource {
+    fn output_rule(
+        &self,
+        state: &mut Box<dyn ZFStateTrait>,
+        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
+    ) -> ZFResult<HashMap<ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        zenoh_flow::default_output_rule(state, outputs)
     }
 }
 
@@ -66,6 +70,6 @@ zenoh_flow::export_source!(register);
 
 fn register(
     _configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::SourceTrait + Send>> {
-    Ok(Box::new(ManualSource {}) as Box<dyn zenoh_flow::SourceTrait + Send>)
+) -> ZFResult<Box<dyn ZFSourceTrait + Send>> {
+    Ok(Box::new(ManualSource {}) as Box<dyn ZFSourceTrait + Send>)
 }

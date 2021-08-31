@@ -12,15 +12,12 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::async_std::sync::{Arc, Mutex, MutexGuard};
+use crate::async_std::sync::Arc;
 use crate::runtime::message::{ZFControlMessage, ZFDataMessage, ZFMessage};
 use crate::serde::{Deserialize, Serialize};
-use futures::Future;
-use std::any::Any;
+use crate::{ZFDataTrait, ZFStateTrait};
 use std::collections::HashMap;
 use std::convert::From;
-use std::fmt::Debug;
-use std::pin::Pin;
 use uhlc::Timestamp;
 
 // Placeholder types
@@ -112,118 +109,16 @@ impl From<libloading::Error> for ZFError {
     }
 }
 
-pub struct ZFInnerCtx {
-    pub state: Box<dyn StateTrait>,
-    pub mode: usize, //can be arc<atomic> and inside ZFContext
-}
-
-#[derive(Clone)]
-pub struct ZFContext(Arc<Mutex<ZFInnerCtx>>); //TODO: have only state inside Mutex
-
-impl ZFContext {
-    pub fn new(state: Box<dyn StateTrait>, mode: usize) -> Self {
-        let inner = Arc::new(Mutex::new(ZFInnerCtx { state, mode }));
-        Self(inner)
-    }
-
-    pub async fn async_lock(&'_ self) -> MutexGuard<'_, ZFInnerCtx> {
-        self.0.lock().await
-    }
-
-    pub fn lock(&self) -> MutexGuard<ZFInnerCtx> {
-        crate::zf_spin_lock!(self.0)
-    }
-}
-
 pub type ZFResult<T> = Result<T, ZFError>;
-
-#[typetag::serde(tag = "zf_data_type", content = "value")]
-pub trait DataTrait: Debug + Send + Sync {
-    fn as_any(&self) -> &dyn Any;
-    fn as_mut_any(&mut self) -> &mut dyn Any;
-}
-
-// TODO Create a Derive macro for this
-#[typetag::serde(tag = "zf_state_type", content = "value")]
-pub trait StateTrait: Debug + Send + Sync {
-    fn as_any(&self) -> &dyn Any;
-    fn as_mut_any(&mut self) -> &mut dyn Any;
-}
 
 pub trait OperatorMode: Into<usize> + From<usize> {} //Placeholder
 
 #[derive(Debug, Clone)]
 pub enum ZFComponentOutput {
-    Data(Arc<dyn DataTrait>),
+    Data(Arc<dyn ZFDataTrait>),
     // TODO Users should not have access to all control messages. When implementing the control
     // messages change this to an enum with a "limited scope".
     Control(ZFControlMessage),
-}
-
-pub type InputRuleOutput = ZFResult<bool>;
-
-// CAUTION, USER CAN DO NASTY THINGS, eg. remove a link we have passed to him.
-pub type FnInputRule =
-    dyn Fn(ZFContext, &mut HashMap<String, Token>) -> InputRuleOutput + Send + Sync + 'static;
-
-pub type OutputRuleOutput = ZFResult<HashMap<ZFPortID, ZFComponentOutput>>;
-
-pub type FnOutputRule = dyn Fn(ZFContext, HashMap<ZFPortID, Arc<dyn DataTrait>>) -> OutputRuleOutput
-    + Send
-    + Sync
-    + 'static;
-
-pub type RunOutput = ZFResult<HashMap<ZFPortID, Arc<dyn DataTrait>>>;
-
-pub type FnRun = dyn Fn(ZFContext, ZFInput) -> RunOutput + Send + Sync + 'static;
-
-// * ***********************************************************************************************
-// * *
-// * * OPERATOR
-// * *
-// * ***********************************************************************************************
-pub trait OperatorTrait {
-    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule>;
-
-    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule>;
-
-    fn get_run(&self, ctx: ZFContext) -> Box<FnRun>;
-
-    fn get_state(&self) -> Box<dyn StateTrait>;
-}
-
-// * ***********************************************************************************************
-// *
-// *   SOURCE
-// *
-// * ***********************************************************************************************
-pub type FutRunOutput = Pin<Box<dyn Future<Output = RunOutput> + Send + Sync>>;
-
-pub type FnSourceRun = Box<dyn Fn(ZFContext) -> FutRunOutput + Send + Sync>;
-
-pub trait SourceTrait {
-    fn get_run(&self, ctx: ZFContext) -> FnSourceRun;
-
-    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule>;
-
-    fn get_state(&self) -> Box<dyn StateTrait>;
-}
-
-// * ***********************************************************************************************
-// *
-// * SINK
-// *
-// * ***********************************************************************************************
-pub type FutSinkOutput = Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync>>;
-
-pub type FnSinkRun = Box<dyn Fn(ZFContext, ZFInput) -> FutSinkOutput + Send + Sync>;
-
-pub trait SinkTrait {
-    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule>;
-
-    fn get_run(&self, ctx: ZFContext) -> FnSinkRun;
-
-    fn get_state(&self) -> Box<dyn StateTrait>;
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -384,7 +279,7 @@ impl<'a> IntoIterator for &'a ZFInput {
 pub struct EmptyState;
 
 #[typetag::serde]
-impl StateTrait for EmptyState {
+impl ZFStateTrait for EmptyState {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -395,18 +290,21 @@ impl StateTrait for EmptyState {
 }
 
 pub fn default_output_rule(
-    _ctx: ZFContext,
-    outputs: HashMap<String, Arc<dyn DataTrait>>,
-) -> OutputRuleOutput {
-    let mut results = HashMap::new();
+    _state: &mut Box<dyn ZFStateTrait>,
+    outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
+) -> ZFResult<HashMap<ZFPortID, ZFComponentOutput>> {
+    let mut results = HashMap::with_capacity(outputs.len());
     for (k, v) in outputs {
-        results.insert(k, ZFComponentOutput::Data(v));
+        results.insert(k.clone(), ZFComponentOutput::Data(v.clone()));
     }
 
     Ok(results)
 }
 
-pub fn default_input_rule(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
+pub fn default_input_rule(
+    _state: &mut Box<dyn ZFStateTrait>,
+    inputs: &mut HashMap<String, Token>,
+) -> ZFResult<bool> {
     for token in inputs.values() {
         match token {
             Token::Ready(_) => continue,

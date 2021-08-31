@@ -24,7 +24,7 @@ operators:
         type: string
 
   - id: BuzzOperator2
-    uri: file://./target/debug/examples/libexample_buzz2.dylib
+    uri: file://./target/debug/examples/libexample_buzz.dylib
     inputs:
       - id: Int
         type: u64
@@ -33,9 +33,11 @@ operators:
     outputs:
       - id: Str
         type: string
+    configuration:
+      buzzword: BUZZ-2
 
-  - id: BuzzOperator3
-    uri: file://./target/debug/examples/libexample_buzz3.dylib
+ 3 - id: BuzzOperator3
+    uri: file://./target/debug/examples/libexample_buzz.dylib
     inputs:
       - id: Int
         type: u64
@@ -44,6 +46,8 @@ operators:
     outputs:
       - id: Str
         type: string
+    configuration:
+      buzzword: BUZZ-3
 
 sources:
   - id: ManualSenderOperator

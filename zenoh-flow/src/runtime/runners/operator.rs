@@ -15,15 +15,15 @@
 use crate::async_std::sync::Arc;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::ZFMessage;
-use crate::types::{Token, ZFContext, ZFInput, ZFResult};
-use crate::OperatorTrait;
+use crate::types::{Token, ZFResult};
+use crate::{ZFOperatorTrait, ZFStateTrait};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 use uhlc::HLC;
 
 pub type ZFOperatorRegisterFn =
-    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn OperatorTrait + Send>>;
+    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn ZFOperatorTrait + Send>>;
 
 pub struct ZFOperatorDeclaration {
     pub rustc_version: &'static str,
@@ -33,19 +33,21 @@ pub struct ZFOperatorDeclaration {
 
 pub struct ZFOperatorRunner {
     pub hlc: Arc<HLC>,
-    pub operator: Box<dyn OperatorTrait + Send>,
+    pub operator: Box<dyn ZFOperatorTrait + Send>,
     pub lib: Option<Library>,
     pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
     pub outputs: HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
+    pub state: Box<dyn ZFStateTrait>,
 }
 
 impl ZFOperatorRunner {
     pub fn new(
         hlc: Arc<HLC>,
-        operator: Box<dyn OperatorTrait + Send>,
+        operator: Box<dyn ZFOperatorTrait + Send>,
         lib: Option<Library>,
     ) -> Self {
         Self {
+            state: operator.initial_state(),
             hlc,
             operator,
             lib,
@@ -68,9 +70,6 @@ impl ZFOperatorRunner {
     }
 
     pub async fn run(&mut self) -> ZFResult<()> {
-        // WIP empty context
-        let ctx = ZFContext::new(self.operator.get_state(), 0);
-
         loop {
             // we should start from an HashMap with all PortId and not ready tokens
             let mut msgs: HashMap<String, Token> = HashMap::new();
@@ -79,16 +78,15 @@ impl ZFOperatorRunner {
                 msgs.insert(i.id(), Token::NotReady);
             }
 
-            let ir_fn = self.operator.get_input_rule(ctx.clone());
-
             let mut futs = vec![];
             for rx in self.inputs.iter() {
                 futs.push(rx.recv()); // this should be peek(), but both requires mut
             }
 
             // Input Rules
-            crate::run_input_rules!(ir_fn, msgs, futs, ctx);
-            let mut data = ZFInput::new();
+            crate::run_input_rules!(self.operator, msgs, futs, &mut self.state);
+
+            let mut data = HashMap::with_capacity(msgs.len());
             let mut max_token_timestamp = None;
 
             for (id, token) in msgs {
@@ -129,12 +127,10 @@ impl ZFOperatorRunner {
             };
 
             // Running
-            let run_fn = self.operator.get_run(ctx.clone());
-            let run_outputs = run_fn(ctx.clone(), data)?;
+            let run_outputs = self.operator.run(&mut self.state, &mut data)?;
 
             // Output rules
-            let out_fn = self.operator.get_output_rule(ctx.clone());
-            let outputs = out_fn(ctx.clone(), run_outputs)?;
+            let outputs = self.operator.output_rule(&mut self.state, &run_outputs)?;
 
             // Send to Links
             for (id, output) in outputs {

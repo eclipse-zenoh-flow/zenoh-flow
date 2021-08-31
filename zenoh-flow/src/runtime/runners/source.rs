@@ -15,14 +15,14 @@
 use crate::async_std::sync::Arc;
 use crate::runtime::graph::link::ZFLinkSender;
 use crate::runtime::message::ZFMessage;
-use crate::types::{ZFContext, ZFResult};
+use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
-use crate::SourceTrait;
+use crate::{ZFSourceTrait, ZFStateTrait};
 use libloading::Library;
 use std::collections::HashMap;
 
 pub type ZFSourceRegisterFn =
-    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn SourceTrait + Send>>;
+    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn ZFSourceTrait + Send>>;
 
 pub struct ZFSourceDeclaration {
     pub rustc_version: &'static str,
@@ -32,20 +32,22 @@ pub struct ZFSourceDeclaration {
 
 pub struct ZFSourceRunner {
     pub hlc: PeriodicHLC,
-    pub operator: Box<dyn SourceTrait + Send>,
+    pub source: Box<dyn ZFSourceTrait + Send>,
     pub lib: Option<Library>,
     pub outputs: HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
+    pub state: Box<dyn ZFStateTrait>,
 }
 
 impl ZFSourceRunner {
     pub fn new(
         hlc: PeriodicHLC,
-        operator: Box<dyn SourceTrait + Send>,
+        source: Box<dyn ZFSourceTrait + Send>,
         lib: Option<Library>,
     ) -> Self {
         Self {
+            state: source.initial_state(),
             hlc,
-            operator,
+            source,
             lib,
             outputs: HashMap::new(),
         }
@@ -61,18 +63,12 @@ impl ZFSourceRunner {
     }
 
     pub async fn run(&mut self) -> ZFResult<()> {
-        // WIP empty context
-        let ctx = ZFContext::new(self.operator.get_state(), 0);
-
         loop {
             // Running
-            let run_fn = self.operator.get_run(ctx.clone());
-            let run_outputs = run_fn(ctx.clone()).await?;
+            let run_outputs = self.source.run(&mut self.state).await?;
 
             // Output
-            let out_fn = self.operator.get_output_rule(ctx.clone());
-
-            let mut outputs = out_fn(ctx.clone(), run_outputs)?;
+            let mut outputs = self.source.output_rule(&mut self.state, &run_outputs)?;
             log::debug!("Outputs: {:?}", self.outputs);
 
             let timestamp = self.hlc.new_timestamp();
