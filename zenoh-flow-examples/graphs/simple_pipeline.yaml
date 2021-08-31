@@ -29,8 +29,8 @@ links:
 
 mapping:
   - id: SumOperator
-    runtime: MacBook
+    runtime: runtime0
   - id: Counter
-    runtime: MacBook2
+    runtime: runtime1
   - id: PrintSink
-    runtime: MacBook
+    runtime: runtime0

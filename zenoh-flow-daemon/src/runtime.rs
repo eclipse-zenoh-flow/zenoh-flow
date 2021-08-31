@@ -468,6 +468,8 @@ impl ZFRuntime for Runtime {
                     rt_status.running_sources += 1;
                 }
 
+                rt_status.running_flows += 1;
+
                 self.store
                     .add_runtime_status(self.runtime_uuid, rt_status)
                     .await?;
@@ -550,6 +552,8 @@ impl ZFRuntime for Runtime {
                 for i in to_be_removed.iter() {
                     instance.1.remove(*i);
                 }
+
+                rt_status.running_flows -= 1;
 
                 self.store
                     .add_runtime_status(self.runtime_uuid, rt_status)
