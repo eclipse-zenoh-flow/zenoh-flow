@@ -15,10 +15,11 @@
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::runtime::message::ZFDataMessage;
+use zenoh_flow::ZFDataTrait;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
     zf_empty_state, Token, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule,
-    ZFComponentState, ZFDataTrait, ZFOperatorTrait, ZFStateTrait,
+    ZFComponentState, ZFOperatorTrait, ZFStateTrait,
 };
 use zenoh_flow_examples::{ZFString, ZFUsize};
 

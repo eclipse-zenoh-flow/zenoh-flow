@@ -36,7 +36,7 @@ operators:
     configuration:
       buzzword: BUZZ-2
 
- 3 - id: BuzzOperator3
+  - id: BuzzOperator3
     uri: file://./target/debug/examples/libexample_buzz.dylib
     inputs:
       - id: Int

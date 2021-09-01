@@ -1,11 +1,19 @@
 use async_std::sync::Mutex;
 use std::cell::RefCell;
+use std::convert::TryInto;
 use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::zenoh_flow_derive::{ZFData, ZFState};
+use zenoh_flow::{ZFDataTrait, ZFDeserializable, ZFError, ZFResult};
 // We may want to provide some "built-in" types
 
-#[derive(Debug, Clone, Serialize, Deserialize, ZFData)]
+#[derive(Debug, Clone, ZFData)]
 pub struct ZFString(pub String);
+
+impl ZFDataTrait for ZFString {
+    fn try_serialize(&self) -> zenoh_flow::ZFResult<Vec<u8>> {
+        Ok(self.0.as_bytes().to_vec())
+    }
+}
 
 impl From<String> for ZFString {
     fn from(s: String) -> Self {
@@ -19,8 +27,36 @@ impl From<&str> for ZFString {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ZFData)]
+impl ZFDeserializable<&[u8]> for ZFString {
+    fn try_deserialize(value: &[u8]) -> ZFResult<ZFString>
+    where
+        Self: Sized,
+    {
+        Ok(ZFString(
+            String::from_utf8(value.to_vec()).map_err(|_| ZFError::DeseralizationError)?,
+        ))
+    }
+}
+
+#[derive(Debug, Clone, ZFData)]
 pub struct ZFUsize(pub usize);
+
+impl ZFDataTrait for ZFUsize {
+    fn try_serialize(&self) -> ZFResult<Vec<u8>> {
+        Ok(self.0.to_ne_bytes().to_vec())
+    }
+}
+
+impl ZFDeserializable<&[u8]> for ZFUsize {
+    fn try_deserialize(value: &[u8]) -> ZFResult<Self>
+    where
+        Self: Sized,
+    {
+        let value =
+            usize::from_ne_bytes(value.try_into().map_err(|_| ZFError::DeseralizationError)?);
+        Ok(ZFUsize(value))
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, ZFState)]
 pub struct ZFEmptyState;
