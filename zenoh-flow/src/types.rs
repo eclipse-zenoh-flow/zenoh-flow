@@ -303,9 +303,9 @@ pub fn default_output_rule(
 
 pub fn default_input_rule(
     _state: &mut Box<dyn ZFStateTrait>,
-    inputs: &mut HashMap<String, Token>,
+    tokens: &mut HashMap<String, Token>,
 ) -> ZFResult<bool> {
-    for token in inputs.values() {
+    for token in tokens.values() {
         match token {
             Token::Ready(_) => continue,
             Token::NotReady => return Ok(false),

@@ -20,10 +20,19 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-#[typetag::serde(tag = "zf_data_type", content = "value")]
-pub trait ZFDataTrait: Debug + Send + Sync {
+pub trait ZFDowncastAny {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;
+}
+
+pub trait ZFDataTrait: ZFDowncastAny + Debug + Send + Sync {
+    fn try_serialize(&self) -> ZFResult<Vec<u8>>;
+}
+
+pub trait ZFDeserializable<T> {
+    fn try_deserialize(value: T) -> ZFResult<Self>
+    where
+        Self: Sized;
 }
 
 // TODO Create a Derive macro for this
