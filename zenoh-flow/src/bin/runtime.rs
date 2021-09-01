@@ -52,7 +52,8 @@ async fn main() {
         .unwrap();
 
     // creating record
-    let dfr = zenoh_flow::model::dataflow::DataFlowRecord::try_from(mapped).unwrap();
+    let dfr =
+        zenoh_flow::model::dataflow::DataFlowRecord::try_from((mapped, uuid::Uuid::nil())).unwrap();
 
     _write_record_to_file(dfr.clone(), "computed-record.yaml");
 

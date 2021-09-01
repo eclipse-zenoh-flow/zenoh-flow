@@ -24,6 +24,7 @@ extern crate exitfailure;
 use git_version::git_version;
 use prettytable::Table;
 use rand::seq::SliceRandom;
+use std::collections::HashSet;
 use std::fs::read_to_string;
 use structopt::StructOpt;
 use uuid::Uuid;
@@ -132,7 +133,81 @@ async fn main() {
                 println!("This is going to get information for the flow {:?}", id);
             }
             GetKind::Instance { id } => {
-                println!("This is going to get information for the instance {:?}", id);
+                log::debug!("This is going to get information for the instance {:?}", id);
+                let mut table = Table::new();
+                match id {
+                    Some(rid) => {
+                        let instance = store.get_flow_by_instance(rid).await.unwrap();
+                        table.add_row(row![
+                            "UUID",
+                            "Flow",
+                            "Operators",
+                            "Sinks",
+                            "Sources",
+                            "Connectors",
+                            "Links",
+                        ]);
+                        table.add_row(row![
+                            instance.uuid,
+                            instance.flow,
+                            instance
+                                .operators
+                                .iter()
+                                .map(|o| format!("{}", o))
+                                .collect::<Vec<String>>()
+                                .join("\n"),
+                            instance
+                                .sinks
+                                .iter()
+                                .map(|o| format!("{}", o))
+                                .collect::<Vec<String>>()
+                                .join("\n"),
+                            instance
+                                .sources
+                                .iter()
+                                .map(|o| format!("{}", o))
+                                .collect::<Vec<String>>()
+                                .join("\n"),
+                            instance
+                                .connectors
+                                .iter()
+                                .map(|o| format!("{}", o))
+                                .collect::<Vec<String>>()
+                                .join("\n"),
+                            instance
+                                .links
+                                .iter()
+                                .map(|o| format!("{}", o))
+                                .collect::<Vec<String>>()
+                                .join("\n")
+                        ]);
+                    }
+                    None => {
+                        let instances = store.get_all_instances().await.unwrap();
+                        table.add_row(row![
+                            "UUID",
+                            "Flow",
+                            "# Operators",
+                            "# Sinks",
+                            "# Sources",
+                            "# Connectors",
+                            "# Links",
+                        ]);
+                        let instances: HashSet<_> = instances.iter().collect();
+                        for instance in instances {
+                            table.add_row(row![
+                                instance.uuid,
+                                instance.flow,
+                                instance.operators.len(),
+                                instance.sinks.len(),
+                                instance.sources.len(),
+                                instance.connectors.len(),
+                                instance.links.len(),
+                            ]);
+                        }
+                    }
+                }
+                table.printstd();
             }
             GetKind::Runtime { id } => {
                 let mut table = Table::new();

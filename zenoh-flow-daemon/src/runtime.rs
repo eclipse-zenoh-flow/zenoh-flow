@@ -353,9 +353,7 @@ impl ZFRuntime for Runtime {
             record_id
         );
 
-        let mut dfr = DataFlowRecord::try_from(flow)?;
-
-        dfr.uuid = record_id;
+        let mut dfr = DataFlowRecord::try_from((flow, record_id))?;
 
         let mut dataflow_graph = DataFlowGraph::try_from(dfr.clone())?;
 

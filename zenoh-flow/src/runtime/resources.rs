@@ -547,6 +547,28 @@ impl ZFDataStore {
         Ok(instances)
     }
 
+    pub async fn get_all_instances(&self) -> ZFResult<Vec<DataFlowRecord>> {
+        let selector = zenoh::Selector::try_from(FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, "*"))?;
+        let ws = self.z.workspace(None).await?;
+        let mut ds = ws.get(&selector).await?;
+
+        // Not sure this is needed...
+        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let mut instances = Vec::new();
+
+        for kv in data {
+            match &kv.value {
+                zenoh::Value::Raw(_, buf) => {
+                    let ni = deserialize_data::<DataFlowRecord>(&buf.to_vec())?;
+                    instances.push(ni);
+                }
+                _ => return Err(ZFError::DeseralizationError),
+            }
+        }
+
+        Ok(instances)
+    }
+
     pub async fn get_flow_instance_runtimes(&self, iid: Uuid) -> ZFResult<Vec<Uuid>> {
         let selector =
             zenoh::Selector::try_from(RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid))?;
