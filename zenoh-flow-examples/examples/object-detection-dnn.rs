@@ -19,14 +19,13 @@ use std::{
     io::{prelude::*, BufReader},
     path::Path,
 };
-use zenoh_flow::ZFComponentOutput;
+use zenoh_flow::{
+    default_input_rule, default_output_rule, ZFComponentInputRule, ZFComponentOutput,
+    ZFComponentOutputRule, ZFComponentState, ZFDataTrait, ZFOperatorTrait,
+};
 use zenoh_flow::{
     downcast, get_input,
-    serde::{Deserialize, Serialize},
-    types::{
-        DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleOutput, OperatorTrait,
-        OutputRuleOutput, RunOutput, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFResult,
-    },
+    types::{Token, ZFResult},
     zenoh_flow_derive::ZFState,
     zf_data, zf_spin_lock,
 };
@@ -41,21 +40,14 @@ static INPUT: &str = "Frame";
 static OUTPUT: &str = "Frame";
 
 #[derive(Debug)]
-struct ObjDetection {
-    pub state: FDState,
-}
-#[derive(Clone)]
-struct FDInnerState {
+struct ObjDetection;
+
+#[derive(ZFState, Clone)]
+struct ODState {
     pub dnn: Arc<Mutex<opencv::dnn::Net>>,
     pub classes: Arc<Mutex<Vec<String>>>,
     pub encode_options: Arc<Mutex<opencv::types::VectorOfi32>>,
     pub outputs: Arc<Mutex<opencv::core::Vector<String>>>,
-}
-
-#[derive(Serialize, Deserialize, ZFState, Clone)]
-struct FDState {
-    #[serde(skip_serializing, skip_deserializing)]
-    pub inner: Option<FDInnerState>,
 }
 
 fn lines_from_file(filename: impl AsRef<Path>) -> Vec<String> {
@@ -67,29 +59,20 @@ fn lines_from_file(filename: impl AsRef<Path>) -> Vec<String> {
 }
 
 // because of opencv
-impl std::fmt::Debug for FDState {
+impl std::fmt::Debug for ODState {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "FDState:...",)
     }
 }
 
-impl ObjDetection {
-    fn init(configuration: HashMap<String, String>) -> ZFResult<Self> {
-        let net_cfg = match configuration.get("neural-network") {
-            Some(net) => net,
-            None => return Err(ZFError::MissingConfiguration),
-        };
+impl ODState {
+    fn new(configuration: &Option<HashMap<String, String>>) -> Self {
+        // Configuration is mandatory.
+        let configuration = configuration.as_ref().unwrap();
 
-        let net_weights = match configuration.get("network-weights") {
-            Some(weights) => weights,
-            None => return Err(ZFError::MissingConfiguration),
-        };
-
-        let net_classes = match configuration.get("network-classes") {
-            Some(classes) => classes,
-            None => return Err(ZFError::MissingConfiguration),
-        };
-
+        let net_cfg = configuration.get("neural-network").unwrap();
+        let net_weights = configuration.get("network-weights").unwrap();
+        let net_classes = configuration.get("network-classes").unwrap();
         let classes = lines_from_file(net_classes);
 
         let mut net = opencv::dnn::read_net_from_darknet(net_cfg, net_weights).unwrap();
@@ -102,45 +85,63 @@ impl ObjDetection {
 
         let output_names = net.get_unconnected_out_layers_names().unwrap();
 
-        let inner = Some(FDInnerState {
+        Self {
             dnn: Arc::new(Mutex::new(net)),
             classes: Arc::new(Mutex::new(classes)),
             encode_options: Arc::new(Mutex::new(encode_options)),
             outputs: Arc::new(Mutex::new(output_names)),
-        });
-        let state = FDState { inner };
-
-        Ok(Self { state })
-    }
-
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
-        if let Some(token) = inputs.get(INPUT) {
-            match token {
-                Token::Ready(_) => Ok(true),
-                Token::NotReady => Ok(false),
-            }
-        } else {
-            Err(ZFError::MissingInput(String::from(INPUT)))
         }
     }
+}
 
-    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunOutput {
+impl ZFComponentState for ObjDetection {
+    fn initial_state(
+        &self,
+        configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+        Box::new(ODState::new(configuration))
+    }
+}
+
+impl ZFComponentInputRule for ObjDetection {
+    fn input_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        tokens: &mut HashMap<String, Token>,
+    ) -> ZFResult<bool> {
+        default_input_rule(state, tokens)
+    }
+}
+
+impl ZFComponentOutputRule for ObjDetection {
+    fn output_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        outputs: &HashMap<String, Arc<dyn zenoh_flow::ZFDataTrait>>,
+    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, ZFComponentOutput>> {
+        default_output_rule(state, outputs)
+    }
+}
+
+impl ZFOperatorTrait for ObjDetection {
+    fn run(
+        &self,
+        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
+    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
         let scale = 1.0 / 255.0;
         let mean = core::Scalar::new(0f64, 0f64, 0f64, 0f64);
 
-        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
+        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::with_capacity(1);
 
         let mut detections: opencv::types::VectorOfMat = core::Vector::new();
 
-        let guard = ctx.lock(); //getting state
-        let _state = downcast!(FDState, guard.state).unwrap(); //downcasting to right type
+        let state = downcast!(ODState, dyn_state).unwrap();
 
-        let inner = _state.inner.as_ref().unwrap();
-
-        let mut net = zf_spin_lock!(inner.dnn);
-        let encode_options = zf_spin_lock!(inner.encode_options);
-        let classes = zf_spin_lock!(inner.classes);
-        let outputs = zf_spin_lock!(inner.outputs);
+        let mut net = zf_spin_lock!(state.dnn);
+        let encode_options = zf_spin_lock!(state.encode_options);
+        let classes = zf_spin_lock!(state.classes);
+        let outputs = zf_spin_lock!(state.outputs);
 
         let mut boxes: Vec<core::Vector<core::Rect>> = vec![core::Vector::new(); classes.len()];
         let mut scores: Vec<core::Vector<f32>> = vec![core::Vector::new(); classes.len()];
@@ -157,7 +158,7 @@ impl ObjDetection {
 
         // Decode Image
         let mut frame = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(data.bytes),
+            &opencv::types::VectorOfu8::from_iter(data.0),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
@@ -311,53 +312,14 @@ impl ObjDetection {
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
-        let data = ZFBytes {
-            bytes: buf.to_vec(),
-        };
+        results.insert(String::from(OUTPUT), zf_data!(ZFBytes(buf.into())));
 
-        results.insert(String::from(OUTPUT), zf_data!(data));
-
-        Ok(results)
-    }
-
-    pub fn or_1(_ctx: ZFContext, outputs: HashMap<String, Arc<dyn DataTrait>>) -> OutputRuleOutput {
-        let mut results = HashMap::new();
-        for (k, v) in outputs {
-            results.insert(k, ZFComponentOutput::Data(v));
-        }
         Ok(results)
     }
 }
 
-impl OperatorTrait for ObjDetection {
-    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
-        Box::new(Self::ir_1)
-    }
-
-    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
-        Box::new(Self::or_1)
-    }
-
-    fn get_run(&self, _ctx: ZFContext) -> Box<FnRun> {
-        Box::new(Self::run_1)
-    }
-
-    fn get_state(&self) -> Box<dyn StateTrait> {
-        Box::new(self.state.clone())
-    }
-}
-
-// //Also generated by macro
 zenoh_flow::export_operator!(register);
 
-fn register(
-    configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
-    match configuration {
-        Some(config) => {
-            Ok(Box::new(ObjDetection::init(config)?) as Box<dyn zenoh_flow::OperatorTrait + Send>)
-        }
-        None => Ok(Box::new(ObjDetection::init(HashMap::new())?)
-            as Box<dyn zenoh_flow::OperatorTrait + Send>),
-    }
+fn register() -> ZFResult<Box<dyn zenoh_flow::ZFOperatorTrait + Send>> {
+    Ok(Box::new(ObjDetection) as Box<dyn zenoh_flow::ZFOperatorTrait + Send>)
 }
