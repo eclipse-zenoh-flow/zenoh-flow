@@ -27,13 +27,13 @@ impl From<&str> for ZFString {
     }
 }
 
-impl ZFDeserializable<&[u8]> for ZFString {
-    fn try_deserialize(value: &[u8]) -> ZFResult<ZFString>
+impl ZFDeserializable for ZFString {
+    fn try_deserialize(bytes: &[u8]) -> ZFResult<ZFString>
     where
         Self: Sized,
     {
         Ok(ZFString(
-            String::from_utf8(value.to_vec()).map_err(|_| ZFError::DeseralizationError)?,
+            String::from_utf8(bytes.to_vec()).map_err(|_| ZFError::DeseralizationError)?,
         ))
     }
 }
@@ -47,13 +47,13 @@ impl ZFDataTrait for ZFUsize {
     }
 }
 
-impl ZFDeserializable<&[u8]> for ZFUsize {
-    fn try_deserialize(value: &[u8]) -> ZFResult<Self>
+impl ZFDeserializable for ZFUsize {
+    fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
     where
         Self: Sized,
     {
         let value =
-            usize::from_ne_bytes(value.try_into().map_err(|_| ZFError::DeseralizationError)?);
+            usize::from_ne_bytes(bytes.try_into().map_err(|_| ZFError::DeseralizationError)?);
         Ok(ZFUsize(value))
     }
 }

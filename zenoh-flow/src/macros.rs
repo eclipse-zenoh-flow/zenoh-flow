@@ -127,10 +127,8 @@ macro_rules! get_input {
                 }
                 zenoh_flow::runtime::message::ZFSerDeData::Serialized(ser) => {
                     let de: Arc<dyn zenoh_flow::ZFDataTrait> = Arc::new(
-                        <$ident as zenoh_flow::ZFDeserializable<&[u8]>>::try_deserialize(
-                            ser.as_slice(),
-                        )
-                        .map_err(|_| zenoh_flow::types::ZFError::DeseralizationError)?,
+                        <$ident as zenoh_flow::ZFDeserializable>::try_deserialize(ser.as_slice())
+                            .map_err(|_| zenoh_flow::types::ZFError::DeseralizationError)?,
                     );
 
                     (*data_message).data =
