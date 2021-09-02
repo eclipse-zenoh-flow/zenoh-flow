@@ -61,9 +61,22 @@ impl ZFDeserializable for ZFUsize {
 #[derive(Debug, Clone, ZFState)]
 pub struct ZFEmptyState;
 
-#[derive(Serialize, Deserialize, Debug, Clone, ZFData)]
-pub struct ZFBytes {
-    pub bytes: Vec<u8>,
+#[derive(Debug, Clone, ZFData)]
+pub struct ZFBytes(pub Vec<u8>);
+
+impl ZFDataTrait for ZFBytes {
+    fn try_serialize(&self) -> ZFResult<Vec<u8>> {
+        Ok(self.0.clone())
+    }
+}
+
+impl ZFDeserializable for ZFBytes {
+    fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
+    where
+        Self: Sized,
+    {
+        Ok(ZFBytes(bytes.into()))
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, ZFData)]
