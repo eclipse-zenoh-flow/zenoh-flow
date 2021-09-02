@@ -13,6 +13,7 @@
 //
 
 use crate::{
+    model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord},
     runtime::runners::{
         operator::{ZFOperatorDeclaration, ZFOperatorRunner},
         sink::{ZFSinkDeclaration, ZFSinkRunner},
@@ -23,7 +24,6 @@ use crate::{
 };
 use async_std::sync::Arc;
 use libloading::Library;
-use std::collections::HashMap;
 use uhlc::HLC;
 use url::Url;
 
@@ -36,14 +36,14 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 ///
 /// TODO remove all copy-pasted code, make macros/functions instead
 pub fn load_operator(
+    record: ZFOperatorRecord,
     hlc: Arc<HLC>,
     path: String,
-    configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFOperatorRunner> {
     let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_operator(hlc, make_file_path(uri), configuration) },
+        "file" => unsafe { load_lib_operator(record, hlc, make_file_path(uri)) },
         _ => Err(ZFError::Unimplemented),
     }
 }
@@ -56,9 +56,9 @@ pub fn load_operator(
 /// - it will panick if the symbol `zfoperator_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
 pub unsafe fn load_lib_operator(
+    record: ZFOperatorRecord,
     hlc: Arc<HLC>,
     path: String,
-    configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFOperatorRunner> {
     log::debug!("Operator Loading {}", path);
 
@@ -72,23 +72,23 @@ pub unsafe fn load_lib_operator(
         return Err(ZFError::VersionMismatch);
     }
 
-    let operator = (decl.register)(configuration)?;
+    let operator = (decl.register)()?;
 
-    let runner = ZFOperatorRunner::new(hlc, operator, Some(library));
+    let runner = ZFOperatorRunner::new(record, hlc, operator, Some(library));
     Ok(runner)
 }
 
 // SOURCE
 
 pub fn load_source(
+    record: ZFSourceRecord,
     hlc: PeriodicHLC,
     path: String,
-    configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFSourceRunner> {
     let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_source(hlc, make_file_path(uri), configuration) },
+        "file" => unsafe { load_lib_source(record, hlc, make_file_path(uri)) },
         _ => Err(ZFError::Unimplemented),
     }
 }
@@ -101,9 +101,9 @@ pub fn load_source(
 /// - it will panick if the symbol `zfsource_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
 pub unsafe fn load_lib_source(
+    record: ZFSourceRecord,
     hlc: PeriodicHLC,
     path: String,
-    configuration: Option<HashMap<String, String>>,
 ) -> ZFResult<ZFSourceRunner> {
     log::debug!("Source Loading {}", path);
     let library = Library::new(path)?;
@@ -116,22 +116,19 @@ pub unsafe fn load_lib_source(
         return Err(ZFError::VersionMismatch);
     }
 
-    let source = (decl.register)(configuration)?;
+    let source = (decl.register)()?;
 
-    let runner = ZFSourceRunner::new(hlc, source, Some(library));
+    let runner = ZFSourceRunner::new(record, hlc, source, Some(library));
     Ok(runner)
 }
 
 // SINK
 
-pub fn load_sink(
-    path: String,
-    configuration: Option<HashMap<String, String>>,
-) -> ZFResult<ZFSinkRunner> {
+pub fn load_sink(record: ZFSinkRecord, path: String) -> ZFResult<ZFSinkRunner> {
     let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_sink(make_file_path(uri), configuration) },
+        "file" => unsafe { load_lib_sink(record, make_file_path(uri)) },
         _ => Err(ZFError::Unimplemented),
     }
 }
@@ -143,10 +140,7 @@ pub fn load_sink(
 /// This function dynamically loads an external library, things can go wrong:
 /// - it will panick if the symbol `zfsink_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
-pub unsafe fn load_lib_sink(
-    path: String,
-    configuration: Option<HashMap<String, String>>,
-) -> ZFResult<ZFSinkRunner> {
+pub unsafe fn load_lib_sink(record: ZFSinkRecord, path: String) -> ZFResult<ZFSinkRunner> {
     log::debug!("Sink Loading {}", path);
     let library = Library::new(path)?;
 
@@ -159,9 +153,9 @@ pub unsafe fn load_lib_sink(
         return Err(ZFError::VersionMismatch);
     }
 
-    let sink = (decl.register)(configuration)?;
+    let sink = (decl.register)()?;
 
-    let runner = ZFSinkRunner::new(sink, Some(library));
+    let runner = ZFSinkRunner::new(record, sink, Some(library));
     Ok(runner)
 }
 

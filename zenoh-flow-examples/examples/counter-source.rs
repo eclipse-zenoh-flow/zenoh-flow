@@ -29,19 +29,6 @@ static COUNTER: AtomicUsize = AtomicUsize::new(0);
 #[derive(Debug, ZFState)]
 struct CountSource;
 
-impl CountSource {
-    fn new(configuration: Option<HashMap<String, String>>) -> Self {
-        match configuration {
-            Some(conf) => {
-                let initial = conf.get("initial").unwrap().parse::<usize>().unwrap();
-                COUNTER.store(initial, Ordering::SeqCst);
-                CountSource {}
-            }
-            None => CountSource {},
-        }
-    }
-}
-
 #[async_trait]
 impl ZFSourceTrait for CountSource {
     async fn run(
@@ -67,15 +54,21 @@ impl ZFComponentOutputRule for CountSource {
 }
 
 impl ZFComponentState for CountSource {
-    fn initial_state(&self) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    fn initial_state(
+        &self,
+        configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+        if let Some(conf) = configuration {
+            let initial = conf.get("initial").unwrap().parse::<usize>().unwrap();
+            COUNTER.store(initial, Ordering::SeqCst);
+        }
+
         zf_empty_state!()
     }
 }
 
 zenoh_flow::export_source!(register);
 
-fn register(
-    configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn ZFSourceTrait + Send>> {
-    Ok(Box::new(CountSource::new(configuration)) as Box<dyn ZFSourceTrait + Send>)
+fn register() -> ZFResult<Box<dyn ZFSourceTrait + Send>> {
+    Ok(Box::new(CountSource) as Box<dyn ZFSourceTrait + Send>)
 }

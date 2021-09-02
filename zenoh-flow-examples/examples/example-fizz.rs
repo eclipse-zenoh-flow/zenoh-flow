@@ -40,7 +40,10 @@ impl ZFComponentInputRule for FizzOperator {
 }
 
 impl ZFComponentState for FizzOperator {
-    fn initial_state(&self) -> Box<dyn ZFStateTrait> {
+    fn initial_state(
+        &self,
+        _configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn ZFStateTrait> {
         zf_empty_state!()
     }
 }
@@ -80,8 +83,6 @@ impl ZFComponentOutputRule for FizzOperator {
 
 export_operator!(register);
 
-fn register(
-    _configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn ZFOperatorTrait + Send>> {
+fn register() -> ZFResult<Box<dyn ZFOperatorTrait + Send>> {
     Ok(Box::new(FizzOperator) as Box<dyn ZFOperatorTrait + Send>)
 }

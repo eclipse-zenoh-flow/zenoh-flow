@@ -51,7 +51,10 @@ impl ZFSourceTrait for ManualSource {
 }
 
 impl ZFComponentState for ManualSource {
-    fn initial_state(&self) -> Box<dyn ZFStateTrait> {
+    fn initial_state(
+        &self,
+        _configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn ZFStateTrait> {
         zf_empty_state!()
     }
 }
@@ -68,8 +71,6 @@ impl ZFComponentOutputRule for ManualSource {
 
 zenoh_flow::export_source!(register);
 
-fn register(
-    _configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn ZFSourceTrait + Send>> {
-    Ok(Box::new(ManualSource {}) as Box<dyn ZFSourceTrait + Send>)
+fn register() -> ZFResult<Box<dyn ZFSourceTrait + Send>> {
+    Ok(Box::new(ManualSource) as Box<dyn ZFSourceTrait + Send>)
 }

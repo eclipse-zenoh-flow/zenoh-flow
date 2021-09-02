@@ -72,7 +72,10 @@ impl ZFComponentOutputRule for CountSource {
 }
 
 impl ZFComponentState for CountSource {
-    fn initial_state(&self) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    fn initial_state(
+        &self,
+        _configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
         zf_empty_state!()
     }
 }
@@ -106,7 +109,10 @@ impl ZFComponentInputRule for ExampleGenericSink {
 }
 
 impl ZFComponentState for ExampleGenericSink {
-    fn initial_state(&self) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    fn initial_state(
+        &self,
+        _configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
         zf_empty_state!()
     }
 }

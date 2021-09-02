@@ -13,6 +13,7 @@
 //
 
 use crate::async_std::sync::Arc;
+use crate::model::operator::ZFOperatorRecord;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
@@ -22,8 +23,7 @@ use libloading::Library;
 use std::collections::HashMap;
 use uhlc::HLC;
 
-pub type ZFOperatorRegisterFn =
-    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn ZFOperatorTrait + Send>>;
+pub type ZFOperatorRegisterFn = fn() -> ZFResult<Box<dyn ZFOperatorTrait + Send>>;
 
 pub struct ZFOperatorDeclaration {
     pub rustc_version: &'static str,
@@ -32,6 +32,7 @@ pub struct ZFOperatorDeclaration {
 }
 
 pub struct ZFOperatorRunner {
+    pub record: ZFOperatorRecord,
     pub hlc: Arc<HLC>,
     pub operator: Box<dyn ZFOperatorTrait + Send>,
     pub lib: Option<Library>,
@@ -42,12 +43,14 @@ pub struct ZFOperatorRunner {
 
 impl ZFOperatorRunner {
     pub fn new(
+        record: ZFOperatorRecord,
         hlc: Arc<HLC>,
         operator: Box<dyn ZFOperatorTrait + Send>,
         lib: Option<Library>,
     ) -> Self {
         Self {
-            state: operator.initial_state(),
+            state: operator.initial_state(&record.configuration),
+            record,
             hlc,
             operator,
             lib,

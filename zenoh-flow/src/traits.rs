@@ -43,7 +43,10 @@ pub trait ZFStateTrait: Debug + Send + Sync {
 }
 
 pub trait ZFComponentState {
-    fn initial_state(&self) -> Box<dyn ZFStateTrait>;
+    fn initial_state(
+        &self,
+        configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn ZFStateTrait>;
 }
 
 pub trait ZFComponentInputRule {
