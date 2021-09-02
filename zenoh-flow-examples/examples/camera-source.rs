@@ -13,36 +13,22 @@
 //
 
 use async_std::sync::{Arc, Mutex};
+use async_trait::async_trait;
 use opencv::{core, prelude::*, videoio};
 use std::collections::HashMap;
 use zenoh_flow::{
-    downcast_mut,
-    serde::{Deserialize, Serialize},
-    types::{
-        DataTrait, FnOutputRule, FnSourceRun, FutRunOutput, RunOutput, SourceTrait, StateTrait,
-        ZFContext, ZFResult,
-    },
-    zenoh_flow_derive::ZFState,
-    zf_data, zf_spin_lock,
+    default_output_rule, downcast_mut, types::ZFResult, zenoh_flow_derive::ZFState, zf_data,
+    zf_spin_lock, ZFComponentOutputRule, ZFComponentState, ZFDataTrait, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
 #[derive(Debug)]
-struct CameraSource {
-    pub state: CameraState,
-}
+struct CameraSource;
 
-#[derive(Clone)]
-struct InnerCameraAccess {
+#[derive(ZFState, Clone)]
+struct CameraState {
     pub camera: Arc<Mutex<videoio::VideoCapture>>,
     pub encode_options: Arc<Mutex<opencv::types::VectorOfi32>>,
-}
-
-#[derive(Serialize, Deserialize, ZFState, Clone)]
-struct CameraState {
-    #[serde(skip_serializing, skip_deserializing)]
-    pub inner: Option<InnerCameraAccess>,
-
     pub resolution: (i32, i32),
     pub delay: u64,
 }
@@ -60,129 +46,120 @@ impl std::fmt::Debug for CameraState {
 
 static SOURCE: &str = "Frame";
 
-impl CameraSource {
-    fn new(configuration: HashMap<String, String>) -> Self {
-        let configured_resolution = match configuration.get("resolution") {
-            Some(res) => {
-                let v = res.split('x').collect::<Vec<&str>>();
-                (v[0].parse::<i32>().unwrap(), v[1].parse::<i32>().unwrap())
+impl CameraState {
+    fn new(configuration: &Option<HashMap<String, String>>) -> Self {
+        let (camera, resolution, delay) = match configuration {
+            Some(configuration) => {
+                let camera = match configuration.get("camera") {
+                    Some(configured_camera) => {
+                        videoio::VideoCapture::from_file(configured_camera, videoio::CAP_ANY)
+                            .unwrap()
+                    }
+                    None => videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap(),
+                };
+
+                let configured_resolution = match configuration.get("resolution") {
+                    Some(res) => {
+                        let v = res.split('x').collect::<Vec<&str>>();
+                        (v[0].parse::<i32>().unwrap(), v[1].parse::<i32>().unwrap())
+                    }
+                    None => (800, 600),
+                };
+
+                let delay = match configuration.get("fps") {
+                    Some(fps) => {
+                        let fps = fps.parse::<f64>().unwrap();
+                        let delay: f64 = 1f64 / fps;
+                        (delay * 1000f64) as u64
+                    }
+                    None => 40,
+                };
+
+                (camera, configured_resolution, delay)
             }
-            None => (800, 600),
+
+            None => (
+                (videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap()),
+                (800, 600),
+                40,
+            ),
         };
 
-        let delay = match configuration.get("fps") {
-            Some(fps) => {
-                let fps = fps.parse::<f64>().unwrap();
-                let delay: f64 = 1f64 / fps;
-                (delay * 1000f64) as u64
-            }
-            None => 40,
-        };
-        let camera = match configuration.get("camera") {
-            Some(configured_camera) => {
-                videoio::VideoCapture::from_file(configured_camera, videoio::CAP_ANY).unwrap()
-            }
-            None => videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap(),
-        };
         let opened = videoio::VideoCapture::is_opened(&camera).unwrap();
         if !opened {
             panic!("Unable to open default camera!");
         }
         let encode_options = opencv::types::VectorOfi32::new();
-        let inner = InnerCameraAccess {
+
+        Self {
             camera: Arc::new(Mutex::new(camera)),
             encode_options: Arc::new(Mutex::new(encode_options)),
-        };
-
-        let state = CameraState {
-            inner: Some(inner),
-            resolution: configured_resolution,
+            resolution,
             delay,
-        };
-
-        Self { state }
-    }
-
-    async fn run_1(ctx: ZFContext) -> RunOutput {
-        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
-
-        let mut guard = ctx.async_lock().await;
-        let mut _state = downcast_mut!(CameraState, guard.state).unwrap(); //downcasting to right type
-
-        let inner = _state.inner.as_ref().unwrap();
-        {
-            // just to force rust understand that the not sync variables are dropped before the sleep
-            let mut cam = zf_spin_lock!(inner.camera);
-            let encode_options = zf_spin_lock!(inner.encode_options);
-
-            let mut frame = core::Mat::default();
-            cam.read(&mut frame).unwrap();
-
-            let mut reduced = Mat::default();
-            opencv::imgproc::resize(
-                &frame,
-                &mut reduced,
-                opencv::core::Size::new(_state.resolution.0, _state.resolution.0),
-                0.0,
-                0.0,
-                opencv::imgproc::INTER_LINEAR,
-            )
-            .unwrap();
-
-            let mut buf = opencv::types::VectorOfu8::new();
-            opencv::imgcodecs::imencode(".jpg", &reduced, &mut buf, &encode_options).unwrap();
-
-            // let data = ZFOpenCVBytes {bytes: Mutex::new(RefCell::new(buf))};
-
-            let data = ZFBytes {
-                bytes: buf.to_vec(),
-            };
-
-            results.insert(String::from(SOURCE), zf_data!(data));
-
-            drop(cam);
-            drop(encode_options);
-            drop(frame);
-            drop(reduced);
         }
+    }
+}
 
-        async_std::task::sleep(std::time::Duration::from_millis(_state.delay)).await;
+impl ZFComponentState for CameraSource {
+    fn initial_state(
+        &self,
+        configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+        Box::new(CameraState::new(configuration))
+    }
+}
+
+impl ZFComponentOutputRule for CameraSource {
+    fn output_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
+    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        default_output_rule(state, outputs)
+    }
+}
+
+#[async_trait]
+impl ZFSourceTrait for CameraSource {
+    async fn run(
+        &self,
+        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn ZFDataTrait>>> {
+        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::with_capacity(1);
+
+        let state = downcast_mut!(CameraState, dyn_state).unwrap();
+
+        let mut cam = zf_spin_lock!(state.camera);
+        let encode_options = zf_spin_lock!(state.encode_options);
+
+        let mut frame = core::Mat::default();
+        cam.read(&mut frame).unwrap();
+
+        let mut reduced = Mat::default();
+        opencv::imgproc::resize(
+            &frame,
+            &mut reduced,
+            opencv::core::Size::new(state.resolution.0, state.resolution.0),
+            0.0,
+            0.0,
+            opencv::imgproc::INTER_LINEAR,
+        )
+        .unwrap();
+
+        let mut buf = opencv::types::VectorOfu8::new();
+        opencv::imgcodecs::imencode(".jpg", &reduced, &mut buf, &encode_options).unwrap();
+
+        results.insert(String::from(SOURCE), zf_data!(ZFBytes(buf.into())));
+
+        async_std::task::sleep(std::time::Duration::from_millis(state.delay)).await;
 
         Ok(results)
     }
 }
 
-impl SourceTrait for CameraSource {
-    fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
-        let gctx = ctx.lock();
-        match gctx.mode {
-            0 => Box::new(|ctx: ZFContext| -> FutRunOutput { Box::pin(Self::run_1(ctx)) }),
-            _ => panic!("No way"),
-        }
-    }
-
-    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
-        Box::new(zenoh_flow::default_output_rule)
-    }
-
-    fn get_state(&self) -> Box<dyn StateTrait> {
-        Box::new(self.state.clone())
-    }
-}
-
-// //Also generated by macro
+// Also generated by macro
 zenoh_flow::export_source!(register);
 
-fn register(
-    configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::SourceTrait + Send>> {
-    match configuration {
-        Some(config) => {
-            Ok(Box::new(CameraSource::new(config)) as Box<dyn zenoh_flow::SourceTrait + Send>)
-        }
-        None => {
-            Ok(Box::new(CameraSource::new(HashMap::new()))
-                as Box<dyn zenoh_flow::SourceTrait + Send>)
-        }
-    }
+fn register() -> ZFResult<Box<dyn ZFSourceTrait + Send>> {
+    Ok(Box::new(CameraSource) as Box<dyn ZFSourceTrait + Send>)
 }

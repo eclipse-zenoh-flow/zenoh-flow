@@ -40,7 +40,10 @@ impl ZFSinkTrait for GenericSink {
 }
 
 impl ZFComponentState for GenericSink {
-    fn initial_state(&self) -> Box<dyn ZFStateTrait> {
+    fn initial_state(
+        &self,
+        _configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn ZFStateTrait> {
         zf_empty_state!()
     }
 }
@@ -57,8 +60,6 @@ impl ZFComponentInputRule for GenericSink {
 
 export_sink!(register);
 
-fn register(
-    _configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn ZFSinkTrait + Send>> {
-    Ok(Box::new(GenericSink {}) as Box<dyn ZFSinkTrait + Send>)
+fn register() -> ZFResult<Box<dyn ZFSinkTrait + Send>> {
+    Ok(Box::new(GenericSink) as Box<dyn ZFSinkTrait + Send>)
 }

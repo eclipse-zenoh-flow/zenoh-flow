@@ -12,6 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::model::operator::ZFSinkRecord;
 use crate::runtime::graph::link::ZFLinkReceiver;
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
@@ -20,8 +21,7 @@ use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 
-pub type ZFSinkRegisterFn =
-    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn ZFSinkTrait + Send>>;
+pub type ZFSinkRegisterFn = fn() -> ZFResult<Box<dyn ZFSinkTrait + Send>>;
 
 pub struct ZFSinkDeclaration {
     pub rustc_version: &'static str,
@@ -30,6 +30,7 @@ pub struct ZFSinkDeclaration {
 }
 
 pub struct ZFSinkRunner {
+    pub record: ZFSinkRecord,
     pub sink: Box<dyn ZFSinkTrait + Send>,
     pub lib: Option<Library>,
     pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
@@ -37,9 +38,14 @@ pub struct ZFSinkRunner {
 }
 
 impl ZFSinkRunner {
-    pub fn new(sink: Box<dyn ZFSinkTrait + Send>, lib: Option<Library>) -> Self {
+    pub fn new(
+        record: ZFSinkRecord,
+        sink: Box<dyn ZFSinkTrait + Send>,
+        lib: Option<Library>,
+    ) -> Self {
         Self {
-            state: sink.initial_state(),
+            state: sink.initial_state(&record.configuration),
+            record,
             sink,
             lib,
             inputs: vec![],

@@ -209,7 +209,7 @@ impl DataFlowGraph {
         operator: Box<dyn ZFOperatorTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let descriptor = ZFOperatorRecord {
+        let record = ZFOperatorRecord {
             id: id.clone(),
             inputs,
             outputs,
@@ -218,11 +218,10 @@ impl DataFlowGraph {
             runtime: String::from("self"),
         };
         self.operators.push((
-            self.graph
-                .add_node(DataFlowNode::Operator(descriptor.clone())),
-            DataFlowNode::Operator(descriptor),
+            self.graph.add_node(DataFlowNode::Operator(record.clone())),
+            DataFlowNode::Operator(record.clone()),
         ));
-        let runner = RunnerInner::Operator(ZFOperatorRunner::new(hlc, operator, None));
+        let runner = RunnerInner::Operator(ZFOperatorRunner::new(record, hlc, operator, None));
         self.operators_runners
             .insert(id, (Runner::new(runner), DataFlowNodeKind::Operator));
         Ok(())
@@ -236,7 +235,7 @@ impl DataFlowGraph {
         source: Box<dyn ZFSourceTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let descriptor = ZFSourceRecord {
+        let record = ZFSourceRecord {
             id: id.clone(),
             output,
             period: None,
@@ -245,12 +244,12 @@ impl DataFlowGraph {
             runtime: String::from("self"),
         };
         self.operators.push((
-            self.graph
-                .add_node(DataFlowNode::Source(descriptor.clone())),
-            DataFlowNode::Source(descriptor),
+            self.graph.add_node(DataFlowNode::Source(record.clone())),
+            DataFlowNode::Source(record.clone()),
         ));
         let non_periodic_hlc = PeriodicHLC::new(hlc, None);
-        let runner = RunnerInner::Source(ZFSourceRunner::new(non_periodic_hlc, source, None));
+        let runner =
+            RunnerInner::Source(ZFSourceRunner::new(record, non_periodic_hlc, source, None));
         self.operators_runners
             .insert(id, (Runner::new(runner), DataFlowNodeKind::Source));
         Ok(())
@@ -263,7 +262,7 @@ impl DataFlowGraph {
         sink: Box<dyn ZFSinkTrait + Send>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let descriptor = ZFSinkRecord {
+        let record = ZFSinkRecord {
             id: id.clone(),
             input,
             uri: None,
@@ -271,10 +270,10 @@ impl DataFlowGraph {
             runtime: String::from("self"),
         };
         self.operators.push((
-            self.graph.add_node(DataFlowNode::Sink(descriptor.clone())),
-            DataFlowNode::Sink(descriptor),
+            self.graph.add_node(DataFlowNode::Sink(record.clone())),
+            DataFlowNode::Sink(record.clone()),
         ));
-        let runner = RunnerInner::Sink(ZFSinkRunner::new(sink, None));
+        let runner = RunnerInner::Sink(ZFSinkRunner::new(record, sink, None));
         self.operators_runners
             .insert(id, (Runner::new(runner), DataFlowNodeKind::Sink));
         Ok(())
@@ -372,11 +371,7 @@ impl DataFlowGraph {
                 DataFlowNode::Operator(inner) => {
                     match &inner.uri {
                         Some(uri) => {
-                            let runner = load_operator(
-                                hlc.clone(),
-                                uri.clone(),
-                                inner.configuration.clone(),
-                            )?;
+                            let runner = load_operator(inner.clone(), hlc.clone(), uri.clone())?;
                             let runner = RunnerInner::Operator(runner);
                             self.operators_runners.insert(
                                 inner.id.clone(),
@@ -392,9 +387,9 @@ impl DataFlowGraph {
                     match &inner.uri {
                         Some(uri) => {
                             let runner = load_source(
+                                inner.clone(),
                                 PeriodicHLC::new(hlc.clone(), inner.period.clone()),
                                 uri.clone(),
-                                inner.configuration.clone(),
                             )?;
                             let runner = RunnerInner::Source(runner);
                             self.operators_runners.insert(
@@ -410,7 +405,7 @@ impl DataFlowGraph {
                 DataFlowNode::Sink(inner) => {
                     match &inner.uri {
                         Some(uri) => {
-                            let runner = load_sink(uri.clone(), inner.configuration.clone())?;
+                            let runner = load_sink(inner.clone(), uri.clone())?;
                             let runner = RunnerInner::Sink(runner);
                             self.operators_runners.insert(
                                 inner.id.clone(),

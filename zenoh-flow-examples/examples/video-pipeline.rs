@@ -43,7 +43,7 @@ struct CameraState {
     pub delay: u64,
 }
 
-// because of opencv
+// Because of opencv
 impl std::fmt::Debug for CameraState {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
@@ -130,7 +130,10 @@ impl ZFComponentOutputRule for CameraSource {
 }
 
 impl ZFComponentState for CameraSource {
-    fn initial_state(&self) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    fn initial_state(
+        &self,
+        _configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
         Box::new(CameraState::new())
     }
 }
@@ -164,7 +167,10 @@ impl ZFComponentInputRule for VideoSink {
 }
 
 impl ZFComponentState for VideoSink {
-    fn initial_state(&self) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    fn initial_state(
+        &self,
+        _configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
         Box::new(VideoState::new())
     }
 }

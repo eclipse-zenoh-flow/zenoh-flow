@@ -13,6 +13,7 @@
 //
 
 use crate::async_std::sync::Arc;
+use crate::model::operator::ZFSourceRecord;
 use crate::runtime::graph::link::ZFLinkSender;
 use crate::runtime::message::ZFMessage;
 use crate::types::ZFResult;
@@ -21,8 +22,7 @@ use crate::{ZFSourceTrait, ZFStateTrait};
 use libloading::Library;
 use std::collections::HashMap;
 
-pub type ZFSourceRegisterFn =
-    fn(Option<HashMap<String, String>>) -> ZFResult<Box<dyn ZFSourceTrait + Send>>;
+pub type ZFSourceRegisterFn = fn() -> ZFResult<Box<dyn ZFSourceTrait + Send>>;
 
 pub struct ZFSourceDeclaration {
     pub rustc_version: &'static str,
@@ -31,6 +31,7 @@ pub struct ZFSourceDeclaration {
 }
 
 pub struct ZFSourceRunner {
+    pub record: ZFSourceRecord,
     pub hlc: PeriodicHLC,
     pub source: Box<dyn ZFSourceTrait + Send>,
     pub lib: Option<Library>,
@@ -40,12 +41,14 @@ pub struct ZFSourceRunner {
 
 impl ZFSourceRunner {
     pub fn new(
+        record: ZFSourceRecord,
         hlc: PeriodicHLC,
         source: Box<dyn ZFSourceTrait + Send>,
         lib: Option<Library>,
     ) -> Self {
         Self {
-            state: source.initial_state(),
+            state: source.initial_state(&record.configuration),
+            record,
             hlc,
             source,
             lib,
