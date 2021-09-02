@@ -15,14 +15,9 @@
 use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
-    downcast, get_input,
-    serde::{Deserialize, Serialize},
-    types::{
-        DataTrait, FnInputRule, FnOutputRule, FnRun, OperatorTrait, RunOutput, StateTrait,
-        ZFContext, ZFInput, ZFResult,
-    },
-    zenoh_flow_derive::ZFState,
-    zf_data, zf_spin_lock,
+    default_input_rule, default_output_rule, downcast, get_input, types::ZFResult,
+    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, ZFComponentInputRule, ZFComponentOutputRule,
+    ZFComponentState, ZFDataTrait, ZFOperatorTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -32,116 +27,100 @@ static INPUT1: &str = "Frame1";
 static INPUT2: &str = "Frame2";
 static OUTPUT: &str = "Frame";
 
-#[derive(Debug)]
-struct FrameConcat {
-    pub state: ConcatState,
-}
-
-#[derive(Clone)]
-struct ConcatInnerState {
+#[derive(ZFState, Clone)]
+struct FrameConcatState {
     pub encode_options: Arc<Mutex<opencv::types::VectorOfi32>>,
 }
 
-#[derive(Serialize, Deserialize, ZFState, Clone)]
-struct ConcatState {
-    #[serde(skip_serializing, skip_deserializing)]
-    pub inner: Option<ConcatInnerState>,
-}
-
 // because of opencv
-impl std::fmt::Debug for ConcatState {
+impl std::fmt::Debug for FrameConcatState {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "ConcatState:...",)
     }
 }
 
-impl FrameConcat {
-    fn new(_configuration: HashMap<String, String>) -> Self {
-        let encode_options = opencv::types::VectorOfi32::new();
-
-        let inner = Some(ConcatInnerState {
-            encode_options: Arc::new(Mutex::new(encode_options)),
-        });
-        let state = ConcatState { inner };
-
-        Self { state }
+impl FrameConcatState {
+    fn new() -> Self {
+        Self {
+            encode_options: Arc::new(Mutex::new(opencv::types::VectorOfi32::new())),
+        }
     }
+}
 
-    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunOutput {
-        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
+struct FrameConcat;
 
-        let guard = ctx.lock(); //getting state
-        let _state = downcast!(ConcatState, guard.state).unwrap(); //downcasting to right type
+impl ZFComponentState for FrameConcat {
+    fn initial_state(
+        &self,
+        _configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+        Box::new(FrameConcatState::new())
+    }
+}
 
-        let inner = _state.inner.as_ref().unwrap();
+impl ZFComponentInputRule for FrameConcat {
+    fn input_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        tokens: &mut HashMap<String, zenoh_flow::Token>,
+    ) -> ZFResult<bool> {
+        default_input_rule(state, tokens)
+    }
+}
 
-        let encode_options = zf_spin_lock!(inner.encode_options);
+impl ZFComponentOutputRule for FrameConcat {
+    fn output_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        outputs: &HashMap<String, Arc<dyn zenoh_flow::ZFDataTrait>>,
+    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        default_output_rule(state, outputs)
+    }
+}
+
+impl ZFOperatorTrait for FrameConcat {
+    fn run(
+        &self,
+        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
+    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
+        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
+
+        let state = downcast!(FrameConcatState, dyn_state).unwrap();
+        let encode_options = zf_spin_lock!(state.encode_options);
 
         let (_, frame1) = get_input!(ZFBytes, String::from(INPUT1), inputs)?;
         let (_, frame2) = get_input!(ZFBytes, String::from(INPUT2), inputs)?;
 
         // Decode Image
         let frame1 = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(frame1.bytes),
+            &opencv::types::VectorOfu8::from_iter(frame1.0),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
 
         let frame2 = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(frame2.bytes),
+            &opencv::types::VectorOfu8::from_iter(frame2.0),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
 
         let mut frame = core::Mat::default();
 
-        //concat frames
+        // concat frames
         core::vconcat2(&frame1, &frame2, &mut frame).unwrap();
 
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
-        let data = ZFBytes {
-            bytes: buf.to_vec(),
-        };
-
-        results.insert(String::from(OUTPUT), zf_data!(data));
+        results.insert(String::from(OUTPUT), zf_data!(ZFBytes(buf.into())));
 
         Ok(results)
     }
 }
 
-impl OperatorTrait for FrameConcat {
-    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
-        Box::new(zenoh_flow::default_input_rule)
-    }
-
-    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
-        Box::new(zenoh_flow::default_output_rule)
-    }
-
-    fn get_run(&self, _ctx: ZFContext) -> Box<FnRun> {
-        Box::new(Self::run_1)
-    }
-
-    fn get_state(&self) -> Box<dyn StateTrait> {
-        Box::new(self.state.clone())
-    }
-}
-
-// //Also generated by macro
 zenoh_flow::export_operator!(register);
 
-fn register(
-    configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
-    match configuration {
-        Some(config) => {
-            Ok(Box::new(FrameConcat::new(config)) as Box<dyn zenoh_flow::OperatorTrait + Send>)
-        }
-        None => {
-            Ok(Box::new(FrameConcat::new(HashMap::new()))
-                as Box<dyn zenoh_flow::OperatorTrait + Send>)
-        }
-    }
+fn register() -> ZFResult<Box<dyn ZFOperatorTrait + Send>> {
+    Ok(Box::new(FrameConcat) as Box<dyn ZFOperatorTrait + Send>)
 }
