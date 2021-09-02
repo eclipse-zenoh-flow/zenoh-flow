@@ -111,7 +111,10 @@ impl From<libloading::Error> for ZFError {
 
 pub type ZFResult<T> = Result<T, ZFError>;
 
-pub trait OperatorMode: Into<usize> + From<usize> {} //Placeholder
+/// ZFContext is a structure provided by Zenoh Flow.
+pub struct ZFContext {
+    pub mode: usize,
+}
 
 #[derive(Debug, Clone)]
 pub enum ZFComponentOutput {
@@ -275,10 +278,9 @@ impl<'a> IntoIterator for &'a ZFInput {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct EmptyState;
 
-#[typetag::serde]
 impl ZFStateTrait for EmptyState {
     fn as_any(&self) -> &dyn std::any::Any {
         self
