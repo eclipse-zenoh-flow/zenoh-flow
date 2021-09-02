@@ -13,101 +13,80 @@
 //
 
 use async_std::sync::Arc;
+use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::{
-    downcast, get_input,
-    serde::{Deserialize, Serialize},
-    types::{
-        DataTrait, FnInputRule, FnSinkRun, FutSinkOutput, InputRuleOutput, SinkTrait, StateTrait,
-        Token, ZFContext, ZFError, ZFInput, ZFResult,
-    },
+    default_input_rule, downcast, get_input,
+    types::{Token, ZFResult},
     zenoh_flow_derive::ZFState,
+    ZFComponentInputRule, ZFComponentState, ZFSinkTrait,
 };
-
-use zenoh_flow_examples::ZFBytes;
 
 use zenoh::net::config;
 use zenoh::net::{open, Session};
 use zenoh::ZFuture;
+use zenoh_flow_examples::ZFBytes;
 
 static INPUT: &str = "Data";
 
 #[derive(Debug)]
-struct ExampleGenericZenohSink {
-    state: ZSinkState,
-}
+struct ExampleGenericZenohSink;
 
-#[derive(Debug, Clone)]
-struct ZSinkInner {
+#[derive(Clone, Debug, ZFState)]
+struct ZSinkState {
     session: Arc<Session>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, ZFState)]
-struct ZSinkState {
-    #[serde(skip_serializing, skip_deserializing)]
-    inner: Option<ZSinkInner>,
-}
-
-impl ExampleGenericZenohSink {
+impl ZSinkState {
     pub fn new() -> Self {
         Self {
-            state: ZSinkState {
-                inner: Some(ZSinkInner {
-                    session: Arc::new(open(config::peer()).wait().unwrap()),
-                }),
-            },
+            session: Arc::new(open(config::peer()).wait().unwrap()),
         }
     }
+}
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
-        if let Some(token) = inputs.get(INPUT) {
-            match token {
-                Token::Ready(_) => Ok(true),
-                Token::NotReady => Ok(false),
-            }
-        } else {
-            Err(ZFError::MissingInput(String::from(INPUT)))
-        }
+impl ZFComponentState for ExampleGenericZenohSink {
+    fn initial_state(
+        &self,
+        _configuration: &Option<HashMap<String, String>>,
+    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+        Box::new(ZSinkState::new())
     }
+}
 
-    pub async fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> ZFResult<()> {
-        let guard = ctx.async_lock().await; //getting state,
-        let _state = downcast!(ZSinkState, guard.state).unwrap(); //downcasting to right type
+impl ZFComponentInputRule for ExampleGenericZenohSink {
+    fn input_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        tokens: &mut HashMap<String, Token>,
+    ) -> ZFResult<bool> {
+        default_input_rule(state, tokens)
+    }
+}
 
-        let inner = _state.inner.as_ref().unwrap();
+#[async_trait]
+impl ZFSinkTrait for ExampleGenericZenohSink {
+    async fn run(
+        &self,
+        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
+    ) -> ZFResult<()> {
+        let state = downcast!(ZSinkState, dyn_state).unwrap();
 
         let path = format!("/zf/probe/{}", String::from(INPUT));
         let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
-        inner
+        state
             .session
-            .write(&path.into(), data.bytes.into())
+            .write(&path.into(), data.0.into())
             .wait()
             .unwrap();
         Ok(())
     }
 }
 
-impl SinkTrait for ExampleGenericZenohSink {
-    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
-        Box::new(Self::ir_1)
-    }
-
-    fn get_run(&self, _ctx: ZFContext) -> FnSinkRun {
-        Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkOutput {
-            Box::pin(Self::run_1(ctx, inputs))
-        })
-    }
-
-    fn get_state(&self) -> Box<dyn StateTrait> {
-        Box::new(self.state.clone())
-    }
-}
-
 zenoh_flow::export_sink!(register);
 
-fn register(
-    _configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::SinkTrait + Send>> {
-    Ok(Box::new(ExampleGenericZenohSink::new()) as Box<dyn zenoh_flow::SinkTrait + Send>)
+fn register() -> ZFResult<Box<dyn ZFSinkTrait + Send>> {
+    Ok(Box::new(ExampleGenericZenohSink))
 }
