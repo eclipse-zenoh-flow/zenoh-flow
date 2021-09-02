@@ -13,7 +13,7 @@
 //
 
 use async_ctrlc::CtrlC;
-
+use async_trait::async_trait;
 use opencv::{core, highgui, prelude::*, videoio};
 use std::collections::HashMap;
 use std::fs::File;
@@ -21,17 +21,11 @@ use std::io::Write;
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
+use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
-    downcast, downcast_mut, get_input,
-    model::link::ZFPortDescriptor,
-    serde::{Deserialize, Serialize},
-    types::{
-        DataTrait, FnInputRule, FnOutputRule, FnSinkRun, FnSourceRun, FutRunOutput, FutSinkOutput,
-        InputRuleOutput, RunOutput, SinkTrait, SourceTrait, StateTrait, Token, ZFContext, ZFError,
-        ZFInput, ZFResult,
-    },
-    zenoh_flow_derive::ZFState,
-    zf_data, zf_spin_lock,
+    default_input_rule, default_output_rule, downcast, get_input, model::link::ZFPortDescriptor,
+    zenoh_flow_derive::ZFState, zf_data, ZFComponentInputRule, ZFComponentOutputRule,
+    ZFComponentState, ZFDataTrait, ZFSinkTrait, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -39,21 +33,12 @@ static SOURCE: &str = "Frame";
 static INPUT: &str = "Frame";
 
 #[derive(Debug)]
-struct CameraSource {
-    pub state: CameraState,
-}
+struct CameraSource;
 
-#[derive(Clone)]
-struct InnerCameraAccess {
+#[derive(ZFState, Clone)]
+struct CameraState {
     pub camera: Arc<Mutex<videoio::VideoCapture>>,
     pub encode_options: Arc<Mutex<opencv::types::VectorOfi32>>,
-}
-
-#[derive(Serialize, Deserialize, ZFState, Clone)]
-struct CameraState {
-    #[serde(skip_serializing, skip_deserializing)]
-    pub inner: Option<InnerCameraAccess>,
-
     pub resolution: (i32, i32),
     pub delay: u64,
 }
@@ -69,7 +54,7 @@ impl std::fmt::Debug for CameraState {
     }
 }
 
-impl CameraSource {
+impl CameraState {
     fn new() -> Self {
         let camera = videoio::VideoCapture::new(0, videoio::CAP_ANY).unwrap(); // 0 is the default camera
         let opened = videoio::VideoCapture::is_opened(&camera).unwrap();
@@ -79,31 +64,30 @@ impl CameraSource {
         let mut encode_options = opencv::types::VectorOfi32::new();
         encode_options.push(opencv::imgcodecs::IMWRITE_JPEG_QUALITY);
         encode_options.push(90);
-        let inner = InnerCameraAccess {
+
+        Self {
             camera: Arc::new(Mutex::new(camera)),
             encode_options: Arc::new(Mutex::new(encode_options)),
-        };
-
-        let state = CameraState {
-            inner: Some(inner),
             resolution: (800, 600),
             delay: 40,
-        };
-
-        Self { state }
+        }
     }
+}
 
-    async fn run_1(ctx: ZFContext) -> RunOutput {
-        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
+#[async_trait]
+impl ZFSourceTrait for CameraSource {
+    async fn run(
+        &self,
+        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
+        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
 
-        let mut guard = ctx.async_lock().await;
-        let mut _state = downcast_mut!(CameraState, guard.state).unwrap(); //downcasting to right type
-
-        let inner = _state.inner.as_ref().unwrap();
+        // Downcasting to right type
+        let state = downcast!(CameraState, dyn_state).unwrap();
 
         {
-            let mut cam = zf_spin_lock!(inner.camera);
-            let encode_options = zf_spin_lock!(inner.encode_options);
+            let mut cam = zf_spin_lock!(state.camera);
+            let encode_options = zf_spin_lock!(state.encode_options);
 
             let mut frame = core::Mat::default();
             cam.read(&mut frame).unwrap();
@@ -112,7 +96,7 @@ impl CameraSource {
             opencv::imgproc::resize(
                 &frame,
                 &mut reduced,
-                opencv::core::Size::new(_state.resolution.0, _state.resolution.0),
+                opencv::core::Size::new(state.resolution.0, state.resolution.0),
                 0.0,
                 0.0,
                 opencv::imgproc::INTER_LINEAR,
@@ -122,9 +106,7 @@ impl CameraSource {
             let mut buf = opencv::types::VectorOfu8::new();
             opencv::imgcodecs::imencode(".jpeg", &reduced, &mut buf, &encode_options).unwrap();
 
-            let data = ZFBytes {
-                bytes: buf.to_vec(),
-            };
+            let data = ZFBytes(buf.into());
 
             results.insert(String::from(SOURCE), zf_data!(data));
 
@@ -132,90 +114,85 @@ impl CameraSource {
             drop(encode_options);
         }
 
-        async_std::task::sleep(std::time::Duration::from_millis(_state.delay)).await;
+        async_std::task::sleep(std::time::Duration::from_millis(state.delay)).await;
         Ok(results)
     }
 }
 
-impl SourceTrait for CameraSource {
-    fn get_run(&self, _ctx: ZFContext) -> FnSourceRun {
-        Box::new(|ctx: ZFContext| -> FutRunOutput { Box::pin(Self::run_1(ctx)) })
+impl ZFComponentOutputRule for CameraSource {
+    fn output_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        default_output_rule(state, outputs)
     }
+}
 
-    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
-        Box::new(zenoh_flow::default_output_rule)
-    }
-
-    fn get_state(&self) -> Box<dyn StateTrait> {
-        Box::new(self.state.clone())
+impl ZFComponentState for CameraSource {
+    fn initial_state(&self) -> Box<dyn zenoh_flow::ZFStateTrait> {
+        Box::new(CameraState::new())
     }
 }
 
 #[derive(Debug)]
-struct VideoSink {
-    pub state: VideoState,
-}
+struct VideoSink;
 
-#[derive(Serialize, Deserialize, ZFState, Clone, Debug)]
+#[derive(ZFState, Clone, Debug)]
 struct VideoState {
     pub window_name: String,
 }
 
-impl VideoSink {
+impl VideoState {
     pub fn new() -> Self {
         let window_name = &"Video-Sink".to_string();
         highgui::named_window(window_name, 1).unwrap();
-        let state = VideoState {
+        Self {
             window_name: window_name.to_string(),
-        };
-        Self { state }
-    }
-
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
-        if let Some(token) = inputs.get(INPUT) {
-            match token {
-                Token::Ready(_) => Ok(true),
-                Token::NotReady => Ok(false),
-            }
-        } else {
-            Err(ZFError::MissingInput(String::from(INPUT)))
         }
     }
+}
 
-    pub async fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> ZFResult<()> {
-        let guard = ctx.async_lock().await; //getting state,
-        let _state = downcast!(VideoState, guard.state).unwrap(); //downcasting to right type
+impl ZFComponentInputRule for VideoSink {
+    fn input_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        tokens: &mut HashMap<String, zenoh_flow::Token>,
+    ) -> zenoh_flow::ZFResult<bool> {
+        default_input_rule(state, tokens)
+    }
+}
+
+impl ZFComponentState for VideoSink {
+    fn initial_state(&self) -> Box<dyn zenoh_flow::ZFStateTrait> {
+        Box::new(VideoState::new())
+    }
+}
+
+#[async_trait]
+impl ZFSinkTrait for VideoSink {
+    async fn run(
+        &self,
+        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
+    ) -> zenoh_flow::ZFResult<()> {
+        // Downcasting to right type
+        let state = downcast!(VideoState, dyn_state).unwrap();
 
         let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
         let decoded = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(data.bytes),
+            &opencv::types::VectorOfu8::from_iter(data.0),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
 
         if decoded.size().unwrap().width > 0 {
-            highgui::imshow(&_state.window_name, &decoded).unwrap();
+            highgui::imshow(&state.window_name, &decoded).unwrap();
         }
 
         highgui::wait_key(10).unwrap();
         Ok(())
-    }
-}
-
-impl SinkTrait for VideoSink {
-    fn get_input_rule(&self, _ctx: ZFContext) -> Box<FnInputRule> {
-        Box::new(Self::ir_1)
-    }
-
-    fn get_run(&self, _ctx: ZFContext) -> FnSinkRun {
-        Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkOutput {
-            Box::pin(Self::run_1(ctx, inputs))
-        })
-    }
-
-    fn get_state(&self) -> Box<dyn StateTrait> {
-        Box::new(self.state.clone())
     }
 }
 
@@ -225,8 +202,8 @@ async fn main() {
 
     let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new();
 
-    let source = Box::new(CameraSource::new());
-    let sink = Box::new(VideoSink::new());
+    let source = Box::new(CameraSource);
+    let sink = Box::new(VideoSink);
     let hlc = Arc::new(uhlc::HLC::default());
 
     zf_graph
