@@ -20,6 +20,8 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+// NOTE: This trait is separate from `ZFDataTrait` so that we can provide a `#derive` macro to
+// automatically implement it for the users.
 pub trait ZFDowncastAny {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;
@@ -35,8 +37,6 @@ pub trait ZFDeserializable {
         Self: Sized;
 }
 
-// TODO Create a Derive macro for this
-#[typetag::serde(tag = "zf_state_type", content = "value")]
 pub trait ZFStateTrait: Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;

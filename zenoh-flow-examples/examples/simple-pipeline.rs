@@ -13,86 +13,81 @@
 //
 
 use async_ctrlc::CtrlC;
-
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::{
-    model::link::ZFPortDescriptor,
-    serde::{Deserialize, Serialize},
-    types::{
-        DataTrait, FnInputRule, FnOutputRule, FnSinkRun, FnSourceRun, FutRunOutput, FutSinkOutput,
-        InputRuleOutput, RunOutput, SinkTrait, SourceTrait, StateTrait, Token, ZFContext, ZFInput,
-        ZFResult,
-    },
-    zenoh_flow_derive::ZFState,
-    zf_data, zf_empty_state,
+    default_input_rule, default_output_rule, ZFComponentInputRule, ZFComponentOutputRule,
+    ZFComponentState, ZFDataTrait, ZFSinkTrait, ZFSourceTrait,
 };
-use zenoh_flow_examples::RandomData;
+use zenoh_flow::{model::link::ZFPortDescriptor, zf_data, zf_empty_state};
+use zenoh_flow_examples::ZFUsize;
 
 static SOURCE: &str = "Counter";
 
-static COUNTER: AtomicU64 = AtomicU64::new(0);
+static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Serialize, Deserialize, Debug, ZFState)]
-struct CountSource {}
+struct CountSource;
 
 impl CountSource {
     fn new(configuration: Option<HashMap<String, String>>) -> Self {
         match configuration {
             Some(conf) => {
-                let initial = conf.get("initial").unwrap().parse::<u64>().unwrap();
+                let initial = conf.get("initial").unwrap().parse::<usize>().unwrap();
                 COUNTER.store(initial, Ordering::SeqCst);
                 CountSource {}
             }
             None => CountSource {},
         }
     }
+}
 
-    async fn run_1(_ctx: ZFContext) -> RunOutput {
-        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
-        let d = RandomData {
-            d: COUNTER.fetch_add(1, Ordering::AcqRel),
-        };
+#[async_trait]
+impl ZFSourceTrait for CountSource {
+    async fn run(
+        &self,
+        _state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
+        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
+        let d = ZFUsize(COUNTER.fetch_add(1, Ordering::AcqRel));
         results.insert(String::from(SOURCE), zf_data!(d));
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
         Ok(results)
     }
 }
 
-impl SourceTrait for CountSource {
-    fn get_run(&self, ctx: ZFContext) -> FnSourceRun {
-        let gctx = ctx.lock();
-        match gctx.mode {
-            0 => Box::new(|ctx: ZFContext| -> FutRunOutput { Box::pin(Self::run_1(ctx)) }),
-            _ => panic!("No way"),
-        }
+impl ZFComponentOutputRule for CountSource {
+    fn output_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        default_output_rule(state, outputs)
     }
+}
 
-    fn get_output_rule(&self, _ctx: ZFContext) -> Box<FnOutputRule> {
-        Box::new(zenoh_flow::default_output_rule)
-    }
-
-    fn get_state(&self) -> Box<dyn StateTrait> {
+impl ZFComponentState for CountSource {
+    fn initial_state(&self) -> Box<dyn zenoh_flow::ZFStateTrait> {
         zf_empty_state!()
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, ZFState)]
-struct ExampleGenericSink {}
+struct ExampleGenericSink;
 
-impl ExampleGenericSink {
-    pub fn ir_1(_ctx: ZFContext, _inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
-        Ok(true)
-    }
-
-    pub async fn run_1(_ctx: ZFContext, inputs: ZFInput) -> ZFResult<()> {
+#[async_trait]
+impl ZFSinkTrait for ExampleGenericSink {
+    async fn run(
+        &self,
+        _state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
+    ) -> zenoh_flow::ZFResult<()> {
         println!("#######");
-        for (k, v) in inputs.into_iter() {
+        for (k, v) in inputs {
             println!("Example Generic Sink Received on LinkId {:?} -> {:?}", k, v);
         }
         println!("#######");
@@ -100,26 +95,18 @@ impl ExampleGenericSink {
     }
 }
 
-impl SinkTrait for ExampleGenericSink {
-    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
-        let gctx = ctx.lock();
-        match gctx.mode {
-            0 => Box::new(Self::ir_1),
-            _ => panic!("No way"),
-        }
+impl ZFComponentInputRule for ExampleGenericSink {
+    fn input_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        tokens: &mut HashMap<String, zenoh_flow::Token>,
+    ) -> zenoh_flow::ZFResult<bool> {
+        default_input_rule(state, tokens)
     }
+}
 
-    fn get_run(&self, ctx: ZFContext) -> FnSinkRun {
-        let gctx = ctx.lock();
-        match gctx.mode {
-            0 => Box::new(|ctx: ZFContext, inputs: ZFInput| -> FutSinkOutput {
-                Box::pin(Self::run_1(ctx, inputs))
-            }),
-            _ => panic!("No way"),
-        }
-    }
-
-    fn get_state(&self) -> Box<dyn StateTrait> {
+impl ZFComponentState for ExampleGenericSink {
+    fn initial_state(&self) -> Box<dyn zenoh_flow::ZFStateTrait> {
         zf_empty_state!()
     }
 }

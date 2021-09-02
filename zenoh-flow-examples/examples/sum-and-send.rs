@@ -12,103 +12,71 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use zenoh_flow::types::{
-    DataTrait, FnInputRule, FnOutputRule, FnRun, InputRuleOutput, OperatorTrait, OutputRuleOutput,
-    RunOutput, StateTrait, Token, ZFContext, ZFError, ZFInput, ZFResult,
-};
-use zenoh_flow::zenoh_flow_derive::ZFState;
-use zenoh_flow::{downcast_mut, get_input, zf_data, ZFComponentOutput};
-use zenoh_flow_examples::RandomData;
-
 use async_std::sync::Arc;
+use std::collections::HashMap;
+use zenoh_flow::zenoh_flow_derive::ZFState;
+use zenoh_flow::{
+    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data,
+    ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule, ZFComponentState, ZFDataTrait,
+    ZFOperatorTrait, ZFResult,
+};
+use zenoh_flow_examples::ZFUsize;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct SumAndSend {
-    pub state: SumAndSendState,
-}
+#[derive(Debug)]
+struct SumAndSend;
 
-#[derive(Serialize, Deserialize, Debug, Clone, ZFState)]
+#[derive(Debug, Clone, ZFState)]
 struct SumAndSendState {
-    pub x: RandomData,
+    pub x: ZFUsize,
 }
 
 static INPUT: &str = "Number";
 static OUTPUT: &str = "Sum";
 
-impl SumAndSend {
-    pub fn new() -> Self {
-        Self {
-            state: SumAndSendState {
-                x: RandomData { d: 0 },
-            },
-        }
-    }
+impl ZFOperatorTrait for SumAndSend {
+    fn run(
+        &self,
+        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn ZFDataTrait>>> {
+        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
 
-    pub fn ir_1(_ctx: ZFContext, inputs: &mut HashMap<String, Token>) -> InputRuleOutput {
-        if let Some(token) = inputs.get(INPUT) {
-            match token {
-                Token::Ready(_) => Ok(true),
-                Token::NotReady => Ok(false),
-            }
-        } else {
-            Err(ZFError::MissingInput(String::from(INPUT)))
-        }
-    }
+        // Downcasting state to right type
+        let mut state = downcast_mut!(SumAndSendState, dyn_state).unwrap();
 
-    pub fn run_1(ctx: ZFContext, mut inputs: ZFInput) -> RunOutput {
-        let mut results: HashMap<String, Arc<dyn DataTrait>> = HashMap::new();
+        let (_, data) = get_input!(ZFUsize, String::from(INPUT), inputs)?;
 
-        let mut guard = ctx.lock(); //getting the context
-        let mut _state = downcast_mut!(SumAndSendState, guard.state).unwrap(); //getting and downcasting  state to right type
-
-        let (_, data) = get_input!(RandomData, String::from(INPUT), inputs)?;
-
-        let res = _state.x.d + data.d;
-        let res = RandomData { d: res };
-        _state.x = res.clone();
+        let res = ZFUsize(state.x.0 + data.0);
+        state.x = res.clone();
 
         results.insert(String::from(OUTPUT), zf_data!(res));
         Ok(results)
     }
+}
 
-    pub fn or_1(_ctx: ZFContext, outputs: HashMap<String, Arc<dyn DataTrait>>) -> OutputRuleOutput {
-        let mut results = HashMap::new();
-        for (k, v) in outputs {
-            results.insert(k, ZFComponentOutput::Data(v));
-        }
-        Ok(results)
+impl ZFComponentInputRule for SumAndSend {
+    fn input_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        tokens: &mut HashMap<String, zenoh_flow::Token>,
+    ) -> zenoh_flow::ZFResult<bool> {
+        default_input_rule(state, tokens)
     }
 }
 
-impl OperatorTrait for SumAndSend {
-    fn get_input_rule(&self, ctx: ZFContext) -> Box<FnInputRule> {
-        let gctx = ctx.lock();
-        match gctx.mode {
-            0 => Box::new(Self::ir_1),
-            _ => panic!("No way"),
-        }
+impl ZFComponentOutputRule for SumAndSend {
+    fn output_rule(
+        &self,
+        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, ZFComponentOutput>> {
+        default_output_rule(state, outputs)
     }
+}
 
-    fn get_output_rule(&self, ctx: ZFContext) -> Box<FnOutputRule> {
-        let gctx = ctx.lock();
-        match gctx.mode {
-            0 => Box::new(Self::or_1),
-            _ => panic!("No way"),
-        }
-    }
-
-    fn get_run(&self, ctx: ZFContext) -> Box<FnRun> {
-        let gctx = ctx.lock();
-        match gctx.mode {
-            0 => Box::new(Self::run_1),
-            _ => panic!("No way"),
-        }
-    }
-
-    fn get_state(&self) -> Box<dyn StateTrait> {
-        Box::new(self.state.clone())
+impl ZFComponentState for SumAndSend {
+    fn initial_state(&self) -> Box<dyn zenoh_flow::ZFStateTrait> {
+        Box::new(SumAndSendState { x: ZFUsize(0) })
     }
 }
 
@@ -117,6 +85,6 @@ zenoh_flow::export_operator!(register);
 
 fn register(
     _configuration: Option<HashMap<String, String>>,
-) -> ZFResult<Box<dyn zenoh_flow::OperatorTrait + Send>> {
-    Ok(Box::new(SumAndSend::new()) as Box<dyn zenoh_flow::OperatorTrait + Send>)
+) -> ZFResult<Box<dyn ZFOperatorTrait + Send>> {
+    Ok(Box::new(SumAndSend {}) as Box<dyn ZFOperatorTrait + Send>)
 }
