@@ -41,7 +41,7 @@ impl ZFComponentInputRule for FizzOperator {
 }
 
 impl ZFComponent for FizzOperator {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn ZFStateTrait> {

@@ -132,7 +132,7 @@ impl ZFComponentOutputRule for CameraSource {
 }
 
 impl ZFComponent for CameraSource {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {
@@ -170,7 +170,7 @@ impl ZFComponentInputRule for VideoSink {
 }
 
 impl ZFComponent for VideoSink {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {

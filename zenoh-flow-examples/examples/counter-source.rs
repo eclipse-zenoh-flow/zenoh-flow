@@ -56,7 +56,7 @@ impl ZFComponentOutputRule for CountSource {
 }
 
 impl ZFComponent for CountSource {
-    fn initial_state(
+    fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {

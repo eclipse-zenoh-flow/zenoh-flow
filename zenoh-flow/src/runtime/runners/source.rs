@@ -47,7 +47,7 @@ impl ZFSourceRunner {
         lib: Option<Library>,
     ) -> Self {
         Self {
-            state: source.initial_state(&record.configuration),
+            state: source.initialize(&record.configuration),
             record,
             hlc,
             source,

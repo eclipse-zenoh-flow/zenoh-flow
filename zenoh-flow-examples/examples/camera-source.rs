@@ -101,7 +101,7 @@ impl CameraState {
 }
 
 impl ZFComponent for CameraSource {
-    fn initial_state(
+    fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {

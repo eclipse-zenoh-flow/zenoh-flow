@@ -46,7 +46,7 @@ impl ZSinkState {
 }
 
 impl ZFComponent for ExampleGenericZenohSink {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {

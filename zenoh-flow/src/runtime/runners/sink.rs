@@ -44,7 +44,7 @@ impl ZFSinkRunner {
         lib: Option<Library>,
     ) -> Self {
         Self {
-            state: sink.initial_state(&record.configuration),
+            state: sink.initialize(&record.configuration),
             record,
             sink,
             lib,

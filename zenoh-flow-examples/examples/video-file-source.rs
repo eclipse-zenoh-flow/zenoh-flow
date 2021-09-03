@@ -78,7 +78,7 @@ impl VideoSourceState {
 }
 
 impl ZFComponent for VideoSource {
-    fn initial_state(
+    fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {

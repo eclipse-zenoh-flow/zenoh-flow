@@ -65,7 +65,7 @@ impl FDState {
 }
 
 impl ZFComponent for FaceDetection {
-    fn initial_state(
+    fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {

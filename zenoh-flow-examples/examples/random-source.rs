@@ -27,7 +27,7 @@ static SOURCE: &str = "Random";
 struct ExampleRandomSource;
 
 impl ZFComponent for ExampleRandomSource {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {

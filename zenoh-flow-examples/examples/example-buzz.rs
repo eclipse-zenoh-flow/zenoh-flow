@@ -60,7 +60,7 @@ impl ZFOperatorTrait for BuzzOperator {
 }
 
 impl ZFComponent for BuzzOperator {
-    fn initial_state(
+    fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn ZFStateTrait> {

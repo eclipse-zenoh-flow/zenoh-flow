@@ -52,7 +52,7 @@ impl ZFSourceTrait for ManualSource {
 }
 
 impl ZFComponent for ManualSource {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn ZFStateTrait> {

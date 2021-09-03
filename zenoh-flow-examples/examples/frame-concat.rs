@@ -50,7 +50,7 @@ impl FrameConcatState {
 struct FrameConcat;
 
 impl ZFComponent for FrameConcat {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {

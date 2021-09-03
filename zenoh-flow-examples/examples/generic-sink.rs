@@ -41,7 +41,7 @@ impl ZFSinkTrait for GenericSink {
 }
 
 impl ZFComponent for GenericSink {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn ZFStateTrait> {

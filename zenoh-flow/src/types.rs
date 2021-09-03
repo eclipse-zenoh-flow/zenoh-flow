@@ -19,9 +19,8 @@ use crate::{ZFDataTrait, ZFStateTrait};
 use std::collections::HashMap;
 use std::convert::From;
 use uhlc::Timestamp;
-use uuid::Uuid;
 use zrpc::zrpcresult::ZRPCError;
-
+use uuid::Uuid;
 // Placeholder types
 pub type ZFOperatorId = String;
 pub type ZFZenohResource = String;
@@ -31,7 +30,7 @@ pub type ZFTimestamp = usize; //TODO: improve it, usize is just a placeholder
 pub type ZFPortID = String;
 pub type ZFRuntimeID = String;
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum ZFError {
     GenericError,
     SerializationError,
@@ -132,29 +131,6 @@ impl From<serde_json::Error> for ZFError {
 impl From<std::str::Utf8Error> for ZFError {
     fn from(_err: std::str::Utf8Error) -> Self {
         Self::SerializationError
-    }
-}
-
-pub struct ZFInnerCtx {
-    pub state: Box<dyn StateTrait>,
-    pub mode: usize, //can be arc<atomic> and inside ZFContext
-}
-
-#[derive(Clone)]
-pub struct ZFContext(Arc<Mutex<ZFInnerCtx>>); //TODO: have only state inside Mutex
-
-impl ZFContext {
-    pub fn new(state: Box<dyn StateTrait>, mode: usize) -> Self {
-        let inner = Arc::new(Mutex::new(ZFInnerCtx { state, mode }));
-        Self(inner)
-    }
-
-    pub async fn async_lock(&'_ self) -> MutexGuard<'_, ZFInnerCtx> {
-        self.0.lock().await
-    }
-
-    pub fn lock(&self) -> MutexGuard<ZFInnerCtx> {
-        crate::zf_spin_lock!(self.0)
     }
 }
 

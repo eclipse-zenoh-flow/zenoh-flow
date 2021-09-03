@@ -49,7 +49,7 @@ impl ZFOperatorRunner {
         lib: Option<Library>,
     ) -> Self {
         Self {
-            state: operator.initial_state(&record.configuration),
+            state: operator.initialize(&record.configuration),
             record,
             hlc,
             operator,
