@@ -61,6 +61,7 @@ impl ZFComponent for FrameConcat {
 impl ZFComponentInputRule for FrameConcat {
     fn input_rule(
         &self,
+        _context: &mut zenoh_flow::ZFContext,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         tokens: &mut HashMap<String, zenoh_flow::Token>,
     ) -> ZFResult<bool> {
@@ -71,6 +72,7 @@ impl ZFComponentInputRule for FrameConcat {
 impl ZFComponentOutputRule for FrameConcat {
     fn output_rule(
         &self,
+        _context: &mut zenoh_flow::ZFContext,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         outputs: &HashMap<String, Arc<dyn zenoh_flow::ZFDataTrait>>,
     ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
@@ -81,6 +83,7 @@ impl ZFComponentOutputRule for FrameConcat {
 impl ZFOperatorTrait for FrameConcat {
     fn run(
         &self,
+        _context: &mut zenoh_flow::ZFContext,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {

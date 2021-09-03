@@ -21,7 +21,7 @@ use std::{
 };
 use zenoh_flow::{
     default_input_rule, default_output_rule, ZFComponent, ZFComponentInputRule, ZFComponentOutput,
-    ZFComponentOutputRule, ZFDataTrait, ZFOperatorTrait,
+    ZFComponentOutputRule, ZFContext, ZFDataTrait, ZFOperatorTrait,
 };
 use zenoh_flow::{
     downcast, get_input,
@@ -106,6 +106,7 @@ impl ZFComponent for ObjDetection {
 impl ZFComponentInputRule for ObjDetection {
     fn input_rule(
         &self,
+        _context: &mut ZFContext,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         tokens: &mut HashMap<String, Token>,
     ) -> ZFResult<bool> {
@@ -116,6 +117,7 @@ impl ZFComponentInputRule for ObjDetection {
 impl ZFComponentOutputRule for ObjDetection {
     fn output_rule(
         &self,
+        _context: &mut ZFContext,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         outputs: &HashMap<String, Arc<dyn zenoh_flow::ZFDataTrait>>,
     ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, ZFComponentOutput>> {
@@ -126,6 +128,7 @@ impl ZFComponentOutputRule for ObjDetection {
 impl ZFOperatorTrait for ObjDetection {
     fn run(
         &self,
+        _context: &mut ZFContext,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {

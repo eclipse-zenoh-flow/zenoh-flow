@@ -17,7 +17,7 @@ use crate::model::operator::ZFOperatorRecord;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
-use crate::{ZFOperatorTrait, ZFStateTrait};
+use crate::{ZFContext, ZFOperatorTrait, ZFStateTrait};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -73,6 +73,8 @@ impl ZFOperatorRunner {
     }
 
     pub async fn run(&mut self) -> ZFResult<()> {
+        let mut context = ZFContext::default();
+
         loop {
             // we should start from an HashMap with all PortId and not ready tokens
             let mut msgs: HashMap<String, Token> = HashMap::new();
@@ -87,7 +89,7 @@ impl ZFOperatorRunner {
             }
 
             // Input Rules
-            crate::run_input_rules!(self.operator, msgs, futs, &mut self.state);
+            crate::run_input_rules!(self.operator, msgs, futs, &mut self.state, &mut context);
 
             let mut data = HashMap::with_capacity(msgs.len());
             let mut max_token_timestamp = None;
@@ -130,10 +132,14 @@ impl ZFOperatorRunner {
             };
 
             // Running
-            let run_outputs = self.operator.run(&mut self.state, &mut data)?;
+            let run_outputs = self
+                .operator
+                .run(&mut context, &mut self.state, &mut data)?;
 
             // Output rules
-            let outputs = self.operator.output_rule(&mut self.state, &run_outputs)?;
+            let outputs = self
+                .operator
+                .output_rule(&mut context, &mut self.state, &run_outputs)?;
 
             // Send to Links
             for (id, output) in outputs {

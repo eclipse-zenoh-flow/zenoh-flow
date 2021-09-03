@@ -76,6 +76,7 @@ impl ZFComponent for FaceDetection {
 impl ZFComponentInputRule for FaceDetection {
     fn input_rule(
         &self,
+        _context: &mut zenoh_flow::ZFContext,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         tokens: &mut HashMap<String, zenoh_flow::Token>,
     ) -> ZFResult<bool> {
@@ -86,6 +87,7 @@ impl ZFComponentInputRule for FaceDetection {
 impl ZFComponentOutputRule for FaceDetection {
     fn output_rule(
         &self,
+        _context: &mut zenoh_flow::ZFContext,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         outputs: &HashMap<String, Arc<dyn zenoh_flow::ZFDataTrait>>,
     ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
@@ -96,6 +98,7 @@ impl ZFComponentOutputRule for FaceDetection {
 impl ZFOperatorTrait for FaceDetection {
     fn run(
         &self,
+        _context: &mut zenoh_flow::ZFContext,
         dyn_state: &mut Box<dyn ZFStateTrait>,
         inputs: &mut HashMap<String, ZFDataMessage>,
     ) -> ZFResult<HashMap<ZFPortID, Arc<dyn ZFDataTrait>>> {

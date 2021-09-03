@@ -18,7 +18,7 @@ use crate::runtime::graph::link::ZFLinkSender;
 use crate::runtime::message::ZFMessage;
 use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
-use crate::{ZFSourceTrait, ZFStateTrait};
+use crate::{ZFContext, ZFSourceTrait, ZFStateTrait};
 use libloading::Library;
 use std::collections::HashMap;
 
@@ -66,12 +66,17 @@ impl ZFSourceRunner {
     }
 
     pub async fn run(&mut self) -> ZFResult<()> {
+        let mut context = ZFContext::default();
+
         loop {
             // Running
-            let run_outputs = self.source.run(&mut self.state).await?;
+            let run_outputs = self.source.run(&mut context, &mut self.state).await?;
 
             // Output
-            let mut outputs = self.source.output_rule(&mut self.state, &run_outputs)?;
+            let mut outputs =
+                self.source
+                    .output_rule(&mut context, &mut self.state, &run_outputs)?;
+
             log::debug!("Outputs: {:?}", self.outputs);
 
             let timestamp = self.hlc.new_timestamp();
