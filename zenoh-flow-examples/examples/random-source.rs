@@ -16,8 +16,8 @@ use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::{
-    default_output_rule, types::ZFResult, zf_data, zf_empty_state, ZFComponentOutputRule,
-    ZFComponentState, ZFDataTrait, ZFPortID, ZFSourceTrait,
+    default_output_rule, types::ZFResult, zf_data, zf_empty_state, ZFComponent,
+    ZFComponentOutputRule, ZFDataTrait, ZFPortID, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -26,7 +26,7 @@ static SOURCE: &str = "Random";
 #[derive(Debug)]
 struct ExampleRandomSource;
 
-impl ZFComponentState for ExampleRandomSource {
+impl ZFComponent for ExampleRandomSource {
     fn initial_state(
         &self,
         _configuration: &Option<HashMap<String, String>>,

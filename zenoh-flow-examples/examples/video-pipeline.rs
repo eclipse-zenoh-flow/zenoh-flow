@@ -24,8 +24,8 @@ use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, model::link::ZFPortDescriptor,
-    zenoh_flow_derive::ZFState, zf_data, ZFComponentInputRule, ZFComponentOutputRule,
-    ZFComponentState, ZFDataTrait, ZFSinkTrait, ZFSourceTrait,
+    zenoh_flow_derive::ZFState, zf_data, ZFComponent, ZFComponentInputRule, ZFComponentOutputRule,
+    ZFDataTrait, ZFSinkTrait, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -129,7 +129,7 @@ impl ZFComponentOutputRule for CameraSource {
     }
 }
 
-impl ZFComponentState for CameraSource {
+impl ZFComponent for CameraSource {
     fn initial_state(
         &self,
         _configuration: &Option<HashMap<String, String>>,
@@ -166,7 +166,7 @@ impl ZFComponentInputRule for VideoSink {
     }
 }
 
-impl ZFComponentState for VideoSink {
+impl ZFComponent for VideoSink {
     fn initial_state(
         &self,
         _configuration: &Option<HashMap<String, String>>,

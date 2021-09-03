@@ -20,7 +20,7 @@ use zenoh_flow::{
     default_output_rule, downcast,
     types::{ZFError, ZFResult},
     zenoh_flow_derive::ZFState,
-    zf_data, zf_spin_lock, ZFComponentOutputRule, ZFComponentState, ZFDataTrait, ZFSourceTrait,
+    zf_data, zf_spin_lock, ZFComponent, ZFComponentOutputRule, ZFDataTrait, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -77,7 +77,7 @@ impl VideoSourceState {
     }
 }
 
-impl ZFComponentState for VideoSource {
+impl ZFComponent for VideoSource {
     fn initial_state(
         &self,
         configuration: &Option<HashMap<String, String>>,

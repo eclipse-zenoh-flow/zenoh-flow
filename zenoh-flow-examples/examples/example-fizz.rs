@@ -18,8 +18,8 @@ use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::ZFDataTrait;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    zf_empty_state, Token, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule,
-    ZFComponentState, ZFOperatorTrait, ZFStateTrait,
+    zf_empty_state, Token, ZFComponent, ZFComponentInputRule, ZFComponentOutput,
+    ZFComponentOutputRule, ZFOperatorTrait, ZFStateTrait,
 };
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
@@ -39,7 +39,7 @@ impl ZFComponentInputRule for FizzOperator {
     }
 }
 
-impl ZFComponentState for FizzOperator {
+impl ZFComponent for FizzOperator {
     fn initial_state(
         &self,
         _configuration: &Option<HashMap<String, String>>,

@@ -16,7 +16,7 @@ use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use zenoh_flow::{default_output_rule, ZFComponentOutputRule, ZFComponentState, ZFSourceTrait};
+use zenoh_flow::{default_output_rule, ZFComponent, ZFComponentOutputRule, ZFSourceTrait};
 use zenoh_flow::{
     types::ZFResult, zenoh_flow_derive::ZFState, zf_data, zf_empty_state, ZFDataTrait,
 };
@@ -53,7 +53,7 @@ impl ZFComponentOutputRule for CountSource {
     }
 }
 
-impl ZFComponentState for CountSource {
+impl ZFComponent for CountSource {
     fn initial_state(
         &self,
         configuration: &Option<HashMap<String, String>>,

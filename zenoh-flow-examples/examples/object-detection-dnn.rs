@@ -20,8 +20,8 @@ use std::{
     path::Path,
 };
 use zenoh_flow::{
-    default_input_rule, default_output_rule, ZFComponentInputRule, ZFComponentOutput,
-    ZFComponentOutputRule, ZFComponentState, ZFDataTrait, ZFOperatorTrait,
+    default_input_rule, default_output_rule, ZFComponent, ZFComponentInputRule, ZFComponentOutput,
+    ZFComponentOutputRule, ZFDataTrait, ZFOperatorTrait,
 };
 use zenoh_flow::{
     downcast, get_input,
@@ -94,7 +94,7 @@ impl ODState {
     }
 }
 
-impl ZFComponentState for ObjDetection {
+impl ZFComponent for ObjDetection {
     fn initial_state(
         &self,
         configuration: &Option<HashMap<String, String>>,
