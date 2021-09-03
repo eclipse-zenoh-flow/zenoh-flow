@@ -46,6 +46,7 @@ impl VideoState {
 impl ZFComponentInputRule for VideoSink {
     fn input_rule(
         &self,
+        _context: &mut zenoh_flow::ZFContext,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         tokens: &mut HashMap<String, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
@@ -66,6 +67,7 @@ impl ZFComponent for VideoSink {
 impl ZFSinkTrait for VideoSink {
     async fn run(
         &self,
+        _context: &mut zenoh_flow::ZFContext,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> zenoh_flow::ZFResult<()> {

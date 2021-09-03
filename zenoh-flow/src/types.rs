@@ -111,9 +111,16 @@ impl From<libloading::Error> for ZFError {
 
 pub type ZFResult<T> = Result<T, ZFError>;
 
-/// ZFContext is a structure provided by Zenoh Flow.
+/// ZFContext is a structure provided by Zenoh Flow to access the execution context directly from
+/// the components.
 pub struct ZFContext {
     pub mode: usize,
+}
+
+impl Default for ZFContext {
+    fn default() -> Self {
+        Self { mode: 0 }
+    }
 }
 
 #[derive(Debug, Clone)]

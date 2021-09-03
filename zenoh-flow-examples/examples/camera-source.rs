@@ -112,6 +112,7 @@ impl ZFComponent for CameraSource {
 impl ZFComponentOutputRule for CameraSource {
     fn output_rule(
         &self,
+        _context: &mut zenoh_flow::ZFContext,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
     ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
@@ -123,6 +124,7 @@ impl ZFComponentOutputRule for CameraSource {
 impl ZFSourceTrait for CameraSource {
     async fn run(
         &self,
+        _context: &mut zenoh_flow::ZFContext,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
     ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn ZFDataTrait>>> {
         let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::with_capacity(1);

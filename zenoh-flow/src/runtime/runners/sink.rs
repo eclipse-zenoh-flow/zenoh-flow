@@ -16,7 +16,7 @@ use crate::model::operator::ZFSinkRecord;
 use crate::runtime::graph::link::ZFLinkReceiver;
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
-use crate::{ZFSinkTrait, ZFStateTrait};
+use crate::{ZFContext, ZFSinkTrait, ZFStateTrait};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -57,6 +57,8 @@ impl ZFSinkRunner {
     }
 
     pub async fn run(&mut self) -> ZFResult<()> {
+        let mut context = ZFContext::default();
+
         loop {
             // we should start from an HashMap with all PortId and not ready tokens
             let mut msgs: HashMap<String, Token> = HashMap::new();
@@ -72,7 +74,7 @@ impl ZFSinkRunner {
                 futs.push(rx.recv()); // this should be peek(), but both requires mut
             }
 
-            crate::run_input_rules!(self.sink, msgs, futs, &mut self.state);
+            crate::run_input_rules!(self.sink, msgs, futs, &mut self.state, &mut context);
 
             // Running
             let mut data = HashMap::with_capacity(msgs.len());
@@ -86,7 +88,9 @@ impl ZFSinkRunner {
                 data.insert(id, d.unwrap());
             }
 
-            self.sink.run(&mut self.state, &mut data).await?;
+            self.sink
+                .run(&mut context, &mut self.state, &mut data)
+                .await?;
 
             //This depends on the Tokens...
             for rx in self.inputs.iter() {

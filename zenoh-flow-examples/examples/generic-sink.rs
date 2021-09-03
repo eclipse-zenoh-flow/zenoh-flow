@@ -15,11 +15,11 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::runtime::message::ZFDataMessage;
-use zenoh_flow::ZFSinkTrait;
 use zenoh_flow::{
     default_input_rule, export_sink, types::ZFResult, zf_empty_state, Token, ZFComponent,
     ZFComponentInputRule, ZFStateTrait,
 };
+use zenoh_flow::{ZFContext, ZFSinkTrait};
 
 struct GenericSink;
 
@@ -27,6 +27,7 @@ struct GenericSink;
 impl ZFSinkTrait for GenericSink {
     async fn run(
         &self,
+        _context: &mut ZFContext,
         _state: &mut Box<dyn ZFStateTrait>,
         inputs: &mut HashMap<String, ZFDataMessage>,
     ) -> ZFResult<()> {
@@ -51,6 +52,7 @@ impl ZFComponent for GenericSink {
 impl ZFComponentInputRule for GenericSink {
     fn input_rule(
         &self,
+        _context: &mut ZFContext,
         state: &mut Box<dyn ZFStateTrait>,
         tokens: &mut HashMap<String, Token>,
     ) -> ZFResult<bool> {
