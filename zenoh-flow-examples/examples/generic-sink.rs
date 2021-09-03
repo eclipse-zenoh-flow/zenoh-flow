@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::ZFSinkTrait;
 use zenoh_flow::{
-    default_input_rule, export_sink, types::ZFResult, zf_empty_state, Token, ZFComponentInputRule,
-    ZFComponentState, ZFStateTrait,
+    default_input_rule, export_sink, types::ZFResult, zf_empty_state, Token, ZFComponent,
+    ZFComponentInputRule, ZFStateTrait,
 };
 
 struct GenericSink;
@@ -39,7 +39,7 @@ impl ZFSinkTrait for GenericSink {
     }
 }
 
-impl ZFComponentState for GenericSink {
+impl ZFComponent for GenericSink {
     fn initial_state(
         &self,
         _configuration: &Option<HashMap<String, String>>,

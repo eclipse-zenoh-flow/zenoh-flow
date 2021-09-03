@@ -18,7 +18,7 @@ use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    Token, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule, ZFComponentState,
+    Token, ZFComponent, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule,
     ZFOperatorTrait, ZFStateTrait,
 };
 use zenoh_flow::{downcast, ZFDataTrait};
@@ -58,7 +58,7 @@ impl ZFOperatorTrait for BuzzOperator {
     }
 }
 
-impl ZFComponentState for BuzzOperator {
+impl ZFComponent for BuzzOperator {
     fn initial_state(
         &self,
         configuration: &Option<HashMap<String, String>>,

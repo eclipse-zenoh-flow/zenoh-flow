@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::{
     default_input_rule, downcast, get_input, types::ZFResult, zenoh_flow_derive::ZFState,
-    ZFComponentInputRule, ZFComponentState, ZFSinkTrait,
+    ZFComponent, ZFComponentInputRule, ZFSinkTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -53,7 +53,7 @@ impl ZFComponentInputRule for VideoSink {
     }
 }
 
-impl ZFComponentState for VideoSink {
+impl ZFComponent for VideoSink {
     fn initial_state(
         &self,
         _configuration: &Option<HashMap<String, String>>,

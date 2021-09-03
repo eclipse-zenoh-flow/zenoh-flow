@@ -16,8 +16,8 @@ use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, runtime::message::ZFDataMessage,
-    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, ZFComponentInputRule, ZFComponentOutputRule,
-    ZFComponentState, ZFDataTrait, ZFOperatorTrait, ZFPortID, ZFResult, ZFStateTrait,
+    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, ZFComponent, ZFComponentInputRule,
+    ZFComponentOutputRule, ZFDataTrait, ZFOperatorTrait, ZFPortID, ZFResult, ZFStateTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -64,7 +64,7 @@ impl FDState {
     }
 }
 
-impl ZFComponentState for FaceDetection {
+impl ZFComponent for FaceDetection {
     fn initial_state(
         &self,
         configuration: &Option<HashMap<String, String>>,

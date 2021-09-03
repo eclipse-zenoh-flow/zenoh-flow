@@ -18,7 +18,7 @@ use opencv::{core, prelude::*, videoio};
 use std::collections::HashMap;
 use zenoh_flow::{
     default_output_rule, downcast_mut, types::ZFResult, zenoh_flow_derive::ZFState, zf_data,
-    zf_spin_lock, ZFComponentOutputRule, ZFComponentState, ZFDataTrait, ZFSourceTrait,
+    zf_spin_lock, ZFComponent, ZFComponentOutputRule, ZFDataTrait, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -100,7 +100,7 @@ impl CameraState {
     }
 }
 
-impl ZFComponentState for CameraSource {
+impl ZFComponent for CameraSource {
     fn initial_state(
         &self,
         configuration: &Option<HashMap<String, String>>,
