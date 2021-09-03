@@ -34,29 +34,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Cache OpenCV
-        id: opencv-cache
-        uses: actions/cache@v2
-        with:
-          path: ./opencv-install
-          key: ${{ runner.os }}-opencv-cache
+     - name: Install dependencies
+        run: sudo apt-get install libopencv-dev libclan-dev
 
-      - name: Install OpenCV
-        uses: rayandrews/with-opencv-action@v1
-        with:
-          dir: ./opencv-install
-          cached: ${{ steps.opencv-cache.outputs.cache-hit }}
-          opencv-version: '4.2.0'
-
-      - name: Install LLVM
-        uses: KyleMayes/install-llvm-action@v1
-        with:
-          version: "11"
-
-      - name: Symlink libclang.so (Linux)
-        if: contains(matrix.os, 'ubuntu-latest')
-        run: sudo ln -s libclang-11.so.1 /lib/x86_64-linux-gnu/libclang.so
-        working-directory: ${{ env.LLVM_PATH }}/lib
+      # - name: Symlink libclang.so (Linux)
+      #   if: contains(matrix.os, 'ubuntu-latest')
+      #   run: sudo ln -s libclang-11.so.1 /lib/x86_64-linux-gnu/libclang.so
+      #   working-directory: ${{ env.LLVM_PATH }}/lib
 
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
