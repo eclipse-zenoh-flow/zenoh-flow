@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-     - name: Install dependencies
+      - name: Install dependencies
         run: sudo apt-get install libopencv-dev libclan-dev
 
       # - name: Symlink libclang.so (Linux)
