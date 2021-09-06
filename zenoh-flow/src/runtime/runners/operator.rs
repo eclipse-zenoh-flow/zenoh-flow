@@ -31,29 +31,19 @@ pub struct ZFOperatorDeclaration {
     pub register: ZFOperatorRegisterFn,
 }
 
-pub struct ZFOperatorRunnerInner {
-    pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
-    pub outputs: HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
-    pub state: Box<dyn ZFStateTrait>,
-}
-
-impl ZFOperatorRunnerInner {
-    pub fn new(state: Box<dyn ZFStateTrait>) -> Self {
-        Self {
-            inputs: vec![],
-            outputs: HashMap::new(),
-            state,
-        }
-    }
-}
+pub type ZFOperatorIO = (
+    Vec<ZFLinkReceiver<ZFMessage>>,
+    HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
+);
 
 #[derive(Clone)]
 pub struct ZFOperatorRunner {
     pub record: Arc<ZFOperatorRecord>,
+    pub io: Arc<RwLock<ZFOperatorIO>>,
+    pub state: Arc<RwLock<Box<dyn ZFStateTrait>>>,
     pub hlc: Arc<HLC>,
     pub operator: Arc<dyn ZFOperatorTrait>,
     pub lib: Arc<Option<Library>>,
-    pub inner: Arc<RwLock<ZFOperatorRunnerInner>>,
 }
 
 impl ZFOperatorRunner {
@@ -63,53 +53,53 @@ impl ZFOperatorRunner {
         operator: Arc<dyn ZFOperatorTrait>,
         lib: Option<Library>,
     ) -> Self {
+        let state = operator.initialize(&record.configuration);
         Self {
             record: Arc::new(record),
             hlc,
+            io: Arc::new(RwLock::new((vec![], HashMap::new()))),
+            state: Arc::new(RwLock::new(state)),
             operator,
             lib: Arc::new(lib),
-            inner: Arc::new(RwLock::new(ZFOperatorRunnerInner::new(Box::new(
-                crate::EmptyState {},
-            )))), //place holder
         }
     }
 
     pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
-        self.inner.write().await.inputs.push(input);
+        self.io.write().await.0.push(input);
     }
 
     pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
-        let mut guard = self.inner.write().await;
+        let mut guard = self.io.write().await;
         let key = output.id();
-        if let Some(links) = guard.outputs.get_mut(&key) {
+        if let Some(links) = guard.1.get_mut(&key) {
             links.push(output);
         } else {
-            guard.outputs.insert(key, vec![output]);
+            guard.1.insert(key, vec![output]);
         }
         drop(guard);
     }
 
-    pub fn clean(&self) -> ZFResult<()> {
-        Ok(())
-        // self.operator.clean(&mut self.state)
+    pub async fn clean(&self) -> ZFResult<()> {
+        let mut state = self.state.write().await;
+        self.operator.clean(&mut state)
     }
 
     pub async fn run(&self) -> ZFResult<()> {
         let mut context = ZFContext::default();
-        let mut state = self.operator.initialize(&self.record.configuration);
 
         loop {
-            let guard = self.inner.read().await;
+            let io = self.io.read().await;
+            let mut state = self.state.write().await;
 
             // we should start from an HashMap with all PortId and not ready tokens
             let mut msgs: HashMap<String, Token> = HashMap::new();
 
-            for i in &guard.inputs {
+            for i in io.0.iter() {
                 msgs.insert(i.id(), Token::NotReady);
             }
 
             let mut futs = vec![];
-            for rx in guard.inputs.iter() {
+            for rx in io.0.iter() {
                 futs.push(rx.recv()); // this should be peek(), but both requires mut
             }
 
@@ -168,7 +158,7 @@ impl ZFOperatorRunner {
             for (id, output) in outputs {
                 // getting link
                 log::debug!("id: {:?}, message: {:?}", id, output);
-                if let Some(links) = guard.outputs.get(&id) {
+                if let Some(links) = io.1.get(&id) {
                     let zf_message = Arc::new(ZFMessage::from_component_output(output, timestamp));
 
                     for tx in links {
@@ -179,11 +169,11 @@ impl ZFOperatorRunner {
             }
 
             // This depends on the Tokens...
-            for rx in guard.inputs.iter() {
+            for rx in io.0.iter() {
                 rx.discard().await?;
             }
 
-            drop(guard);
+            drop(io);
         }
     }
 }

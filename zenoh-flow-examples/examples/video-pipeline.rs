@@ -184,7 +184,7 @@ impl ZFComponent for VideoSink {
 
     fn clean(&self, state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
         let state = downcast!(VideoState, state).ok_or(ZFError::MissingState)?;
-        highgui::named_window(&state.window_name, 1).unwrap();
+        highgui::destroy_window(&state.window_name).unwrap();
         Ok(())
     }
 }
@@ -294,6 +294,6 @@ async fn main() {
     }
 
     for runner in runners {
-        runner.clean().unwrap();
+        runner.clean().await.unwrap();
     }
 }

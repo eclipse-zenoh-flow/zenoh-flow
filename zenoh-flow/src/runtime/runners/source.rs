@@ -30,27 +30,14 @@ pub struct ZFSourceDeclaration {
     pub register: ZFSourceRegisterFn,
 }
 
-pub struct ZFSourceRunnerInner {
-    pub outputs: HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
-    pub state: Box<dyn ZFStateTrait>,
-}
-
-impl ZFSourceRunnerInner {
-    pub fn new(state: Box<dyn ZFStateTrait>) -> Self {
-        Self {
-            outputs: HashMap::new(),
-            state,
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct ZFSourceRunner {
     pub record: Arc<ZFSourceRecord>,
     pub hlc: Arc<PeriodicHLC>,
+    pub state: Arc<RwLock<Box<dyn ZFStateTrait>>>,
+    pub outputs: Arc<RwLock<HashMap<String, Vec<ZFLinkSender<ZFMessage>>>>>,
     pub source: Arc<dyn ZFSourceTrait>,
     pub lib: Arc<Option<Library>>,
-    pub inner: Arc<RwLock<ZFSourceRunnerInner>>,
 }
 
 impl ZFSourceRunner {
@@ -60,39 +47,39 @@ impl ZFSourceRunner {
         source: Arc<dyn ZFSourceTrait>,
         lib: Option<Library>,
     ) -> Self {
+        let state = source.initialize(&record.configuration);
         Self {
             record: Arc::new(record),
             hlc: Arc::new(hlc),
+            state: Arc::new(RwLock::new(state)),
+            outputs: Arc::new(RwLock::new(HashMap::new())),
             source,
             lib: Arc::new(lib),
-            inner: Arc::new(RwLock::new(ZFSourceRunnerInner::new(Box::new(
-                crate::EmptyState {},
-            )))), //place holder
         }
     }
 
     pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
-        let mut guard = self.inner.write().await;
+        let mut outputs = self.outputs.write().await;
         let key = output.id();
-        if let Some(links) = guard.outputs.get_mut(&key) {
+        if let Some(links) = outputs.get_mut(&key) {
             links.push(output);
         } else {
-            guard.outputs.insert(key, vec![output]);
+            outputs.insert(key, vec![output]);
         }
-        drop(guard);
+        drop(outputs);
     }
 
-    pub fn clean(&self) -> ZFResult<()> {
-        // self.source.clean(&mut self.state)
-        Ok(())
+    pub async fn clean(&self) -> ZFResult<()> {
+        let mut state = self.state.write().await;
+        self.source.clean(&mut state)
     }
 
     pub async fn run(&self) -> ZFResult<()> {
         let mut context = ZFContext::default();
-        let mut state = self.source.initialize(&self.record.configuration);
 
         loop {
-            let guard = self.inner.read().await;
+            let outputs_links = self.outputs.read().await;
+            let mut state = self.state.write().await;
             // Running
             let run_outputs = self.source.run(&mut context, &mut state).await?;
 
@@ -101,7 +88,7 @@ impl ZFSourceRunner {
                 .source
                 .output_rule(&mut context, &mut state, &run_outputs)?;
 
-            log::debug!("Outputs: {:?}", guard.outputs);
+            log::debug!("Outputs: {:?}", outputs);
 
             let timestamp = self.hlc.new_timestamp();
 
@@ -109,7 +96,7 @@ impl ZFSourceRunner {
             for (id, output) in outputs.drain() {
                 log::debug!("Sending on {:?} data: {:?}", id, output);
 
-                if let Some(links) = guard.outputs.get(&id) {
+                if let Some(links) = outputs_links.get(&id) {
                     let zf_message = Arc::new(ZFMessage::from_component_output(output, timestamp));
 
                     for tx in links {
@@ -119,7 +106,7 @@ impl ZFSourceRunner {
                 }
             }
 
-            drop(guard);
+            drop(outputs_links);
         }
     }
 }

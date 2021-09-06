@@ -47,50 +47,51 @@ impl ZFSinkRunnerInner {
 #[derive(Clone)]
 pub struct ZFSinkRunner {
     pub record: Arc<ZFSinkRecord>,
+    pub state: Arc<RwLock<Box<dyn ZFStateTrait>>>,
+    pub inputs: Arc<RwLock<Vec<ZFLinkReceiver<ZFMessage>>>>,
     pub sink: Arc<dyn ZFSinkTrait>,
     pub lib: Arc<Option<Library>>,
-    pub inner: Arc<RwLock<ZFSinkRunnerInner>>,
 }
 
 impl ZFSinkRunner {
     pub fn new(record: ZFSinkRecord, sink: Arc<dyn ZFSinkTrait>, lib: Option<Library>) -> Self {
+        let state = sink.initialize(&record.configuration);
         Self {
             record: Arc::new(record),
+            state: Arc::new(RwLock::new(state)),
+            inputs: Arc::new(RwLock::new(vec![])),
             sink,
             lib: Arc::new(lib),
-            inner: Arc::new(RwLock::new(ZFSinkRunnerInner::new(Box::new(
-                crate::EmptyState {},
-            )))), //place holder
         }
     }
 
     pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
-        self.inner.write().await.inputs.push(input);
+        self.inputs.write().await.push(input);
     }
 
-    pub fn clean(&self) -> ZFResult<()> {
-        // self.sink.clean(&mut self.state)
-        Ok(())
+    pub async fn clean(&self) -> ZFResult<()> {
+        let mut state = self.state.write().await;
+        self.sink.clean(&mut state)
     }
 
     pub async fn run(&self) -> ZFResult<()> {
         let mut context = ZFContext::default();
-        let mut state = self.sink.initialize(&self.record.configuration);
 
         loop {
             // we should start from an HashMap with all PortId and not ready tokens
             let mut msgs: HashMap<String, Token> = HashMap::new();
 
-            let guard = self.inner.read().await;
+            let inputs = self.inputs.read().await;
+            let mut state = self.state.write().await;
 
-            for i in guard.inputs.iter() {
+            for i in inputs.iter() {
                 msgs.insert(i.id(), Token::NotReady);
             }
 
             // let ir_fn = self.operator.get_input_rule(context.clone());
 
             let mut futs = vec![];
-            for rx in guard.inputs.iter() {
+            for rx in inputs.iter() {
                 futs.push(rx.recv()); // this should be peek(), but both requires mut
             }
 
@@ -111,11 +112,12 @@ impl ZFSinkRunner {
             self.sink.run(&mut context, &mut state, &mut data).await?;
 
             //This depends on the Tokens...
-            for rx in guard.inputs.iter() {
+            for rx in inputs.iter() {
                 rx.discard().await?;
             }
 
-            drop(guard);
+            drop(inputs);
+            drop(state);
         }
     }
 }

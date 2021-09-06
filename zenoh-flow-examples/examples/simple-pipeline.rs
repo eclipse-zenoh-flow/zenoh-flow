@@ -209,6 +209,6 @@ async fn main() {
     futures::future::join_all(managers).await;
 
     for runner in runners {
-        runner.clean().unwrap();
+        runner.clean().await.unwrap();
     }
 }

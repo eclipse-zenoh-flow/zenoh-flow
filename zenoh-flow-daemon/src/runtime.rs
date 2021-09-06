@@ -506,15 +506,15 @@ impl ZFRuntime for Runtime {
                     futures::join!(manager);
                 }
 
-                // let mut sinks = instance.0.get_sinks();
-                // for runner in sinks.drain(..) {
-                //     runner.clean().await?;
-                // }
+                let mut sinks = instance.0.get_sinks();
+                for runner in sinks.drain(..) {
+                    runner.clean().await?;
+                }
 
-                // let mut operators = instance.0.get_operators();
-                // for runner in operators.drain(..) {
-                //     runner.clean().await?;
-                // }
+                let mut operators = instance.0.get_operators();
+                for runner in operators.drain(..) {
+                    runner.clean().await?;
+                }
 
                 self.store
                     .add_runtime_status(self.runtime_uuid, rt_status)
@@ -555,10 +555,10 @@ impl ZFRuntime for Runtime {
 
                 rt_status.running_flows -= 1;
 
-                // let mut sources = instance.0.get_sources();
-                // for runner in sources.drain(..) {
-                //     runner.clean().await?;
-                // }
+                let mut sources = instance.0.get_sources();
+                for runner in sources.drain(..) {
+                    runner.clean().await?;
+                }
 
                 self.store
                     .add_runtime_status(self.runtime_uuid, rt_status)

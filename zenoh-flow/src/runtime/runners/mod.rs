@@ -128,11 +128,11 @@ impl Runner {
         }
     }
 
-    pub fn clean(&self) -> ZFResult<()> {
+    pub async fn clean(&self) -> ZFResult<()> {
         match self {
-            Runner::Operator(runner) => runner.clean(),
-            Runner::Source(runner) => runner.clean(),
-            Runner::Sink(runner) => runner.clean(),
+            Runner::Operator(runner) => runner.clean().await,
+            Runner::Source(runner) => runner.clean().await,
+            Runner::Sink(runner) => runner.clean().await,
             Runner::Sender(_) => Err(ZFError::Unimplemented),
             Runner::Receiver(_) => Err(ZFError::Unimplemented),
         }
