@@ -19,7 +19,7 @@ use zenoh_flow::{
     default_input_rule, downcast, get_input,
     types::{Token, ZFResult},
     zenoh_flow_derive::ZFState,
-    ZFComponent, ZFComponentInputRule, ZFSinkTrait,
+    ZFComponent, ZFComponentInputRule, ZFSinkTrait, ZFStateTrait,
 };
 
 use zenoh::net::config;
@@ -51,6 +51,10 @@ impl ZFComponent for ExampleGenericZenohSink {
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {
         Box::new(ZSinkState::new())
+    }
+
+    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        Ok(())
     }
 }
 
@@ -89,6 +93,6 @@ impl ZFSinkTrait for ExampleGenericZenohSink {
 
 zenoh_flow::export_sink!(register);
 
-fn register() -> ZFResult<Box<dyn ZFSinkTrait + Send>> {
-    Ok(Box::new(ExampleGenericZenohSink))
+fn register() -> ZFResult<Arc<dyn ZFSinkTrait>> {
+    Ok(Arc::new(ExampleGenericZenohSink))
 }

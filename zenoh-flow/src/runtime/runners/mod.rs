@@ -29,7 +29,6 @@ use crate::ZFError;
 use crate::async_std::prelude::*;
 use crate::async_std::{
     channel::{bounded, Receiver, RecvError, Sender},
-    sync::{Arc, Mutex},
     task::JoinHandle,
 };
 
@@ -88,34 +87,69 @@ pub enum RunAction {
 }
 
 #[derive(Clone)]
-pub struct Runner {
-    inner: Arc<Mutex<RunnerInner>>,
-    kind: RunnerKind,
+pub enum Runner {
+    Operator(ZFOperatorRunner),
+    Source(ZFSourceRunner),
+    Sink(ZFSinkRunner),
+    Sender(ZFZenohSender),
+    Receiver(ZFZenohReceiver),
 }
 
 impl Runner {
-    pub fn new(inner: RunnerInner) -> Self {
-        let kind = match &inner {
-            RunnerInner::Operator(_) => RunnerKind::Operator,
-            RunnerInner::Source(_) => RunnerKind::Source,
-            RunnerInner::Sink(_) => RunnerKind::Sink,
-            RunnerInner::Sender(_) | RunnerInner::Receiver(_) => RunnerKind::Connector,
-        };
-
-        Self {
-            inner: Arc::new(Mutex::new(inner)),
-            kind,
+    pub async fn run(&self) -> ZFResult<()> {
+        match self {
+            Runner::Operator(runner) => runner.run().await,
+            Runner::Source(runner) => runner.run().await,
+            Runner::Sink(runner) => runner.run().await,
+            Runner::Sender(runner) => runner.run().await,
+            Runner::Receiver(runner) => runner.run().await,
         }
     }
 
-    pub async fn run(&self) -> ZFResult<()> {
-        self.inner.lock().await.run().await
+    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
+        log::trace!("add_input({:?})", input);
+        match self {
+            Runner::Operator(runner) => runner.add_input(input).await,
+            Runner::Source(_) => panic!("Sources does not have inputs!"), // TODO this should return a ZFResult<()>
+            Runner::Sink(runner) => runner.add_input(input).await,
+            Runner::Sender(runner) => runner.add_input(input).await,
+            Runner::Receiver(_) => panic!("Receiver does not have inputs!"), // TODO this should return a ZFResult<()>
+        }
+    }
+
+    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
+        log::trace!("add_output({:?})", output);
+        match self {
+            Runner::Operator(runner) => runner.add_output(output).await,
+            Runner::Source(runner) => runner.add_output(output).await,
+            Runner::Sink(_) => panic!("Sinks does not have output!"), // TODO this should return a ZFResult<()>
+            Runner::Sender(_) => panic!("Senders does not have output!"), // TODO this should return a ZFResult<()>
+            Runner::Receiver(runner) => runner.add_output(output).await,
+        }
+    }
+
+    pub fn clean(&self) -> ZFResult<()> {
+        match self {
+            Runner::Operator(runner) => runner.clean(),
+            Runner::Source(runner) => runner.clean(),
+            Runner::Sink(runner) => runner.clean(),
+            Runner::Sender(_) => Err(ZFError::Unimplemented),
+            Runner::Receiver(_) => Err(ZFError::Unimplemented),
+        }
+    }
+
+    pub fn start(&self) -> RunnerManager {
+        let (s, r) = bounded::<()>(1);
+        let cloned_self = self.clone();
+
+        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
+        RunnerManager::new(s, h, self.get_kind())
     }
 
     pub async fn run_stoppable(&self, stop: Receiver<()>) -> ZFResult<()> {
         loop {
             let run = async {
-                match self.inner.lock().await.run().await {
+                match self.run().await {
                     Ok(_) => RunAction::RestartRun(None),
                     Err(e) => RunAction::RestartRun(Some(e)),
                 }
@@ -144,65 +178,13 @@ impl Runner {
         }
     }
 
-    pub fn start(&self) -> RunnerManager {
-        let (s, r) = bounded::<()>(1);
-        let _self = self.clone();
-
-        let h = async_std::task::spawn(async move { _self.run_stoppable(r).await });
-        RunnerManager::new(s, h, self.kind.clone())
-    }
-
-    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
-        self.inner.lock().await.add_input(input)
-    }
-
-    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
-        self.inner.lock().await.add_output(output)
-    }
-
-    pub fn get_kind(&self) -> &RunnerKind {
-        &self.kind
-    }
-}
-
-pub enum RunnerInner {
-    Operator(ZFOperatorRunner),
-    Source(ZFSourceRunner),
-    Sink(ZFSinkRunner),
-    Sender(ZFZenohSender),
-    Receiver(ZFZenohReceiver),
-}
-
-impl RunnerInner {
-    pub async fn run(&mut self) -> ZFResult<()> {
+    pub fn get_kind(&self) -> RunnerKind {
         match self {
-            RunnerInner::Operator(runner) => runner.run().await,
-            RunnerInner::Source(runner) => runner.run().await,
-            RunnerInner::Sink(runner) => runner.run().await,
-            RunnerInner::Sender(runner) => runner.run().await,
-            RunnerInner::Receiver(runner) => runner.run().await,
-        }
-    }
-
-    pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>) {
-        log::trace!("add_input({:?})", input);
-        match self {
-            RunnerInner::Operator(runner) => runner.add_input(input),
-            RunnerInner::Source(_) => panic!("Sources does not have inputs!"), // TODO this should return a ZFResult<()>
-            RunnerInner::Sink(runner) => runner.add_input(input),
-            RunnerInner::Sender(runner) => runner.add_input(input),
-            RunnerInner::Receiver(_) => panic!("Receiver does not have inputs!"), // TODO this should return a ZFResult<()>
-        }
-    }
-
-    pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {
-        log::trace!("add_output({:?})", output);
-        match self {
-            RunnerInner::Operator(runner) => runner.add_output(output),
-            RunnerInner::Source(runner) => runner.add_output(output),
-            RunnerInner::Sink(_) => panic!("Sinks does not have output!"), // TODO this should return a ZFResult<()>
-            RunnerInner::Sender(_) => panic!("Senders does not have output!"), // TODO this should return a ZFResult<()>
-            RunnerInner::Receiver(runner) => runner.add_output(output),
+            Runner::Operator(_) => RunnerKind::Operator,
+            Runner::Source(_) => RunnerKind::Source,
+            Runner::Sink(_) => RunnerKind::Sink,
+            Runner::Sender(_) => RunnerKind::Connector,
+            Runner::Receiver(_) => RunnerKind::Connector,
         }
     }
 }

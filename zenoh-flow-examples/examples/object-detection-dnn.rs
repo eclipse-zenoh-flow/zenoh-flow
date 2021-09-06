@@ -21,7 +21,7 @@ use std::{
 };
 use zenoh_flow::{
     default_input_rule, default_output_rule, ZFComponent, ZFComponentInputRule, ZFComponentOutput,
-    ZFComponentOutputRule, ZFContext, ZFDataTrait, ZFOperatorTrait,
+    ZFComponentOutputRule, ZFContext, ZFDataTrait, ZFOperatorTrait, ZFStateTrait,
 };
 use zenoh_flow::{
     downcast, get_input,
@@ -100,6 +100,10 @@ impl ZFComponent for ObjDetection {
         configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {
         Box::new(ODState::new(configuration))
+    }
+
+    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        Ok(())
     }
 }
 
@@ -323,6 +327,6 @@ impl ZFOperatorTrait for ObjDetection {
 
 zenoh_flow::export_operator!(register);
 
-fn register() -> ZFResult<Box<dyn zenoh_flow::ZFOperatorTrait + Send>> {
-    Ok(Box::new(ObjDetection) as Box<dyn zenoh_flow::ZFOperatorTrait + Send>)
+fn register() -> ZFResult<Arc<dyn zenoh_flow::ZFOperatorTrait>> {
+    Ok(Arc::new(ObjDetection) as Arc<dyn zenoh_flow::ZFOperatorTrait>)
 }

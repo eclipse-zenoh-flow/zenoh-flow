@@ -58,6 +58,10 @@ impl ZFComponent for ManualSource {
     ) -> Box<dyn ZFStateTrait> {
         zf_empty_state!()
     }
+
+    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        Ok(())
+    }
 }
 
 impl ZFComponentOutputRule for ManualSource {
@@ -73,6 +77,6 @@ impl ZFComponentOutputRule for ManualSource {
 
 zenoh_flow::export_source!(register);
 
-fn register() -> ZFResult<Box<dyn ZFSourceTrait + Send>> {
-    Ok(Box::new(ManualSource) as Box<dyn ZFSourceTrait + Send>)
+fn register() -> ZFResult<Arc<dyn ZFSourceTrait>> {
+    Ok(Arc::new(ManualSource) as Arc<dyn ZFSourceTrait>)
 }

@@ -60,10 +60,7 @@ impl ZFOperatorTrait for BuzzOperator {
 }
 
 impl ZFComponent for BuzzOperator {
-    fn initialize(
-        &self,
-        configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn ZFStateTrait> {
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn ZFStateTrait> {
         let state = match configuration {
             Some(config) => match config.get("buzzword") {
                 Some(buzzword) => BuzzState {
@@ -78,6 +75,10 @@ impl ZFComponent for BuzzOperator {
             },
         };
         Box::new(state)
+    }
+
+    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        Ok(())
     }
 }
 
@@ -105,6 +106,6 @@ impl ZFComponentOutputRule for BuzzOperator {
 
 export_operator!(register);
 
-fn register() -> ZFResult<Box<dyn ZFOperatorTrait + Send>> {
-    Ok(Box::new(BuzzOperator) as Box<dyn ZFOperatorTrait + Send>)
+fn register() -> ZFResult<Arc<dyn ZFOperatorTrait>> {
+    Ok(Arc::new(BuzzOperator) as Arc<dyn ZFOperatorTrait>)
 }

@@ -16,3 +16,10 @@ sinks:
 links:
 - from: Camera.Frame
   to: Window.Frame
+
+
+mapping:
+  - id: Camera
+    runtime: runtime0
+  - id: Window
+    runtime: runtime1

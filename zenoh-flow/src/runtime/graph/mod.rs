@@ -31,7 +31,7 @@ use crate::runtime::loader::{load_operator, load_sink, load_source};
 use crate::runtime::message::ZFMessage;
 use crate::runtime::runners::connector::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::runners::{
-    operator::ZFOperatorRunner, sink::ZFSinkRunner, source::ZFSourceRunner, Runner, RunnerInner,
+    operator::ZFOperatorRunner, sink::ZFSinkRunner, source::ZFSourceRunner, Runner,
 };
 use crate::{
     model::connector::ZFConnectorKind,
@@ -89,7 +89,7 @@ impl DataFlowGraph {
         id: ZFOperatorId,
         inputs: Vec<ZFPortDescriptor>,
         outputs: Vec<ZFPortDescriptor>,
-        operator: Box<dyn ZFOperatorTrait + Send>,
+        operator: Arc<dyn ZFOperatorTrait>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
         let record = ZFOperatorRecord {
@@ -104,9 +104,9 @@ impl DataFlowGraph {
             self.graph.add_node(DataFlowNode::Operator(record.clone())),
             DataFlowNode::Operator(record.clone()),
         ));
-        let runner = RunnerInner::Operator(ZFOperatorRunner::new(record, hlc, operator, None));
+        let runner = Runner::Operator(ZFOperatorRunner::new(record, hlc, operator, None));
         self.operators_runners
-            .insert(id, (Runner::new(runner), DataFlowNodeKind::Operator));
+            .insert(id, (runner, DataFlowNodeKind::Operator));
         Ok(())
     }
 
@@ -115,7 +115,7 @@ impl DataFlowGraph {
         hlc: Arc<HLC>,
         id: ZFOperatorId,
         output: ZFPortDescriptor,
-        source: Box<dyn ZFSourceTrait + Send>,
+        source: Arc<dyn ZFSourceTrait>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
         let record = ZFSourceRecord {
@@ -131,10 +131,9 @@ impl DataFlowGraph {
             DataFlowNode::Source(record.clone()),
         ));
         let non_periodic_hlc = PeriodicHLC::new(hlc, None);
-        let runner =
-            RunnerInner::Source(ZFSourceRunner::new(record, non_periodic_hlc, source, None));
+        let runner = Runner::Source(ZFSourceRunner::new(record, non_periodic_hlc, source, None));
         self.operators_runners
-            .insert(id, (Runner::new(runner), DataFlowNodeKind::Source));
+            .insert(id, (runner, DataFlowNodeKind::Source));
         Ok(())
     }
 
@@ -142,7 +141,7 @@ impl DataFlowGraph {
         &mut self,
         id: ZFOperatorId,
         input: ZFPortDescriptor,
-        sink: Box<dyn ZFSinkTrait + Send>,
+        sink: Arc<dyn ZFSinkTrait>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
         let record = ZFSinkRecord {
@@ -156,9 +155,9 @@ impl DataFlowGraph {
             self.graph.add_node(DataFlowNode::Sink(record.clone())),
             DataFlowNode::Sink(record.clone()),
         ));
-        let runner = RunnerInner::Sink(ZFSinkRunner::new(record, sink, None));
+        let runner = Runner::Sink(ZFSinkRunner::new(record, sink, None));
         self.operators_runners
-            .insert(id, (Runner::new(runner), DataFlowNodeKind::Sink));
+            .insert(id, (runner, DataFlowNodeKind::Sink));
         Ok(())
     }
 
@@ -255,11 +254,9 @@ impl DataFlowGraph {
                     match &inner.uri {
                         Some(uri) => {
                             let runner = load_operator(inner.clone(), hlc.clone(), uri.clone())?;
-                            let runner = RunnerInner::Operator(runner);
-                            self.operators_runners.insert(
-                                inner.id.clone(),
-                                (Runner::new(runner), DataFlowNodeKind::Operator),
-                            );
+                            let runner = Runner::Operator(runner);
+                            self.operators_runners
+                                .insert(inner.id.clone(), (runner, DataFlowNodeKind::Operator));
                         }
                         None => {
                             // this is a static operator.
@@ -274,11 +271,9 @@ impl DataFlowGraph {
                                 PeriodicHLC::new(hlc.clone(), inner.period.clone()),
                                 uri.clone(),
                             )?;
-                            let runner = RunnerInner::Source(runner);
-                            self.operators_runners.insert(
-                                inner.id.clone(),
-                                (Runner::new(runner), DataFlowNodeKind::Source),
-                            );
+                            let runner = Runner::Source(runner);
+                            self.operators_runners
+                                .insert(inner.id.clone(), (runner, DataFlowNodeKind::Source));
                         }
                         None => {
                             // static source
@@ -289,11 +284,9 @@ impl DataFlowGraph {
                     match &inner.uri {
                         Some(uri) => {
                             let runner = load_sink(inner.clone(), uri.clone())?;
-                            let runner = RunnerInner::Sink(runner);
-                            self.operators_runners.insert(
-                                inner.id.clone(),
-                                (Runner::new(runner), DataFlowNodeKind::Sink),
-                            );
+                            let runner = Runner::Sink(runner);
+                            self.operators_runners
+                                .insert(inner.id.clone(), (runner, DataFlowNodeKind::Sink));
                         }
                         None => {
                             //static sink
@@ -303,21 +296,17 @@ impl DataFlowGraph {
                 DataFlowNode::Connector(zc) => match zc.kind {
                     ZFConnectorKind::Sender => {
                         let runner = ZFZenohSender::new(session.clone(), zc.resource.clone(), None);
-                        let runner = RunnerInner::Sender(runner);
-                        self.operators_runners.insert(
-                            zc.id.clone(),
-                            (Runner::new(runner), DataFlowNodeKind::Connector),
-                        );
+                        let runner = Runner::Sender(runner);
+                        self.operators_runners
+                            .insert(zc.id.clone(), (runner, DataFlowNodeKind::Connector));
                     }
 
                     ZFConnectorKind::Receiver => {
                         let runner =
                             ZFZenohReceiver::new(session.clone(), zc.resource.clone(), None);
-                        let runner = RunnerInner::Receiver(runner);
-                        self.operators_runners.insert(
-                            zc.id.clone(),
-                            (Runner::new(runner), DataFlowNodeKind::Connector),
-                        );
+                        let runner = Runner::Receiver(runner);
+                        self.operators_runners
+                            .insert(zc.id.clone(), (runner, DataFlowNodeKind::Connector));
                     }
                 },
             }
@@ -394,60 +383,58 @@ impl DataFlowGraph {
         Ok(())
     }
 
-    pub fn get_runner(&self, operator_id: &str) -> Option<Runner> {
-        self.operators_runners
-            .get(operator_id)
-            .map(|(r, _)| r.clone())
+    pub fn get_runner(&self, operator_id: &str) -> Option<&Runner> {
+        self.operators_runners.get(operator_id).map(|(r, _)| r)
     }
 
-    pub fn get_runners(&self) -> Vec<Runner> {
+    pub fn get_runners(&self) -> Vec<&Runner> {
         let mut runners = vec![];
 
         for (runner, _) in self.operators_runners.values() {
-            runners.push(runner.clone());
+            runners.push(runner);
         }
         runners
     }
 
-    pub fn get_sources(&self) -> Vec<Runner> {
+    pub fn get_sources(&self) -> Vec<&Runner> {
         let mut runners = vec![];
 
         for (runner, kind) in self.operators_runners.values() {
             if let DataFlowNodeKind::Source = kind {
-                runners.push(runner.clone());
+                runners.push(runner);
             }
         }
         runners
     }
 
-    pub fn get_sinks(&self) -> Vec<Runner> {
+    pub fn get_sinks(&self) -> Vec<&Runner> {
         let mut runners = vec![];
 
         for (runner, kind) in self.operators_runners.values() {
             if let DataFlowNodeKind::Sink = kind {
-                runners.push(runner.clone());
+                runners.push(runner);
             }
         }
         runners
     }
 
-    pub fn get_operators(&self) -> Vec<Runner> {
+    pub fn get_operators(&self) -> Vec<&Runner> {
         let mut runners = vec![];
 
         for (runner, kind) in self.operators_runners.values() {
             if let DataFlowNodeKind::Operator = kind {
-                runners.push(runner.clone());
+                runners.push(runner);
             }
         }
         runners
     }
 
-    pub fn get_connectors(&self) -> Vec<Runner> {
+    pub fn get_connectors(&self) -> Vec<&Runner> {
         let mut runners = vec![];
 
         for (runner, kind) in self.operators_runners.values() {
             if let DataFlowNodeKind::Connector = kind {
-                runners.push(runner.clone());
+                runners.push(runner);
             }
         }
         runners

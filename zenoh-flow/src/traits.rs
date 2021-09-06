@@ -43,10 +43,9 @@ pub trait ZFStateTrait: Debug + Send + Sync {
 }
 
 pub trait ZFComponent {
-    fn initialize(
-        &self,
-        configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn ZFStateTrait>;
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn ZFStateTrait>;
+
+    fn clean(&self, state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()>;
 }
 
 pub trait ZFComponentInputRule {

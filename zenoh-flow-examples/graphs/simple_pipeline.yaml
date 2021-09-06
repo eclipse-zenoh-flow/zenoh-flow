@@ -1,7 +1,7 @@
 flow: SimplePipeline
 operators:
   - id : SumOperator
-    uri: file://./target/debug/examples/libsum_and_send.dylib
+    uri: file://./target/debug/examples/libsum_and_send.so
     inputs:
       - id: Number
         type: usize
@@ -10,13 +10,15 @@ operators:
         type: usize
 sources:
   - id : Counter
-    uri: file://./target/debug/examples/libcounter_source.dylib
+    uri: file://./target/debug/examples/libcounter_source.so
     output:
       id: Counter
       type: usize
 sinks:
   - id : PrintSink
-    uri: file://./target/debug/examples/libgeneric_sink.dylib
+    uri: file://./target/debug/examples/libgeneric_sink.so
+    configuration:
+      file: /tmp/generic-sink.txt
     input:
       id: Data
       type: usize
@@ -31,6 +33,6 @@ mapping:
   - id: SumOperator
     runtime: runtime0
   - id: Counter
-    runtime: runtime1
+    runtime: runtime0
   - id: PrintSink
     runtime: runtime0

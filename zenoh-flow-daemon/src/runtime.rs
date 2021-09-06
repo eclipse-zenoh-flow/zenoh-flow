@@ -377,15 +377,11 @@ impl ZFRuntime for Runtime {
     async fn clean(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
         log::info!("Cleaning for Instance UUID: {}", record_id);
 
-        let data = {
-            let mut _state = self.state.lock().await;
-            let d = _state.graphs.remove(&record_id);
-            drop(_state);
-            d
-        };
+        let mut _state = self.state.lock().await;
+        let data = _state.graphs.remove(&record_id);
 
         match data {
-            Some(r) => {
+            Some((dfg, _)) => {
                 let record = self
                     .store
                     .get_runtime_flow_by_instance(self.runtime_uuid, record_id)
@@ -506,8 +502,19 @@ impl ZFRuntime for Runtime {
                 }
                 to_be_removed.reverse();
                 for i in to_be_removed.iter() {
-                    instance.1.remove(*i);
+                    let manager = instance.1.remove(*i);
+                    futures::join!(manager);
                 }
+
+                // let mut sinks = instance.0.get_sinks();
+                // for runner in sinks.drain(..) {
+                //     runner.clean().await?;
+                // }
+
+                // let mut operators = instance.0.get_operators();
+                // for runner in operators.drain(..) {
+                //     runner.clean().await?;
+                // }
 
                 self.store
                     .add_runtime_status(self.runtime_uuid, rt_status)
@@ -540,11 +547,18 @@ impl ZFRuntime for Runtime {
                     }
                 }
                 to_be_removed.reverse();
+
                 for i in to_be_removed.iter() {
-                    instance.1.remove(*i);
+                    let manager = instance.1.remove(*i);
+                    futures::join!(manager);
                 }
 
                 rt_status.running_flows -= 1;
+
+                // let mut sources = instance.0.get_sources();
+                // for runner in sources.drain(..) {
+                //     runner.clean().await?;
+                // }
 
                 self.store
                     .add_runtime_status(self.runtime_uuid, rt_status)

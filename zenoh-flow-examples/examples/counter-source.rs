@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use zenoh_flow::{default_output_rule, ZFComponent, ZFComponentOutputRule, ZFSourceTrait};
 use zenoh_flow::{
-    types::ZFResult, zenoh_flow_derive::ZFState, zf_data, zf_empty_state, ZFDataTrait,
+    types::ZFResult, zenoh_flow_derive::ZFState, zf_data, zf_empty_state, ZFDataTrait, ZFStateTrait,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -67,10 +67,14 @@ impl ZFComponent for CountSource {
 
         zf_empty_state!()
     }
+
+    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        Ok(())
+    }
 }
 
 zenoh_flow::export_source!(register);
 
-fn register() -> ZFResult<Box<dyn ZFSourceTrait + Send>> {
-    Ok(Box::new(CountSource) as Box<dyn ZFSourceTrait + Send>)
+fn register() -> ZFResult<Arc<dyn ZFSourceTrait>> {
+    Ok(Arc::new(CountSource) as Arc<dyn ZFSourceTrait>)
 }

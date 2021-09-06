@@ -47,6 +47,10 @@ impl ZFComponent for FizzOperator {
     ) -> Box<dyn ZFStateTrait> {
         zf_empty_state!()
     }
+
+    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        Ok(())
+    }
 }
 
 impl ZFOperatorTrait for FizzOperator {
@@ -86,6 +90,6 @@ impl ZFComponentOutputRule for FizzOperator {
 
 export_operator!(register);
 
-fn register() -> ZFResult<Box<dyn ZFOperatorTrait + Send>> {
-    Ok(Box::new(FizzOperator) as Box<dyn ZFOperatorTrait + Send>)
+fn register() -> ZFResult<Arc<dyn ZFOperatorTrait>> {
+    Ok(Arc::new(FizzOperator) as Arc<dyn ZFOperatorTrait>)
 }
