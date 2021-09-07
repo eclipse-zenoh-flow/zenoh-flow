@@ -41,6 +41,7 @@ pub enum AddKind {
         #[structopt(parse(from_os_str), name = "Flow descriptor path")]
         descriptor_path: std::path::PathBuf,
     },
+    // When registry will be in place the code below will be used
     // Instance {
     //     flow_id: String,
     //     #[structopt(short = "r", long = "rt-id", name = "Runtime UUID")]
@@ -121,7 +122,8 @@ async fn main() {
                 let record = client.instantiate(df).await.unwrap().unwrap();
                 log::debug!("Instantiated: {:?}", record);
                 println!("{}", record.uuid);
-            } // AddKind::Instance { flow_id, rt_id } => {
+            } // When registry will be in place the code below will be used
+              // AddKind::Instance { flow_id, rt_id } => {
               //     println!(
               //         "This is going to instantiate the flow {} in runtime {:?}",
               //         flow_id, rt_id

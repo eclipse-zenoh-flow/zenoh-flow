@@ -36,6 +36,11 @@ pub type ZFOperatorIO = (
     HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
 );
 
+// Do not reorder the fields in this struct.
+// Rust drops fields in a struct in the same order they are declared.
+// Ref: https://doc.rust-lang.org/reference/destructors.html
+// We need the state to be dropped before the operator/lib, otherwise we
+// will have a SIGSEV.
 #[derive(Clone)]
 pub struct ZFOperatorRunner {
     pub record: Arc<ZFOperatorRecord>,
@@ -76,7 +81,6 @@ impl ZFOperatorRunner {
         } else {
             guard.1.insert(key, vec![output]);
         }
-        drop(guard);
     }
 
     pub async fn clean(&self) -> ZFResult<()> {
@@ -88,6 +92,8 @@ impl ZFOperatorRunner {
         let mut context = ZFContext::default();
 
         loop {
+            // Guards are taken at the beginning of each iteration to allow
+            // interleaving.
             let io = self.io.read().await;
             let mut state = self.state.write().await;
 
@@ -172,8 +178,6 @@ impl ZFOperatorRunner {
             for rx in io.0.iter() {
                 rx.discard().await?;
             }
-
-            drop(io);
         }
     }
 }

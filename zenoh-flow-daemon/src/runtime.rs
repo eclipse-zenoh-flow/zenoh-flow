@@ -190,11 +190,11 @@ impl Runtime {
             running_connectors: 0,
         };
 
-        let _state = self.state.lock().await;
+        let self_state = self.state.lock().await;
         self.store
-            .add_runtime_config(self.runtime_uuid, _state.config.clone())
+            .add_runtime_config(self.runtime_uuid, self_state.config.clone())
             .await?;
-        drop(_state);
+        drop(self_state);
 
         self.store
             .add_runtime_info(self.runtime_uuid, rt_info)
@@ -361,9 +361,9 @@ impl ZFRuntime for Runtime {
 
         dataflow_graph.make_connections(&self.runtime_name).await?;
 
-        let mut _state = self.state.lock().await;
-        _state.graphs.insert(dfr.uuid, (dataflow_graph, vec![]));
-        drop(_state);
+        let mut self_state = self.state.lock().await;
+        self_state.graphs.insert(dfr.uuid, (dataflow_graph, vec![]));
+        drop(self_state);
         self.store.add_runtime_flow(self.runtime_uuid, &dfr).await?;
 
         log::info!(

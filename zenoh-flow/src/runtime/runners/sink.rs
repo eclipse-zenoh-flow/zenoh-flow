@@ -44,6 +44,11 @@ impl ZFSinkRunnerInner {
     }
 }
 
+// Do not reorder the fields in this struct.
+// Rust drops fields in a struct in the same order they are declared.
+// Ref: https://doc.rust-lang.org/reference/destructors.html
+// We need the state to be dropped before the sink/lib, otherwise we
+// will have a SIGSEV.
 #[derive(Clone)]
 pub struct ZFSinkRunner {
     pub record: Arc<ZFSinkRecord>,
@@ -78,11 +83,13 @@ impl ZFSinkRunner {
         let mut context = ZFContext::default();
 
         loop {
-            // we should start from an HashMap with all PortId and not ready tokens
-            let mut msgs: HashMap<String, Token> = HashMap::new();
-
+            // Guards are taken at the beginning of each iteration to allow
+            // interleaving.
             let inputs = self.inputs.read().await;
             let mut state = self.state.write().await;
+
+            // we should start from an HashMap with all PortId and not ready tokens
+            let mut msgs: HashMap<String, Token> = HashMap::new();
 
             for i in inputs.iter() {
                 msgs.insert(i.id(), Token::NotReady);
@@ -115,9 +122,6 @@ impl ZFSinkRunner {
             for rx in inputs.iter() {
                 rx.discard().await?;
             }
-
-            drop(inputs);
-            drop(state);
         }
     }
 }

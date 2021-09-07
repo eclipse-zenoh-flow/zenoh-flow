@@ -78,7 +78,6 @@ impl ZFSinkTrait for GenericSink {
                 }
                 writeln!(&mut guard, "#######").unwrap();
                 guard.sync_all().unwrap();
-                drop(guard);
                 Ok(())
             }
         }

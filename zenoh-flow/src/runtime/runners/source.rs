@@ -30,6 +30,11 @@ pub struct ZFSourceDeclaration {
     pub register: ZFSourceRegisterFn,
 }
 
+// Do not reorder the fields in this struct.
+// Rust drops fields in a struct in the same order they are declared.
+// Ref: https://doc.rust-lang.org/reference/destructors.html
+// We need the state to be dropped before the source/lib, otherwise we
+// will have a SIGSEV.
 #[derive(Clone)]
 pub struct ZFSourceRunner {
     pub record: Arc<ZFSourceRecord>,
@@ -66,7 +71,6 @@ impl ZFSourceRunner {
         } else {
             outputs.insert(key, vec![output]);
         }
-        drop(outputs);
     }
 
     pub async fn clean(&self) -> ZFResult<()> {
@@ -78,8 +82,11 @@ impl ZFSourceRunner {
         let mut context = ZFContext::default();
 
         loop {
+            // Guards are taken at the beginning of each iteration to allow
+            // interleaving.
             let outputs_links = self.outputs.read().await;
             let mut state = self.state.write().await;
+
             // Running
             let run_outputs = self.source.run(&mut context, &mut state).await?;
 
@@ -105,8 +112,6 @@ impl ZFSourceRunner {
                     }
                 }
             }
-
-            drop(outputs_links);
         }
     }
 }
