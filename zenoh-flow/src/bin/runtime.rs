@@ -13,6 +13,7 @@
 
 // TODO: this should become a deamon.
 
+use std::convert::TryFrom;
 use std::fs::{File, *};
 use std::io::Write;
 use std::path::Path;
@@ -52,13 +53,12 @@ async fn main() {
 
     // creating record
     let dfr =
-        zenoh_flow::model::dataflow::DataFlowRecord::from_dataflow_descriptor(mapped).unwrap();
+        zenoh_flow::model::dataflow::DataFlowRecord::try_from((mapped, uuid::Uuid::nil())).unwrap();
 
     _write_record_to_file(dfr.clone(), "computed-record.yaml");
 
     // creating graph
-    let mut dataflow_graph =
-        zenoh_flow::runtime::graph::DataFlowGraph::from_dataflow_record(dfr).unwrap();
+    let mut dataflow_graph = zenoh_flow::runtime::graph::DataFlowGraph::try_from(dfr).unwrap();
 
     let dot_notation = dataflow_graph.to_dot_notation();
 

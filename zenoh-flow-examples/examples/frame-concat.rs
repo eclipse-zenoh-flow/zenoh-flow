@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, types::ZFResult,
     zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, ZFComponent, ZFComponentInputRule,
-    ZFComponentOutputRule, ZFDataTrait, ZFOperatorTrait,
+    ZFComponentOutputRule, ZFDataTrait, ZFOperatorTrait, ZFStateTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -50,11 +50,15 @@ impl FrameConcatState {
 struct FrameConcat;
 
 impl ZFComponent for FrameConcat {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {
         Box::new(FrameConcatState::new())
+    }
+
+    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        Ok(())
     }
 }
 
@@ -124,6 +128,6 @@ impl ZFOperatorTrait for FrameConcat {
 
 zenoh_flow::export_operator!(register);
 
-fn register() -> ZFResult<Box<dyn ZFOperatorTrait + Send>> {
-    Ok(Box::new(FrameConcat) as Box<dyn ZFOperatorTrait + Send>)
+fn register() -> ZFResult<Arc<dyn ZFOperatorTrait>> {
+    Ok(Arc::new(FrameConcat) as Arc<dyn ZFOperatorTrait>)
 }

@@ -26,6 +26,7 @@ use zenoh_flow::{
     ZFComponentOutputRule, ZFContext, ZFDataTrait, ZFSinkTrait, ZFSourceTrait,
 };
 use zenoh_flow::{model::link::ZFPortDescriptor, zf_data, zf_empty_state};
+use zenoh_flow::{ZFResult, ZFStateTrait};
 use zenoh_flow_examples::ZFUsize;
 
 static SOURCE: &str = "Counter";
@@ -74,11 +75,15 @@ impl ZFComponentOutputRule for CountSource {
 }
 
 impl ZFComponent for CountSource {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {
         zf_empty_state!()
+    }
+
+    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        Ok(())
     }
 }
 
@@ -113,11 +118,15 @@ impl ZFComponentInputRule for ExampleGenericSink {
 }
 
 impl ZFComponent for ExampleGenericSink {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {
         zf_empty_state!()
+    }
+
+    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        Ok(())
     }
 }
 
@@ -127,8 +136,8 @@ async fn main() {
 
     let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new();
 
-    let source = Box::new(CountSource::new(None));
-    let sink = Box::new(ExampleGenericSink {});
+    let source = Arc::new(CountSource::new(None));
+    let sink = Arc::new(ExampleGenericSink {});
     let hlc = Arc::new(uhlc::HLC::default());
 
     zf_graph
@@ -183,7 +192,7 @@ async fn main() {
     let mut managers = vec![];
 
     let runners = zf_graph.get_runners();
-    for runner in runners {
+    for runner in &runners {
         let m = runner.start();
         managers.push(m)
     }
@@ -198,4 +207,8 @@ async fn main() {
     }
 
     futures::future::join_all(managers).await;
+
+    for runner in runners {
+        runner.clean().await.unwrap();
+    }
 }

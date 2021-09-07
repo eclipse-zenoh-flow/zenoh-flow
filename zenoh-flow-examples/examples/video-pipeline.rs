@@ -25,8 +25,9 @@ use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, model::link::ZFPortDescriptor,
     zenoh_flow_derive::ZFState, zf_data, ZFComponent, ZFComponentInputRule, ZFComponentOutputRule,
-    ZFDataTrait, ZFSinkTrait, ZFSourceTrait,
+    ZFDataTrait, ZFError, ZFSinkTrait, ZFSourceTrait,
 };
+use zenoh_flow::{ZFResult, ZFStateTrait};
 use zenoh_flow_examples::ZFBytes;
 
 static SOURCE: &str = "Frame";
@@ -132,11 +133,15 @@ impl ZFComponentOutputRule for CameraSource {
 }
 
 impl ZFComponent for CameraSource {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {
         Box::new(CameraState::new())
+    }
+
+    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        Ok(())
     }
 }
 
@@ -170,11 +175,17 @@ impl ZFComponentInputRule for VideoSink {
 }
 
 impl ZFComponent for VideoSink {
-    fn initial_state(
+    fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
     ) -> Box<dyn zenoh_flow::ZFStateTrait> {
         Box::new(VideoState::new())
+    }
+
+    fn clean(&self, state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        let state = downcast!(VideoState, state).ok_or(ZFError::MissingState)?;
+        highgui::destroy_window(&state.window_name).unwrap();
+        Ok(())
     }
 }
 
@@ -212,8 +223,8 @@ async fn main() {
 
     let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new();
 
-    let source = Box::new(CameraSource);
-    let sink = Box::new(VideoSink);
+    let source = Arc::new(CameraSource);
+    let sink = Arc::new(VideoSink);
     let hlc = Arc::new(uhlc::HLC::default());
 
     zf_graph
@@ -268,7 +279,7 @@ async fn main() {
     let mut managers = vec![];
 
     let runners = zf_graph.get_runners();
-    for runner in runners {
+    for runner in &runners {
         let m = runner.start();
         managers.push(m)
     }
@@ -280,5 +291,9 @@ async fn main() {
 
     for m in managers.iter() {
         m.kill().await.unwrap()
+    }
+
+    for runner in runners {
+        runner.clean().await.unwrap();
     }
 }

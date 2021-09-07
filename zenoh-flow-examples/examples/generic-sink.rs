@@ -14,14 +14,37 @@
 
 use async_trait::async_trait;
 use std::collections::HashMap;
+use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::runtime::message::ZFDataMessage;
+use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
-    default_input_rule, export_sink, types::ZFResult, zf_empty_state, Token, ZFComponent,
+    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, Token, ZFComponent,
     ZFComponentInputRule, ZFStateTrait,
 };
 use zenoh_flow::{ZFContext, ZFSinkTrait};
 
+use std::fs::File;
+use std::io::Write;
+
 struct GenericSink;
+
+#[derive(ZFState, Clone, Debug)]
+struct SinkState {
+    pub file: Option<Arc<Mutex<File>>>,
+}
+
+impl SinkState {
+    pub fn new(configuration: &Option<HashMap<String, String>>) -> Self {
+        let file = match configuration {
+            Some(c) => {
+                let f = File::create(c.get("file").unwrap()).unwrap();
+                Some(Arc::new(Mutex::new(f)))
+            }
+            None => None,
+        };
+        Self { file }
+    }
+}
 
 #[async_trait]
 impl ZFSinkTrait for GenericSink {
@@ -31,21 +54,51 @@ impl ZFSinkTrait for GenericSink {
         _state: &mut Box<dyn ZFStateTrait>,
         inputs: &mut HashMap<String, ZFDataMessage>,
     ) -> ZFResult<()> {
-        println!("#######");
-        for (k, v) in inputs {
-            println!("Example Generic Sink Received on LinkId {:?} -> {:?}", k, v);
+        let state = downcast!(SinkState, _state).unwrap();
+
+        match &state.file {
+            None => {
+                println!("#######");
+                for (k, v) in inputs {
+                    println!("Example Generic Sink Received on LinkId {:?} -> {:?}", k, v);
+                }
+                println!("#######");
+                Ok(())
+            }
+            Some(f) => {
+                let mut guard = f.lock().await;
+                writeln!(&mut guard, "#######").unwrap();
+                for (k, v) in inputs {
+                    writeln!(
+                        &mut guard,
+                        "Example Generic Sink Received on LinkId {:?} -> {:?}",
+                        k, v
+                    )
+                    .unwrap();
+                }
+                writeln!(&mut guard, "#######").unwrap();
+                guard.sync_all().unwrap();
+                Ok(())
+            }
         }
-        println!("#######");
-        Ok(())
     }
 }
 
 impl ZFComponent for GenericSink {
-    fn initial_state(
-        &self,
-        _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn ZFStateTrait> {
-        zf_empty_state!()
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn ZFStateTrait> {
+        Box::new(SinkState::new(configuration))
+    }
+
+    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+        let state = downcast_mut!(SinkState, _state).unwrap();
+
+        match &mut state.file {
+            None => Ok(()),
+            Some(_) => {
+                state.file = None;
+                Ok(())
+            }
+        }
     }
 }
 
@@ -62,6 +115,6 @@ impl ZFComponentInputRule for GenericSink {
 
 export_sink!(register);
 
-fn register() -> ZFResult<Box<dyn ZFSinkTrait + Send>> {
-    Ok(Box::new(GenericSink) as Box<dyn ZFSinkTrait + Send>)
+fn register() -> ZFResult<Arc<dyn ZFSinkTrait>> {
+    Ok(Arc::new(GenericSink) as Arc<dyn ZFSinkTrait>)
 }

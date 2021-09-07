@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::async_std::sync::Arc;
+use crate::async_std::sync::{Arc, RwLock};
 use crate::model::operator::ZFSourceRecord;
 use crate::runtime::graph::link::ZFLinkSender;
 use crate::runtime::message::ZFMessage;
@@ -22,7 +22,7 @@ use crate::{ZFContext, ZFSourceTrait, ZFStateTrait};
 use libloading::Library;
 use std::collections::HashMap;
 
-pub type ZFSourceRegisterFn = fn() -> ZFResult<Box<dyn ZFSourceTrait + Send>>;
+pub type ZFSourceRegisterFn = fn() -> ZFResult<Arc<dyn ZFSourceTrait>>;
 
 pub struct ZFSourceDeclaration {
     pub rustc_version: &'static str,
@@ -30,54 +30,72 @@ pub struct ZFSourceDeclaration {
     pub register: ZFSourceRegisterFn,
 }
 
+// Do not reorder the fields in this struct.
+// Rust drops fields in a struct in the same order they are declared.
+// Ref: https://doc.rust-lang.org/reference/destructors.html
+// We need the state to be dropped before the source/lib, otherwise we
+// will have a SIGSEV.
+#[derive(Clone)]
 pub struct ZFSourceRunner {
-    pub record: ZFSourceRecord,
-    pub hlc: PeriodicHLC,
-    pub source: Box<dyn ZFSourceTrait + Send>,
-    pub lib: Option<Library>,
-    pub outputs: HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
-    pub state: Box<dyn ZFStateTrait>,
+    pub record: Arc<ZFSourceRecord>,
+    pub hlc: Arc<PeriodicHLC>,
+    pub state: Arc<RwLock<Box<dyn ZFStateTrait>>>,
+    pub outputs: Arc<RwLock<HashMap<String, Vec<ZFLinkSender<ZFMessage>>>>>,
+    pub source: Arc<dyn ZFSourceTrait>,
+    pub lib: Arc<Option<Library>>,
 }
 
 impl ZFSourceRunner {
     pub fn new(
         record: ZFSourceRecord,
         hlc: PeriodicHLC,
-        source: Box<dyn ZFSourceTrait + Send>,
+        source: Arc<dyn ZFSourceTrait>,
         lib: Option<Library>,
     ) -> Self {
+        let state = source.initialize(&record.configuration);
         Self {
-            state: source.initial_state(&record.configuration),
-            record,
-            hlc,
+            record: Arc::new(record),
+            hlc: Arc::new(hlc),
+            state: Arc::new(RwLock::new(state)),
+            outputs: Arc::new(RwLock::new(HashMap::new())),
             source,
-            lib,
-            outputs: HashMap::new(),
+            lib: Arc::new(lib),
         }
     }
 
-    pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {
+    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
+        let mut outputs = self.outputs.write().await;
         let key = output.id();
-        if let Some(links) = self.outputs.get_mut(&key) {
+        if let Some(links) = outputs.get_mut(&key) {
             links.push(output);
         } else {
-            self.outputs.insert(key, vec![output]);
+            outputs.insert(key, vec![output]);
         }
     }
 
-    pub async fn run(&mut self) -> ZFResult<()> {
+    pub async fn clean(&self) -> ZFResult<()> {
+        let mut state = self.state.write().await;
+        self.source.clean(&mut state)
+    }
+
+    pub async fn run(&self) -> ZFResult<()> {
         let mut context = ZFContext::default();
 
         loop {
+            // Guards are taken at the beginning of each iteration to allow
+            // interleaving.
+            let outputs_links = self.outputs.read().await;
+            let mut state = self.state.write().await;
+
             // Running
-            let run_outputs = self.source.run(&mut context, &mut self.state).await?;
+            let run_outputs = self.source.run(&mut context, &mut state).await?;
 
             // Output
-            let mut outputs =
-                self.source
-                    .output_rule(&mut context, &mut self.state, &run_outputs)?;
+            let mut outputs = self
+                .source
+                .output_rule(&mut context, &mut state, &run_outputs)?;
 
-            log::debug!("Outputs: {:?}", self.outputs);
+            log::debug!("Outputs: {:?}", outputs);
 
             let timestamp = self.hlc.new_timestamp();
 
@@ -85,7 +103,7 @@ impl ZFSourceRunner {
             for (id, output) in outputs.drain() {
                 log::debug!("Sending on {:?} data: {:?}", id, output);
 
-                if let Some(links) = self.outputs.get(&id) {
+                if let Some(links) = outputs_links.get(&id) {
                     let zf_message = Arc::new(ZFMessage::from_component_output(output, timestamp));
 
                     for tx in links {

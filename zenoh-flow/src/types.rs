@@ -19,7 +19,8 @@ use crate::{ZFDataTrait, ZFStateTrait};
 use std::collections::HashMap;
 use std::convert::From;
 use uhlc::Timestamp;
-
+use uuid::Uuid;
+use zrpc::zrpcresult::ZRPCError;
 // Placeholder types
 pub type ZFOperatorId = String;
 pub type ZFZenohResource = String;
@@ -29,7 +30,7 @@ pub type ZFTimestamp = usize; //TODO: improve it, usize is just a placeholder
 pub type ZFPortID = String;
 pub type ZFRuntimeID = String;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum ZFError {
     GenericError,
     SerializationError,
@@ -45,7 +46,7 @@ pub enum ZFError {
     PortTypeNotMatching((String, String)),
     OperatorNotFound(ZFOperatorId),
     PortNotFound((ZFOperatorId, String)),
-    RecvError(flume::RecvError),
+    RecvError(String),
     SendError(String),
     MissingInput(String),
     MissingOutput(String),
@@ -54,13 +55,23 @@ pub enum ZFError {
     ZenohError(String),
     LoadingError(String),
     ParsingError(String),
+    #[serde(skip_serializing, skip_deserializing)]
     RunnerStopError(crate::async_std::channel::RecvError),
+    #[serde(skip_serializing, skip_deserializing)]
     RunnerStopSendError(crate::async_std::channel::SendError<()>),
+    InstanceNotFound(Uuid),
+    RPCError(ZRPCError),
+}
+
+impl From<ZRPCError> for ZFError {
+    fn from(err: ZRPCError) -> Self {
+        Self::RPCError(err)
+    }
 }
 
 impl From<flume::RecvError> for ZFError {
     fn from(err: flume::RecvError) -> Self {
-        Self::RecvError(err)
+        Self::RecvError(format!("{:?}", err))
     }
 }
 
@@ -106,6 +117,20 @@ impl From<zenoh_util::core::ZError> for ZFError {
 impl From<libloading::Error> for ZFError {
     fn from(err: libloading::Error) -> Self {
         Self::LoadingError(format!("Error when loading the library: {}", err))
+    }
+}
+
+#[cfg(feature = "data_json")]
+impl From<serde_json::Error> for ZFError {
+    fn from(_err: serde_json::Error) -> Self {
+        Self::SerializationError
+    }
+}
+
+#[cfg(feature = "data_json")]
+impl From<std::str::Utf8Error> for ZFError {
+    fn from(_err: std::str::Utf8Error) -> Self {
+        Self::SerializationError
     }
 }
 

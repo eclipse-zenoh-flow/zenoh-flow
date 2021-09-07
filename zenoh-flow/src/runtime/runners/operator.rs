@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::async_std::sync::Arc;
+use crate::async_std::sync::{Arc, RwLock};
 use crate::model::operator::ZFOperatorRecord;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::ZFMessage;
@@ -23,7 +23,7 @@ use libloading::Library;
 use std::collections::HashMap;
 use uhlc::HLC;
 
-pub type ZFOperatorRegisterFn = fn() -> ZFResult<Box<dyn ZFOperatorTrait + Send>>;
+pub type ZFOperatorRegisterFn = fn() -> ZFResult<Arc<dyn ZFOperatorTrait>>;
 
 pub struct ZFOperatorDeclaration {
     pub rustc_version: &'static str,
@@ -31,65 +31,86 @@ pub struct ZFOperatorDeclaration {
     pub register: ZFOperatorRegisterFn,
 }
 
+pub type ZFOperatorIO = (
+    Vec<ZFLinkReceiver<ZFMessage>>,
+    HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
+);
+
+// Do not reorder the fields in this struct.
+// Rust drops fields in a struct in the same order they are declared.
+// Ref: https://doc.rust-lang.org/reference/destructors.html
+// We need the state to be dropped before the operator/lib, otherwise we
+// will have a SIGSEV.
+#[derive(Clone)]
 pub struct ZFOperatorRunner {
-    pub record: ZFOperatorRecord,
+    pub record: Arc<ZFOperatorRecord>,
+    pub io: Arc<RwLock<ZFOperatorIO>>,
+    pub state: Arc<RwLock<Box<dyn ZFStateTrait>>>,
     pub hlc: Arc<HLC>,
-    pub operator: Box<dyn ZFOperatorTrait + Send>,
-    pub lib: Option<Library>,
-    pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
-    pub outputs: HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
-    pub state: Box<dyn ZFStateTrait>,
+    pub operator: Arc<dyn ZFOperatorTrait>,
+    pub lib: Arc<Option<Library>>,
 }
 
 impl ZFOperatorRunner {
     pub fn new(
         record: ZFOperatorRecord,
         hlc: Arc<HLC>,
-        operator: Box<dyn ZFOperatorTrait + Send>,
+        operator: Arc<dyn ZFOperatorTrait>,
         lib: Option<Library>,
     ) -> Self {
+        let state = operator.initialize(&record.configuration);
         Self {
-            state: operator.initial_state(&record.configuration),
-            record,
+            record: Arc::new(record),
             hlc,
+            io: Arc::new(RwLock::new((vec![], HashMap::new()))),
+            state: Arc::new(RwLock::new(state)),
             operator,
-            lib,
-            inputs: vec![],
-            outputs: HashMap::new(),
+            lib: Arc::new(lib),
         }
     }
 
-    pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>) {
-        self.inputs.push(input);
+    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
+        self.io.write().await.0.push(input);
     }
 
-    pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {
+    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
+        let mut guard = self.io.write().await;
         let key = output.id();
-        if let Some(links) = self.outputs.get_mut(&key) {
+        if let Some(links) = guard.1.get_mut(&key) {
             links.push(output);
         } else {
-            self.outputs.insert(key, vec![output]);
+            guard.1.insert(key, vec![output]);
         }
     }
 
-    pub async fn run(&mut self) -> ZFResult<()> {
+    pub async fn clean(&self) -> ZFResult<()> {
+        let mut state = self.state.write().await;
+        self.operator.clean(&mut state)
+    }
+
+    pub async fn run(&self) -> ZFResult<()> {
         let mut context = ZFContext::default();
 
         loop {
+            // Guards are taken at the beginning of each iteration to allow
+            // interleaving.
+            let io = self.io.read().await;
+            let mut state = self.state.write().await;
+
             // we should start from an HashMap with all PortId and not ready tokens
             let mut msgs: HashMap<String, Token> = HashMap::new();
 
-            for i in &self.inputs {
+            for i in io.0.iter() {
                 msgs.insert(i.id(), Token::NotReady);
             }
 
             let mut futs = vec![];
-            for rx in self.inputs.iter() {
+            for rx in io.0.iter() {
                 futs.push(rx.recv()); // this should be peek(), but both requires mut
             }
 
             // Input Rules
-            crate::run_input_rules!(self.operator, msgs, futs, &mut self.state, &mut context);
+            crate::run_input_rules!(self.operator, msgs, futs, &mut state, &mut context);
 
             let mut data = HashMap::with_capacity(msgs.len());
             let mut max_token_timestamp = None;
@@ -132,20 +153,18 @@ impl ZFOperatorRunner {
             };
 
             // Running
-            let run_outputs = self
-                .operator
-                .run(&mut context, &mut self.state, &mut data)?;
+            let run_outputs = self.operator.run(&mut context, &mut state, &mut data)?;
 
             // Output rules
             let outputs = self
                 .operator
-                .output_rule(&mut context, &mut self.state, &run_outputs)?;
+                .output_rule(&mut context, &mut state, &run_outputs)?;
 
             // Send to Links
             for (id, output) in outputs {
                 // getting link
                 log::debug!("id: {:?}, message: {:?}", id, output);
-                if let Some(links) = self.outputs.get(&id) {
+                if let Some(links) = io.1.get(&id) {
                     let zf_message = Arc::new(ZFMessage::from_component_output(output, timestamp));
 
                     for tx in links {
@@ -156,7 +175,7 @@ impl ZFOperatorRunner {
             }
 
             // This depends on the Tokens...
-            for rx in self.inputs.iter() {
+            for rx in io.0.iter() {
                 rx.discard().await?;
             }
         }

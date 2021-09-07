@@ -23,6 +23,9 @@ use crate::model::operator::{
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{ZFError, ZFOperatorId, ZFResult, ZFRuntimeID};
+use std::collections::HashSet;
+use std::convert::TryFrom;
+use std::hash::{Hash, Hasher};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -81,7 +84,35 @@ impl DataFlowDescriptor {
             None => self.mapping = Some(vec![mapping]),
         }
     }
+
+    pub fn get_runtimes(&self) -> Vec<ZFRuntimeID> {
+        let mut runtimes = HashSet::new();
+
+        match &self.mapping {
+            Some(mapping) => {
+                for component_mapping in mapping.iter() {
+                    runtimes.insert(component_mapping.runtime.clone());
+                }
+            }
+            None => (),
+        }
+        runtimes.into_iter().collect()
+    }
 }
+
+impl Hash for DataFlowDescriptor {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.flow.hash(state);
+    }
+}
+
+impl PartialEq for DataFlowDescriptor {
+    fn eq(&self, other: &DataFlowDescriptor) -> bool {
+        self.flow == other.flow
+    }
+}
+
+impl Eq for DataFlowDescriptor {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Mapping {
@@ -330,10 +361,15 @@ impl DataFlowRecord {
 
         Ok(())
     }
+}
 
-    pub fn from_dataflow_descriptor(d: DataFlowDescriptor) -> ZFResult<Self> {
+impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
+    type Error = ZFError;
+
+    fn try_from(d: (DataFlowDescriptor, Uuid)) -> Result<Self, Self::Error> {
+        let (d, id) = d;
         let mut dfr = DataFlowRecord {
-            uuid: Uuid::nil(), // all 0s uuid, placeholder
+            uuid: id,
             flow: d.flow.clone(),
             operators: Vec::new(),
             sinks: Vec::new(),
@@ -413,3 +449,18 @@ impl DataFlowRecord {
         Ok(dfr)
     }
 }
+
+impl Hash for DataFlowRecord {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.uuid.hash(state);
+        self.flow.hash(state);
+    }
+}
+
+impl PartialEq for DataFlowRecord {
+    fn eq(&self, other: &DataFlowRecord) -> bool {
+        self.uuid == other.uuid && self.flow == other.flow
+    }
+}
+
+impl Eq for DataFlowRecord {}

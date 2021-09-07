@@ -26,12 +26,24 @@ pub struct ZFLinkDescriptor {
     pub priority: Option<usize>,
 }
 
+impl std::fmt::Display for ZFLinkDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} => {}", self.from, self.to)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ZFPortDescriptor {
     #[serde(alias = "id")]
     pub port_id: String,
     #[serde(alias = "type")]
     pub port_type: String,
+}
+
+impl std::fmt::Display for ZFPortDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}:{}", self.port_id, self.port_type)
+    }
 }
 
 #[derive(Debug, Clone)]

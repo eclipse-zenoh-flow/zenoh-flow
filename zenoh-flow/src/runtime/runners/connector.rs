@@ -12,17 +12,18 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::async_std::sync::Arc;
+use crate::async_std::sync::{Arc, RwLock};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::ZFMessage;
 use crate::{ZFError, ZFResult};
 use futures::prelude::*;
 use zenoh::net::{Reliability, Session, SubInfo, SubMode};
 
+#[derive(Clone)]
 pub struct ZFZenohSender {
     pub session: Arc<Session>,
     pub resource: String,
-    pub input: Option<ZFLinkReceiver<ZFMessage>>,
+    pub input: Arc<RwLock<Option<ZFLinkReceiver<ZFMessage>>>>,
 }
 
 impl ZFZenohSender {
@@ -34,13 +35,14 @@ impl ZFZenohSender {
         Self {
             session,
             resource,
-            input,
+            input: Arc::new(RwLock::new(input)),
         }
     }
 
-    pub async fn run(&mut self) -> ZFResult<()> {
+    pub async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.resource);
-        if let Some(input) = &self.input {
+        let guard = self.input.read().await;
+        if let Some(input) = &*guard {
             while let Ok((_, message)) = input.recv().await {
                 log::debug!("ZenohSender IN <= {:?} ", message);
 
@@ -55,15 +57,16 @@ impl ZFZenohSender {
         Err(ZFError::Disconnected)
     }
 
-    pub fn add_input(&mut self, input: ZFLinkReceiver<ZFMessage>) {
-        self.input = Some(input);
+    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
+        *(self.input.write().await) = Some(input);
     }
 }
 
+#[derive(Clone)]
 pub struct ZFZenohReceiver {
     pub session: Arc<Session>,
     pub resource: String,
-    pub output: Option<ZFLinkSender<ZFMessage>>,
+    pub output: Arc<RwLock<Option<ZFLinkSender<ZFMessage>>>>,
 }
 
 impl ZFZenohReceiver {
@@ -75,14 +78,14 @@ impl ZFZenohReceiver {
         Self {
             session,
             resource,
-            output,
+            output: Arc::new(RwLock::new(output)),
         }
     }
 
-    pub async fn run(&mut self) -> ZFResult<()> {
+    pub async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohReceiver - {} - Started", self.resource);
-
-        if let Some(output) = &self.output {
+        let guard = self.output.read().await;
+        if let Some(output) = &*guard {
             let sub_info = SubInfo {
                 reliability: Reliability::Reliable,
                 mode: SubMode::Push,
@@ -106,7 +109,7 @@ impl ZFZenohReceiver {
         Err(ZFError::Disconnected)
     }
 
-    pub fn add_output(&mut self, output: ZFLinkSender<ZFMessage>) {
-        self.output = Some(output);
+    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
+        (*self.output.write().await) = Some(output);
     }
 }
