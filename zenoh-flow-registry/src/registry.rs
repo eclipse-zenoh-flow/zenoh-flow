@@ -157,6 +157,10 @@ impl ZFRegistry for Registry {
 
     //async fn get_graph(&self, graph_id: String) -> ZFResult<GraphDescriptor>;
 
+    async fn get_all_graphs(&self) -> ZFResult<Vec<ZFRegistryGraph>> {
+        self.store.get_all_graphs().await
+    }
+
     async fn get_operator(
         &self,
         operator_id: String,
@@ -241,11 +245,30 @@ impl ZFRegistry for Registry {
         Err(ZFError::Unimplemented)
     }
 
-    // async fn add_graph(&self, graph: GraphDescriptor) -> ZFResult<String>;
+    async fn add_graph(&self, graph: ZFRegistryGraph) -> ZFResult<String> {
+        log::info!("Adding graph {:?}", graph);
+        match self.store.get_graph(&graph.id).await {
+            Ok(mut metadata) => {
+                // This is an update of something that is already there.
+                for tag in graph.tags.into_iter() {
+                    metadata.add_tag(tag);
+                }
+                self.store.add_graph(&metadata).await?;
+                Ok(graph.id)
+            }
+            Err(ZFError::Empty) => {
+                // this is a new addition, simple case.
+
+                self.store.add_graph(&graph).await?;
+                Ok(graph.id)
+            }
+            Err(e) => Err(e), //this is any other error so we propagate it
+        }
+    }
 
     async fn add_operator(
         &self,
-        operator: ZFRegistryGraph,
+        operator: ZFOperatorDescriptor,
         tag: Option<String>,
     ) -> ZFResult<String> {
         Err(ZFError::Unimplemented)

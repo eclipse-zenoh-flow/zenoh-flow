@@ -11,10 +11,14 @@
 // Contributors:
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
+use async_std::sync::Arc;
+use rand::seq::SliceRandom;
 use structopt::StructOpt;
+use zenoh::*;
 use zenoh_flow::model::operator::ZFOperatorDescriptor;
 use zenoh_flow::model::{ZFRegistryComponentArchitecture, ZFRegistryComponentTag, ZFRegistryGraph};
 use zenoh_flow_registry::config::ComponentKind;
+use zenoh_flow_registry::ZFRegistryClient;
 
 #[derive(StructOpt, Debug)]
 pub enum ZFCtl {
@@ -45,6 +49,24 @@ pub enum ZFCtl {
 async fn main() {
     let args = ZFCtl::from_args();
     println!("Args: {:?}", args);
+
+    let znsession = Arc::new(
+        zenoh::net::open(
+            Properties::from(String::from(
+                "mode=peer;peer=unixsock-stream//tmp/zf-registry.sock",
+            ))
+            .into(),
+        )
+        .await
+        .unwrap(),
+    );
+
+    let servers = ZFRegistryClient::find_servers(znsession.clone())
+        .await
+        .unwrap();
+    let entry_point = servers.choose(&mut rand::thread_rng()).unwrap();
+    log::debug!("Selected entrypoint runtime: {:?}", entry_point);
+    let client = ZFRegistryClient::new(znsession, *entry_point);
 
     match args {
         ZFCtl::Build {
@@ -127,9 +149,14 @@ async fn main() {
             zenoh_flow_registry::config::cargo_build(&cargo_build_flags, release, &manifest_dir)
                 .unwrap();
             zenoh_flow_registry::config::store_zf_metadata(&metadata_graph, &target_dir).unwrap();
+
+            client.add_graph(metadata_graph).await.unwrap().unwrap();
         }
         ZFCtl::New { name, kind } => {
             zenoh_flow_registry::config::create_crate(&name, kind).unwrap();
+        }
+        ZFCtl::List => {
+            println!("{:?}", client.get_all_graphs().await);
         }
         _ => unimplemented!("Not yet..."),
     }

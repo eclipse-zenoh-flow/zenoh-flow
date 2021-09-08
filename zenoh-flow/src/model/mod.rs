@@ -34,11 +34,47 @@ pub struct ZFRegistryGraph {
     pub period: Option<ZFPeriodDescriptor>,
 }
 
+impl ZFRegistryGraph {
+    pub fn add_tag(&mut self, tag: ZFRegistryComponentTag) {
+        let index = self.tags.iter().position(|t| t.name == tag.name);
+        match index {
+            Some(i) => {
+                let mut old_tag = self.tags.remove(i);
+                for architecture in tag.architectures.into_iter() {
+                    old_tag.add_architecture(architecture);
+                }
+                self.tags.push(old_tag);
+            }
+            None => {
+                self.tags.push(tag);
+            }
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ZFRegistryComponentTag {
     pub name: String,
     pub requirement_labels: Vec<String>,
     pub architectures: Vec<ZFRegistryComponentArchitecture>,
+}
+
+impl ZFRegistryComponentTag {
+    pub fn add_architecture(&mut self, arch: ZFRegistryComponentArchitecture) {
+        let index = self
+            .architectures
+            .iter()
+            .position(|a| a.os == arch.os && a.arch == arch.arch);
+        match index {
+            Some(i) => {
+                self.architectures.remove(i);
+                self.architectures.push(arch);
+            }
+            None => {
+                self.architectures.push(arch);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

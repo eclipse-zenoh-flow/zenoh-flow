@@ -80,6 +80,8 @@ pub trait ZFRegistry {
 
     //async fn get_graph(&self, graph_id: String) -> ZFResult<GraphDescriptor>;
 
+    async fn get_all_graphs(&self) -> ZFResult<Vec<ZFRegistryGraph>>;
+
     async fn get_operator(
         &self,
         operator_id: String,
@@ -117,11 +119,11 @@ pub trait ZFRegistry {
 
     async fn add_flow(&self, flow: DataFlowDescriptor) -> ZFResult<String>;
 
-    // async fn add_graph(&self, graph: GraphDescriptor) -> ZFResult<String>;
+    async fn add_graph(&self, graph: ZFRegistryGraph) -> ZFResult<String>;
 
     async fn add_operator(
         &self,
-        operator: ZFRegistryGraph,
+        operator: ZFOperatorDescriptor,
         tag: Option<String>,
     ) -> ZFResult<String>;
 

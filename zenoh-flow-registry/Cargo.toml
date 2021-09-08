@@ -37,6 +37,7 @@ toml = "0.5.8"
 serde_json = "1.0.66"
 serde_yaml = {version = "0.8.13"}
 async-ctrlc ={version = "1.2.0", features = ["stream"]}
+rand = "0.8.3"
 
 [[bin]]
 name = "cargo-zenoh-flow"
