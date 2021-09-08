@@ -14,13 +14,12 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::{CZFError, CZFResult, ZFRegistryGraph};
+use crate::{CZFError, CZFResult};
 use serde::Deserialize;
 use std::io::Write;
 use std::process::Command;
 use zenoh_flow::model::link::ZFPortDescriptor;
-
-
+use zenoh_flow::model::ZFRegistryGraph;
 
 pub static ZF_OUTPUT_DIRECTORY: &str = "zenoh-flow";
 
@@ -128,9 +127,7 @@ pub fn from_manifest(
             .packages
             .iter()
             .find(|p| p.name == name)
-            .ok_or_else(|| {
-                CZFError::PackageNotFoundInWorkspace(name.into(), available_package_names())
-            })
+            .ok_or_else(|| CZFError::PackageNotFoundInWorkspace(name, available_package_names()))
     } else {
         metadata
             .resolve
@@ -143,13 +140,8 @@ pub fn from_manifest(
     if !root_package
         .targets
         .iter()
-        .map(|t| {
-            t.crate_types
-                .iter()
-                .map(|ct| *ct == "cdylib")
-                .fold(true, |r, e| r && e)
-        })
-        .fold(true, |r, e| r && e)
+        .map(|t| t.crate_types.iter().map(|ct| *ct == "cdylib").all(|e| e))
+        .all(|e| e)
     {
         return Err(CZFError::CrateTypeNotCompatible(root_package.id.clone()));
     }
@@ -165,16 +157,19 @@ pub fn from_manifest(
     let metadata = toml::from_slice::<Cargo>(&content)?
         .package
         .metadata
-        .ok_or(CZFError::MissingField(
-            root_package.id.clone(),
-            "Missing package.metadata.zenohflow",
-        ))?
+        .ok_or_else(|| {
+            CZFError::MissingField(
+                root_package.id.clone(),
+                "Missing package.metadata.zenohflow",
+            )
+        })?
         .zenohflow
-        .ok_or(CZFError::MissingField(
-            root_package.id.clone(),
-            "Missing package.metadata.zenohflow",
-        ))?;
-
+        .ok_or_else(|| {
+            CZFError::MissingField(
+                root_package.id.clone(),
+                "Missing package.metadata.zenohflow",
+            )
+        })?;
 
     Ok((metadata, target_dir.into(), manifest_dir.into()))
 }
@@ -205,7 +200,7 @@ pub fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
     let mut cmd = Command::new("cargo");
     cmd.arg("new");
     cmd.arg("--lib");
-    cmd.arg(name.clone());
+    cmd.arg(name);
 
     let output = cmd
         .output()
@@ -315,9 +310,7 @@ pub fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
     Ok(())
 }
 
-
-
-pub fn cargo_build(flags : &Vec<String>, release : bool, manifest_dir: &Path) -> CZFResult<()> {
+pub fn cargo_build(flags: &[String], release: bool, manifest_dir: &Path) -> CZFResult<()> {
     let mut cmd = Command::new("cargo");
     cmd.current_dir(manifest_dir);
     cmd.arg("build");
@@ -331,7 +324,8 @@ pub fn cargo_build(flags : &Vec<String>, release : bool, manifest_dir: &Path) ->
         cmd.arg(flag);
     }
 
-    let status = cmd.status()
+    let status = cmd
+        .status()
         .map_err(|e| CZFError::CommandFailed(e, "cargo"))?;
     if !status.success() {
         return Err(CZFError::BuildFailed);
@@ -340,18 +334,23 @@ pub fn cargo_build(flags : &Vec<String>, release : bool, manifest_dir: &Path) ->
     Ok(())
 }
 
-
 pub fn store_zf_metadata(metadata: &ZFRegistryGraph, target_dir: &Path) -> CZFResult<()> {
+    std::fs::create_dir(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY)).map_err(
+        |e| {
+            CZFError::IoFile(
+                "unable to create zenoh flow metadata directory",
+                e,
+                PathBuf::from(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY)),
+            )
+        },
+    )?;
 
-    std::fs::create_dir(format!("{}/{}", target_dir.display(),ZF_OUTPUT_DIRECTORY)).map_err(|e| {
-        CZFError::IoFile(
-            "unable to create zenoh flow metadata directory",
-            e,
-            PathBuf::from(format!("{}/{}", target_dir.display(),ZF_OUTPUT_DIRECTORY)),
-    )})?;
-
-
-    let target_metadata = format!("{}/{}/{}.yml", target_dir.display(),ZF_OUTPUT_DIRECTORY,metadata.id);
+    let target_metadata = format!(
+        "{}/{}/{}.yml",
+        target_dir.display(),
+        ZF_OUTPUT_DIRECTORY,
+        metadata.id
+    );
     let yml_metadata = serde_yaml::to_string(metadata)?;
     let mut file = std::fs::OpenOptions::new()
         .write(true)
@@ -362,7 +361,8 @@ pub fn store_zf_metadata(metadata: &ZFRegistryGraph, target_dir: &Path) -> CZFRe
                 "unable to create metadata file",
                 e,
                 PathBuf::from(format!("{}/{}.yml", target_dir.display(), metadata.id)),
-            )})?;
+            )
+        })?;
 
     write!(file, "{}", yml_metadata).map_err(|e| {
         CZFError::IoFile(

@@ -13,10 +13,8 @@
 //
 use structopt::StructOpt;
 use zenoh_flow::model::operator::ZFOperatorDescriptor;
+use zenoh_flow::model::{ZFRegistryComponentArchitecture, ZFRegistryComponentTag, ZFRegistryGraph};
 use zenoh_flow_registry::config::ComponentKind;
-use zenoh_flow_registry::{
-    ZFRegistryComponentArchitecture, ZFRegistryComponentTag, ZFRegistryGraph,
-};
 
 #[derive(StructOpt, Debug)]
 pub enum ZFCtl {
@@ -26,13 +24,20 @@ pub enum ZFCtl {
         #[structopt(short = "m", long = "manifest-path", default_value = "Cargo.toml")]
         manifest_path: std::path::PathBuf,
         #[structopt(short, long)]
-        release : bool,
+        release: bool,
         cargo_build_flags: Vec<String>,
     },
     New {
         name: String,
         #[structopt(short = "k", long = "kind", default_value = "operator")]
         kind: ComponentKind,
+    },
+    List,
+    Push {
+        graph_id: String,
+    },
+    Pull {
+        graph_id: String,
     },
 }
 
@@ -48,7 +53,6 @@ async fn main() {
             release,
             mut cargo_build_flags,
         } => {
-
             // `cargo deb` invocation passes the `deb` arg through.
             if cargo_build_flags.first().map_or(false, |arg| arg == "deb") {
                 cargo_build_flags.remove(0);
@@ -61,10 +65,22 @@ async fn main() {
             println!("Manifest dir: {:?}", manifest_dir);
 
             let target = if release {
-                format!("{}/release/{}{}{}", target_dir.as_path().display().to_string(), std::env::consts::DLL_PREFIX, component_info.id.clone(),std::env::consts::DLL_SUFFIX) }
-                else {
-                    format!("{}/debug/{}{}{}", target_dir.as_path().display().to_string(), std::env::consts::DLL_PREFIX, component_info.id.clone(),std::env::consts::DLL_SUFFIX)
-                };
+                format!(
+                    "{}/release/{}{}{}",
+                    target_dir.as_path().display().to_string(),
+                    std::env::consts::DLL_PREFIX,
+                    component_info.id,
+                    std::env::consts::DLL_SUFFIX
+                )
+            } else {
+                format!(
+                    "{}/debug/{}{}{}",
+                    target_dir.as_path().display().to_string(),
+                    std::env::consts::DLL_PREFIX,
+                    component_info.id,
+                    std::env::consts::DLL_SUFFIX
+                )
+            };
             let uri = format!("file://{}", target);
 
             let descriptor = ZFOperatorDescriptor {
@@ -79,7 +95,7 @@ async fn main() {
             let metadata_arch = ZFRegistryComponentArchitecture {
                 arch: String::from(std::env::consts::ARCH),
                 os: String::from(std::env::consts::OS),
-                uri: uri,
+                uri,
                 checksum: String::from(""),
                 signature: String::from(""),
             };
@@ -108,13 +124,13 @@ async fn main() {
 
             println!("Target: {:?}", target);
 
-            zenoh_flow_registry::config::cargo_build(&cargo_build_flags, release, &manifest_dir).unwrap();
+            zenoh_flow_registry::config::cargo_build(&cargo_build_flags, release, &manifest_dir)
+                .unwrap();
             zenoh_flow_registry::config::store_zf_metadata(&metadata_graph, &target_dir).unwrap();
-
         }
         ZFCtl::New { name, kind } => {
             zenoh_flow_registry::config::create_crate(&name, kind).unwrap();
         }
-        _ => unreachable!(),
+        _ => unimplemented!("Not yet..."),
     }
 }

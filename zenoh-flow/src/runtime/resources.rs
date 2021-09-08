@@ -24,7 +24,8 @@ extern crate serde_cbor;
 extern crate serde_json;
 
 use crate::model::dataflow::DataFlowRecord;
-use crate::runtime::{RuntimeConfig, RuntimeInfo, RuntimeStatus};
+use crate::model::ZFRegistryGraph;
+use crate::runtime::{ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus};
 use crate::serde::{de::DeserializeOwned, Serialize};
 use crate::{async_std::sync::Arc, ZFError, ZFResult};
 use async_std::pin::Pin;
@@ -165,6 +166,19 @@ macro_rules! FLOW_SELECTOR_BY_FLOW {
             $prefix,
             $crate::runtime::resources::KEY_RUNTIMES,
             $crate::runtime::resources::KEY_FLOWS,
+            $fid
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! REG_GRAPH_SELECTOR {
+    ($prefix:expr, $fid:expr) => {
+        format!(
+            "{}/{}/{}/{}",
+            $prefix,
+            $crate::runtime::resources::KEY_REGISTRY,
+            $crate::runtime::resources::KEY_GRAPHS,
             $fid
         )
     };
@@ -612,5 +626,63 @@ impl DataStore {
         let ws = self.z.workspace(None).await?;
         let encoded_info = serialize_data(flow_instance)?;
         Ok(ws.put(&path, encoded_info.into()).await?)
+    }
+
+    // Registry Related
+
+    pub async fn add_graph(&self, graph: &ZFRegistryGraph) -> ZFResult<()> {
+        let path = zenoh::Path::try_from(REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph.id))?;
+        let ws = self.z.workspace(None).await?;
+        let encoded_info = serialize_data(graph)?;
+        Ok(ws.put(&path, encoded_info.into()).await?)
+    }
+
+    pub async fn get_graph(&self, graph_id: &str) -> ZFResult<ZFRegistryGraph> {
+        let selector = zenoh::Selector::try_from(REG_GRAPH_SELECTOR!(ROOT_STANDALONE, graph_id))?;
+        let ws = self.z.workspace(None).await?;
+        let mut ds = ws.get(&selector).await?;
+
+        // Not sure this is needed...
+        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        match data.len() {
+            0 => Err(ZFError::Empty),
+            _ => {
+                let kv = &data[0];
+                match &kv.value {
+                    zenoh::Value::Raw(_, buf) => {
+                        let ni = deserialize_data::<ZFRegistryGraph>(&buf.to_vec())?;
+                        Ok(ni)
+                    }
+                    _ => Err(ZFError::DeseralizationError),
+                }
+            }
+        }
+    }
+
+    pub async fn get_all_graphs(&self) -> ZFResult<Vec<ZFRegistryGraph>> {
+        let selector = zenoh::Selector::try_from(REG_GRAPH_SELECTOR!(ROOT_STANDALONE, "*"))?;
+        let ws = self.z.workspace(None).await?;
+        let mut ds = ws.get(&selector).await?;
+
+        // Not sure this is needed...
+        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let mut graphs = Vec::new();
+
+        for kv in data.into_iter() {
+            match &kv.value {
+                zenoh::Value::Raw(_, buf) => {
+                    let ni = deserialize_data::<ZFRegistryGraph>(&buf.to_vec())?;
+                    graphs.push(ni);
+                }
+                _ => return Err(ZFError::DeseralizationError),
+            }
+        }
+        Ok(graphs)
+    }
+
+    pub async fn delete_graph(&self, graph_id: &str) -> ZFResult<()> {
+        let path = zenoh::Path::try_from(REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph_id))?;
+        let ws = self.z.workspace(None).await?;
+        Ok(ws.delete(&path).await?)
     }
 }

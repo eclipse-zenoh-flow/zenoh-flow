@@ -17,3 +17,35 @@ pub mod connector;
 pub mod dataflow;
 pub mod link;
 pub mod period;
+
+use crate::model::link::ZFPortDescriptor;
+use crate::model::period::ZFPeriodDescriptor;
+use crate::serde::{Deserialize, Serialize};
+
+// Registry metadata
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ZFRegistryGraph {
+    pub id: String,
+    pub classes: Vec<String>,
+    pub tags: Vec<ZFRegistryComponentTag>,
+    pub inputs: Vec<ZFPortDescriptor>,
+    pub outputs: Vec<ZFPortDescriptor>,
+    pub period: Option<ZFPeriodDescriptor>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ZFRegistryComponentTag {
+    pub name: String,
+    pub requirement_labels: Vec<String>,
+    pub architectures: Vec<ZFRegistryComponentArchitecture>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ZFRegistryComponentArchitecture {
+    pub arch: String,
+    pub os: String,
+    pub uri: String,
+    pub checksum: String,
+    pub signature: String,
+}

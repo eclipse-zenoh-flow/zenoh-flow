@@ -1,0 +1,7 @@
+---
+    pid_file : /var/zenoh-flow/registry.pid
+    path : /etc/zenoh-flow-registry
+    zenoh :
+      kind: peer
+      listen: ["tcp/0.0.0.0:7997","unixsock-stream//tmp/zf-registry.sock"]
+      locators: []

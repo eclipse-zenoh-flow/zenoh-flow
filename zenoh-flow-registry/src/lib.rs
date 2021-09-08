@@ -11,22 +11,22 @@
 // Contributors:
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
+#![allow(clippy::manual_async_fn)]
 
 use uuid::Uuid;
 use zenoh_flow::{
     model::{
         dataflow::DataFlowDescriptor,
-        link::ZFPortDescriptor,
         operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor},
-        period::ZFPeriodDescriptor,
+        ZFRegistryGraph,
     },
-    serde::{Deserialize, Serialize},
     ZFResult,
 };
 use znrpc_macros::znservice;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 
 pub mod config;
+pub mod registry;
 
 #[derive(Debug)]
 pub enum CZFError {
@@ -70,32 +70,6 @@ impl std::fmt::Display for CZFError {
 
 pub type CZFResult<T> = Result<T, CZFError>;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ZFRegistryGraph {
-    pub id: String,
-    pub classes: Vec<String>,
-    pub tags: Vec<ZFRegistryComponentTag>,
-    pub inputs: Vec<ZFPortDescriptor>,
-    pub outputs: Vec<ZFPortDescriptor>,
-    pub period: Option<ZFPeriodDescriptor>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ZFRegistryComponentTag {
-    pub name: String,
-    pub requirement_labels: Vec<String>,
-    pub architectures: Vec<ZFRegistryComponentArchitecture>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ZFRegistryComponentArchitecture {
-    pub arch: String,
-    pub os: String,
-    pub uri: String,
-    pub checksum: String,
-    pub signature: String,
-}
-
 #[znservice(
     timeout_s = 60,
     prefix = "/zf/registry",
@@ -110,6 +84,8 @@ pub trait ZFRegistry {
         &self,
         operator_id: String,
         tag: Option<String>,
+        os: String,
+        arch: String,
     ) -> ZFResult<ZFOperatorDescriptor>;
 
     async fn get_sink(&self, sink_id: String, tag: Option<String>) -> ZFResult<ZFSinkDescriptor>;
@@ -145,7 +121,7 @@ pub trait ZFRegistry {
 
     async fn add_operator(
         &self,
-        operator: ZFOperatorDescriptor,
+        operator: ZFRegistryGraph,
         tag: Option<String>,
     ) -> ZFResult<String>;
 
