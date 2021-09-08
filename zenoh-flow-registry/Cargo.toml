@@ -1,0 +1,47 @@
+[package]
+name = "zenoh-flow-registry"
+version = "0.1.0"
+repository = "https://github.com/eclipse-zenoh/zenoh-flow"
+homepage = "http://zenoh.io"
+authors = ["kydos <angelo@icorsaro.net>",
+           "gabrik <gabriele.baldoni@gmail.com>",
+           "Julien Loudet <julien.loudet@adlinktech.com>",]
+edition = "2018"
+license = " EPL-2.0 OR Apache-2.0"
+categories = ["network-programming"]
+description = "Zenoh-Flow: zenoh-based data-flow programming framework for computations that span from the cloud to the device."
+readme = "README.md"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-std = { version = "=1.9.0", features = ["attributes"] }
+zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master"}
+zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
+zrpc = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
+znrpc-macros = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
+zenoh-flow = {path = "../zenoh-flow"}
+log = "0.4"
+env_logger = "0.9.0"
+structopt = "0.3.13"
+clap = "2.33"
+git-version = "0.3.4"
+futures = "0.3.15"
+uuid = { version = "0.8", features = ["serde", "v4"] }
+base64 = "0.13.0"
+serde_derive = "1.0.55"
+serde = { version = "1.0.55", features = ["derive"] }
+cargo_toml = "0.10.0"
+toml = "0.5.8"
+serde_json = "1.0.66"
+serde_yaml = {version = "0.8.13"}
+
+
+[[bin]]
+name = "cargo-zenoh-flow"
+path = "src/bin/main.rs"
+
+
+[lib]
+path = "src/lib.rs"
