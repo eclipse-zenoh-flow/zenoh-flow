@@ -21,6 +21,8 @@ zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master"}
 zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
 zrpc = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
 znrpc-macros = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
+#zenoh-fragmentation-e2e = { git = "https://github.com/Alez87/zenoh-fragmentation-e2e.git", branch = "main" }
+zenoh-fragmentation-e2e ={path = "../../zenoh-fragmentation-e2e" }
 zenoh-flow = {path = "../zenoh-flow"}
 log = "0.4"
 env_logger = "0.9.0"

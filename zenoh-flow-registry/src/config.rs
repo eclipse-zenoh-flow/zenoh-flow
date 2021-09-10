@@ -335,6 +335,16 @@ pub fn cargo_build(flags: &[String], release: bool, manifest_dir: &Path) -> CZFR
 }
 
 pub fn store_zf_metadata(metadata: &ZFRegistryGraph, target_dir: &Path) -> CZFResult<()> {
+    std::fs::remove_dir_all(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY)).map_err(
+        |e| {
+            CZFError::IoFile(
+                "unable to clean zenoh flow metadata directory",
+                e,
+                PathBuf::from(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY)),
+            )
+        },
+    )?;
+
     std::fs::create_dir(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY)).map_err(
         |e| {
             CZFError::IoFile(

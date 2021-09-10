@@ -47,7 +47,13 @@ pub enum ZFCtl {
 
 #[async_std::main]
 async fn main() {
-    let args = ZFCtl::from_args();
+    // `cargo zenoh-flow` invocation passes the `zenoh-flow` arg through.
+    let mut args: Vec<String> = std::env::args().collect();
+    println!("{:?}", args);
+    args.remove(1);
+    println!("{:?}", args);
+
+    let args = ZFCtl::from_iter(args.iter());
     println!("Args: {:?}", args);
 
     let znsession = Arc::new(
@@ -75,7 +81,7 @@ async fn main() {
             release,
             mut cargo_build_flags,
         } => {
-            // `cargo deb` invocation passes the `deb` arg through.
+            // `cargo zenoh-flow` invocation passes the `zenoh-flow` arg through.
             if cargo_build_flags.first().map_or(false, |arg| arg == "deb") {
                 cargo_build_flags.remove(0);
             }
