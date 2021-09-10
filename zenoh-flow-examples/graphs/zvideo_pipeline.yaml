@@ -13,5 +13,9 @@ sinks:
       id: Data
       type: image
 links:
-- from: Camera.Frame
-  to: ZSink.Data
+- from:
+    component : Camera
+    output : Frame
+  to:
+    component : ZSink
+    input : Data

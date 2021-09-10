@@ -35,9 +35,21 @@ sinks: # sources can have only ONE input
       type: image
 
 links:
-- from: Camera0.Frame
-  to: Concatenation.Frame1
-- from: Camera1.Frame
-  to: Concatenation.Frame2
-- from: Concatenation.Frame
-  to: Window.Frame
+- from:
+    component : Camera0
+    output : Frame # Output
+  to:
+    component : Concatenation
+    input : Frame1 # Input
+- from:
+    component : Camera1
+    output : Frame
+  to:
+    component : Concatenation
+    input : Frame2
+- from:
+    component: Concatenation
+    output : Frame
+  to:
+    id: Window
+    input : Frame

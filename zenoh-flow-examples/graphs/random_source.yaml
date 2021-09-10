@@ -13,5 +13,9 @@ sinks:
         id: Data
         type: usize
 links:
-- from: RandomGenerator.Random
-  to: PrintSink.Data
+- from:
+    component : RandomGenerator
+    output : Random
+  to:
+    component : PrintSink
+    input : Data

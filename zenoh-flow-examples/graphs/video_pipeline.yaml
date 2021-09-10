@@ -18,8 +18,10 @@ links:
   to: Window.Frame
 
 
-mapping:
-  - id: Camera
-    runtime: runtime0
-  - id: Window
-    runtime: runtime1
+links:
+- from:
+    component : Camera
+    output : Frame
+  to:
+    component : Window
+    input : Frame

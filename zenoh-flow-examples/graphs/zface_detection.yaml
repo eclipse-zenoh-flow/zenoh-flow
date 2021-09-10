@@ -21,7 +21,15 @@ sinks:
       id: Data
       type: image
 links:
-- from: Camera0.Frame
-  to: FaceDetection.Frame
-- from: FaceDetection.Frame
-  to: ZSink.Data
+- from:
+    component : Camera0
+    output : Frame
+  to:
+    component : FaceDetection
+    input : Frame
+- from:
+    component : FaceDetection
+    output : Frame
+  to:
+    component : ZSink
+    input : Data
