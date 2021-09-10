@@ -117,7 +117,7 @@ async fn main() {
                 );
                 let yaml_df = read_to_string(descriptor_path).unwrap();
                 let df =
-                    zenoh_flow::model::dataflow::DataFlowDescriptor::from_yaml(yaml_df).unwrap();
+                    zenoh_flow::model::dataflow::DataFlowDescriptor::from_yaml(&yaml_df).unwrap();
 
                 let record = client.instantiate(df).await.unwrap().unwrap();
                 log::debug!("Instantiated: {:?}", record);
@@ -139,7 +139,7 @@ async fn main() {
                 let mut table = Table::new();
                 match id {
                     Some(rid) => {
-                        let instance = store.get_flow_by_instance(rid).await.unwrap();
+                        let instance = store.get_flow_by_instance(&rid).await.unwrap();
                         table.add_row(row![
                             "UUID",
                             "Flow",
@@ -215,8 +215,8 @@ async fn main() {
                 let mut table = Table::new();
                 match id {
                     Some(rtid) => {
-                        let runtime_info = store.get_runtime_info(rtid).await.unwrap();
-                        let runtime_status = store.get_runtime_status(rtid).await.unwrap();
+                        let runtime_info = store.get_runtime_info(&rtid).await.unwrap();
+                        let runtime_status = store.get_runtime_status(&rtid).await.unwrap();
                         table.add_row(row![
                             "UUID",
                             "Name",

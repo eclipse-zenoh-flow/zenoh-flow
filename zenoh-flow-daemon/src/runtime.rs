@@ -128,17 +128,17 @@ impl Runtime {
 
         log::trace!("Setting state as Ready");
 
-        let mut rt_info = self.store.get_runtime_info(self.runtime_uuid).await?;
-        let mut rt_status = self.store.get_runtime_status(self.runtime_uuid).await?;
+        let mut rt_info = self.store.get_runtime_info(&self.runtime_uuid).await?;
+        let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
 
         rt_info.status = ZFRuntimeStatusKind::Ready;
         rt_status.status = ZFRuntimeStatusKind::Ready;
 
         self.store
-            .add_runtime_info(self.runtime_uuid, rt_info)
+            .add_runtime_info(&self.runtime_uuid, &rt_info)
             .await?;
         self.store
-            .add_runtime_status(self.runtime_uuid, rt_status)
+            .add_runtime_status(&self.runtime_uuid, &rt_status)
             .await?;
 
         let _ = stop
@@ -192,15 +192,15 @@ impl Runtime {
 
         let self_state = self.state.lock().await;
         self.store
-            .add_runtime_config(self.runtime_uuid, self_state.config.clone())
+            .add_runtime_config(&self.runtime_uuid, &self_state.config)
             .await?;
         drop(self_state);
 
         self.store
-            .add_runtime_info(self.runtime_uuid, rt_info)
+            .add_runtime_info(&self.runtime_uuid, &rt_info)
             .await?;
         self.store
-            .add_runtime_status(self.runtime_uuid, rt_status)
+            .add_runtime_status(&self.runtime_uuid, &rt_status)
             .await?;
 
         let h = async_std::task::spawn_blocking(move || {
@@ -214,9 +214,9 @@ impl Runtime {
             .await
             .map_err(|e| ZFError::SendError(format!("{}", e)))?;
 
-        self.store.remove_runtime_config(self.runtime_uuid).await?;
-        self.store.remove_runtime_info(self.runtime_uuid).await?;
-        self.store.remove_runtime_status(self.runtime_uuid).await?;
+        self.store.remove_runtime_config(&self.runtime_uuid).await?;
+        self.store.remove_runtime_info(&self.runtime_uuid).await?;
+        self.store.remove_runtime_status(&self.runtime_uuid).await?;
 
         Ok(())
     }
@@ -249,11 +249,10 @@ impl ZFRuntime for Runtime {
         let involved_runtimes = mapped.get_runtimes();
         let involved_runtimes = involved_runtimes
             .into_iter()
-            .filter(|rt| *rt != self.runtime_name)
-            .collect::<Vec<String>>();
+            .filter(|rt| *rt != self.runtime_name);
 
-        for rt in involved_runtimes.into_iter() {
-            let rt_info = self.store.get_runtime_info_by_name(rt).await?;
+        for rt in involved_runtimes {
+            let rt_info = self.store.get_runtime_info_by_name(&rt).await?;
             let client = ZFRuntimeClient::new(self.zn.clone(), rt_info.id);
             rt_clients.push(client);
         }
@@ -293,11 +292,11 @@ impl ZFRuntime for Runtime {
 
     async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
         log::info!("Tearing down Instance UUID: {}", record_id);
-        let record = self.store.get_flow_by_instance(record_id).await?;
+        let record = self.store.get_flow_by_instance(&record_id).await?;
 
         let mut rt_clients = vec![];
 
-        let all_involved_runtimes = self.store.get_flow_instance_runtimes(record_id).await?;
+        let all_involved_runtimes = self.store.get_flow_instance_runtimes(&record_id).await?;
 
         let is_also_local = all_involved_runtimes.contains(&self.runtime_uuid);
 
@@ -364,7 +363,9 @@ impl ZFRuntime for Runtime {
         let mut self_state = self.state.lock().await;
         self_state.graphs.insert(dfr.uuid, (dataflow_graph, vec![]));
         drop(self_state);
-        self.store.add_runtime_flow(self.runtime_uuid, &dfr).await?;
+        self.store
+            .add_runtime_flow(&self.runtime_uuid, &dfr)
+            .await?;
 
         log::info!(
             "Done preparation for Flow {} Instance UUID: {}",
@@ -384,11 +385,11 @@ impl ZFRuntime for Runtime {
             Some((dfg, _)) => {
                 let record = self
                     .store
-                    .get_runtime_flow_by_instance(self.runtime_uuid, record_id)
+                    .get_runtime_flow_by_instance(&self.runtime_uuid, &record_id)
                     .await?;
 
                 self.store
-                    .remove_runtime_flow_instance(self.runtime_uuid, &record.flow, record.uuid)
+                    .remove_runtime_flow_instance(&self.runtime_uuid, &record.flow, &record.uuid)
                     .await?;
 
                 Ok(record)
@@ -405,7 +406,7 @@ impl ZFRuntime for Runtime {
 
         let mut _state = self.state.lock().await;
 
-        let mut rt_status = self.store.get_runtime_status(self.runtime_uuid).await?;
+        let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
@@ -431,7 +432,7 @@ impl ZFRuntime for Runtime {
                 }
 
                 self.store
-                    .add_runtime_status(self.runtime_uuid, rt_status)
+                    .add_runtime_status(&self.runtime_uuid, &rt_status)
                     .await?;
 
                 Ok(())
@@ -444,7 +445,7 @@ impl ZFRuntime for Runtime {
 
         let mut _state = self.state.lock().await;
 
-        let mut rt_status = self.store.get_runtime_status(self.runtime_uuid).await?;
+        let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
@@ -458,7 +459,7 @@ impl ZFRuntime for Runtime {
                 rt_status.running_flows += 1;
 
                 self.store
-                    .add_runtime_status(self.runtime_uuid, rt_status)
+                    .add_runtime_status(&self.runtime_uuid, &rt_status)
                     .await?;
 
                 Ok(())
@@ -474,7 +475,7 @@ impl ZFRuntime for Runtime {
 
         let mut _state = self.state.lock().await;
 
-        let mut rt_status = self.store.get_runtime_status(self.runtime_uuid).await?;
+        let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
@@ -517,7 +518,7 @@ impl ZFRuntime for Runtime {
                 }
 
                 self.store
-                    .add_runtime_status(self.runtime_uuid, rt_status)
+                    .add_runtime_status(&self.runtime_uuid, &rt_status)
                     .await?;
 
                 Ok(())
@@ -529,7 +530,7 @@ impl ZFRuntime for Runtime {
         log::info!("Stopping sources for Instance UUID: {}", record_id);
 
         let mut _state = self.state.lock().await;
-        let mut rt_status = self.store.get_runtime_status(self.runtime_uuid).await?;
+        let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
@@ -561,7 +562,7 @@ impl ZFRuntime for Runtime {
                 }
 
                 self.store
-                    .add_runtime_status(self.runtime_uuid, rt_status)
+                    .add_runtime_status(&self.runtime_uuid, &rt_status)
                     .await?;
 
                 Ok(())

@@ -168,12 +168,12 @@ async fn main() {
     zf_graph
         .add_link(
             ZFLinkFromDescriptor {
-                component_id: "counter-source".to_string(),
-                output_id: String::from(SOURCE),
+                component: "counter-source".to_string(),
+                output: String::from(SOURCE),
             },
             ZFLinkToDescriptor {
-                component_id: "generic-sink".to_string(),
-                input_id: String::from(SOURCE),
+                component: "generic-sink".to_string(),
+                input: String::from(SOURCE),
             },
             None,
             None,

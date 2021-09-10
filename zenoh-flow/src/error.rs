@@ -1,0 +1,126 @@
+// Copyright (c) 2017, 2021 ADLINK Technology Inc.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+// which is available at https://www.apache.org/licenses/LICENSE-2.0.
+//
+// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+//
+// Contributors:
+//   ADLINK zenoh team, <zenoh@adlink-labs.tech>
+//
+
+use crate::serde::{Deserialize, Serialize};
+use crate::ZFOperatorId;
+use std::convert::From;
+use uuid::Uuid;
+use zrpc::zrpcresult::ZRPCError;
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub enum ZFError {
+    GenericError,
+    SerializationError,
+    DeseralizationError,
+    MissingState,
+    InvalidState,
+    Unimplemented,
+    Empty,
+    MissingConfiguration,
+    VersionMismatch,
+    Disconnected,
+    Uncompleted(String),
+    PortTypeNotMatching((String, String)),
+    OperatorNotFound(ZFOperatorId),
+    PortNotFound((ZFOperatorId, String)),
+    RecvError(String),
+    SendError(String),
+    MissingInput(String),
+    MissingOutput(String),
+    InvalidData(String),
+    IOError(String),
+    ZenohError(String),
+    LoadingError(String),
+    ParsingError(String),
+    #[serde(skip_serializing, skip_deserializing)]
+    RunnerStopError(crate::async_std::channel::RecvError),
+    #[serde(skip_serializing, skip_deserializing)]
+    RunnerStopSendError(crate::async_std::channel::SendError<()>),
+    InstanceNotFound(Uuid),
+    RPCError(ZRPCError),
+    SourceDoNotHaveInputs,
+    ReceiverDoNotHaveInputs,
+    SinkDoNotHaveOutputs,
+    SenderDoNotHaveOutputs,
+}
+
+impl From<ZRPCError> for ZFError {
+    fn from(err: ZRPCError) -> Self {
+        Self::RPCError(err)
+    }
+}
+
+impl From<flume::RecvError> for ZFError {
+    fn from(err: flume::RecvError) -> Self {
+        Self::RecvError(format!("{:?}", err))
+    }
+}
+
+impl From<crate::async_std::channel::RecvError> for ZFError {
+    fn from(err: async_std::channel::RecvError) -> Self {
+        Self::RunnerStopError(err)
+    }
+}
+
+impl From<crate::async_std::channel::SendError<()>> for ZFError {
+    fn from(err: async_std::channel::SendError<()>) -> Self {
+        Self::RunnerStopSendError(err)
+    }
+}
+
+impl From<flume::TryRecvError> for ZFError {
+    fn from(err: flume::TryRecvError) -> Self {
+        match err {
+            flume::TryRecvError::Disconnected => Self::Disconnected,
+            flume::TryRecvError::Empty => Self::Empty,
+        }
+    }
+}
+
+impl<T> From<flume::SendError<T>> for ZFError {
+    fn from(err: flume::SendError<T>) -> Self {
+        Self::SendError(format!("{:?}", err))
+    }
+}
+
+impl From<std::io::Error> for ZFError {
+    fn from(err: std::io::Error) -> Self {
+        Self::IOError(format!("{}", err))
+    }
+}
+
+impl From<zenoh_util::core::ZError> for ZFError {
+    fn from(err: zenoh_util::core::ZError) -> Self {
+        Self::ZenohError(format!("{}", err))
+    }
+}
+
+impl From<libloading::Error> for ZFError {
+    fn from(err: libloading::Error) -> Self {
+        Self::LoadingError(format!("Error when loading the library: {}", err))
+    }
+}
+
+#[cfg(feature = "data_json")]
+impl From<serde_json::Error> for ZFError {
+    fn from(_err: serde_json::Error) -> Self {
+        Self::SerializationError
+    }
+}
+
+#[cfg(feature = "data_json")]
+impl From<std::str::Utf8Error> for ZFError {
+    fn from(_err: std::str::Utf8Error) -> Self {
+        Self::SerializationError
+    }
+}

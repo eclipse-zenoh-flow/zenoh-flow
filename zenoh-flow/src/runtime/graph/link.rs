@@ -32,18 +32,6 @@ pub struct ZFLinkReceiver<T> {
 pub type ZFLinkOutput<T> = ZFResult<(String, Arc<T>)>;
 
 impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
-    // pub async fn peek(&mut self) -> ZFResult<(String, Arc<T>)> {
-    //     match &self.last_message {
-    //         Some(message) => Ok((self.id, message.clone())),
-    //         None => {
-    //             let last_message = self.receiver.recv_async().await?;
-    //             self.last_message = Some(last_message.clone());
-
-    //             Ok((self.id, last_message))
-    //         }
-    //     }
-    // }
-
     pub fn peek(
         &self,
     ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_>> {
@@ -62,30 +50,6 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
         }
         Box::pin(__peek(self))
     }
-
-    // pub async fn recv(&mut self) -> ZFResult<Arc<T>> {
-    //     match &self.last_message {
-    //         Some(message) => {
-    //             let msg = message.clone();
-    //             self.last_message = None;
-
-    //             Ok(msg)
-    //         }
-    //         None => Ok(self.receiver.recv_async().await?),
-    //     }
-    // }
-
-    // pub fn try_recv(&mut self) -> ZFResult<(String, Arc<T>)> {
-    //     match &self.last_message {
-    //         Some(message) => {
-    //             let msg = message.clone();
-    //             self.last_message = None;
-
-    //             Ok((self.id.clone(), msg))
-    //         }
-    //         None => Ok((self.id.clone(), self.receiver.try_recv()?)),
-    //     }
-    // }
 
     pub fn recv(
         &self,

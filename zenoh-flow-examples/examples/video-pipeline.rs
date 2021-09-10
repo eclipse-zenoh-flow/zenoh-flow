@@ -255,12 +255,12 @@ async fn main() {
     zf_graph
         .add_link(
             ZFLinkFromDescriptor {
-                component_id: "camera-source".to_string(),
-                output_id: String::from(SOURCE),
+                component: "camera-source".to_string(),
+                output: String::from(SOURCE),
             },
             ZFLinkToDescriptor {
-                component_id: "video-sink".to_string(),
-                input_id: String::from(INPUT),
+                component: "video-sink".to_string(),
+                input: String::from(INPUT),
             },
             None,
             None,

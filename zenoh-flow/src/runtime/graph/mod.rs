@@ -180,43 +180,35 @@ impl DataFlowGraph {
         let (from_index, from_type) = match self
             .operators
             .iter()
-            .find(|&(_, o)| o.get_id() == connection.from.component_id.clone())
+            .find(|&(_, o)| o.get_id() == connection.from.component.clone())
         {
-            Some((idx, op)) => match op.has_output(connection.from.output_id.clone()) {
-                true => (idx, op.get_output_type(connection.from.output_id.clone())?),
+            Some((idx, op)) => match op.has_output(connection.from.output.clone()) {
+                true => (idx, op.get_output_type(connection.from.output.clone())?),
                 false => {
                     return Err(ZFError::PortNotFound((
-                        connection.from.component_id.clone(),
-                        connection.from.output_id.clone(),
+                        connection.from.component.clone(),
+                        connection.from.output.clone(),
                     )))
                 }
             },
-            None => {
-                return Err(ZFError::OperatorNotFound(
-                    connection.from.component_id.clone(),
-                ))
-            }
+            None => return Err(ZFError::OperatorNotFound(connection.from.component.clone())),
         };
 
         let (to_index, to_type) = match self
             .operators
             .iter()
-            .find(|&(_, o)| o.get_id() == connection.to.component_id.clone())
+            .find(|&(_, o)| o.get_id() == connection.to.component.clone())
         {
-            Some((idx, op)) => match op.has_input(connection.to.input_id.clone()) {
-                true => (idx, op.get_input_type(connection.to.input_id.clone())?),
+            Some((idx, op)) => match op.has_input(connection.to.input.clone()) {
+                true => (idx, op.get_input_type(connection.to.input.clone())?),
                 false => {
                     return Err(ZFError::PortNotFound((
-                        connection.to.component_id.clone(),
-                        connection.to.input_id.clone(),
+                        connection.to.component.clone(),
+                        connection.to.input.clone(),
                     )))
                 }
             },
-            None => {
-                return Err(ZFError::OperatorNotFound(
-                    connection.to.component_id.clone(),
-                ))
-            }
+            None => return Err(ZFError::OperatorNotFound(connection.to.component.clone())),
         };
 
         if from_type == to_type {
@@ -224,10 +216,7 @@ impl DataFlowGraph {
                 self.graph.add_edge(
                     *from_index,
                     *to_index,
-                    (
-                        connection.from.output_id.clone(),
-                        connection.to.input_id.clone(),
-                    ),
+                    (connection.from.output.clone(), connection.to.input.clone()),
                 ),
                 connection,
             ));
@@ -375,8 +364,8 @@ impl DataFlowGraph {
                         String::from(link_id_to),
                     );
 
-                    up_runner.add_output(tx).await;
-                    down_runner.add_input(rx).await;
+                    up_runner.add_output(tx).await?;
+                    down_runner.add_input(rx).await?;
                 }
             }
         }
@@ -487,42 +476,39 @@ impl TryFrom<DataFlowRecord> for DataFlowGraph {
 
             let (from_index, from_runtime, from_type) = match operators
                 .iter()
-                .find(|&(_, o)| o.get_id() == l.from.component_id)
+                .find(|&(_, o)| o.get_id() == l.from.component)
             {
-                Some((idx, op)) => match op.has_output(l.from.output_id.clone()) {
+                Some((idx, op)) => match op.has_output(l.from.output.clone()) {
                     true => (
                         idx,
                         op.get_runtime(),
-                        op.get_output_type(l.from.output_id.clone())?,
+                        op.get_output_type(l.from.output.clone())?,
                     ),
                     false => {
                         return Err(ZFError::PortNotFound((
-                            l.from.component_id,
-                            l.from.output_id.clone(),
+                            l.from.component,
+                            l.from.output.clone(),
                         )))
                     }
                 },
-                None => return Err(ZFError::OperatorNotFound(l.from.component_id)),
+                None => return Err(ZFError::OperatorNotFound(l.from.component)),
             };
 
             let (to_index, to_runtime, to_type) = match operators
                 .iter()
-                .find(|&(_, o)| o.get_id() == l.to.component_id)
+                .find(|&(_, o)| o.get_id() == l.to.component)
             {
-                Some((idx, op)) => match op.has_input(l.to.input_id.clone()) {
+                Some((idx, op)) => match op.has_input(l.to.input.clone()) {
                     true => (
                         idx,
                         op.get_runtime(),
-                        op.get_input_type(l.to.input_id.clone())?,
+                        op.get_input_type(l.to.input.clone())?,
                     ),
                     false => {
-                        return Err(ZFError::PortNotFound((
-                            l.to.component_id,
-                            l.to.input_id.clone(),
-                        )))
+                        return Err(ZFError::PortNotFound((l.to.component, l.to.input.clone())))
                     }
                 },
-                None => return Err(ZFError::OperatorNotFound(l.to.component_id)),
+                None => return Err(ZFError::OperatorNotFound(l.to.component)),
             };
 
             if to_type != from_type {
@@ -538,7 +524,7 @@ impl TryFrom<DataFlowRecord> for DataFlowGraph {
                     graph.add_edge(
                         *from_index,
                         *to_index,
-                        (l.from.output_id.clone(), l.to.input_id.clone()),
+                        (l.from.output.clone(), l.to.input.clone()),
                     ),
                     l.clone(),
                 ));
