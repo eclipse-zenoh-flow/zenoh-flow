@@ -30,7 +30,15 @@ sinks: # sources can have only ONE input
       type: image
 
 links:
-- from: Camera0.Frame
-  to: FaceDetection.Frame
-- from: FaceDetection.Frame
-  to: Window.Frame
+- from:
+    component : Camera0
+    output : Frame
+  to:
+    component : FaceDetection
+    input : Frame
+- from:
+    component : FaceDetection
+    output : Frame
+  to:
+    component : Window
+    input : Frame

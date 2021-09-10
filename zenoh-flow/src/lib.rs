@@ -31,3 +31,6 @@ pub use traits::*;
 
 pub mod macros;
 pub use macros::*;
+
+pub mod error;
+pub use error::*;

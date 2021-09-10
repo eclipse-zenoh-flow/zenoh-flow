@@ -29,10 +29,19 @@ sinks: # sources can have only ONE input
       type: image
 
 links:
-- from: Camera0.Frame
-  to: ObjectDetection.Frame
-- from: ObjectDetection.Frame
-  to: Window.Frame
+- from:
+    component : Camera0
+    output : Frame
+  to:
+    component : ObjectDetection
+    input : Frame
+- from:
+    component : ObjectDetection
+    output : Frame
+  to:
+    id : Window
+    input : Frame
+
 
 mapping:
   - id: Window

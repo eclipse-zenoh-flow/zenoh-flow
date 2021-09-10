@@ -44,7 +44,7 @@ async fn main() {
     let yaml_df = read_to_string(opt.graph_file).unwrap();
 
     // loading the descriptor
-    let df = zenoh_flow::model::dataflow::DataFlowDescriptor::from_yaml(yaml_df).unwrap();
+    let df = zenoh_flow::model::dataflow::DataFlowDescriptor::from_yaml(&yaml_df).unwrap();
 
     // mapping to infrastructure
     let mapped = zenoh_flow::runtime::map_to_infrastructure(df, &opt.runtime)

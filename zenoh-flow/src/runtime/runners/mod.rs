@@ -106,25 +106,43 @@ impl Runner {
         }
     }
 
-    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
+    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) -> ZFResult<()> {
         log::trace!("add_input({:?})", input);
         match self {
-            Runner::Operator(runner) => runner.add_input(input).await,
-            Runner::Source(_) => panic!("Sources does not have inputs!"), // TODO this should return a ZFResult<()>
-            Runner::Sink(runner) => runner.add_input(input).await,
-            Runner::Sender(runner) => runner.add_input(input).await,
-            Runner::Receiver(_) => panic!("Receiver does not have inputs!"), // TODO this should return a ZFResult<()>
+            Runner::Operator(runner) => {
+                runner.add_input(input).await;
+                Ok(())
+            }
+            Runner::Source(_) => Err(ZFError::SourceDoNotHaveInputs),
+            Runner::Sink(runner) => {
+                runner.add_input(input).await;
+                Ok(())
+            }
+            Runner::Sender(runner) => {
+                runner.add_input(input).await;
+                Ok(())
+            }
+            Runner::Receiver(_) => Err(ZFError::ReceiverDoNotHaveInputs),
         }
     }
 
-    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
+    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) -> ZFResult<()> {
         log::trace!("add_output({:?})", output);
         match self {
-            Runner::Operator(runner) => runner.add_output(output).await,
-            Runner::Source(runner) => runner.add_output(output).await,
-            Runner::Sink(_) => panic!("Sinks does not have output!"), // TODO this should return a ZFResult<()>
-            Runner::Sender(_) => panic!("Senders does not have output!"), // TODO this should return a ZFResult<()>
-            Runner::Receiver(runner) => runner.add_output(output).await,
+            Runner::Operator(runner) => {
+                runner.add_output(output).await;
+                Ok(())
+            }
+            Runner::Source(runner) => {
+                runner.add_output(output).await;
+                Ok(())
+            }
+            Runner::Sink(_) => Err(ZFError::SinkDoNotHaveOutputs),
+            Runner::Sender(_) => Err(ZFError::SenderDoNotHaveOutputs),
+            Runner::Receiver(runner) => {
+                runner.add_output(output).await;
+                Ok(())
+            }
         }
     }
 

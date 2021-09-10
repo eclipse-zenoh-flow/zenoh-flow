@@ -24,10 +24,18 @@ sinks:
       type: usize
 
 links:
-- from: Counter.Counter
-  to: SumOperator.Number
-- from: SumOperator.Sum
-  to: PrintSink.Data
+- from:
+    component : Counter
+    output : Counter
+  to:
+    component : SumOperator
+    input : Number
+- from:
+    component : SumOperator
+    output : Sum
+  to:
+    component : PrintSink
+    input : Data
 
 mapping:
   - id: SumOperator

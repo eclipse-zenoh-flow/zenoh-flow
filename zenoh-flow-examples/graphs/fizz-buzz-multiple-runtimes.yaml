@@ -79,38 +79,78 @@ sinks:
       type: string
 
 links:
-  - from: ManualSenderOperator.Int
-    to: FizzOperator.Int
+  - from:
+      component: ManualSenderOperator
+      output: Int
+    to:
+      component: FizzOperator
+      input: Int
 
-  # FizzOperator -> BuzzOperator -> ReceiverOperator
-  - from: FizzOperator.Int
-    to: BuzzOperator.Int
+  # FizzOperator -> BuzzOperator
+  - from:
+      component: FizzOperator
+      output: Int
+    to:
+      component: BuzzOperator
+      input: Int
 
-  - from: FizzOperator.Str
-    to: BuzzOperator.Str
+  - from:
+      component: FizzOperator
+      output: Str
+    to:
+      component: BuzzOperator
+      input: Str
 
-  - from: BuzzOperator.Str
-    to: ReceiverOperator.Str
+  - from:
+      component: BuzzOperator
+      output: Str
+    to:
+      component: ReceiverOperator
+      input: Str
 
-  # FizzOperator -> BuzzOperator2 -> ReceiverOperator2
-  - from: FizzOperator.Int
-    to: BuzzOperator2.Int
+  # FizzOperator -> BuzzOperator2
+  - from:
+      component: FizzOperator
+      output: Int
+    to:
+      component: BuzzOperator2
+      input: Int
 
-  - from: FizzOperator.Str
-    to: BuzzOperator2.Str
+  - from:
+      component: FizzOperator
+      output: Str
+    to:
+      component: BuzzOperator2
+      input: Str
 
-  - from: BuzzOperator2.Str
-    to: ReceiverOperator2.Str
+  - from:
+      component: BuzzOperator2
+      output: Str
+    to:
+      component: ReceiverOperator2
+      input: Str
 
-  # FizzOperator -> BuzzOperator3 -> ReceiverOperator3
-  - from: FizzOperator.Int
-    to: BuzzOperator3.Int
+  # FizzOperator -> BuzzOperator3
+  - from:
+      component: FizzOperator
+      output: Int
+    to:
+      component: BuzzOperator3
+      input: Int
 
-  - from: FizzOperator.Str
-    to: BuzzOperator3.Str
+  - from:
+      component: FizzOperator
+      output: Str
+    to:
+      component: BuzzOperator3
+      input: Str
 
-  - from: BuzzOperator3.Str
-    to: ReceiverOperator3.Str
+  - from:
+      component: BuzzOperator3
+      output: Str
+    to:
+      component: ReceiverOperator3
+      input: Str
 
 mapping:
   - id: ManualSenderOperator
