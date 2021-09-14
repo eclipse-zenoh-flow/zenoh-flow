@@ -17,7 +17,7 @@ use crate::model::operator::ZFSinkRecord;
 use crate::runtime::graph::link::ZFLinkReceiver;
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
-use crate::{ZFContext, ZFSinkTrait, ZFStateTrait};
+use crate::{Context, ZFSinkTrait, ZFStateTrait};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -80,7 +80,7 @@ impl ZFSinkRunner {
     }
 
     pub async fn run(&self) -> ZFResult<()> {
-        let mut context = ZFContext::default();
+        let mut context = Context::default();
 
         loop {
             // Guards are taken at the beginning of each iteration to allow

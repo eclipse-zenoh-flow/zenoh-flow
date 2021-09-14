@@ -36,7 +36,7 @@ static OUTPUT: &str = "Sum";
 impl ZFOperatorTrait for SumAndSend {
     fn run(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
+        _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn ZFDataTrait>>> {
@@ -58,7 +58,7 @@ impl ZFOperatorTrait for SumAndSend {
 impl ZFComponentInputRule for SumAndSend {
     fn input_rule(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
+        _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         tokens: &mut HashMap<String, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
@@ -69,7 +69,7 @@ impl ZFComponentInputRule for SumAndSend {
 impl ZFComponentOutputRule for SumAndSend {
     fn output_rule(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
+        _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, ZFComponentOutput>> {

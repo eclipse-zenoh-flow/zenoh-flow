@@ -17,7 +17,7 @@ use crate::model::operator::ZFOperatorRecord;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
-use crate::{ZFContext, ZFOperatorTrait, ZFStateTrait};
+use crate::{Context, ZFOperatorTrait, ZFStateTrait};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -89,7 +89,7 @@ impl ZFOperatorRunner {
     }
 
     pub async fn run(&self) -> ZFResult<()> {
-        let mut context = ZFContext::default();
+        let mut context = Context::default();
 
         loop {
             // Guards are taken at the beginning of each iteration to allow

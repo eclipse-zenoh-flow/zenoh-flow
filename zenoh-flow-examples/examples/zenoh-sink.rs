@@ -61,7 +61,7 @@ impl ZFComponent for ExampleGenericZenohSink {
 impl ZFComponentInputRule for ExampleGenericZenohSink {
     fn input_rule(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
+        _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         tokens: &mut HashMap<String, Token>,
     ) -> ZFResult<bool> {
@@ -73,7 +73,7 @@ impl ZFComponentInputRule for ExampleGenericZenohSink {
 impl ZFSinkTrait for ExampleGenericZenohSink {
     async fn run(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
+        _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> ZFResult<()> {

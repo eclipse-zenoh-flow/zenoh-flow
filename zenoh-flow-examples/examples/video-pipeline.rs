@@ -79,7 +79,7 @@ impl CameraState {
 impl ZFSourceTrait for CameraSource {
     async fn run(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
+        _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
         let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
@@ -124,7 +124,7 @@ impl ZFSourceTrait for CameraSource {
 impl ZFComponentOutputRule for CameraSource {
     fn output_rule(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
+        _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
@@ -166,7 +166,7 @@ impl VideoState {
 impl ZFComponentInputRule for VideoSink {
     fn input_rule(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
+        _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         tokens: &mut HashMap<String, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
@@ -193,7 +193,7 @@ impl ZFComponent for VideoSink {
 impl ZFSinkTrait for VideoSink {
     async fn run(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
+        _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> zenoh_flow::ZFResult<()> {

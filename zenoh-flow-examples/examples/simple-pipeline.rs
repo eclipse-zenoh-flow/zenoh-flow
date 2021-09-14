@@ -22,8 +22,8 @@ use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::{
-    default_input_rule, default_output_rule, ZFComponent, ZFComponentInputRule,
-    ZFComponentOutputRule, ZFContext, ZFDataTrait, ZFSinkTrait, ZFSourceTrait,
+    default_input_rule, default_output_rule, Context, ZFComponent, ZFComponentInputRule,
+    ZFComponentOutputRule, ZFDataTrait, ZFSinkTrait, ZFSourceTrait,
 };
 use zenoh_flow::{model::link::ZFPortDescriptor, zf_data, zf_empty_state};
 use zenoh_flow::{ZFResult, ZFStateTrait};
@@ -52,7 +52,7 @@ impl CountSource {
 impl ZFSourceTrait for CountSource {
     async fn run(
         &self,
-        _context: &mut ZFContext,
+        _context: &mut Context,
         _state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
         let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
@@ -66,7 +66,7 @@ impl ZFSourceTrait for CountSource {
 impl ZFComponentOutputRule for CountSource {
     fn output_rule(
         &self,
-        _context: &mut ZFContext,
+        _context: &mut Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
@@ -93,7 +93,7 @@ struct ExampleGenericSink;
 impl ZFSinkTrait for ExampleGenericSink {
     async fn run(
         &self,
-        _context: &mut ZFContext,
+        _context: &mut Context,
         _state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> zenoh_flow::ZFResult<()> {
@@ -109,7 +109,7 @@ impl ZFSinkTrait for ExampleGenericSink {
 impl ZFComponentInputRule for ExampleGenericSink {
     fn input_rule(
         &self,
-        _context: &mut ZFContext,
+        _context: &mut Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         tokens: &mut HashMap<String, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {

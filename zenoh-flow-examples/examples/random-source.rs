@@ -16,8 +16,8 @@ use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::{
-    default_output_rule, types::ZFResult, zf_data, zf_empty_state, ZFComponent,
-    ZFComponentOutputRule, ZFContext, ZFDataTrait, ZFPortID, ZFSourceTrait, ZFStateTrait,
+    default_output_rule, types::ZFResult, zf_data, zf_empty_state, Context, ZFComponent,
+    ZFComponentOutputRule, ZFDataTrait, ZFPortID, ZFSourceTrait, ZFStateTrait,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -42,7 +42,7 @@ impl ZFComponent for ExampleRandomSource {
 impl ZFComponentOutputRule for ExampleRandomSource {
     fn output_rule(
         &self,
-        _context: &mut ZFContext,
+        _context: &mut Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         outputs: &HashMap<String, Arc<dyn zenoh_flow::ZFDataTrait>>,
     ) -> ZFResult<HashMap<ZFPortID, zenoh_flow::ZFComponentOutput>> {
@@ -54,7 +54,7 @@ impl ZFComponentOutputRule for ExampleRandomSource {
 impl ZFSourceTrait for ExampleRandomSource {
     async fn run(
         &self,
-        _context: &mut ZFContext,
+        _context: &mut Context,
         _state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
     ) -> ZFResult<HashMap<ZFPortID, Arc<dyn ZFDataTrait>>> {
         let mut results: HashMap<ZFPortID, Arc<dyn ZFDataTrait>> = HashMap::with_capacity(1);

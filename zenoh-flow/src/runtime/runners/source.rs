@@ -18,7 +18,7 @@ use crate::runtime::graph::link::ZFLinkSender;
 use crate::runtime::message::ZFMessage;
 use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
-use crate::{ZFContext, ZFSourceTrait, ZFStateTrait};
+use crate::{Context, ZFSourceTrait, ZFStateTrait};
 use libloading::Library;
 use std::collections::HashMap;
 
@@ -79,7 +79,7 @@ impl ZFSourceRunner {
     }
 
     pub async fn run(&self) -> ZFResult<()> {
-        let mut context = ZFContext::default();
+        let mut context = Context::default();
 
         loop {
             // Guards are taken at the beginning of each iteration to allow

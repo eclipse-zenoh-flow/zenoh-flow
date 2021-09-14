@@ -13,7 +13,7 @@
 //
 
 use crate::runtime::message::ZFDataMessage;
-use crate::{Token, ZFComponentOutput, ZFContext, ZFPortID, ZFResult};
+use crate::{Context, Token, ZFComponentOutput, ZFPortID, ZFResult};
 use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::any::Any;
@@ -51,7 +51,7 @@ pub trait ZFComponent {
 pub trait ZFComponentInputRule {
     fn input_rule(
         &self,
-        context: &mut ZFContext,
+        context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
         tokens: &mut HashMap<String, Token>,
     ) -> ZFResult<bool>;
@@ -60,7 +60,7 @@ pub trait ZFComponentInputRule {
 pub trait ZFComponentOutputRule {
     fn output_rule(
         &self,
-        context: &mut ZFContext,
+        context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
         outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
     ) -> ZFResult<HashMap<ZFPortID, ZFComponentOutput>>;
@@ -71,7 +71,7 @@ pub trait ZFOperatorTrait:
 {
     fn run(
         &self,
-        context: &mut ZFContext,
+        context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
         inputs: &mut HashMap<String, ZFDataMessage>,
     ) -> ZFResult<HashMap<ZFPortID, Arc<dyn ZFDataTrait>>>;
@@ -81,7 +81,7 @@ pub trait ZFOperatorTrait:
 pub trait ZFSourceTrait: ZFComponent + ZFComponentOutputRule + Send + Sync {
     async fn run(
         &self,
-        context: &mut ZFContext,
+        context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
     ) -> ZFResult<HashMap<ZFPortID, Arc<dyn ZFDataTrait>>>;
 }
@@ -90,7 +90,7 @@ pub trait ZFSourceTrait: ZFComponent + ZFComponentOutputRule + Send + Sync {
 pub trait ZFSinkTrait: ZFComponent + ZFComponentInputRule + Send + Sync {
     async fn run(
         &self,
-        context: &mut ZFContext,
+        context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
         inputs: &mut HashMap<String, ZFDataMessage>,
     ) -> ZFResult<()>;
