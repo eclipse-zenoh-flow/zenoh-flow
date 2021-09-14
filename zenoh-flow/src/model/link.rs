@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::ZFOperatorId;
+use crate::OperatorId;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -47,7 +47,7 @@ impl std::fmt::Display for ZFPortDescriptor {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ZFLinkFromDescriptor {
-    pub component: ZFOperatorId,
+    pub component: OperatorId,
     pub output: String,
 }
 
@@ -59,7 +59,7 @@ impl fmt::Display for ZFLinkFromDescriptor {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ZFLinkToDescriptor {
-    pub component: ZFOperatorId,
+    pub component: OperatorId,
     pub input: String,
 }
 

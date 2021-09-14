@@ -22,7 +22,7 @@ use std::convert::From;
 use uhlc::Timestamp;
 
 // Placeholder types
-pub type ZFOperatorId = String;
+pub type OperatorId = String;
 pub type ZFZenohResource = String;
 pub type ZFOperatorName = String;
 pub type ZFTimestamp = usize; //TODO: improve it, usize is just a placeholder

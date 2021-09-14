@@ -14,7 +14,7 @@
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord};
-use crate::{ZFError, ZFOperatorId, ZFResult, ZFRuntimeID};
+use crate::{OperatorId, ZFError, ZFResult, ZFRuntimeID};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -129,7 +129,7 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_id(&self) -> ZFOperatorId {
+    pub fn get_id(&self) -> OperatorId {
         match self {
             DataFlowNode::Operator(op) => op.id.clone(),
             DataFlowNode::Sink(s) => s.id.clone(),

@@ -40,7 +40,7 @@ use crate::{
     model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord},
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
-    types::{ZFError, ZFOperatorId, ZFOperatorName, ZFResult},
+    types::{OperatorId, ZFError, ZFOperatorName, ZFResult},
     utils::hlc::PeriodicHLC,
 };
 use uuid::Uuid;
@@ -86,7 +86,7 @@ impl DataFlowGraph {
     pub fn add_static_operator(
         &mut self,
         hlc: Arc<HLC>,
-        id: ZFOperatorId,
+        id: OperatorId,
         inputs: Vec<ZFPortDescriptor>,
         outputs: Vec<ZFPortDescriptor>,
         operator: Arc<dyn ZFOperatorTrait>,
@@ -113,7 +113,7 @@ impl DataFlowGraph {
     pub fn add_static_source(
         &mut self,
         hlc: Arc<HLC>,
-        id: ZFOperatorId,
+        id: OperatorId,
         output: ZFPortDescriptor,
         source: Arc<dyn ZFSourceTrait>,
         configuration: Option<HashMap<String, String>>,
@@ -139,7 +139,7 @@ impl DataFlowGraph {
 
     pub fn add_static_sink(
         &mut self,
-        id: ZFOperatorId,
+        id: OperatorId,
         input: ZFPortDescriptor,
         sink: Arc<dyn ZFSinkTrait>,
         configuration: Option<HashMap<String, String>>,

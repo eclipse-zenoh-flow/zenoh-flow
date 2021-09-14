@@ -14,7 +14,7 @@
 
 use crate::model::link::ZFPortDescriptor;
 use crate::model::period::ZFPeriodDescriptor;
-use crate::types::{ZFOperatorId, ZFRuntimeID};
+use crate::types::{OperatorId, ZFRuntimeID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -22,7 +22,7 @@ use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkDescriptor {
-    pub id: ZFOperatorId,
+    pub id: OperatorId,
     pub input: ZFPortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
@@ -37,7 +37,7 @@ impl std::fmt::Display for ZFSinkDescriptor {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSourceDescriptor {
-    pub id: ZFOperatorId,
+    pub id: OperatorId,
     pub output: ZFPortDescriptor,
     pub period: Option<ZFPeriodDescriptor>,
     pub uri: Option<String>,
@@ -53,7 +53,7 @@ impl std::fmt::Display for ZFSourceDescriptor {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFOperatorDescriptor {
-    pub id: ZFOperatorId,
+    pub id: OperatorId,
     pub inputs: Vec<ZFPortDescriptor>,
     pub outputs: Vec<ZFPortDescriptor>,
     pub uri: Option<String>,
@@ -71,7 +71,7 @@ impl std::fmt::Display for ZFOperatorDescriptor {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkRecord {
-    pub id: ZFOperatorId,
+    pub id: OperatorId,
     pub input: ZFPortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
@@ -96,7 +96,7 @@ impl ZFSinkRecord {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSourceRecord {
-    pub id: ZFOperatorId,
+    pub id: OperatorId,
     pub output: ZFPortDescriptor,
     pub period: Option<ZFPeriodDescriptor>,
     pub uri: Option<String>,
@@ -122,7 +122,7 @@ impl ZFSourceRecord {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFOperatorRecord {
-    pub id: ZFOperatorId,
+    pub id: OperatorId,
     pub inputs: Vec<ZFPortDescriptor>,
     pub outputs: Vec<ZFPortDescriptor>,
     pub uri: Option<String>,

@@ -12,7 +12,7 @@
 //
 
 use crate::serde::{Deserialize, Serialize};
-use crate::ZFOperatorId;
+use crate::OperatorId;
 use std::convert::From;
 use uuid::Uuid;
 use zrpc::zrpcresult::ZRPCError;
@@ -31,8 +31,8 @@ pub enum ZFError {
     Disconnected,
     Uncompleted(String),
     PortTypeNotMatching((String, String)),
-    OperatorNotFound(ZFOperatorId),
-    PortNotFound((ZFOperatorId, String)),
+    OperatorNotFound(OperatorId),
+    PortNotFound((OperatorId, String)),
     RecvError(String),
     SendError(String),
     MissingInput(String),

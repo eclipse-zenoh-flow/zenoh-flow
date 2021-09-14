@@ -22,7 +22,7 @@ use crate::model::operator::{
 };
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{ZFError, ZFOperatorId, ZFResult, ZFRuntimeID};
+use crate::types::{OperatorId, ZFError, ZFResult, ZFRuntimeID};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -104,7 +104,7 @@ impl Eq for DataFlowDescriptor {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Mapping {
-    pub id: ZFOperatorId,
+    pub id: OperatorId,
     pub runtime: ZFRuntimeID,
 }
 
