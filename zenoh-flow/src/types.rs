@@ -72,9 +72,6 @@ impl From<&str> for OperatorId {
     }
 }
 
-pub type ZFOperatorName = String;
-pub type ZFTimestamp = usize; //TODO: improve it, usize is just a placeholder
-
 pub type ZFPortID = String;
 pub type ZFRuntimeID = String;
 
