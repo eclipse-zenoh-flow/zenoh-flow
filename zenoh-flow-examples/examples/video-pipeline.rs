@@ -230,7 +230,7 @@ async fn main() {
     zf_graph
         .add_static_source(
             hlc,
-            "camera-source".to_string(),
+            "camera-source".into(),
             ZFPortDescriptor {
                 port_id: String::from(SOURCE),
                 port_type: String::from("image"),
@@ -242,7 +242,7 @@ async fn main() {
 
     zf_graph
         .add_static_sink(
-            "video-sink".to_string(),
+            "video-sink".into(),
             ZFPortDescriptor {
                 port_id: String::from(INPUT),
                 port_type: String::from("image"),
@@ -255,11 +255,11 @@ async fn main() {
     zf_graph
         .add_link(
             ZFLinkFromDescriptor {
-                component: "camera-source".to_string(),
+                component: "camera-source".into(),
                 output: String::from(SOURCE),
             },
             ZFLinkToDescriptor {
-                component: "video-sink".to_string(),
+                component: "video-sink".into(),
                 input: String::from(INPUT),
             },
             None,

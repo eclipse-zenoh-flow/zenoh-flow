@@ -143,7 +143,7 @@ async fn main() {
     zf_graph
         .add_static_source(
             hlc,
-            "counter-source".to_string(),
+            "counter-source".into(),
             ZFPortDescriptor {
                 port_id: String::from(SOURCE),
                 port_type: String::from("int"),
@@ -155,7 +155,7 @@ async fn main() {
 
     zf_graph
         .add_static_sink(
-            "generic-sink".to_string(),
+            "generic-sink".into(),
             ZFPortDescriptor {
                 port_id: String::from(SOURCE),
                 port_type: String::from("int"),
@@ -168,11 +168,11 @@ async fn main() {
     zf_graph
         .add_link(
             ZFLinkFromDescriptor {
-                component: "counter-source".to_string(),
+                component: "counter-source".into(),
                 output: String::from(SOURCE),
             },
             ZFLinkToDescriptor {
-                component: "generic-sink".to_string(),
+                component: "generic-sink".into(),
                 input: String::from(SOURCE),
             },
             None,

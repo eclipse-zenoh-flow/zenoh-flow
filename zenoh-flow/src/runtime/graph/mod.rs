@@ -40,7 +40,7 @@ use crate::{
     model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord},
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
-    types::{OperatorId, ZFError, ZFOperatorName, ZFResult},
+    types::{OperatorId, ZFError, ZFResult},
     utils::hlc::PeriodicHLC,
 };
 use uuid::Uuid;
@@ -51,7 +51,7 @@ pub struct DataFlowGraph {
     pub operators: Vec<(NodeIndex, DataFlowNode)>,
     pub links: Vec<(EdgeIndex, ZFLinkDescriptor)>,
     pub graph: StableGraph<DataFlowNode, (String, String)>,
-    pub operators_runners: HashMap<ZFOperatorName, (Runner, DataFlowNodeKind)>,
+    pub operators_runners: HashMap<OperatorId, (Runner, DataFlowNodeKind)>,
 }
 
 impl Default for DataFlowGraph {
@@ -372,7 +372,7 @@ impl DataFlowGraph {
         Ok(())
     }
 
-    pub fn get_runner(&self, operator_id: &str) -> Option<&Runner> {
+    pub fn get_runner(&self, operator_id: &OperatorId) -> Option<&Runner> {
         self.operators_runners.get(operator_id).map(|(r, _)| r)
     }
 

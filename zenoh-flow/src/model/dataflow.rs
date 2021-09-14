@@ -278,7 +278,7 @@ impl DataFlowRecord {
                     );
                     let sender = ZFConnectorRecord {
                         kind: ZFConnectorKind::Sender,
-                        id: sender_id.clone(),
+                        id: sender_id.clone().into(),
                         resource: z_resource_name.clone(),
                         link_id: ZFPortDescriptor {
                             port_id: l.from.output.clone(),
@@ -292,7 +292,7 @@ impl DataFlowRecord {
                     let link_sender = ZFLinkDescriptor {
                         from: l.from.clone(),
                         to: ZFLinkToDescriptor {
-                            component: sender_id,
+                            component: sender_id.into(),
                             input: l.from.output.clone(),
                         },
                         size: None,
@@ -312,7 +312,7 @@ impl DataFlowRecord {
                 );
                 let receiver = ZFConnectorRecord {
                     kind: ZFConnectorKind::Receiver,
-                    id: receiver_id.clone(),
+                    id: receiver_id.clone().into(),
                     resource: z_resource_name.clone(),
                     link_id: ZFPortDescriptor {
                         port_id: l.to.input.clone(),
@@ -325,7 +325,7 @@ impl DataFlowRecord {
                 //creating link between receiver and component
                 let link_receiver = ZFLinkDescriptor {
                     from: ZFLinkFromDescriptor {
-                        component: receiver_id,
+                        component: receiver_id.into(),
                         output: l.to.input.clone(),
                     },
                     to: l.to.clone(),
