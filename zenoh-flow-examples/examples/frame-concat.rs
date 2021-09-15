@@ -67,7 +67,7 @@ impl ZFComponentInputRule for FrameConcat {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        tokens: &mut HashMap<String, zenoh_flow::Token>,
+        tokens: &mut HashMap<zenoh_flow::PortId, zenoh_flow::Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }
@@ -78,8 +78,8 @@ impl ZFComponentOutputRule for FrameConcat {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn zenoh_flow::ZFDataTrait>>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::ZFDataTrait>>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }
@@ -89,9 +89,9 @@ impl ZFOperatorTrait for FrameConcat {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
-        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
+        inputs: &mut HashMap<zenoh_flow::PortId, zenoh_flow::runtime::message::ZFDataMessage>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::ZFDataTrait>>> {
+        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn ZFDataTrait>> = HashMap::new();
 
         let state = downcast!(FrameConcatState, dyn_state).unwrap();
         let encode_options = zf_spin_lock!(state.encode_options);
@@ -120,7 +120,7 @@ impl ZFOperatorTrait for FrameConcat {
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
-        results.insert(String::from(OUTPUT), zf_data!(ZFBytes(buf.into())));
+        results.insert(OUTPUT.into(), zf_data!(ZFBytes(buf.into())));
 
         Ok(results)
     }

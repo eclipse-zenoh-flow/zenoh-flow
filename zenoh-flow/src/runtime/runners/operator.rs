@@ -17,7 +17,7 @@ use crate::model::operator::ZFOperatorRecord;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
-use crate::{Context, ZFOperatorTrait, ZFStateTrait};
+use crate::{Context, PortId, ZFOperatorTrait, ZFStateTrait};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -33,7 +33,7 @@ pub struct ZFOperatorDeclaration {
 
 pub type ZFOperatorIO = (
     Vec<ZFLinkReceiver<ZFMessage>>,
-    HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
+    HashMap<PortId, Vec<ZFLinkSender<ZFMessage>>>,
 );
 
 // Do not reorder the fields in this struct.
@@ -76,7 +76,7 @@ impl ZFOperatorRunner {
     pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
         let mut guard = self.io.write().await;
         let key = output.id();
-        if let Some(links) = guard.1.get_mut(&key) {
+        if let Some(links) = guard.1.get_mut(key.as_ref()) {
             links.push(output);
         } else {
             guard.1.insert(key, vec![output]);
@@ -98,7 +98,7 @@ impl ZFOperatorRunner {
             let mut state = self.state.write().await;
 
             // we should start from an HashMap with all PortId and not ready tokens
-            let mut msgs: HashMap<String, Token> = HashMap::new();
+            let mut msgs: HashMap<PortId, Token> = HashMap::new();
 
             for i in io.0.iter() {
                 msgs.insert(i.id(), Token::NotReady);

@@ -21,12 +21,12 @@ use std::io::Write;
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
-use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, model::link::ZFPortDescriptor,
     zenoh_flow_derive::ZFState, zf_data, ZFComponent, ZFComponentInputRule, ZFComponentOutputRule,
     ZFDataTrait, ZFError, ZFSinkTrait, ZFSourceTrait,
 };
+use zenoh_flow::{zf_spin_lock, PortId};
 use zenoh_flow::{ZFResult, ZFStateTrait};
 use zenoh_flow_examples::ZFBytes;
 
@@ -81,8 +81,8 @@ impl ZFSourceTrait for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
-        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::ZFDataTrait>>> {
+        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn ZFDataTrait>> = HashMap::new();
 
         // Downcasting to right type
         let state = downcast!(CameraState, dyn_state).unwrap();
@@ -110,7 +110,7 @@ impl ZFSourceTrait for CameraSource {
 
             let data = ZFBytes(buf.into());
 
-            results.insert(String::from(SOURCE), zf_data!(data));
+            results.insert(SOURCE.into(), zf_data!(data));
 
             drop(cam);
             drop(encode_options);
@@ -126,8 +126,8 @@ impl ZFComponentOutputRule for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn ZFDataTrait>>,
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }
@@ -168,7 +168,7 @@ impl ZFComponentInputRule for VideoSink {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        tokens: &mut HashMap<String, zenoh_flow::Token>,
+        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
         default_input_rule(state, tokens)
     }
@@ -195,7 +195,7 @@ impl ZFSinkTrait for VideoSink {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
+        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> zenoh_flow::ZFResult<()> {
         // Downcasting to right type
         let state = downcast!(VideoState, dyn_state).unwrap();

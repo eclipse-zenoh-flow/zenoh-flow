@@ -17,7 +17,7 @@ use crate::model::operator::ZFSinkRecord;
 use crate::runtime::graph::link::ZFLinkReceiver;
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
-use crate::{Context, ZFSinkTrait, ZFStateTrait};
+use crate::{Context, PortId, ZFSinkTrait, ZFStateTrait};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -89,7 +89,7 @@ impl ZFSinkRunner {
             let mut state = self.state.write().await;
 
             // we should start from an HashMap with all PortId and not ready tokens
-            let mut msgs: HashMap<String, Token> = HashMap::new();
+            let mut msgs: HashMap<PortId, Token> = HashMap::new();
 
             for i in inputs.iter() {
                 msgs.insert(i.id(), Token::NotReady);

@@ -48,7 +48,7 @@ impl ZFComponentInputRule for VideoSink {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        tokens: &mut HashMap<String, zenoh_flow::Token>,
+        tokens: &mut HashMap<zenoh_flow::PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
         default_input_rule(state, tokens)
     }
@@ -75,7 +75,7 @@ impl ZFSinkTrait for VideoSink {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
+        inputs: &mut HashMap<zenoh_flow::PortId, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> zenoh_flow::ZFResult<()> {
         // Downcasting to right type
         let state = downcast!(VideoState, dyn_state).unwrap();

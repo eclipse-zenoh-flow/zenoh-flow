@@ -117,7 +117,7 @@ macro_rules! get_state {
 #[macro_export]
 macro_rules! get_input {
     ($ident : ident, $index : expr, $map : expr) => {
-        match $map.get_mut(&$index) {
+        match $map.get_mut::<str>(&$index) {
             Some(mut data_message) => match &data_message.data {
                 zenoh_flow::runtime::message::ZFSerDeData::Deserialized(de) => {
                     match zenoh_flow::downcast!($ident, de) {

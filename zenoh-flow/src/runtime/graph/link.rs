@@ -12,30 +12,29 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::{PortId, ZFResult};
 use async_std::sync::{Arc, Mutex};
-
-use crate::ZFResult;
 
 #[derive(Clone, Debug)]
 pub struct ZFLinkSender<T> {
-    pub id: String,
+    pub id: PortId,
     pub sender: flume::Sender<Arc<T>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ZFLinkReceiver<T> {
-    pub id: String,
+    pub id: PortId,
     pub receiver: flume::Receiver<Arc<T>>,
     pub last_message: Arc<Mutex<Option<Arc<T>>>>,
 }
 
-pub type ZFLinkOutput<T> = ZFResult<(String, Arc<T>)>;
+pub type ZFLinkOutput<T> = ZFResult<(PortId, Arc<T>)>;
 
 impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
     pub fn peek(
         &self,
     ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_>> {
-        async fn __peek<T>(_self: &ZFLinkReceiver<T>) -> ZFResult<(String, Arc<T>)> {
+        async fn __peek<T>(_self: &ZFLinkReceiver<T>) -> ZFResult<(PortId, Arc<T>)> {
             let mut guard = _self.last_message.lock().await;
 
             match &*guard {
@@ -55,7 +54,7 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
         &self,
     ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_ + Send + Sync>>
     {
-        async fn __recv<T>(_self: &ZFLinkReceiver<T>) -> ZFResult<(String, Arc<T>)> {
+        async fn __recv<T>(_self: &ZFLinkReceiver<T>) -> ZFResult<(PortId, Arc<T>)> {
             let mut guard = _self.last_message.lock().await;
             match &*guard {
                 Some(message) => {
@@ -77,7 +76,7 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
         Ok(())
     }
 
-    pub fn id(&self) -> String {
+    pub fn id(&self) -> PortId {
         self.id.clone()
     }
 }
@@ -99,7 +98,7 @@ impl<T> ZFLinkSender<T> {
         self.sender.capacity()
     }
 
-    pub fn id(&self) -> String {
+    pub fn id(&self) -> PortId {
         self.id.clone()
     }
 }
@@ -116,11 +115,11 @@ pub fn link<T>(
 
     (
         ZFLinkSender {
-            id: send_id,
+            id: send_id.into(),
             sender,
         },
         ZFLinkReceiver {
-            id: recv_id,
+            id: recv_id.into(),
             receiver,
             last_message: Arc::new(Mutex::new(None)),
         },

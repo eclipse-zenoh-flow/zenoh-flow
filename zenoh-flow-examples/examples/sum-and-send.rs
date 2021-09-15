@@ -16,7 +16,7 @@ use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, ZFComponent,
+    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, PortId, ZFComponent,
     ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule, ZFDataTrait, ZFOperatorTrait,
     ZFResult, ZFStateTrait,
 };
@@ -38,9 +38,9 @@ impl ZFOperatorTrait for SumAndSend {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn ZFDataTrait>>> {
-        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
+        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::ZFDataMessage>,
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn ZFDataTrait>>> {
+        let mut results: HashMap<PortId, Arc<dyn ZFDataTrait>> = HashMap::new();
 
         // Downcasting state to right type
         let mut state = downcast_mut!(SumAndSendState, dyn_state).unwrap();
@@ -50,7 +50,7 @@ impl ZFOperatorTrait for SumAndSend {
         let res = ZFUsize(state.x.0 + data.0);
         state.x = res.clone();
 
-        results.insert(String::from(OUTPUT), zf_data!(res));
+        results.insert(OUTPUT.into(), zf_data!(res));
         Ok(results)
     }
 }
@@ -60,7 +60,7 @@ impl ZFComponentInputRule for SumAndSend {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        tokens: &mut HashMap<String, zenoh_flow::Token>,
+        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
         default_input_rule(state, tokens)
     }
@@ -71,8 +71,8 @@ impl ZFComponentOutputRule for SumAndSend {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, ZFComponentOutput>> {
+        outputs: &HashMap<PortId, Arc<dyn ZFDataTrait>>,
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }

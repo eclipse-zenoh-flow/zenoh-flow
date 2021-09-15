@@ -22,8 +22,7 @@ use std::convert::From;
 use uhlc::Timestamp;
 
 pub type OperatorId = Arc<str>;
-
-pub type ZFPortID = String;
+pub type PortId = Arc<str>;
 pub type ZFRuntimeID = String;
 
 pub type ZFResult<T> = Result<T, ZFError>;
@@ -219,8 +218,8 @@ impl ZFStateTrait for EmptyState {
 
 pub fn default_output_rule(
     _state: &mut Box<dyn ZFStateTrait>,
-    outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-) -> ZFResult<HashMap<ZFPortID, ZFComponentOutput>> {
+    outputs: &HashMap<PortId, Arc<dyn ZFDataTrait>>,
+) -> ZFResult<HashMap<PortId, ZFComponentOutput>> {
     let mut results = HashMap::with_capacity(outputs.len());
     for (k, v) in outputs {
         results.insert(k.clone(), ZFComponentOutput::Data(v.clone()));
@@ -231,7 +230,7 @@ pub fn default_output_rule(
 
 pub fn default_input_rule(
     _state: &mut Box<dyn ZFStateTrait>,
-    tokens: &mut HashMap<String, Token>,
+    tokens: &mut HashMap<PortId, Token>,
 ) -> ZFResult<bool> {
     for token in tokens.values() {
         match token {

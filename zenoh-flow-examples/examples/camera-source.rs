@@ -118,8 +118,8 @@ impl ZFComponentOutputRule for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn ZFDataTrait>>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }
@@ -130,8 +130,9 @@ impl ZFSourceTrait for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn ZFDataTrait>>> {
-        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::with_capacity(1);
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn ZFDataTrait>>> {
+        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn ZFDataTrait>> =
+            HashMap::with_capacity(1);
 
         let state = downcast_mut!(CameraState, dyn_state).unwrap();
 
@@ -155,7 +156,7 @@ impl ZFSourceTrait for CameraSource {
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &reduced, &mut buf, &encode_options).unwrap();
 
-        results.insert(String::from(SOURCE), zf_data!(ZFBytes(buf.into())));
+        results.insert(SOURCE.into(), zf_data!(ZFBytes(buf.into())));
 
         async_std::task::sleep(std::time::Duration::from_millis(state.delay)).await;
 

@@ -349,7 +349,6 @@ impl DataFlowGraph {
                         .operators_runners
                         .get(&down_op.get_id())
                         .ok_or_else(|| ZFError::OperatorNotFound(down_op.get_id()))?;
-                    // let mut down_runner = down_runner.lock().await;
 
                     log::debug!(
                         "\t Creating link between {:?} -> {:?}: {:?} -> {:?}",

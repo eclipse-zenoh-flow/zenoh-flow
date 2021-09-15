@@ -40,9 +40,9 @@ impl ZFOperatorTrait for BuzzOperator {
         &self,
         _context: &mut Context,
         dyn_state: &mut Box<dyn ZFStateTrait>,
-        inputs: &mut HashMap<String, ZFDataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn ZFDataTrait>>> {
-        let mut results = HashMap::<String, Arc<dyn ZFDataTrait>>::with_capacity(1);
+        inputs: &mut HashMap<zenoh_flow::PortId, ZFDataMessage>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn ZFDataTrait>>> {
+        let mut results = HashMap::<zenoh_flow::PortId, Arc<dyn ZFDataTrait>>::with_capacity(1);
 
         let state = downcast!(BuzzState, dyn_state).unwrap();
         let (_, fizz) = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?;
@@ -53,7 +53,7 @@ impl ZFOperatorTrait for BuzzOperator {
             buzz.0.push_str(&state.buzzword);
         }
 
-        results.insert(String::from(LINK_ID_OUTPUT_STR), zf_data!(buzz));
+        results.insert(LINK_ID_OUTPUT_STR.into(), zf_data!(buzz));
 
         Ok(results)
     }
@@ -87,7 +87,7 @@ impl ZFComponentInputRule for BuzzOperator {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
-        tokens: &mut HashMap<String, Token>,
+        tokens: &mut HashMap<zenoh_flow::PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }
@@ -98,8 +98,8 @@ impl ZFComponentOutputRule for BuzzOperator {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, ZFComponentOutput>> {
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn ZFDataTrait>>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }

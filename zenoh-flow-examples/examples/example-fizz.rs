@@ -20,7 +20,7 @@ use zenoh_flow::{
     zf_empty_state, Token, ZFComponent, ZFComponentInputRule, ZFComponentOutput,
     ZFComponentOutputRule, ZFOperatorTrait, ZFStateTrait,
 };
-use zenoh_flow::{Context, ZFDataTrait};
+use zenoh_flow::{Context, PortId, ZFDataTrait};
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
 struct FizzOperator;
@@ -34,7 +34,7 @@ impl ZFComponentInputRule for FizzOperator {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
-        inputs: &mut HashMap<String, Token>,
+        inputs: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, inputs)
     }
@@ -58,9 +58,9 @@ impl ZFOperatorTrait for FizzOperator {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn ZFStateTrait>,
-        inputs: &mut HashMap<String, ZFDataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
-        let mut results = HashMap::<String, Arc<dyn ZFDataTrait>>::with_capacity(2);
+        inputs: &mut HashMap<PortId, ZFDataMessage>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::ZFDataTrait>>> {
+        let mut results = HashMap::<PortId, Arc<dyn ZFDataTrait>>::with_capacity(2);
 
         let mut fizz = ZFString::from("");
 
@@ -70,8 +70,8 @@ impl ZFOperatorTrait for FizzOperator {
             fizz = ZFString::from("Fizz");
         }
 
-        results.insert(String::from(LINK_ID_OUTPUT_INT), zf_data!(zfusize));
-        results.insert(String::from(LINK_ID_OUTPUT_STR), zf_data!(fizz));
+        results.insert(LINK_ID_OUTPUT_INT.into(), zf_data!(zfusize));
+        results.insert(LINK_ID_OUTPUT_STR.into(), zf_data!(fizz));
 
         Ok(results)
     }
@@ -82,8 +82,8 @@ impl ZFComponentOutputRule for FizzOperator {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, ZFComponentOutput>> {
+        outputs: &HashMap<PortId, Arc<dyn ZFDataTrait>>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }

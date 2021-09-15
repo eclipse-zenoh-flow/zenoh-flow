@@ -21,7 +21,7 @@ use zenoh_flow::{
     default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, Token, ZFComponent,
     ZFComponentInputRule, ZFStateTrait,
 };
-use zenoh_flow::{Context, ZFSinkTrait};
+use zenoh_flow::{Context, PortId, ZFSinkTrait};
 
 use std::fs::File;
 use std::io::Write;
@@ -52,7 +52,7 @@ impl ZFSinkTrait for GenericSink {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn ZFStateTrait>,
-        inputs: &mut HashMap<String, ZFDataMessage>,
+        inputs: &mut HashMap<PortId, ZFDataMessage>,
     ) -> ZFResult<()> {
         let state = downcast!(SinkState, _state).unwrap();
 
@@ -107,7 +107,7 @@ impl ZFComponentInputRule for GenericSink {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
-        tokens: &mut HashMap<String, Token>,
+        tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }

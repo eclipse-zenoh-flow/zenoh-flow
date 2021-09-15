@@ -26,25 +26,25 @@ async fn same_task_simple() {
     let res = sender.send(Arc::new(d)).await;
     assert_eq!(res, Ok(()));
     let res = receiver.recv().await;
-    assert_eq!(res, Ok((String::from("10"), Arc::new(0u8))));
+    assert_eq!(res, Ok(("10".into(), Arc::new(0u8))));
 
     // Add the second element
     d += 1;
     let res = sender.send(Arc::new(d)).await;
     assert_eq!(res, Ok(()));
     let res = receiver.recv().await;
-    assert_eq!(res, Ok((String::from("10"), Arc::new(1u8))));
+    assert_eq!(res, Ok(("10".into(), Arc::new(1u8))));
 }
 
 async fn recv_task_simple(receiver: ZFLinkReceiver<u8>) {
     let res = receiver.recv().await;
-    assert_eq!(res, Ok((String::from("10"), Arc::new(0u8))));
+    assert_eq!(res, Ok(("10".into(), Arc::new(0u8))));
 
     let res = receiver.recv().await;
-    assert_eq!(res, Ok((String::from("10"), Arc::new(1u8))));
+    assert_eq!(res, Ok(("10".into(), Arc::new(1u8))));
 
     let res = receiver.recv().await;
-    assert_eq!(res, Ok((String::from("10"), Arc::new(2u8))));
+    assert_eq!(res, Ok(("10".into(), Arc::new(2u8))));
 }
 
 async fn send_task_simple(sender: ZFLinkSender<u8>) {
@@ -66,7 +66,7 @@ async fn send_task_simple(sender: ZFLinkSender<u8>) {
 async fn recv_task_more(receiver: ZFLinkReceiver<u8>) {
     for n in 0u8..255u8 {
         let res = receiver.recv().await;
-        assert_eq!(res, Ok((String::from("10"), Arc::new(n))));
+        assert_eq!(res, Ok(("10".into(), Arc::new(n))));
     }
 }
 
