@@ -15,7 +15,7 @@
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::model::operator::{
-    OperatorDescriptor, SinkDescriptor, SourceDescriptor, ZFOperatorRecord, ZFSinkRecord,
+    OperatorDescriptor, SinkDescriptor, SinkRecord, SourceDescriptor, ZFOperatorRecord,
     ZFSourceRecord,
 };
 use crate::runtime::graph::node::DataFlowNode;
@@ -111,7 +111,7 @@ pub struct DataFlowRecord {
     pub uuid: Uuid,
     pub flow: String,
     pub operators: Vec<ZFOperatorRecord>,
-    pub sinks: Vec<ZFSinkRecord>,
+    pub sinks: Vec<SinkRecord>,
     pub sources: Vec<ZFSourceRecord>,
     pub connectors: Vec<ZFConnectorRecord>,
     pub links: Vec<LinkDescriptor>,
@@ -195,7 +195,7 @@ impl DataFlowRecord {
         self.sources.iter().find(|&o| o.id.as_ref() == id).cloned()
     }
 
-    fn get_sink(&self, id: &str) -> Option<ZFSinkRecord> {
+    fn get_sink(&self, id: &str) -> Option<SinkRecord> {
         self.sinks.iter().find(|&o| o.id.as_ref() == id).cloned()
     }
 
@@ -411,7 +411,7 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
         for s in &d.sinks {
             match d.get_mapping(&s.id) {
                 Some(m) => {
-                    let sr = ZFSinkRecord {
+                    let sr = SinkRecord {
                         id: s.id.clone(),
                         // name: s.name.clone(),
                         input: s.input.clone(),

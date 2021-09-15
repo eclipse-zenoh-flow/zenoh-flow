@@ -70,7 +70,7 @@ impl std::fmt::Display for OperatorDescriptor {
 // Records
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSinkRecord {
+pub struct SinkRecord {
     pub id: OperatorId,
     pub input: PortDescriptor,
     pub uri: Option<String>,
@@ -78,13 +78,13 @@ pub struct ZFSinkRecord {
     pub runtime: RuntimeId,
 }
 
-impl std::fmt::Display for ZFSinkRecord {
+impl std::fmt::Display for SinkRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Sink", self.id)
     }
 }
 
-impl ZFSinkRecord {
+impl SinkRecord {
     pub fn get_input_type(&self, id: &str) -> Option<String> {
         if self.input.port_id == *id {
             Some(self.input.port_type.clone())

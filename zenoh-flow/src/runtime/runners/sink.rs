@@ -13,7 +13,7 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::operator::ZFSinkRecord;
+use crate::model::operator::SinkRecord;
 use crate::runtime::graph::link::ZFLinkReceiver;
 use crate::runtime::message::Message;
 use crate::types::{Token, ZFResult};
@@ -51,7 +51,7 @@ impl ZFSinkRunnerInner {
 // will have a SIGSEV.
 #[derive(Clone)]
 pub struct ZFSinkRunner {
-    pub record: Arc<ZFSinkRecord>,
+    pub record: Arc<SinkRecord>,
     pub state: Arc<RwLock<Box<dyn State>>>,
     pub inputs: Arc<RwLock<Vec<ZFLinkReceiver<Message>>>>,
     pub sink: Arc<dyn Sink>,
@@ -59,7 +59,7 @@ pub struct ZFSinkRunner {
 }
 
 impl ZFSinkRunner {
-    pub fn new(record: ZFSinkRecord, sink: Arc<dyn Sink>, lib: Option<Library>) -> Self {
+    pub fn new(record: SinkRecord, sink: Arc<dyn Sink>, lib: Option<Library>) -> Self {
         let state = sink.initialize(&record.configuration);
         Self {
             record: Arc::new(record),
