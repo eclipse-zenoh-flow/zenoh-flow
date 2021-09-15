@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::convert::TryInto;
 use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::zenoh_flow_derive::{ZFData, ZFState};
-use zenoh_flow::{DataTrait, ZFDeserializable, ZFError, ZFResult};
+use zenoh_flow::{DataTrait, Deserializable, ZFError, ZFResult};
 // We may want to provide some "built-in" types
 
 #[derive(Debug, Clone, ZFData)]
@@ -27,7 +27,7 @@ impl From<&str> for ZFString {
     }
 }
 
-impl ZFDeserializable for ZFString {
+impl Deserializable for ZFString {
     fn try_deserialize(bytes: &[u8]) -> ZFResult<ZFString>
     where
         Self: Sized,
@@ -47,7 +47,7 @@ impl DataTrait for ZFUsize {
     }
 }
 
-impl ZFDeserializable for ZFUsize {
+impl Deserializable for ZFUsize {
     fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
     where
         Self: Sized,
@@ -70,7 +70,7 @@ impl DataTrait for ZFBytes {
     }
 }
 
-impl ZFDeserializable for ZFBytes {
+impl Deserializable for ZFBytes {
     fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
     where
         Self: Sized,

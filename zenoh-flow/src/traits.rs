@@ -31,7 +31,7 @@ pub trait DataTrait: ZFDowncastAny + Debug + Send + Sync {
     fn try_serialize(&self) -> ZFResult<Vec<u8>>;
 }
 
-pub trait ZFDeserializable {
+pub trait Deserializable {
     fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
     where
         Self: Sized;
