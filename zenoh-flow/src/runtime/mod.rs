@@ -19,7 +19,7 @@ use std::sync::Arc;
 use crate::{
     model::{
         dataflow::DataFlowRecord,
-        operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor},
+        operator::{SinkDescriptor, ZFOperatorDescriptor, ZFSourceDescriptor},
     },
     serde::{Deserialize, Serialize},
 };
@@ -248,5 +248,5 @@ pub trait ZFRuntime {
 
     /// Checks the compatibility for the given `sink`
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
-    async fn check_sink_compatibility(&self, sink: ZFSinkDescriptor) -> ZFResult<bool>;
+    async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> ZFResult<bool>;
 }

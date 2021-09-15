@@ -21,7 +21,7 @@ use std::collections::HashMap;
 // Descriptors
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSinkDescriptor {
+pub struct SinkDescriptor {
     pub id: OperatorId,
     pub input: PortDescriptor,
     pub uri: Option<String>,
@@ -29,7 +29,7 @@ pub struct ZFSinkDescriptor {
     pub runtime: Option<RuntimeId>, // to be removed
 }
 
-impl std::fmt::Display for ZFSinkDescriptor {
+impl std::fmt::Display for SinkDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Sink", self.id)
     }
