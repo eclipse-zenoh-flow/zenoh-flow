@@ -119,23 +119,23 @@ macro_rules! get_input {
     ($ident : ident, $index : expr, $map : expr) => {
         match $map.get_mut::<str>(&$index) {
             Some(mut data_message) => match &data_message.data {
-                zenoh_flow::runtime::message::ZFSerDeData::Deserialized(de) => {
+                zenoh_flow::runtime::message::SerDeData::Deserialized(de) => {
                     match zenoh_flow::downcast!($ident, de) {
                         Some(data) => Ok((data_message.timestamp.clone(), data.clone())),
                         None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
                     }
                 }
-                zenoh_flow::runtime::message::ZFSerDeData::Serialized(ser) => {
+                zenoh_flow::runtime::message::SerDeData::Serialized(ser) => {
                     let de: Arc<dyn zenoh_flow::Data> = Arc::new(
                         <$ident as zenoh_flow::Deserializable>::try_deserialize(ser.as_slice())
                             .map_err(|_| zenoh_flow::types::ZFError::DeseralizationError)?,
                     );
 
                     (*data_message).data =
-                        zenoh_flow::runtime::message::ZFSerDeData::Deserialized(de);
+                        zenoh_flow::runtime::message::SerDeData::Deserialized(de);
 
                     match &data_message.data {
-                        zenoh_flow::runtime::message::ZFSerDeData::Deserialized(de) => {
+                        zenoh_flow::runtime::message::SerDeData::Deserialized(de) => {
                             match zenoh_flow::downcast!($ident, de) {
                                 Some(data) => Ok((data_message.timestamp.clone(), data.clone())),
                                 None => Err(zenoh_flow::types::ZFError::InvalidData($index)),

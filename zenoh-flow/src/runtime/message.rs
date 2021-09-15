@@ -21,7 +21,7 @@ use std::fmt::Debug;
 use uhlc::Timestamp;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ZFSerDeData {
+pub enum SerDeData {
     Serialized(Arc<Vec<u8>>),
     #[serde(skip_serializing, skip_deserializing)]
     // Deserialized data is never serialized directly
@@ -30,25 +30,25 @@ pub enum ZFSerDeData {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
-    pub data: ZFSerDeData,
+    pub data: SerDeData,
     pub timestamp: Timestamp,
 }
 
 impl DataMessage {
-    pub fn new(data: ZFSerDeData, timestamp: Timestamp) -> Self {
+    pub fn new(data: SerDeData, timestamp: Timestamp) -> Self {
         Self { data, timestamp }
     }
 
     pub fn new_serialized(data: Arc<Vec<u8>>, timestamp: Timestamp) -> Self {
         Self {
-            data: ZFSerDeData::Serialized(data),
+            data: SerDeData::Serialized(data),
             timestamp,
         }
     }
 
     pub fn new_deserialized(data: Arc<dyn Data>, timestamp: Timestamp) -> Self {
         Self {
-            data: ZFSerDeData::Deserialized(data),
+            data: SerDeData::Deserialized(data),
             timestamp,
         }
     }
@@ -81,10 +81,10 @@ impl ZFMessage {
                 bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
             }
             ZFMessage::Data(data_message) => match &data_message.data {
-                ZFSerDeData::Serialized(_) => {
+                SerDeData::Serialized(_) => {
                     bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
                 }
-                ZFSerDeData::Deserialized(de) => {
+                SerDeData::Deserialized(de) => {
                     let serialized_data = Arc::new(
                         de.try_serialize()
                             .map_err(|_| ZFError::SerializationError)?,
