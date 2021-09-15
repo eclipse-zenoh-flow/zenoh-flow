@@ -15,7 +15,7 @@
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::model::operator::{
-    SinkDescriptor, ZFOperatorDescriptor, ZFOperatorRecord, ZFSinkRecord, ZFSourceDescriptor,
+    SinkDescriptor, SourceDescriptor, ZFOperatorDescriptor, ZFOperatorRecord, ZFSinkRecord,
     ZFSourceRecord,
 };
 use crate::runtime::graph::node::DataFlowNode;
@@ -30,7 +30,7 @@ use uuid::Uuid;
 pub struct DataFlowDescriptor {
     pub flow: String,
     pub operators: Vec<ZFOperatorDescriptor>,
-    pub sources: Vec<ZFSourceDescriptor>,
+    pub sources: Vec<SourceDescriptor>,
     pub sinks: Vec<SinkDescriptor>,
     pub links: Vec<LinkDescriptor>,
     pub mapping: Option<Vec<Mapping>>,

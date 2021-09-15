@@ -18,7 +18,7 @@ use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::dataflow::DataFlowDescriptor;
 use zenoh_flow::model::{
     dataflow::DataFlowRecord,
-    operator::{SinkDescriptor, ZFOperatorDescriptor, ZFSourceDescriptor},
+    operator::{SinkDescriptor, SourceDescriptor, ZFOperatorDescriptor},
 };
 use zenoh_flow::runtime::graph::DataFlowGraph;
 use zenoh_flow::runtime::message::ControlMessage;
@@ -587,7 +587,7 @@ impl ZFRuntime for Runtime {
     async fn check_operator_compatibility(&self, operator: ZFOperatorDescriptor) -> ZFResult<bool> {
         Err(ZFError::Unimplemented)
     }
-    async fn check_source_compatibility(&self, source: ZFSourceDescriptor) -> ZFResult<bool> {
+    async fn check_source_compatibility(&self, source: SourceDescriptor) -> ZFResult<bool> {
         Err(ZFError::Unimplemented)
     }
     async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> ZFResult<bool> {

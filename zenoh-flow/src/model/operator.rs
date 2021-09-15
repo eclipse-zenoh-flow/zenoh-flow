@@ -36,7 +36,7 @@ impl std::fmt::Display for SinkDescriptor {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSourceDescriptor {
+pub struct SourceDescriptor {
     pub id: OperatorId,
     pub output: PortDescriptor,
     pub period: Option<ZFPeriodDescriptor>,
@@ -45,7 +45,7 @@ pub struct ZFSourceDescriptor {
     pub runtime: Option<RuntimeId>, // to be removed
 }
 
-impl std::fmt::Display for ZFSourceDescriptor {
+impl std::fmt::Display for SourceDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Source", self.id)
     }
