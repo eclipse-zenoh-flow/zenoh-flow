@@ -21,12 +21,12 @@ use std::io::Write;
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
+use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, model::link::ZFPortDescriptor,
-    zenoh_flow_derive::ZFState, zf_data, DataTrait, ZFComponent, ZFComponentInputRule,
+    zenoh_flow_derive::ZFState, zf_data, Component, DataTrait, PortId, ZFComponentInputRule,
     ZFComponentOutputRule, ZFError, ZFSinkTrait, ZFSourceTrait,
 };
-use zenoh_flow::{zf_spin_lock, PortId};
 use zenoh_flow::{StateTrait, ZFResult};
 use zenoh_flow_examples::ZFBytes;
 
@@ -132,7 +132,7 @@ impl ZFComponentOutputRule for CameraSource {
     }
 }
 
-impl ZFComponent for CameraSource {
+impl Component for CameraSource {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
@@ -174,7 +174,7 @@ impl ZFComponentInputRule for VideoSink {
     }
 }
 
-impl ZFComponent for VideoSink {
+impl Component for VideoSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,

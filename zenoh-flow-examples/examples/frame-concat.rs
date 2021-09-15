@@ -16,7 +16,7 @@ use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, types::ZFResult,
-    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, DataTrait, StateTrait, ZFComponent,
+    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, Component, DataTrait, StateTrait,
     ZFComponentInputRule, ZFComponentOutputRule, ZFOperatorTrait,
 };
 use zenoh_flow_examples::ZFBytes;
@@ -49,7 +49,7 @@ impl FrameConcatState {
 
 struct FrameConcat;
 
-impl ZFComponent for FrameConcat {
+impl Component for FrameConcat {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,

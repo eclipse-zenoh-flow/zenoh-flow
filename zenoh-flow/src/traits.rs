@@ -42,7 +42,7 @@ pub trait StateTrait: Debug + Send + Sync {
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
-pub trait ZFComponent {
+pub trait Component {
     fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn StateTrait>;
 
     fn clean(&self, state: &mut Box<dyn StateTrait>) -> ZFResult<()>;
@@ -67,7 +67,7 @@ pub trait ZFComponentOutputRule {
 }
 
 pub trait ZFOperatorTrait:
-    ZFComponent + ZFComponentInputRule + ZFComponentOutputRule + Send + Sync
+    Component + ZFComponentInputRule + ZFComponentOutputRule + Send + Sync
 {
     fn run(
         &self,
@@ -78,7 +78,7 @@ pub trait ZFOperatorTrait:
 }
 
 #[async_trait]
-pub trait ZFSourceTrait: ZFComponent + ZFComponentOutputRule + Send + Sync {
+pub trait ZFSourceTrait: Component + ZFComponentOutputRule + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
@@ -87,7 +87,7 @@ pub trait ZFSourceTrait: ZFComponent + ZFComponentOutputRule + Send + Sync {
 }
 
 #[async_trait]
-pub trait ZFSinkTrait: ZFComponent + ZFComponentInputRule + Send + Sync {
+pub trait ZFSinkTrait: Component + ZFComponentInputRule + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,

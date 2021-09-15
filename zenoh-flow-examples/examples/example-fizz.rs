@@ -15,9 +15,10 @@
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::runtime::message::ZFDataMessage;
+use zenoh_flow::Token;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    zf_empty_state, StateTrait, Token, ZFComponent, ZFComponentInputRule, ZFComponentOutput,
+    zf_empty_state, Component, StateTrait, ZFComponentInputRule, ZFComponentOutput,
     ZFComponentOutputRule, ZFOperatorTrait,
 };
 use zenoh_flow::{Context, DataTrait, PortId};
@@ -40,7 +41,7 @@ impl ZFComponentInputRule for FizzOperator {
     }
 }
 
-impl ZFComponent for FizzOperator {
+impl Component for FizzOperator {
     fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> Box<dyn StateTrait> {
         zf_empty_state!()
     }

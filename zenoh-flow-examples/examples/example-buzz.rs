@@ -18,7 +18,7 @@ use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    StateTrait, Token, ZFComponent, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule,
+    Component, StateTrait, Token, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule,
     ZFOperatorTrait,
 };
 use zenoh_flow::{downcast, Context, DataTrait};
@@ -59,7 +59,7 @@ impl ZFOperatorTrait for BuzzOperator {
     }
 }
 
-impl ZFComponent for BuzzOperator {
+impl Component for BuzzOperator {
     fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn StateTrait> {
         let state = match configuration {
             Some(config) => match config.get("buzzword") {

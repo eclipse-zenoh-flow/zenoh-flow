@@ -17,9 +17,10 @@ use std::collections::HashMap;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
+use zenoh_flow::Token;
 use zenoh_flow::{
-    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, StateTrait, Token,
-    ZFComponent, ZFComponentInputRule,
+    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, Component,
+    StateTrait, ZFComponentInputRule,
 };
 use zenoh_flow::{Context, PortId, ZFSinkTrait};
 
@@ -84,7 +85,7 @@ impl ZFSinkTrait for GenericSink {
     }
 }
 
-impl ZFComponent for GenericSink {
+impl Component for GenericSink {
     fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn StateTrait> {
         Box::new(SinkState::new(configuration))
     }

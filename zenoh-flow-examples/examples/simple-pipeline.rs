@@ -22,7 +22,7 @@ use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::{
-    default_input_rule, default_output_rule, Context, DataTrait, PortId, ZFComponent,
+    default_input_rule, default_output_rule, Component, Context, DataTrait, PortId,
     ZFComponentInputRule, ZFComponentOutputRule, ZFSinkTrait, ZFSourceTrait,
 };
 use zenoh_flow::{model::link::ZFPortDescriptor, zf_data, zf_empty_state};
@@ -74,7 +74,7 @@ impl ZFComponentOutputRule for CountSource {
     }
 }
 
-impl ZFComponent for CountSource {
+impl Component for CountSource {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
@@ -117,7 +117,7 @@ impl ZFComponentInputRule for ExampleGenericSink {
     }
 }
 
-impl ZFComponent for ExampleGenericSink {
+impl Component for ExampleGenericSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,

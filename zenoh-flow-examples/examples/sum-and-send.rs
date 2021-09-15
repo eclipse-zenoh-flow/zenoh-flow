@@ -15,9 +15,10 @@
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
+use zenoh_flow::PortId;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, DataTrait, PortId,
-    StateTrait, ZFComponent, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule,
+    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, Component,
+    DataTrait, StateTrait, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule,
     ZFOperatorTrait, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
@@ -77,7 +78,7 @@ impl ZFComponentOutputRule for SumAndSend {
     }
 }
 
-impl ZFComponent for SumAndSend {
+impl Component for SumAndSend {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
