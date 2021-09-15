@@ -20,7 +20,7 @@ use zenoh_flow::{
     default_output_rule, downcast,
     types::{ZFError, ZFResult},
     zenoh_flow_derive::ZFState,
-    zf_data, zf_spin_lock, Component, Data, OutputRule, State, ZFSourceTrait,
+    zf_data, zf_spin_lock, Component, Data, OutputRule, Source, State,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -102,7 +102,7 @@ impl OutputRule for VideoSource {
 }
 
 #[async_trait]
-impl ZFSourceTrait for VideoSource {
+impl Source for VideoSource {
     async fn run(
         &self,
         _context: &mut zenoh_flow::Context,
@@ -157,6 +157,6 @@ impl ZFSourceTrait for VideoSource {
 
 zenoh_flow::export_source!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFSourceTrait>> {
-    Ok(Arc::new(VideoSource) as Arc<dyn ZFSourceTrait>)
+fn register() -> ZFResult<Arc<dyn Source>> {
+    Ok(Arc::new(VideoSource) as Arc<dyn Source>)
 }

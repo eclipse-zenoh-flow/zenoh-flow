@@ -16,7 +16,7 @@ use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use zenoh_flow::{default_output_rule, Component, OutputRule, PortId, ZFSourceTrait};
+use zenoh_flow::{default_output_rule, Component, OutputRule, PortId, Source};
 use zenoh_flow::{
     types::ZFResult, zenoh_flow_derive::ZFState, zf_data, zf_empty_state, Data, State,
 };
@@ -30,7 +30,7 @@ static COUNTER: AtomicUsize = AtomicUsize::new(0);
 struct CountSource;
 
 #[async_trait]
-impl ZFSourceTrait for CountSource {
+impl Source for CountSource {
     async fn run(
         &self,
         _context: &mut zenoh_flow::Context,
@@ -75,6 +75,6 @@ impl Component for CountSource {
 
 zenoh_flow::export_source!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFSourceTrait>> {
-    Ok(Arc::new(CountSource) as Arc<dyn ZFSourceTrait>)
+fn register() -> ZFResult<Arc<dyn Source>> {
+    Ok(Arc::new(CountSource) as Arc<dyn Source>)
 }

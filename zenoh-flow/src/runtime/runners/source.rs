@@ -18,11 +18,11 @@ use crate::runtime::graph::link::ZFLinkSender;
 use crate::runtime::message::ZFMessage;
 use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
-use crate::{Context, PortId, State, ZFSourceTrait};
+use crate::{Context, PortId, Source, State};
 use libloading::Library;
 use std::collections::HashMap;
 
-pub type ZFSourceRegisterFn = fn() -> ZFResult<Arc<dyn ZFSourceTrait>>;
+pub type ZFSourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
 
 pub struct ZFSourceDeclaration {
     pub rustc_version: &'static str,
@@ -41,7 +41,7 @@ pub struct ZFSourceRunner {
     pub hlc: Arc<PeriodicHLC>,
     pub state: Arc<RwLock<Box<dyn State>>>,
     pub outputs: Arc<RwLock<HashMap<PortId, Vec<ZFLinkSender<ZFMessage>>>>>,
-    pub source: Arc<dyn ZFSourceTrait>,
+    pub source: Arc<dyn Source>,
     pub lib: Arc<Option<Library>>,
 }
 
@@ -49,7 +49,7 @@ impl ZFSourceRunner {
     pub fn new(
         record: ZFSourceRecord,
         hlc: PeriodicHLC,
-        source: Arc<dyn ZFSourceTrait>,
+        source: Arc<dyn Source>,
         lib: Option<Library>,
     ) -> Self {
         let state = source.initialize(&record.configuration);

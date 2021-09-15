@@ -15,8 +15,8 @@
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc, usize};
 use zenoh_flow::{
-    zf_data, zf_empty_state, Component, Context, Data, OutputRule, PortId, State, ZFError,
-    ZFResult, ZFSourceTrait,
+    zf_data, zf_empty_state, Component, Context, Data, OutputRule, PortId, Source, State, ZFError,
+    ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -25,7 +25,7 @@ struct ManualSource;
 static LINK_ID_INPUT_INT: &str = "Int";
 
 #[async_trait]
-impl ZFSourceTrait for ManualSource {
+impl Source for ManualSource {
     async fn run(
         &self,
         _context: &mut Context,
@@ -74,6 +74,6 @@ impl OutputRule for ManualSource {
 
 zenoh_flow::export_source!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFSourceTrait>> {
-    Ok(Arc::new(ManualSource) as Arc<dyn ZFSourceTrait>)
+fn register() -> ZFResult<Arc<dyn Source>> {
+    Ok(Arc::new(ManualSource) as Arc<dyn Source>)
 }

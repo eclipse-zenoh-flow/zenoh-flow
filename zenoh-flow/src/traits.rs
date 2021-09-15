@@ -76,7 +76,7 @@ pub trait Operator: Component + InputRule + OutputRule + Send + Sync {
 }
 
 #[async_trait]
-pub trait ZFSourceTrait: Component + OutputRule + Send + Sync {
+pub trait Source: Component + OutputRule + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
