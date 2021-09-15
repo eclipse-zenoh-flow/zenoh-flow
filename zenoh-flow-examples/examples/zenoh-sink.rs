@@ -20,7 +20,7 @@ use zenoh_flow::{
     default_input_rule, downcast, get_input,
     types::{Token, ZFResult},
     zenoh_flow_derive::ZFState,
-    Component, PortId, ZFComponentInputRule, ZFSinkTrait,
+    Component, InputRule, PortId, ZFSinkTrait,
 };
 
 use zenoh::net::config;
@@ -59,7 +59,7 @@ impl Component for ExampleGenericZenohSink {
     }
 }
 
-impl ZFComponentInputRule for ExampleGenericZenohSink {
+impl InputRule for ExampleGenericZenohSink {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,

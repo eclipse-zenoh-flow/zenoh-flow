@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use zenoh_flow::State;
 use zenoh_flow::{
     default_input_rule, downcast, get_input, types::ZFResult, zenoh_flow_derive::ZFState,
-    Component, ZFComponentInputRule, ZFError, ZFSinkTrait,
+    Component, InputRule, ZFError, ZFSinkTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -44,7 +44,7 @@ impl VideoState {
     }
 }
 
-impl ZFComponentInputRule for VideoSink {
+impl InputRule for VideoSink {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,

@@ -48,7 +48,7 @@ pub trait Component {
     fn clean(&self, state: &mut Box<dyn State>) -> ZFResult<()>;
 }
 
-pub trait ZFComponentInputRule {
+pub trait InputRule {
     fn input_rule(
         &self,
         context: &mut Context,
@@ -66,9 +66,7 @@ pub trait ZFComponentOutputRule {
     ) -> ZFResult<HashMap<PortId, ZFComponentOutput>>;
 }
 
-pub trait ZFOperatorTrait:
-    Component + ZFComponentInputRule + ZFComponentOutputRule + Send + Sync
-{
+pub trait ZFOperatorTrait: Component + InputRule + ZFComponentOutputRule + Send + Sync {
     fn run(
         &self,
         context: &mut Context,
@@ -87,7 +85,7 @@ pub trait ZFSourceTrait: Component + ZFComponentOutputRule + Send + Sync {
 }
 
 #[async_trait]
-pub trait ZFSinkTrait: Component + ZFComponentInputRule + Send + Sync {
+pub trait ZFSinkTrait: Component + InputRule + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,

@@ -24,8 +24,8 @@ use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, model::link::ZFPortDescriptor,
-    zenoh_flow_derive::ZFState, zf_data, Component, Data, PortId, ZFComponentInputRule,
-    ZFComponentOutputRule, ZFError, ZFSinkTrait, ZFSourceTrait,
+    zenoh_flow_derive::ZFState, zf_data, Component, Data, InputRule, PortId, ZFComponentOutputRule,
+    ZFError, ZFSinkTrait, ZFSourceTrait,
 };
 use zenoh_flow::{State, ZFResult};
 use zenoh_flow_examples::ZFBytes;
@@ -163,7 +163,7 @@ impl VideoState {
     }
 }
 
-impl ZFComponentInputRule for VideoSink {
+impl InputRule for VideoSink {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,

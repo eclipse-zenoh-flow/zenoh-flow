@@ -19,8 +19,8 @@ use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::Token;
 use zenoh_flow::{
-    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, Component, State,
-    ZFComponentInputRule,
+    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, Component, InputRule,
+    State,
 };
 use zenoh_flow::{Context, PortId, ZFSinkTrait};
 
@@ -103,7 +103,7 @@ impl Component for GenericSink {
     }
 }
 
-impl ZFComponentInputRule for GenericSink {
+impl InputRule for GenericSink {
     fn input_rule(
         &self,
         _context: &mut Context,

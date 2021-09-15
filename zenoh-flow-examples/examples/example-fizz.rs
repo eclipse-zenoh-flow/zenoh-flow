@@ -18,8 +18,8 @@ use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::Token;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    zf_empty_state, Component, State, ZFComponentInputRule, ZFComponentOutput,
-    ZFComponentOutputRule, ZFOperatorTrait,
+    zf_empty_state, Component, InputRule, State, ZFComponentOutput, ZFComponentOutputRule,
+    ZFOperatorTrait,
 };
 use zenoh_flow::{Context, Data, PortId};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -30,7 +30,7 @@ static LINK_ID_INPUT_INT: &str = "Int";
 static LINK_ID_OUTPUT_INT: &str = "Int";
 static LINK_ID_OUTPUT_STR: &str = "Str";
 
-impl ZFComponentInputRule for FizzOperator {
+impl InputRule for FizzOperator {
     fn input_rule(
         &self,
         _context: &mut Context,
