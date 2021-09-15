@@ -15,7 +15,7 @@
 use crate::{
     model::component::{OperatorRecord, SinkRecord, SourceRecord},
     runtime::runners::{
-        operator::{ZFOperatorDeclaration, ZFOperatorRunner},
+        operator::{OperatorRunner, ZFOperatorDeclaration},
         sink::{ZFSinkDeclaration, ZFSinkRunner},
         source::{ZFSourceDeclaration, ZFSourceRunner},
     },
@@ -39,7 +39,7 @@ pub fn load_operator(
     record: OperatorRecord,
     hlc: Arc<HLC>,
     path: String,
-) -> ZFResult<ZFOperatorRunner> {
+) -> ZFResult<OperatorRunner> {
     let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
@@ -59,7 +59,7 @@ pub unsafe fn load_lib_operator(
     record: OperatorRecord,
     hlc: Arc<HLC>,
     path: String,
-) -> ZFResult<ZFOperatorRunner> {
+) -> ZFResult<OperatorRunner> {
     log::debug!("Operator Loading {}", path);
 
     let library = Library::new(path)?;
@@ -74,7 +74,7 @@ pub unsafe fn load_lib_operator(
 
     let operator = (decl.register)()?;
 
-    let runner = ZFOperatorRunner::new(record, hlc, operator, Some(library));
+    let runner = OperatorRunner::new(record, hlc, operator, Some(library));
     Ok(runner)
 }
 

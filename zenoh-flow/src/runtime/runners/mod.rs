@@ -20,7 +20,7 @@ pub mod source;
 use crate::runtime::graph::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
 use crate::runtime::runners::connector::{ZenohReceiver, ZenohSender};
-use crate::runtime::runners::operator::ZFOperatorRunner;
+use crate::runtime::runners::operator::OperatorRunner;
 use crate::runtime::runners::sink::ZFSinkRunner;
 use crate::runtime::runners::source::ZFSourceRunner;
 use crate::types::ZFResult;
@@ -88,7 +88,7 @@ pub enum RunAction {
 
 #[derive(Clone)]
 pub enum Runner {
-    Operator(ZFOperatorRunner),
+    Operator(OperatorRunner),
     Source(ZFSourceRunner),
     Sink(ZFSinkRunner),
     Sender(ZenohSender),

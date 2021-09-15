@@ -42,7 +42,7 @@ pub type ZFOperatorIO = (
 // We need the state to be dropped before the operator/lib, otherwise we
 // will have a SIGSEV.
 #[derive(Clone)]
-pub struct ZFOperatorRunner {
+pub struct OperatorRunner {
     pub record: Arc<OperatorRecord>,
     pub io: Arc<RwLock<ZFOperatorIO>>,
     pub state: Arc<RwLock<Box<dyn State>>>,
@@ -51,7 +51,7 @@ pub struct ZFOperatorRunner {
     pub lib: Arc<Option<Library>>,
 }
 
-impl ZFOperatorRunner {
+impl OperatorRunner {
     pub fn new(
         record: OperatorRecord,
         hlc: Arc<HLC>,
