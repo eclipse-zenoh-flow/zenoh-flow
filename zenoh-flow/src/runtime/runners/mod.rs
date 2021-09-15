@@ -18,7 +18,7 @@ pub mod sink;
 pub mod source;
 
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
-use crate::runtime::message::ZFMessage;
+use crate::runtime::message::Message;
 use crate::runtime::runners::connector::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::runners::operator::ZFOperatorRunner;
 use crate::runtime::runners::sink::ZFSinkRunner;
@@ -106,7 +106,7 @@ impl Runner {
         }
     }
 
-    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) -> ZFResult<()> {
+    pub async fn add_input(&self, input: ZFLinkReceiver<Message>) -> ZFResult<()> {
         log::trace!("add_input({:?})", input);
         match self {
             Runner::Operator(runner) => {
@@ -126,7 +126,7 @@ impl Runner {
         }
     }
 
-    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) -> ZFResult<()> {
+    pub async fn add_output(&self, output: ZFLinkSender<Message>) -> ZFResult<()> {
         log::trace!("add_output({:?})", output);
         match self {
             Runner::Operator(runner) => {
@@ -215,7 +215,7 @@ macro_rules! run_input_rules {
                 // this could be "slow" as suggested by LC
                 (Ok((id, message)), _i, remaining) => {
                     match message.as_ref() {
-                        ZFMessage::Data(_) => {
+                        Message::Data(_) => {
                             $tokens.insert(id, Token::from(message));
 
                             match $component.input_rule($context, $state, &mut $tokens) {
@@ -236,7 +236,7 @@ macro_rules! run_input_rules {
                                 }
                             }
                         }
-                        ZFMessage::Control(_) => {
+                        Message::Control(_) => {
                             //control message receiver, we should handle it
                             $links = remaining;
                         }

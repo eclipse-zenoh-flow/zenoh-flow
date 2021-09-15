@@ -13,7 +13,7 @@
 //
 
 use crate::async_std::sync::Arc;
-use crate::runtime::message::{ControlMessage, DataMessage, ZFMessage};
+use crate::runtime::message::{ControlMessage, DataMessage, Message};
 use crate::serde::{Deserialize, Serialize};
 use crate::{Data, State};
 
@@ -158,11 +158,11 @@ impl Token {
     }
 }
 
-impl From<Arc<ZFMessage>> for Token {
-    fn from(message: Arc<ZFMessage>) -> Self {
+impl From<Arc<Message>> for Token {
+    fn from(message: Arc<Message>) -> Self {
         match message.as_ref() {
-            ZFMessage::Control(_) => Token::NotReady,
-            ZFMessage::Data(data_message) => Token::new_ready(data_message.clone()),
+            Message::Control(_) => Token::NotReady,
+            Message::Data(data_message) => Token::new_ready(data_message.clone()),
         }
     }
 }

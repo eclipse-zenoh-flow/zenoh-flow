@@ -14,7 +14,7 @@
 
 use crate::async_std::sync::{Arc, RwLock};
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
-use crate::runtime::message::ZFMessage;
+use crate::runtime::message::Message;
 use crate::{ZFError, ZFResult};
 use futures::prelude::*;
 use zenoh::net::{Reliability, Session, SubInfo, SubMode};
@@ -23,14 +23,14 @@ use zenoh::net::{Reliability, Session, SubInfo, SubMode};
 pub struct ZFZenohSender {
     pub session: Arc<Session>,
     pub resource: String,
-    pub input: Arc<RwLock<Option<ZFLinkReceiver<ZFMessage>>>>,
+    pub input: Arc<RwLock<Option<ZFLinkReceiver<Message>>>>,
 }
 
 impl ZFZenohSender {
     pub fn new(
         session: Arc<Session>,
         resource: String,
-        input: Option<ZFLinkReceiver<ZFMessage>>,
+        input: Option<ZFLinkReceiver<Message>>,
     ) -> Self {
         Self {
             session,
@@ -57,7 +57,7 @@ impl ZFZenohSender {
         Err(ZFError::Disconnected)
     }
 
-    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
+    pub async fn add_input(&self, input: ZFLinkReceiver<Message>) {
         *(self.input.write().await) = Some(input);
     }
 }
@@ -66,14 +66,14 @@ impl ZFZenohSender {
 pub struct ZFZenohReceiver {
     pub session: Arc<Session>,
     pub resource: String,
-    pub output: Arc<RwLock<Option<ZFLinkSender<ZFMessage>>>>,
+    pub output: Arc<RwLock<Option<ZFLinkSender<Message>>>>,
 }
 
 impl ZFZenohReceiver {
     pub fn new(
         session: Arc<Session>,
         resource: String,
-        output: Option<ZFLinkSender<ZFMessage>>,
+        output: Option<ZFLinkSender<Message>>,
     ) -> Self {
         Self {
             session,
@@ -99,7 +99,7 @@ impl ZFZenohReceiver {
 
             while let Some(msg) = subscriber.receiver().next().await {
                 log::debug!("ZenohSender - {}<={:?} ", self.resource, msg);
-                let de: ZFMessage = bincode::deserialize(&msg.payload.contiguous())
+                let de: Message = bincode::deserialize(&msg.payload.contiguous())
                     .map_err(|_| ZFError::DeseralizationError)?;
                 log::debug!("ZenohSender - OUT =>{:?} ", de);
                 output.send(Arc::new(de)).await?;
@@ -109,7 +109,7 @@ impl ZFZenohReceiver {
         Err(ZFError::Disconnected)
     }
 
-    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
+    pub async fn add_output(&self, output: ZFLinkSender<Message>) {
         (*self.output.write().await) = Some(output);
     }
 }

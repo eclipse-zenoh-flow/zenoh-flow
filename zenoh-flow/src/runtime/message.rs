@@ -62,12 +62,12 @@ pub enum ControlMessage {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ZFMessage {
+pub enum Message {
     Data(DataMessage),
     Control(ControlMessage),
 }
 
-impl ZFMessage {
+impl Message {
     pub fn from_component_output(output: ComponentOutput, timestamp: Timestamp) -> Self {
         match output {
             ComponentOutput::Control(c) => Self::Control(c),
@@ -77,10 +77,10 @@ impl ZFMessage {
 
     pub fn serialize_bincode(&self) -> ZFResult<Vec<u8>> {
         match &self {
-            ZFMessage::Control(_) => {
+            Message::Control(_) => {
                 bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
             }
-            ZFMessage::Data(data_message) => match &data_message.data {
+            Message::Data(data_message) => match &data_message.data {
                 SerDeData::Serialized(_) => {
                     bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
                 }
@@ -89,7 +89,7 @@ impl ZFMessage {
                         de.try_serialize()
                             .map_err(|_| ZFError::SerializationError)?,
                     );
-                    let serialized_message = ZFMessage::Data(DataMessage::new_serialized(
+                    let serialized_message = Message::Data(DataMessage::new_serialized(
                         serialized_data,
                         data_message.timestamp,
                     ));

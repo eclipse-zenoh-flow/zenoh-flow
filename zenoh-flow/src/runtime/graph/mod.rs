@@ -28,7 +28,7 @@ use uhlc::HLC;
 use zenoh::ZFuture;
 
 use crate::runtime::loader::{load_operator, load_sink, load_source};
-use crate::runtime::message::ZFMessage;
+use crate::runtime::message::Message;
 use crate::runtime::runners::connector::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::runners::{
     operator::ZFOperatorRunner, sink::ZFSinkRunner, source::ZFSourceRunner, Runner,
@@ -357,11 +357,8 @@ impl DataFlowGraph {
                         link_id_from,
                         link_id_to,
                     );
-                    let (tx, rx) = link::<ZFMessage>(
-                        None,
-                        String::from(link_id_from),
-                        String::from(link_id_to),
-                    );
+                    let (tx, rx) =
+                        link::<Message>(None, String::from(link_id_from), String::from(link_id_to));
 
                     up_runner.add_output(tx).await?;
                     down_runner.add_input(rx).await?;

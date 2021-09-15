@@ -15,7 +15,7 @@
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::operator::ZFSourceRecord;
 use crate::runtime::graph::link::ZFLinkSender;
-use crate::runtime::message::ZFMessage;
+use crate::runtime::message::Message;
 use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
 use crate::{Context, PortId, Source, State};
@@ -40,7 +40,7 @@ pub struct ZFSourceRunner {
     pub record: Arc<ZFSourceRecord>,
     pub hlc: Arc<PeriodicHLC>,
     pub state: Arc<RwLock<Box<dyn State>>>,
-    pub outputs: Arc<RwLock<HashMap<PortId, Vec<ZFLinkSender<ZFMessage>>>>>,
+    pub outputs: Arc<RwLock<HashMap<PortId, Vec<ZFLinkSender<Message>>>>>,
     pub source: Arc<dyn Source>,
     pub lib: Arc<Option<Library>>,
 }
@@ -63,7 +63,7 @@ impl ZFSourceRunner {
         }
     }
 
-    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
+    pub async fn add_output(&self, output: ZFLinkSender<Message>) {
         let mut outputs = self.outputs.write().await;
         let key = output.id();
         if let Some(links) = outputs.get_mut(key.as_ref()) {
@@ -104,7 +104,7 @@ impl ZFSourceRunner {
                 log::debug!("Sending on {:?} data: {:?}", id, output);
 
                 if let Some(links) = outputs_links.get(&id) {
-                    let zf_message = Arc::new(ZFMessage::from_component_output(output, timestamp));
+                    let zf_message = Arc::new(Message::from_component_output(output, timestamp));
 
                     for tx in links {
                         log::debug!("Sending on: {:?}", tx);

@@ -15,7 +15,7 @@
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::operator::ZFOperatorRecord;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
-use crate::runtime::message::ZFMessage;
+use crate::runtime::message::Message;
 use crate::types::{Token, ZFResult};
 use crate::{Context, Operator, PortId, State};
 use futures::future;
@@ -32,8 +32,8 @@ pub struct ZFOperatorDeclaration {
 }
 
 pub type ZFOperatorIO = (
-    Vec<ZFLinkReceiver<ZFMessage>>,
-    HashMap<PortId, Vec<ZFLinkSender<ZFMessage>>>,
+    Vec<ZFLinkReceiver<Message>>,
+    HashMap<PortId, Vec<ZFLinkSender<Message>>>,
 );
 
 // Do not reorder the fields in this struct.
@@ -69,11 +69,11 @@ impl ZFOperatorRunner {
         }
     }
 
-    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
+    pub async fn add_input(&self, input: ZFLinkReceiver<Message>) {
         self.io.write().await.0.push(input);
     }
 
-    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
+    pub async fn add_output(&self, output: ZFLinkSender<Message>) {
         let mut guard = self.io.write().await;
         let key = output.id();
         if let Some(links) = guard.1.get_mut(key.as_ref()) {
@@ -165,7 +165,7 @@ impl ZFOperatorRunner {
                 // getting link
                 log::debug!("id: {:?}, message: {:?}", id, output);
                 if let Some(links) = io.1.get(&id) {
-                    let zf_message = Arc::new(ZFMessage::from_component_output(output, timestamp));
+                    let zf_message = Arc::new(Message::from_component_output(output, timestamp));
 
                     for tx in links {
                         log::debug!("Sending on: {:?}", tx);
