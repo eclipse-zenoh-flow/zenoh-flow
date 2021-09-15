@@ -14,7 +14,7 @@
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::link::{
-    ZFLinkDescriptor, ZFLinkFromDescriptor, ZFLinkToDescriptor, ZFPortDescriptor,
+    LinkDescriptor, ZFLinkFromDescriptor, ZFLinkToDescriptor, ZFPortDescriptor,
 };
 use crate::model::operator::{
     ZFOperatorDescriptor, ZFOperatorRecord, ZFSinkDescriptor, ZFSinkRecord, ZFSourceDescriptor,
@@ -34,7 +34,7 @@ pub struct DataFlowDescriptor {
     pub operators: Vec<ZFOperatorDescriptor>,
     pub sources: Vec<ZFSourceDescriptor>,
     pub sinks: Vec<ZFSinkDescriptor>,
-    pub links: Vec<ZFLinkDescriptor>,
+    pub links: Vec<LinkDescriptor>,
     pub mapping: Option<Vec<Mapping>>,
 }
 
@@ -116,7 +116,7 @@ pub struct DataFlowRecord {
     pub sinks: Vec<ZFSinkRecord>,
     pub sources: Vec<ZFSourceRecord>,
     pub connectors: Vec<ZFConnectorRecord>,
-    pub links: Vec<ZFLinkDescriptor>,
+    pub links: Vec<LinkDescriptor>,
 }
 
 impl DataFlowRecord {
@@ -208,7 +208,7 @@ impl DataFlowRecord {
             .cloned()
     }
 
-    fn add_links(&mut self, links: &[ZFLinkDescriptor]) -> ZFResult<()> {
+    fn add_links(&mut self, links: &[LinkDescriptor]) -> ZFResult<()> {
         for l in links {
             let from_runtime = match self.find_component_runtime(&l.from.component) {
                 Some(rt) => rt,
@@ -295,7 +295,7 @@ impl DataFlowRecord {
                     };
 
                     // creating link between component and sender
-                    let link_sender = ZFLinkDescriptor {
+                    let link_sender = LinkDescriptor {
                         from: l.from.clone(),
                         to: ZFLinkToDescriptor {
                             component: sender_id.into(),
@@ -329,7 +329,7 @@ impl DataFlowRecord {
                 };
 
                 //creating link between receiver and component
-                let link_receiver = ZFLinkDescriptor {
+                let link_receiver = LinkDescriptor {
                     from: ZFLinkFromDescriptor {
                         component: receiver_id.into(),
                         output: l.to.input.clone(),

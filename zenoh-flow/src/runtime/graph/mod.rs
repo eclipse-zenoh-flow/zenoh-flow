@@ -36,7 +36,7 @@ use crate::runtime::runners::{
 use crate::{
     model::connector::ZFConnectorKind,
     model::dataflow::DataFlowRecord,
-    model::link::{ZFLinkDescriptor, ZFLinkFromDescriptor, ZFLinkToDescriptor, ZFPortDescriptor},
+    model::link::{LinkDescriptor, ZFLinkFromDescriptor, ZFLinkToDescriptor, ZFPortDescriptor},
     model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord},
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
@@ -49,7 +49,7 @@ pub struct DataFlowGraph {
     pub uuid: Uuid,
     pub flow: String,
     pub operators: Vec<(NodeIndex, DataFlowNode)>,
-    pub links: Vec<(EdgeIndex, ZFLinkDescriptor)>,
+    pub links: Vec<(EdgeIndex, LinkDescriptor)>,
     pub graph: StableGraph<DataFlowNode, (String, String)>,
     pub operators_runners: HashMap<OperatorId, (Runner, DataFlowNodeKind)>,
 }
@@ -169,7 +169,7 @@ impl DataFlowGraph {
         queueing_policy: Option<String>,
         priority: Option<usize>,
     ) -> ZFResult<()> {
-        let connection = ZFLinkDescriptor {
+        let connection = LinkDescriptor {
             from,
             to,
             size,
@@ -432,7 +432,7 @@ impl TryFrom<DataFlowRecord> for DataFlowGraph {
     fn try_from(dr: DataFlowRecord) -> Result<Self, Self::Error> {
         let mut graph = StableGraph::<DataFlowNode, (String, String)>::new();
         let mut operators = Vec::new();
-        let mut links: Vec<(EdgeIndex, ZFLinkDescriptor)> = Vec::new();
+        let mut links: Vec<(EdgeIndex, LinkDescriptor)> = Vec::new();
         for o in dr.operators {
             operators.push((
                 graph.add_node(DataFlowNode::Operator(o.clone())),

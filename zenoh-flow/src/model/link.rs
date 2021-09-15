@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFLinkDescriptor {
+pub struct LinkDescriptor {
     pub from: ZFLinkFromDescriptor,
     pub to: ZFLinkToDescriptor,
     pub size: Option<usize>,
@@ -25,7 +25,7 @@ pub struct ZFLinkDescriptor {
     pub priority: Option<usize>,
 }
 
-impl std::fmt::Display for ZFLinkDescriptor {
+impl std::fmt::Display for LinkDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} => {}", self.from, self.to)
     }
