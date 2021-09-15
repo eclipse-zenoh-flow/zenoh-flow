@@ -60,7 +60,7 @@ impl DataFlowDescriptor {
         match &self.mapping {
             Some(mapping) => mapping
                 .iter()
-                .find(|&o| o.id == *id)
+                .find(|&o| o.id.as_ref() == id)
                 .map(|m| m.runtime.clone()),
             None => None,
         }
@@ -187,19 +187,25 @@ impl DataFlowRecord {
     }
 
     fn get_operator(&self, id: &str) -> Option<ZFOperatorRecord> {
-        self.operators.iter().find(|&o| o.id == *id).cloned()
+        self.operators
+            .iter()
+            .find(|&o| o.id.as_ref() == id)
+            .cloned()
     }
 
     fn get_source(&self, id: &str) -> Option<ZFSourceRecord> {
-        self.sources.iter().find(|&o| o.id == *id).cloned()
+        self.sources.iter().find(|&o| o.id.as_ref() == id).cloned()
     }
 
     fn get_sink(&self, id: &str) -> Option<ZFSinkRecord> {
-        self.sinks.iter().find(|&o| o.id == *id).cloned()
+        self.sinks.iter().find(|&o| o.id.as_ref() == id).cloned()
     }
 
     fn get_connector(&self, id: &str) -> Option<ZFConnectorRecord> {
-        self.connectors.iter().find(|&o| o.id == *id).cloned()
+        self.connectors
+            .iter()
+            .find(|&o| o.id.as_ref() == id)
+            .cloned()
     }
 
     fn add_links(&mut self, links: &[ZFLinkDescriptor]) -> ZFResult<()> {

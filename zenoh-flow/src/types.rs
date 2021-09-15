@@ -17,60 +17,11 @@ use crate::runtime::message::{ZFControlMessage, ZFDataMessage, ZFMessage};
 use crate::serde::{Deserialize, Serialize};
 use crate::{ZFDataTrait, ZFStateTrait};
 
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::convert::From;
-use std::fmt::Display;
-use std::ops::Deref;
 use uhlc::Timestamp;
 
-// Placeholder types
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct OperatorId(pub String);
-
-impl Deref for OperatorId {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl Borrow<String> for OperatorId {
-    fn borrow(&self) -> &String {
-        &self.0
-    }
-}
-
-impl Display for OperatorId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("OperatorId: {}", self.0))
-    }
-}
-
-impl PartialEq<String> for OperatorId {
-    fn eq(&self, other: &String) -> bool {
-        self.0 == *other
-    }
-}
-
-impl PartialEq<str> for OperatorId {
-    fn eq(&self, other: &str) -> bool {
-        self.0 == other
-    }
-}
-
-impl From<String> for OperatorId {
-    fn from(id: String) -> Self {
-        Self(id)
-    }
-}
-
-impl From<&str> for OperatorId {
-    fn from(id: &str) -> Self {
-        Self(id.into())
-    }
-}
+pub type OperatorId = Arc<str>;
 
 pub type ZFPortID = String;
 pub type ZFRuntimeID = String;
