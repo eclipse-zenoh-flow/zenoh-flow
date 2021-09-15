@@ -13,7 +13,7 @@
 //
 
 use crate::{
-    model::operator::{SinkRecord, ZFOperatorRecord, ZFSourceRecord},
+    model::operator::{SinkRecord, SourceRecord, ZFOperatorRecord},
     runtime::runners::{
         operator::{ZFOperatorDeclaration, ZFOperatorRunner},
         sink::{ZFSinkDeclaration, ZFSinkRunner},
@@ -81,7 +81,7 @@ pub unsafe fn load_lib_operator(
 // SOURCE
 
 pub fn load_source(
-    record: ZFSourceRecord,
+    record: SourceRecord,
     hlc: PeriodicHLC,
     path: String,
 ) -> ZFResult<ZFSourceRunner> {
@@ -101,7 +101,7 @@ pub fn load_source(
 /// - it will panick if the symbol `zfsource_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
 pub unsafe fn load_lib_source(
-    record: ZFSourceRecord,
+    record: SourceRecord,
     hlc: PeriodicHLC,
     path: String,
 ) -> ZFResult<ZFSourceRunner> {

@@ -37,7 +37,7 @@ use crate::{
     model::connector::ZFConnectorKind,
     model::dataflow::DataFlowRecord,
     model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor},
-    model::operator::{SinkRecord, ZFOperatorRecord, ZFSourceRecord},
+    model::operator::{SinkRecord, SourceRecord, ZFOperatorRecord},
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
     types::{OperatorId, ZFError, ZFResult},
@@ -118,7 +118,7 @@ impl DataFlowGraph {
         source: Arc<dyn Source>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let record = ZFSourceRecord {
+        let record = SourceRecord {
             id: id.clone(),
             output,
             period: None,

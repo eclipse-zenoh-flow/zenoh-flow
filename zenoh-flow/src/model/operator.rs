@@ -95,7 +95,7 @@ impl SinkRecord {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSourceRecord {
+pub struct SourceRecord {
     pub id: OperatorId,
     pub output: PortDescriptor,
     pub period: Option<PeriodDescriptor>,
@@ -104,13 +104,13 @@ pub struct ZFSourceRecord {
     pub runtime: RuntimeId,
 }
 
-impl std::fmt::Display for ZFSourceRecord {
+impl std::fmt::Display for SourceRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Source", self.id)
     }
 }
 
-impl ZFSourceRecord {
+impl SourceRecord {
     pub fn get_output_type(&self, id: &str) -> Option<String> {
         if self.output.port_id == *id {
             Some(self.output.port_type.clone())

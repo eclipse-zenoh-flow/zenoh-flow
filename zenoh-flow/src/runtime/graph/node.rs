@@ -13,7 +13,7 @@
 //
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
-use crate::model::operator::{SinkRecord, ZFOperatorRecord, ZFSourceRecord};
+use crate::model::operator::{SinkRecord, SourceRecord, ZFOperatorRecord};
 use crate::{OperatorId, RuntimeId, ZFError, ZFResult};
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +28,7 @@ pub enum DataFlowNodeKind {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum DataFlowNode {
     Operator(ZFOperatorRecord),
-    Source(ZFSourceRecord),
+    Source(SourceRecord),
     Sink(SinkRecord),
     Connector(ZFConnectorRecord),
 }

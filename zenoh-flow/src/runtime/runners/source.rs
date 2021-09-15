@@ -13,7 +13,7 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::operator::ZFSourceRecord;
+use crate::model::operator::SourceRecord;
 use crate::runtime::graph::link::ZFLinkSender;
 use crate::runtime::message::Message;
 use crate::types::ZFResult;
@@ -37,7 +37,7 @@ pub struct ZFSourceDeclaration {
 // will have a SIGSEV.
 #[derive(Clone)]
 pub struct ZFSourceRunner {
-    pub record: Arc<ZFSourceRecord>,
+    pub record: Arc<SourceRecord>,
     pub hlc: Arc<PeriodicHLC>,
     pub state: Arc<RwLock<Box<dyn State>>>,
     pub outputs: Arc<RwLock<HashMap<PortId, Vec<ZFLinkSender<Message>>>>>,
@@ -47,7 +47,7 @@ pub struct ZFSourceRunner {
 
 impl ZFSourceRunner {
     pub fn new(
-        record: ZFSourceRecord,
+        record: SourceRecord,
         hlc: PeriodicHLC,
         source: Arc<dyn Source>,
         lib: Option<Library>,
