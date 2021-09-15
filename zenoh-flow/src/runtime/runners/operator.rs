@@ -13,7 +13,7 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::operator::ZFOperatorRecord;
+use crate::model::operator::OperatorRecord;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::Message;
 use crate::types::{Token, ZFResult};
@@ -43,7 +43,7 @@ pub type ZFOperatorIO = (
 // will have a SIGSEV.
 #[derive(Clone)]
 pub struct ZFOperatorRunner {
-    pub record: Arc<ZFOperatorRecord>,
+    pub record: Arc<OperatorRecord>,
     pub io: Arc<RwLock<ZFOperatorIO>>,
     pub state: Arc<RwLock<Box<dyn State>>>,
     pub hlc: Arc<HLC>,
@@ -53,7 +53,7 @@ pub struct ZFOperatorRunner {
 
 impl ZFOperatorRunner {
     pub fn new(
-        record: ZFOperatorRecord,
+        record: OperatorRecord,
         hlc: Arc<HLC>,
         operator: Arc<dyn Operator>,
         lib: Option<Library>,

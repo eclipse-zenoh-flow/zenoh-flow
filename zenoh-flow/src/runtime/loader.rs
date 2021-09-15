@@ -13,7 +13,7 @@
 //
 
 use crate::{
-    model::operator::{SinkRecord, SourceRecord, ZFOperatorRecord},
+    model::operator::{OperatorRecord, SinkRecord, SourceRecord},
     runtime::runners::{
         operator::{ZFOperatorDeclaration, ZFOperatorRunner},
         sink::{ZFSinkDeclaration, ZFSinkRunner},
@@ -36,7 +36,7 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 ///
 /// TODO remove all copy-pasted code, make macros/functions instead
 pub fn load_operator(
-    record: ZFOperatorRecord,
+    record: OperatorRecord,
     hlc: Arc<HLC>,
     path: String,
 ) -> ZFResult<ZFOperatorRunner> {
@@ -56,7 +56,7 @@ pub fn load_operator(
 /// - it will panick if the symbol `zfoperator_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
 pub unsafe fn load_lib_operator(
-    record: ZFOperatorRecord,
+    record: OperatorRecord,
     hlc: Arc<HLC>,
     path: String,
 ) -> ZFResult<ZFOperatorRunner> {

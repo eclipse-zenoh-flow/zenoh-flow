@@ -121,7 +121,7 @@ impl SourceRecord {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFOperatorRecord {
+pub struct OperatorRecord {
     pub id: OperatorId,
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
@@ -130,13 +130,13 @@ pub struct ZFOperatorRecord {
     pub runtime: RuntimeId,
 }
 
-impl std::fmt::Display for ZFOperatorRecord {
+impl std::fmt::Display for OperatorRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Operator", self.id)
     }
 }
 
-impl ZFOperatorRecord {
+impl OperatorRecord {
     pub fn get_output_type(&self, id: &str) -> Option<String> {
         self.outputs
             .iter()
