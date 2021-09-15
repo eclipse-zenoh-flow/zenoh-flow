@@ -17,7 +17,7 @@ pub mod operator;
 pub mod sink;
 pub mod source;
 
-use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
+use crate::runtime::graph::link::{LinkSender, ZFLinkReceiver};
 use crate::runtime::message::Message;
 use crate::runtime::runners::connector::{ZFZenohReceiver, ZFZenohSender};
 use crate::runtime::runners::operator::ZFOperatorRunner;
@@ -126,7 +126,7 @@ impl Runner {
         }
     }
 
-    pub async fn add_output(&self, output: ZFLinkSender<Message>) -> ZFResult<()> {
+    pub async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
         log::trace!("add_output({:?})", output);
         match self {
             Runner::Operator(runner) => {

@@ -16,7 +16,7 @@ use crate::{PortId, ZFResult};
 use async_std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug)]
-pub struct ZFLinkSender<T> {
+pub struct LinkSender<T> {
     pub id: PortId,
     pub sender: flume::Sender<Arc<T>>,
 }
@@ -81,7 +81,7 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
     }
 }
 
-impl<T> ZFLinkSender<T> {
+impl<T> LinkSender<T> {
     pub async fn send(&self, data: Arc<T>) -> ZFResult<()> {
         Ok(self.sender.send_async(data).await?)
     }
@@ -107,14 +107,14 @@ pub fn link<T>(
     capacity: Option<usize>,
     send_id: String,
     recv_id: String,
-) -> (ZFLinkSender<T>, ZFLinkReceiver<T>) {
+) -> (LinkSender<T>, ZFLinkReceiver<T>) {
     let (sender, receiver) = match capacity {
         None => flume::unbounded(),
         Some(cap) => flume::bounded(cap),
     };
 
     (
-        ZFLinkSender {
+        LinkSender {
             id: send_id.into(),
             sender,
         },

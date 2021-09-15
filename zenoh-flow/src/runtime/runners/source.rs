@@ -14,7 +14,7 @@
 
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::component::SourceRecord;
-use crate::runtime::graph::link::ZFLinkSender;
+use crate::runtime::graph::link::LinkSender;
 use crate::runtime::message::Message;
 use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
@@ -40,7 +40,7 @@ pub struct ZFSourceRunner {
     pub record: Arc<SourceRecord>,
     pub hlc: Arc<PeriodicHLC>,
     pub state: Arc<RwLock<Box<dyn State>>>,
-    pub outputs: Arc<RwLock<HashMap<PortId, Vec<ZFLinkSender<Message>>>>>,
+    pub outputs: Arc<RwLock<HashMap<PortId, Vec<LinkSender<Message>>>>>,
     pub source: Arc<dyn Source>,
     pub lib: Arc<Option<Library>>,
 }
@@ -63,7 +63,7 @@ impl ZFSourceRunner {
         }
     }
 
-    pub async fn add_output(&self, output: ZFLinkSender<Message>) {
+    pub async fn add_output(&self, output: LinkSender<Message>) {
         let mut outputs = self.outputs.write().await;
         let key = output.id();
         if let Some(links) = outputs.get_mut(key.as_ref()) {
