@@ -22,7 +22,7 @@ pub struct LinkSender<T> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ZFLinkReceiver<T> {
+pub struct LinkReceiver<T> {
     pub id: PortId,
     pub receiver: flume::Receiver<Arc<T>>,
     pub last_message: Arc<Mutex<Option<Arc<T>>>>,
@@ -30,11 +30,11 @@ pub struct ZFLinkReceiver<T> {
 
 pub type ZFLinkOutput<T> = ZFResult<(PortId, Arc<T>)>;
 
-impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
+impl<T: std::marker::Send + std::marker::Sync> LinkReceiver<T> {
     pub fn peek(
         &self,
     ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_>> {
-        async fn __peek<T>(_self: &ZFLinkReceiver<T>) -> ZFResult<(PortId, Arc<T>)> {
+        async fn __peek<T>(_self: &LinkReceiver<T>) -> ZFResult<(PortId, Arc<T>)> {
             let mut guard = _self.last_message.lock().await;
 
             match &*guard {
@@ -54,7 +54,7 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
         &self,
     ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_ + Send + Sync>>
     {
-        async fn __recv<T>(_self: &ZFLinkReceiver<T>) -> ZFResult<(PortId, Arc<T>)> {
+        async fn __recv<T>(_self: &LinkReceiver<T>) -> ZFResult<(PortId, Arc<T>)> {
             let mut guard = _self.last_message.lock().await;
             match &*guard {
                 Some(message) => {
@@ -107,7 +107,7 @@ pub fn link<T>(
     capacity: Option<usize>,
     send_id: String,
     recv_id: String,
-) -> (LinkSender<T>, ZFLinkReceiver<T>) {
+) -> (LinkSender<T>, LinkReceiver<T>) {
     let (sender, receiver) = match capacity {
         None => flume::unbounded(),
         Some(cap) => flume::bounded(cap),
@@ -118,7 +118,7 @@ pub fn link<T>(
             id: send_id.into(),
             sender,
         },
-        ZFLinkReceiver {
+        LinkReceiver {
             id: recv_id.into(),
             receiver,
             last_message: Arc::new(Mutex::new(None)),

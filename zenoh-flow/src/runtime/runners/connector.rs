@@ -13,7 +13,7 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::runtime::graph::link::{LinkSender, ZFLinkReceiver};
+use crate::runtime::graph::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
 use crate::{ZFError, ZFResult};
 use futures::prelude::*;
@@ -23,14 +23,14 @@ use zenoh::net::{Reliability, Session, SubInfo, SubMode};
 pub struct ZFZenohSender {
     pub session: Arc<Session>,
     pub resource: String,
-    pub input: Arc<RwLock<Option<ZFLinkReceiver<Message>>>>,
+    pub input: Arc<RwLock<Option<LinkReceiver<Message>>>>,
 }
 
 impl ZFZenohSender {
     pub fn new(
         session: Arc<Session>,
         resource: String,
-        input: Option<ZFLinkReceiver<Message>>,
+        input: Option<LinkReceiver<Message>>,
     ) -> Self {
         Self {
             session,
@@ -57,7 +57,7 @@ impl ZFZenohSender {
         Err(ZFError::Disconnected)
     }
 
-    pub async fn add_input(&self, input: ZFLinkReceiver<Message>) {
+    pub async fn add_input(&self, input: LinkReceiver<Message>) {
         *(self.input.write().await) = Some(input);
     }
 }

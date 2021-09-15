@@ -14,7 +14,7 @@
 
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::component::OperatorRecord;
-use crate::runtime::graph::link::{LinkSender, ZFLinkReceiver};
+use crate::runtime::graph::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
 use crate::types::{Token, ZFResult};
 use crate::{Context, Operator, PortId, State};
@@ -32,7 +32,7 @@ pub struct ZFOperatorDeclaration {
 }
 
 pub type ZFOperatorIO = (
-    Vec<ZFLinkReceiver<Message>>,
+    Vec<LinkReceiver<Message>>,
     HashMap<PortId, Vec<LinkSender<Message>>>,
 );
 
@@ -69,7 +69,7 @@ impl ZFOperatorRunner {
         }
     }
 
-    pub async fn add_input(&self, input: ZFLinkReceiver<Message>) {
+    pub async fn add_input(&self, input: LinkReceiver<Message>) {
         self.io.write().await.0.push(input);
     }
 

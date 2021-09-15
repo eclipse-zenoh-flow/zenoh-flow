@@ -13,7 +13,7 @@
 //
 
 use zenoh_flow::async_std::sync::Arc;
-use zenoh_flow::runtime::graph::link::{link, LinkSender, ZFLinkReceiver};
+use zenoh_flow::runtime::graph::link::{link, LinkReceiver, LinkSender};
 
 async fn same_task_simple() {
     let size = 2;
@@ -36,7 +36,7 @@ async fn same_task_simple() {
     assert_eq!(res, Ok(("10".into(), Arc::new(1u8))));
 }
 
-async fn recv_task_simple(receiver: ZFLinkReceiver<u8>) {
+async fn recv_task_simple(receiver: LinkReceiver<u8>) {
     let res = receiver.recv().await;
     assert_eq!(res, Ok(("10".into(), Arc::new(0u8))));
 
@@ -63,7 +63,7 @@ async fn send_task_simple(sender: LinkSender<u8>) {
     assert_eq!(res, Ok(()));
 }
 
-async fn recv_task_more(receiver: ZFLinkReceiver<u8>) {
+async fn recv_task_more(receiver: LinkReceiver<u8>) {
     for n in 0u8..255u8 {
         let res = receiver.recv().await;
         assert_eq!(res, Ok(("10".into(), Arc::new(n))));

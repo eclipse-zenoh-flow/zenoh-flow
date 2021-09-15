@@ -14,7 +14,7 @@
 
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::component::SinkRecord;
-use crate::runtime::graph::link::ZFLinkReceiver;
+use crate::runtime::graph::link::LinkReceiver;
 use crate::runtime::message::Message;
 use crate::types::{Token, ZFResult};
 use crate::{Context, PortId, Sink, State};
@@ -31,7 +31,7 @@ pub struct ZFSinkDeclaration {
 }
 
 pub struct ZFSinkRunnerInner {
-    pub inputs: Vec<ZFLinkReceiver<Message>>,
+    pub inputs: Vec<LinkReceiver<Message>>,
     pub state: Box<dyn State>,
 }
 
@@ -53,7 +53,7 @@ impl ZFSinkRunnerInner {
 pub struct ZFSinkRunner {
     pub record: Arc<SinkRecord>,
     pub state: Arc<RwLock<Box<dyn State>>>,
-    pub inputs: Arc<RwLock<Vec<ZFLinkReceiver<Message>>>>,
+    pub inputs: Arc<RwLock<Vec<LinkReceiver<Message>>>>,
     pub sink: Arc<dyn Sink>,
     pub lib: Arc<Option<Library>>,
 }
@@ -70,7 +70,7 @@ impl ZFSinkRunner {
         }
     }
 
-    pub async fn add_input(&self, input: ZFLinkReceiver<Message>) {
+    pub async fn add_input(&self, input: LinkReceiver<Message>) {
         self.inputs.write().await.push(input);
     }
 
