@@ -15,7 +15,7 @@
 use crate::{
     model::component::{OperatorRecord, SinkRecord, SourceRecord},
     runtime::runners::{
-        operator::{OperatorRunner, ZFOperatorDeclaration},
+        operator::{OperatorDeclaration, OperatorRunner},
         sink::{ZFSinkDeclaration, ZFSinkRunner},
         source::{ZFSourceDeclaration, ZFSourceRunner},
     },
@@ -64,7 +64,7 @@ pub unsafe fn load_lib_operator(
 
     let library = Library::new(path)?;
     let decl = library
-        .get::<*mut ZFOperatorDeclaration>(b"zfoperator_declaration\0")?
+        .get::<*mut OperatorDeclaration>(b"zfoperator_declaration\0")?
         .read();
 
     // version checks to prevent accidental ABI incompatibilities

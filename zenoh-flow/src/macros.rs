@@ -17,9 +17,8 @@ macro_rules! export_operator {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfoperator_declaration:
-            $crate::runtime::runners::operator::ZFOperatorDeclaration =
-            $crate::runtime::runners::operator::ZFOperatorDeclaration {
+        pub static zfoperator_declaration: $crate::runtime::runners::operator::OperatorDeclaration =
+            $crate::runtime::runners::operator::OperatorDeclaration {
                 rustc_version: $crate::runtime::loader::RUSTC_VERSION,
                 core_version: $crate::runtime::loader::CORE_VERSION,
                 register: $register,

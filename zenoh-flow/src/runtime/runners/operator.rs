@@ -25,7 +25,7 @@ use uhlc::HLC;
 
 pub type ZFOperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
 
-pub struct ZFOperatorDeclaration {
+pub struct OperatorDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
     pub register: ZFOperatorRegisterFn,
