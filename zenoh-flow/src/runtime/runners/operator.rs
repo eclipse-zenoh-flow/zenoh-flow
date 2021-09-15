@@ -31,7 +31,7 @@ pub struct ZFOperatorDeclaration {
     pub register: ZFOperatorRegisterFn,
 }
 
-pub type ZFOperatorIO = (
+pub type OperatorIO = (
     Vec<LinkReceiver<Message>>,
     HashMap<PortId, Vec<LinkSender<Message>>>,
 );
@@ -44,7 +44,7 @@ pub type ZFOperatorIO = (
 #[derive(Clone)]
 pub struct OperatorRunner {
     pub record: Arc<OperatorRecord>,
-    pub io: Arc<RwLock<ZFOperatorIO>>,
+    pub io: Arc<RwLock<OperatorIO>>,
     pub state: Arc<RwLock<Box<dyn State>>>,
     pub hlc: Arc<HLC>,
     pub operator: Arc<dyn Operator>,
