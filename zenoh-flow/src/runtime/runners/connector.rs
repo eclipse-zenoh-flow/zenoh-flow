@@ -20,13 +20,13 @@ use futures::prelude::*;
 use zenoh::net::{Reliability, Session, SubInfo, SubMode};
 
 #[derive(Clone)]
-pub struct ZFZenohSender {
+pub struct ZenohSender {
     pub session: Arc<Session>,
     pub resource: String,
     pub input: Arc<RwLock<Option<LinkReceiver<Message>>>>,
 }
 
-impl ZFZenohSender {
+impl ZenohSender {
     pub fn new(
         session: Arc<Session>,
         resource: String,
