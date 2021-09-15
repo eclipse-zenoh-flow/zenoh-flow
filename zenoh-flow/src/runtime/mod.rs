@@ -30,7 +30,7 @@ use crate::{
     ZFResult,
 };
 
-use crate::runtime::message::ZFControlMessage;
+use crate::runtime::message::ControlMessage;
 
 use znrpc_macros::znservice;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
@@ -235,7 +235,7 @@ pub trait ZFRuntime {
         &self,
         record_id: Uuid,
         runtime: String,
-        message: ZFControlMessage,
+        message: ControlMessage,
     ) -> ZFResult<()>;
 
     /// Checks the compatibility for the given `operator`

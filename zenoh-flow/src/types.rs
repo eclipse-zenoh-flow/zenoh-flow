@@ -13,7 +13,7 @@
 //
 
 use crate::async_std::sync::Arc;
-use crate::runtime::message::{DataMessage, ZFControlMessage, ZFMessage};
+use crate::runtime::message::{ControlMessage, DataMessage, ZFMessage};
 use crate::serde::{Deserialize, Serialize};
 use crate::{Data, State};
 
@@ -46,7 +46,7 @@ pub enum ComponentOutput {
     Data(Arc<dyn Data>),
     // TODO Users should not have access to all control messages. When implementing the control
     // messages change this to an enum with a "limited scope".
-    Control(ZFControlMessage),
+    Control(ControlMessage),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

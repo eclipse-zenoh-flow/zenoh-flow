@@ -55,7 +55,7 @@ impl DataMessage {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ZFControlMessage {
+pub enum ControlMessage {
     ReadyToMigrate,
     ChangeMode(u8, u128),
     Watermark,
@@ -64,7 +64,7 @@ pub enum ZFControlMessage {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ZFMessage {
     Data(DataMessage),
-    Control(ZFControlMessage),
+    Control(ControlMessage),
 }
 
 impl ZFMessage {

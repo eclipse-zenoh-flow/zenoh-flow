@@ -21,7 +21,7 @@ use zenoh_flow::model::{
     operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor},
 };
 use zenoh_flow::runtime::graph::DataFlowGraph;
-use zenoh_flow::runtime::message::ZFControlMessage;
+use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::ZFDataStore;
 use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::ZFRuntimeClient;
@@ -580,7 +580,7 @@ impl ZFRuntime for Runtime {
         &self,
         record_id: Uuid,
         node: String,
-        message: ZFControlMessage,
+        message: ControlMessage,
     ) -> ZFResult<()> {
         Err(ZFError::Unimplemented)
     }
