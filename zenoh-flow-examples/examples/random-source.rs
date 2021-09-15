@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::{
     default_output_rule, types::ZFResult, zf_data, zf_empty_state, Component, Context, Data,
-    PortId, State, ZFComponentOutputRule, ZFSourceTrait,
+    OutputRule, PortId, State, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -39,7 +39,7 @@ impl Component for ExampleRandomSource {
     }
 }
 
-impl ZFComponentOutputRule for ExampleRandomSource {
+impl OutputRule for ExampleRandomSource {
     fn output_rule(
         &self,
         _context: &mut Context,

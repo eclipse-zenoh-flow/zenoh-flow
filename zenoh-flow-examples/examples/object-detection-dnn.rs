@@ -20,8 +20,8 @@ use std::{
     path::Path,
 };
 use zenoh_flow::{
-    default_input_rule, default_output_rule, Component, Context, Data, InputRule, PortId, State,
-    ZFComponentOutput, ZFComponentOutputRule, ZFOperatorTrait,
+    default_input_rule, default_output_rule, Component, Context, Data, InputRule, OutputRule,
+    PortId, State, ZFComponentOutput, ZFOperatorTrait,
 };
 use zenoh_flow::{
     downcast, get_input,
@@ -118,7 +118,7 @@ impl InputRule for ObjDetection {
     }
 }
 
-impl ZFComponentOutputRule for ObjDetection {
+impl OutputRule for ObjDetection {
     fn output_rule(
         &self,
         _context: &mut Context,

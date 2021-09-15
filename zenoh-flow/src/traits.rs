@@ -57,7 +57,7 @@ pub trait InputRule {
     ) -> ZFResult<bool>;
 }
 
-pub trait ZFComponentOutputRule {
+pub trait OutputRule {
     fn output_rule(
         &self,
         context: &mut Context,
@@ -66,7 +66,7 @@ pub trait ZFComponentOutputRule {
     ) -> ZFResult<HashMap<PortId, ZFComponentOutput>>;
 }
 
-pub trait ZFOperatorTrait: Component + InputRule + ZFComponentOutputRule + Send + Sync {
+pub trait ZFOperatorTrait: Component + InputRule + OutputRule + Send + Sync {
     fn run(
         &self,
         context: &mut Context,
@@ -76,7 +76,7 @@ pub trait ZFOperatorTrait: Component + InputRule + ZFComponentOutputRule + Send 
 }
 
 #[async_trait]
-pub trait ZFSourceTrait: Component + ZFComponentOutputRule + Send + Sync {
+pub trait ZFSourceTrait: Component + OutputRule + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,

@@ -18,7 +18,7 @@ use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::PortId;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, Component, Data,
-    InputRule, State, ZFComponentOutput, ZFComponentOutputRule, ZFOperatorTrait, ZFResult,
+    InputRule, OutputRule, State, ZFComponentOutput, ZFOperatorTrait, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -66,7 +66,7 @@ impl InputRule for SumAndSend {
     }
 }
 
-impl ZFComponentOutputRule for SumAndSend {
+impl OutputRule for SumAndSend {
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,

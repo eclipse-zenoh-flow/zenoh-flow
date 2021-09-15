@@ -22,8 +22,8 @@ use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::{
-    default_input_rule, default_output_rule, Component, Context, Data, InputRule, PortId,
-    ZFComponentOutputRule, ZFSinkTrait, ZFSourceTrait,
+    default_input_rule, default_output_rule, Component, Context, Data, InputRule, OutputRule,
+    PortId, ZFSinkTrait, ZFSourceTrait,
 };
 use zenoh_flow::{model::link::ZFPortDescriptor, zf_data, zf_empty_state};
 use zenoh_flow::{State, ZFResult};
@@ -63,7 +63,7 @@ impl ZFSourceTrait for CountSource {
     }
 }
 
-impl ZFComponentOutputRule for CountSource {
+impl OutputRule for CountSource {
     fn output_rule(
         &self,
         _context: &mut Context,

@@ -15,8 +15,8 @@
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc, usize};
 use zenoh_flow::{
-    zf_data, zf_empty_state, Component, Context, Data, PortId, State, ZFComponentOutputRule,
-    ZFError, ZFResult, ZFSourceTrait,
+    zf_data, zf_empty_state, Component, Context, Data, OutputRule, PortId, State, ZFError,
+    ZFResult, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -61,7 +61,7 @@ impl Component for ManualSource {
     }
 }
 
-impl ZFComponentOutputRule for ManualSource {
+impl OutputRule for ManualSource {
     fn output_rule(
         &self,
         _context: &mut Context,

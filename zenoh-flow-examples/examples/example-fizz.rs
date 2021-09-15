@@ -18,8 +18,7 @@ use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::Token;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    zf_empty_state, Component, InputRule, State, ZFComponentOutput, ZFComponentOutputRule,
-    ZFOperatorTrait,
+    zf_empty_state, Component, InputRule, OutputRule, State, ZFComponentOutput, ZFOperatorTrait,
 };
 use zenoh_flow::{Context, Data, PortId};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -75,7 +74,7 @@ impl ZFOperatorTrait for FizzOperator {
     }
 }
 
-impl ZFComponentOutputRule for FizzOperator {
+impl OutputRule for FizzOperator {
     fn output_rule(
         &self,
         _context: &mut Context,

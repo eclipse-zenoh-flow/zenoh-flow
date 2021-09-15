@@ -20,7 +20,7 @@ use zenoh_flow::{
     default_output_rule, downcast,
     types::{ZFError, ZFResult},
     zenoh_flow_derive::ZFState,
-    zf_data, zf_spin_lock, Component, Data, State, ZFComponentOutputRule, ZFSourceTrait,
+    zf_data, zf_spin_lock, Component, Data, OutputRule, State, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -90,7 +90,7 @@ impl Component for VideoSource {
     }
 }
 
-impl ZFComponentOutputRule for VideoSource {
+impl OutputRule for VideoSource {
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,
