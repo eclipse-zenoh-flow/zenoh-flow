@@ -22,7 +22,7 @@ use zenoh_flow::{
     default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, Component, InputRule,
     State,
 };
-use zenoh_flow::{Context, PortId, ZFSinkTrait};
+use zenoh_flow::{Context, PortId, Sink};
 
 use std::fs::File;
 use std::io::Write;
@@ -48,7 +48,7 @@ impl SinkState {
 }
 
 #[async_trait]
-impl ZFSinkTrait for GenericSink {
+impl Sink for GenericSink {
     async fn run(
         &self,
         _context: &mut Context,
@@ -116,6 +116,6 @@ impl InputRule for GenericSink {
 
 export_sink!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFSinkTrait>> {
-    Ok(Arc::new(GenericSink) as Arc<dyn ZFSinkTrait>)
+fn register() -> ZFResult<Arc<dyn Sink>> {
+    Ok(Arc::new(GenericSink) as Arc<dyn Sink>)
 }

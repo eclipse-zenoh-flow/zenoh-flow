@@ -23,7 +23,7 @@ use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::{
     default_input_rule, default_output_rule, Component, Context, Data, InputRule, OutputRule,
-    PortId, Source, ZFSinkTrait,
+    PortId, Sink, Source,
 };
 use zenoh_flow::{model::link::ZFPortDescriptor, zf_data, zf_empty_state};
 use zenoh_flow::{State, ZFResult};
@@ -90,7 +90,7 @@ impl Component for CountSource {
 struct ExampleGenericSink;
 
 #[async_trait]
-impl ZFSinkTrait for ExampleGenericSink {
+impl Sink for ExampleGenericSink {
     async fn run(
         &self,
         _context: &mut Context,

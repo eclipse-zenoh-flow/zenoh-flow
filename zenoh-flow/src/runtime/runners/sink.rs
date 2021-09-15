@@ -17,12 +17,12 @@ use crate::model::operator::ZFSinkRecord;
 use crate::runtime::graph::link::ZFLinkReceiver;
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
-use crate::{Context, PortId, State, ZFSinkTrait};
+use crate::{Context, PortId, Sink, State};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 
-pub type ZFSinkRegisterFn = fn() -> ZFResult<Arc<dyn ZFSinkTrait>>;
+pub type ZFSinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
 
 pub struct ZFSinkDeclaration {
     pub rustc_version: &'static str,
@@ -54,12 +54,12 @@ pub struct ZFSinkRunner {
     pub record: Arc<ZFSinkRecord>,
     pub state: Arc<RwLock<Box<dyn State>>>,
     pub inputs: Arc<RwLock<Vec<ZFLinkReceiver<ZFMessage>>>>,
-    pub sink: Arc<dyn ZFSinkTrait>,
+    pub sink: Arc<dyn Sink>,
     pub lib: Arc<Option<Library>>,
 }
 
 impl ZFSinkRunner {
-    pub fn new(record: ZFSinkRecord, sink: Arc<dyn ZFSinkTrait>, lib: Option<Library>) -> Self {
+    pub fn new(record: ZFSinkRecord, sink: Arc<dyn Sink>, lib: Option<Library>) -> Self {
         let state = sink.initialize(&record.configuration);
         Self {
             record: Arc::new(record),

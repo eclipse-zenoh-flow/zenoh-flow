@@ -85,7 +85,7 @@ pub trait Source: Component + OutputRule + Send + Sync {
 }
 
 #[async_trait]
-pub trait ZFSinkTrait: Component + InputRule + Send + Sync {
+pub trait Sink: Component + InputRule + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
