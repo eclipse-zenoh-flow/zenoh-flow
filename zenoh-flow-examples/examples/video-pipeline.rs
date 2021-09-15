@@ -20,7 +20,7 @@ use std::fs::File;
 use std::io::Write;
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
-use zenoh_flow::model::link::{LinkFromDescriptor, ZFLinkToDescriptor};
+use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
 use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, model::link::ZFPortDescriptor,
@@ -258,7 +258,7 @@ async fn main() {
                 component: "camera-source".into(),
                 output: String::from(SOURCE),
             },
-            ZFLinkToDescriptor {
+            LinkToDescriptor {
                 component: "video-sink".into(),
                 input: String::from(INPUT),
             },

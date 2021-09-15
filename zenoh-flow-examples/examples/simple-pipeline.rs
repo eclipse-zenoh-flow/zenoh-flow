@@ -20,7 +20,7 @@ use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::Arc;
-use zenoh_flow::model::link::{LinkFromDescriptor, ZFLinkToDescriptor};
+use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
 use zenoh_flow::{
     default_input_rule, default_output_rule, Component, Context, Data, InputRule, OutputRule,
     PortId, Sink, Source,
@@ -171,7 +171,7 @@ async fn main() {
                 component: "counter-source".into(),
                 output: String::from(SOURCE),
             },
-            ZFLinkToDescriptor {
+            LinkToDescriptor {
                 component: "generic-sink".into(),
                 input: String::from(SOURCE),
             },
