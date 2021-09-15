@@ -16,7 +16,7 @@ use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, runtime::message::ZFDataMessage,
-    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, Component, DataTrait, PortId, StateTrait,
+    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, Component, Data, PortId, StateTrait,
     ZFComponentInputRule, ZFComponentOutputRule, ZFOperatorTrait, ZFResult,
 };
 use zenoh_flow_examples::ZFBytes;
@@ -93,7 +93,7 @@ impl ZFComponentOutputRule for FaceDetection {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::StateTrait>,
-        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::DataTrait>>,
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }
@@ -105,8 +105,8 @@ impl ZFOperatorTrait for FaceDetection {
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn StateTrait>,
         inputs: &mut HashMap<zenoh_flow::PortId, ZFDataMessage>,
-    ) -> ZFResult<HashMap<PortId, Arc<dyn DataTrait>>> {
-        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn DataTrait>> = HashMap::new();
+    ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>> {
+        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::new();
 
         let state = downcast!(FDState, dyn_state).unwrap();
 

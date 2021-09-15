@@ -24,7 +24,7 @@ use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, model::link::ZFPortDescriptor,
-    zenoh_flow_derive::ZFState, zf_data, Component, DataTrait, PortId, ZFComponentInputRule,
+    zenoh_flow_derive::ZFState, zf_data, Component, Data, PortId, ZFComponentInputRule,
     ZFComponentOutputRule, ZFError, ZFSinkTrait, ZFSourceTrait,
 };
 use zenoh_flow::{StateTrait, ZFResult};
@@ -81,8 +81,8 @@ impl ZFSourceTrait for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::StateTrait>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::DataTrait>>> {
-        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn DataTrait>> = HashMap::new();
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
+        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::new();
 
         // Downcasting to right type
         let state = downcast!(CameraState, dyn_state).unwrap();
@@ -126,7 +126,7 @@ impl ZFComponentOutputRule for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::StateTrait>,
-        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn DataTrait>>,
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn Data>>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }

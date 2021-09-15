@@ -15,8 +15,8 @@
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc, usize};
 use zenoh_flow::{
-    zf_data, zf_empty_state, Component, Context, DataTrait, PortId, StateTrait,
-    ZFComponentOutputRule, ZFError, ZFResult, ZFSourceTrait,
+    zf_data, zf_empty_state, Component, Context, Data, PortId, StateTrait, ZFComponentOutputRule,
+    ZFError, ZFResult, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -30,8 +30,8 @@ impl ZFSourceTrait for ManualSource {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn StateTrait>,
-    ) -> ZFResult<HashMap<PortId, Arc<dyn DataTrait>>> {
-        let mut results: HashMap<PortId, Arc<dyn DataTrait>> = HashMap::with_capacity(1);
+    ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>> {
+        let mut results: HashMap<PortId, Arc<dyn Data>> = HashMap::with_capacity(1);
 
         println!("> Please input a number: ");
         let mut number = String::new();
@@ -66,7 +66,7 @@ impl ZFComponentOutputRule for ManualSource {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn StateTrait>,
-        outputs: &HashMap<PortId, Arc<dyn DataTrait>>,
+        outputs: &HashMap<PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<PortId, zenoh_flow::ZFComponentOutput>> {
         zenoh_flow::default_output_rule(state, outputs)
     }

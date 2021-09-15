@@ -20,7 +20,7 @@ use std::{
     path::Path,
 };
 use zenoh_flow::{
-    default_input_rule, default_output_rule, Component, Context, DataTrait, PortId, StateTrait,
+    default_input_rule, default_output_rule, Component, Context, Data, PortId, StateTrait,
     ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule, ZFOperatorTrait,
 };
 use zenoh_flow::{
@@ -123,7 +123,7 @@ impl ZFComponentOutputRule for ObjDetection {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn zenoh_flow::StateTrait>,
-        outputs: &HashMap<PortId, Arc<dyn zenoh_flow::DataTrait>>,
+        outputs: &HashMap<PortId, Arc<dyn zenoh_flow::Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }
@@ -135,11 +135,11 @@ impl ZFOperatorTrait for ObjDetection {
         _context: &mut Context,
         dyn_state: &mut Box<dyn zenoh_flow::StateTrait>,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::ZFDataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::DataTrait>>> {
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
         let scale = 1.0 / 255.0;
         let mean = core::Scalar::new(0f64, 0f64, 0f64, 0f64);
 
-        let mut results: HashMap<PortId, Arc<dyn DataTrait>> = HashMap::with_capacity(1);
+        let mut results: HashMap<PortId, Arc<dyn Data>> = HashMap::with_capacity(1);
 
         let mut detections: opencv::types::VectorOfMat = core::Vector::new();
 

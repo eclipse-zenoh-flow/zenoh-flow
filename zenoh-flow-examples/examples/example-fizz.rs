@@ -21,7 +21,7 @@ use zenoh_flow::{
     zf_empty_state, Component, StateTrait, ZFComponentInputRule, ZFComponentOutput,
     ZFComponentOutputRule, ZFOperatorTrait,
 };
-use zenoh_flow::{Context, DataTrait, PortId};
+use zenoh_flow::{Context, Data, PortId};
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
 struct FizzOperator;
@@ -57,8 +57,8 @@ impl ZFOperatorTrait for FizzOperator {
         _context: &mut Context,
         _state: &mut Box<dyn StateTrait>,
         inputs: &mut HashMap<PortId, ZFDataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::DataTrait>>> {
-        let mut results = HashMap::<PortId, Arc<dyn DataTrait>>::with_capacity(2);
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
+        let mut results = HashMap::<PortId, Arc<dyn Data>>::with_capacity(2);
 
         let mut fizz = ZFString::from("");
 
@@ -80,7 +80,7 @@ impl ZFComponentOutputRule for FizzOperator {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn StateTrait>,
-        outputs: &HashMap<PortId, Arc<dyn DataTrait>>,
+        outputs: &HashMap<PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }

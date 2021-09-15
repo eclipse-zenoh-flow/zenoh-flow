@@ -20,7 +20,7 @@ use zenoh_flow::{
     default_output_rule, downcast,
     types::{ZFError, ZFResult},
     zenoh_flow_derive::ZFState,
-    zf_data, zf_spin_lock, Component, DataTrait, StateTrait, ZFComponentOutputRule, ZFSourceTrait,
+    zf_data, zf_spin_lock, Component, Data, StateTrait, ZFComponentOutputRule, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -95,7 +95,7 @@ impl ZFComponentOutputRule for VideoSource {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::StateTrait>,
-        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::DataTrait>>,
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }
@@ -107,8 +107,8 @@ impl ZFSourceTrait for VideoSource {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::StateTrait>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::DataTrait>>> {
-        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn DataTrait>> = HashMap::new();
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
+        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::new();
 
         let state = downcast!(VideoSourceState, dyn_state).unwrap();
 

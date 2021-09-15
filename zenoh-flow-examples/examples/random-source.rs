@@ -16,7 +16,7 @@ use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::{
-    default_output_rule, types::ZFResult, zf_data, zf_empty_state, Component, Context, DataTrait,
+    default_output_rule, types::ZFResult, zf_data, zf_empty_state, Component, Context, Data,
     PortId, StateTrait, ZFComponentOutputRule, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFUsize;
@@ -44,7 +44,7 @@ impl ZFComponentOutputRule for ExampleRandomSource {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn zenoh_flow::StateTrait>,
-        outputs: &HashMap<PortId, Arc<dyn zenoh_flow::DataTrait>>,
+        outputs: &HashMap<PortId, Arc<dyn zenoh_flow::Data>>,
     ) -> ZFResult<HashMap<PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }
@@ -56,8 +56,8 @@ impl ZFSourceTrait for ExampleRandomSource {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn zenoh_flow::StateTrait>,
-    ) -> ZFResult<HashMap<PortId, Arc<dyn DataTrait>>> {
-        let mut results: HashMap<PortId, Arc<dyn DataTrait>> = HashMap::with_capacity(1);
+    ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>> {
+        let mut results: HashMap<PortId, Arc<dyn Data>> = HashMap::with_capacity(1);
         results.insert(SOURCE.into(), zf_data!(ZFUsize(rand::random::<usize>())));
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
         Ok(results)

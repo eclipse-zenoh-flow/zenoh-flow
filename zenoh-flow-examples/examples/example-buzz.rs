@@ -21,7 +21,7 @@ use zenoh_flow::{
     Component, StateTrait, Token, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule,
     ZFOperatorTrait,
 };
-use zenoh_flow::{downcast, Context, DataTrait};
+use zenoh_flow::{downcast, Context, Data};
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
 struct BuzzOperator;
@@ -41,8 +41,8 @@ impl ZFOperatorTrait for BuzzOperator {
         _context: &mut Context,
         dyn_state: &mut Box<dyn StateTrait>,
         inputs: &mut HashMap<zenoh_flow::PortId, ZFDataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn DataTrait>>> {
-        let mut results = HashMap::<zenoh_flow::PortId, Arc<dyn DataTrait>>::with_capacity(1);
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn Data>>> {
+        let mut results = HashMap::<zenoh_flow::PortId, Arc<dyn Data>>::with_capacity(1);
 
         let state = downcast!(BuzzState, dyn_state).unwrap();
         let (_, fizz) = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?;
@@ -98,7 +98,7 @@ impl ZFComponentOutputRule for BuzzOperator {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn StateTrait>,
-        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn DataTrait>>,
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }

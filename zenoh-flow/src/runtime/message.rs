@@ -14,7 +14,7 @@
 
 extern crate serde;
 
-use crate::{DataTrait, ZFComponentOutput, ZFError, ZFResult};
+use crate::{Data, ZFComponentOutput, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -25,7 +25,7 @@ pub enum ZFSerDeData {
     Serialized(Arc<Vec<u8>>),
     #[serde(skip_serializing, skip_deserializing)]
     // Deserialized data is never serialized directly
-    Deserialized(Arc<dyn DataTrait>),
+    Deserialized(Arc<dyn Data>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -46,7 +46,7 @@ impl ZFDataMessage {
         }
     }
 
-    pub fn new_deserialized(data: Arc<dyn DataTrait>, timestamp: Timestamp) -> Self {
+    pub fn new_deserialized(data: Arc<dyn Data>, timestamp: Timestamp) -> Self {
         Self {
             data: ZFSerDeData::Deserialized(data),
             timestamp,
