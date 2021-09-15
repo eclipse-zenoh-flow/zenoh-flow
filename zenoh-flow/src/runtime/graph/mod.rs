@@ -98,7 +98,7 @@ impl DataFlowGraph {
             outputs,
             uri: None,
             configuration,
-            runtime: String::from("self"),
+            runtime: "self".into(),
         };
         self.operators.push((
             self.graph.add_node(DataFlowNode::Operator(record.clone())),
@@ -124,7 +124,7 @@ impl DataFlowGraph {
             period: None,
             uri: None,
             configuration,
-            runtime: String::from("self"),
+            runtime: "self".into(),
         };
         self.operators.push((
             self.graph.add_node(DataFlowNode::Source(record.clone())),
@@ -149,7 +149,7 @@ impl DataFlowGraph {
             input,
             uri: None,
             configuration,
-            runtime: String::from("self"),
+            runtime: "self".into(),
         };
         self.operators.push((
             self.graph.add_node(DataFlowNode::Sink(record.clone())),
@@ -234,7 +234,7 @@ impl DataFlowGraph {
         let hlc = Arc::new(uhlc::HLC::default());
 
         for (_, op) in &self.operators {
-            if op.get_runtime() != runtime {
+            if op.get_runtime().as_ref() != runtime {
                 continue;
             }
 
@@ -307,7 +307,7 @@ impl DataFlowGraph {
         // Connects the operators via our FIFOs
 
         for (idx, up_op) in &self.operators {
-            if up_op.get_runtime() != runtime {
+            if up_op.get_runtime().as_ref() != runtime {
                 continue;
             }
 

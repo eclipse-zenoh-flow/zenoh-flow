@@ -22,7 +22,7 @@ use crate::model::operator::{
 };
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{OperatorId, ZFError, ZFResult, ZFRuntimeID};
+use crate::types::{OperatorId, RuntimeId, ZFError, ZFResult};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -56,7 +56,7 @@ impl DataFlowDescriptor {
         serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
-    pub fn get_mapping(&self, id: &str) -> Option<ZFRuntimeID> {
+    pub fn get_mapping(&self, id: &str) -> Option<RuntimeId> {
         match &self.mapping {
             Some(mapping) => mapping
                 .iter()
@@ -73,7 +73,7 @@ impl DataFlowDescriptor {
         }
     }
 
-    pub fn get_runtimes(&self) -> Vec<ZFRuntimeID> {
+    pub fn get_runtimes(&self) -> Vec<RuntimeId> {
         let mut runtimes = HashSet::new();
 
         match &self.mapping {
@@ -105,7 +105,7 @@ impl Eq for DataFlowDescriptor {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Mapping {
     pub id: OperatorId,
-    pub runtime: ZFRuntimeID,
+    pub runtime: RuntimeId,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -138,7 +138,7 @@ impl DataFlowRecord {
         serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
-    pub fn find_component_runtime(&self, id: &str) -> Option<ZFRuntimeID> {
+    pub fn find_component_runtime(&self, id: &str) -> Option<RuntimeId> {
         match self.get_operator(id) {
             Some(o) => Some(o.runtime),
             None => match self.get_source(id) {

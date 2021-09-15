@@ -14,6 +14,8 @@
 
 #![allow(clippy::manual_async_fn)]
 
+use std::sync::Arc;
+
 use crate::{
     model::{
         dataflow::DataFlowRecord,
@@ -52,6 +54,8 @@ pub async fn map_to_infrastructure(
 ) -> ZFResult<DataFlowDescriptor> {
     log::debug!("[Dataflow mapping] Begin mapping for: {}", descriptor.flow);
 
+    let runtime_id: Arc<str> = runtime.into();
+
     // Initial "stupid" mapping, if an operator is not mapped, we map to the local runtime.
     // function is async because it could involve other nodes.
 
@@ -63,7 +67,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).to_string(),
+                    runtime: runtime_id.clone(),
                 };
                 mappings.push(mapping);
             }
@@ -76,7 +80,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).to_string(),
+                    runtime: runtime_id.clone(),
                 };
                 mappings.push(mapping);
             }
@@ -89,7 +93,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).to_string(),
+                    runtime: runtime_id.clone(),
                 };
                 mappings.push(mapping);
             }
@@ -114,7 +118,7 @@ pub enum ZFRuntimeStatusKind {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFRuntimeInfo {
     pub id: Uuid,
-    pub name: String,
+    pub name: Arc<str>,
     pub tags: Vec<String>,
     pub status: ZFRuntimeStatusKind,
     // Do we need/want also RAM usage?

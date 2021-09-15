@@ -45,7 +45,7 @@ pub struct Runtime {
     pub store: ZFDataStore,
     pub state: Arc<Mutex<RTState>>,
     pub runtime_uuid: Uuid,
-    pub runtime_name: String,
+    pub runtime_name: Arc<str>,
 }
 
 impl Runtime {
@@ -65,7 +65,7 @@ impl Runtime {
             zn,
             store: ZFDataStore::new(z),
             runtime_uuid,
-            runtime_name,
+            runtime_name: runtime_name.into(),
             state,
         }
     }

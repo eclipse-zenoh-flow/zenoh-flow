@@ -23,7 +23,7 @@ use uhlc::Timestamp;
 
 pub type OperatorId = Arc<str>;
 pub type PortId = Arc<str>;
-pub type ZFRuntimeID = String;
+pub type RuntimeId = Arc<str>;
 
 pub type ZFResult<T> = Result<T, ZFError>;
 

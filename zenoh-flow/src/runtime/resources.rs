@@ -328,7 +328,7 @@ impl ZFDataStore {
             match &kv.value {
                 zenoh::Value::Raw(_, buf) => {
                     let ni = deserialize_data::<ZFRuntimeInfo>(&buf.to_vec())?;
-                    if ni.name == rtid {
+                    if ni.name.as_ref() == rtid {
                         return Ok(ni);
                     }
                 }

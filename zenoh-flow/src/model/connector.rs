@@ -14,7 +14,7 @@
 
 use crate::model::link::ZFPortDescriptor;
 use crate::serde::{Deserialize, Serialize};
-use crate::{OperatorId, ZFRuntimeID};
+use crate::{OperatorId, RuntimeId};
 
 #[derive(PartialEq, Serialize, Deserialize, Debug, Clone)]
 pub enum ZFConnectorKind {
@@ -37,7 +37,7 @@ pub struct ZFConnectorRecord {
     pub id: OperatorId,
     pub resource: String,
     pub link_id: ZFPortDescriptor,
-    pub runtime: ZFRuntimeID,
+    pub runtime: RuntimeId,
 }
 
 impl std::fmt::Display for ZFConnectorRecord {

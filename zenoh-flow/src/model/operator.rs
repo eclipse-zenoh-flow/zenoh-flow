@@ -14,7 +14,7 @@
 
 use crate::model::link::ZFPortDescriptor;
 use crate::model::period::ZFPeriodDescriptor;
-use crate::types::{OperatorId, ZFRuntimeID};
+use crate::types::{OperatorId, RuntimeId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -26,7 +26,7 @@ pub struct ZFSinkDescriptor {
     pub input: ZFPortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<ZFRuntimeID>, // to be removed
+    pub runtime: Option<RuntimeId>, // to be removed
 }
 
 impl std::fmt::Display for ZFSinkDescriptor {
@@ -42,7 +42,7 @@ pub struct ZFSourceDescriptor {
     pub period: Option<ZFPeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<ZFRuntimeID>, // to be removed
+    pub runtime: Option<RuntimeId>, // to be removed
 }
 
 impl std::fmt::Display for ZFSourceDescriptor {
@@ -58,7 +58,7 @@ pub struct ZFOperatorDescriptor {
     pub outputs: Vec<ZFPortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<ZFRuntimeID>, // to be removed
+    pub runtime: Option<RuntimeId>, // to be removed
 }
 
 impl std::fmt::Display for ZFOperatorDescriptor {
@@ -75,7 +75,7 @@ pub struct ZFSinkRecord {
     pub input: ZFPortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: ZFRuntimeID,
+    pub runtime: RuntimeId,
 }
 
 impl std::fmt::Display for ZFSinkRecord {
@@ -101,7 +101,7 @@ pub struct ZFSourceRecord {
     pub period: Option<ZFPeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: ZFRuntimeID,
+    pub runtime: RuntimeId,
 }
 
 impl std::fmt::Display for ZFSourceRecord {
@@ -127,7 +127,7 @@ pub struct ZFOperatorRecord {
     pub outputs: Vec<ZFPortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: ZFRuntimeID,
+    pub runtime: RuntimeId,
 }
 
 impl std::fmt::Display for ZFOperatorRecord {
