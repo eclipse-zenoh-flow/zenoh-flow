@@ -23,12 +23,12 @@ use libloading::Library;
 use std::collections::HashMap;
 use uhlc::HLC;
 
-pub type ZFOperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
+pub type OperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
 
 pub struct OperatorDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: ZFOperatorRegisterFn,
+    pub register: OperatorRegisterFn,
 }
 
 pub type OperatorIO = (
