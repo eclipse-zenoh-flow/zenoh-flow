@@ -18,7 +18,7 @@ use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    Component, InputRule, Operator, OutputRule, State, Token, ZFComponentOutput,
+    Component, ComponentOutput, InputRule, Operator, OutputRule, State, Token,
 };
 use zenoh_flow::{downcast, Context, Data};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -98,7 +98,7 @@ impl OutputRule for BuzzOperator {
         _context: &mut Context,
         state: &mut Box<dyn State>,
         outputs: &HashMap<zenoh_flow::PortId, Arc<dyn Data>>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }

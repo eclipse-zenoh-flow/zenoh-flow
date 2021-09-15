@@ -42,7 +42,7 @@ impl Default for Context {
 }
 
 #[derive(Debug, Clone)]
-pub enum ZFComponentOutput {
+pub enum ComponentOutput {
     Data(Arc<dyn Data>),
     // TODO Users should not have access to all control messages. When implementing the control
     // messages change this to an enum with a "limited scope".
@@ -219,10 +219,10 @@ impl State for EmptyState {
 pub fn default_output_rule(
     _state: &mut Box<dyn State>,
     outputs: &HashMap<PortId, Arc<dyn Data>>,
-) -> ZFResult<HashMap<PortId, ZFComponentOutput>> {
+) -> ZFResult<HashMap<PortId, ComponentOutput>> {
     let mut results = HashMap::with_capacity(outputs.len());
     for (k, v) in outputs {
-        results.insert(k.clone(), ZFComponentOutput::Data(v.clone()));
+        results.insert(k.clone(), ComponentOutput::Data(v.clone()));
     }
 
     Ok(results)

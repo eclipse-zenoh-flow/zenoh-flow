@@ -14,7 +14,7 @@
 
 extern crate serde;
 
-use crate::{Data, ZFComponentOutput, ZFError, ZFResult};
+use crate::{ComponentOutput, Data, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -68,10 +68,10 @@ pub enum ZFMessage {
 }
 
 impl ZFMessage {
-    pub fn from_component_output(output: ZFComponentOutput, timestamp: Timestamp) -> Self {
+    pub fn from_component_output(output: ComponentOutput, timestamp: Timestamp) -> Self {
         match output {
-            ZFComponentOutput::Control(c) => Self::Control(c),
-            ZFComponentOutput::Data(d) => Self::Data(DataMessage::new_deserialized(d, timestamp)),
+            ComponentOutput::Control(c) => Self::Control(c),
+            ComponentOutput::Data(d) => Self::Data(DataMessage::new_deserialized(d, timestamp)),
         }
     }
 

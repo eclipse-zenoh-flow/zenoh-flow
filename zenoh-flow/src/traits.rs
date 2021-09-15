@@ -13,7 +13,7 @@
 //
 
 use crate::runtime::message::DataMessage;
-use crate::{Context, PortId, Token, ZFComponentOutput, ZFResult};
+use crate::{ComponentOutput, Context, PortId, Token, ZFResult};
 use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::any::Any;
@@ -63,7 +63,7 @@ pub trait OutputRule {
         context: &mut Context,
         state: &mut Box<dyn State>,
         outputs: &HashMap<PortId, Arc<dyn Data>>,
-    ) -> ZFResult<HashMap<PortId, ZFComponentOutput>>;
+    ) -> ZFResult<HashMap<PortId, ComponentOutput>>;
 }
 
 pub trait Operator: Component + InputRule + OutputRule + Send + Sync {

@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::PortId;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, Component, Data,
-    InputRule, Operator, OutputRule, State, ZFComponentOutput, ZFResult,
+    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, Component,
+    ComponentOutput, Data, InputRule, Operator, OutputRule, State, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -72,7 +72,7 @@ impl OutputRule for SumAndSend {
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
         outputs: &HashMap<PortId, Arc<dyn Data>>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }

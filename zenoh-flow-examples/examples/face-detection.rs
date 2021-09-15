@@ -94,7 +94,7 @@ impl OutputRule for FaceDetection {
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
         outputs: &HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }
