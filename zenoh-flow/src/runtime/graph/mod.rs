@@ -36,7 +36,7 @@ use crate::runtime::runners::{
 use crate::{
     model::connector::ZFConnectorKind,
     model::dataflow::DataFlowRecord,
-    model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, ZFPortDescriptor},
+    model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor},
     model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord},
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
@@ -87,8 +87,8 @@ impl DataFlowGraph {
         &mut self,
         hlc: Arc<HLC>,
         id: OperatorId,
-        inputs: Vec<ZFPortDescriptor>,
-        outputs: Vec<ZFPortDescriptor>,
+        inputs: Vec<PortDescriptor>,
+        outputs: Vec<PortDescriptor>,
         operator: Arc<dyn Operator>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
@@ -114,7 +114,7 @@ impl DataFlowGraph {
         &mut self,
         hlc: Arc<HLC>,
         id: OperatorId,
-        output: ZFPortDescriptor,
+        output: PortDescriptor,
         source: Arc<dyn Source>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
@@ -140,7 +140,7 @@ impl DataFlowGraph {
     pub fn add_static_sink(
         &mut self,
         id: OperatorId,
-        input: ZFPortDescriptor,
+        input: PortDescriptor,
         sink: Arc<dyn Sink>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {

@@ -13,7 +13,7 @@
 //
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
-use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, ZFPortDescriptor};
+use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::model::operator::{
     ZFOperatorDescriptor, ZFOperatorRecord, ZFSinkDescriptor, ZFSinkRecord, ZFSourceDescriptor,
     ZFSourceRecord,
@@ -284,7 +284,7 @@ impl DataFlowRecord {
                         kind: ZFConnectorKind::Sender,
                         id: sender_id.clone().into(),
                         resource: z_resource_name.clone(),
-                        link_id: ZFPortDescriptor {
+                        link_id: PortDescriptor {
                             port_id: l.from.output.clone(),
                             port_type: from_type,
                         },
@@ -318,7 +318,7 @@ impl DataFlowRecord {
                     kind: ZFConnectorKind::Receiver,
                     id: receiver_id.clone().into(),
                     resource: z_resource_name.clone(),
-                    link_id: ZFPortDescriptor {
+                    link_id: PortDescriptor {
                         port_id: l.to.input.clone(),
                         port_type: to_type,
                     },

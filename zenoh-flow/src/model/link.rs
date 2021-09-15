@@ -32,14 +32,14 @@ impl std::fmt::Display for LinkDescriptor {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ZFPortDescriptor {
+pub struct PortDescriptor {
     #[serde(alias = "id")]
     pub port_id: String,
     #[serde(alias = "type")]
     pub port_type: String,
 }
 
-impl std::fmt::Display for ZFPortDescriptor {
+impl std::fmt::Display for PortDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}:{}", self.port_id, self.port_type)
     }

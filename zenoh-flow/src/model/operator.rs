@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::model::link::ZFPortDescriptor;
+use crate::model::link::PortDescriptor;
 use crate::model::period::ZFPeriodDescriptor;
 use crate::types::{OperatorId, RuntimeId};
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,7 @@ use std::collections::HashMap;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkDescriptor {
     pub id: OperatorId,
-    pub input: ZFPortDescriptor,
+    pub input: PortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<RuntimeId>, // to be removed
@@ -38,7 +38,7 @@ impl std::fmt::Display for ZFSinkDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSourceDescriptor {
     pub id: OperatorId,
-    pub output: ZFPortDescriptor,
+    pub output: PortDescriptor,
     pub period: Option<ZFPeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
@@ -54,8 +54,8 @@ impl std::fmt::Display for ZFSourceDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFOperatorDescriptor {
     pub id: OperatorId,
-    pub inputs: Vec<ZFPortDescriptor>,
-    pub outputs: Vec<ZFPortDescriptor>,
+    pub inputs: Vec<PortDescriptor>,
+    pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<RuntimeId>, // to be removed
@@ -72,7 +72,7 @@ impl std::fmt::Display for ZFOperatorDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSinkRecord {
     pub id: OperatorId,
-    pub input: ZFPortDescriptor,
+    pub input: PortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: RuntimeId,
@@ -97,7 +97,7 @@ impl ZFSinkRecord {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFSourceRecord {
     pub id: OperatorId,
-    pub output: ZFPortDescriptor,
+    pub output: PortDescriptor,
     pub period: Option<ZFPeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
@@ -123,8 +123,8 @@ impl ZFSourceRecord {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFOperatorRecord {
     pub id: OperatorId,
-    pub inputs: Vec<ZFPortDescriptor>,
-    pub outputs: Vec<ZFPortDescriptor>,
+    pub inputs: Vec<PortDescriptor>,
+    pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: RuntimeId,

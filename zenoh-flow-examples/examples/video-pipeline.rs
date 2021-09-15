@@ -23,7 +23,7 @@ use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
 use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast, get_input, model::link::ZFPortDescriptor,
+    default_input_rule, default_output_rule, downcast, get_input, model::link::PortDescriptor,
     zenoh_flow_derive::ZFState, zf_data, Component, Data, InputRule, OutputRule, PortId, Sink,
     Source, ZFError,
 };
@@ -231,7 +231,7 @@ async fn main() {
         .add_static_source(
             hlc,
             "camera-source".into(),
-            ZFPortDescriptor {
+            PortDescriptor {
                 port_id: String::from(SOURCE),
                 port_type: String::from("image"),
             },
@@ -243,7 +243,7 @@ async fn main() {
     zf_graph
         .add_static_sink(
             "video-sink".into(),
-            ZFPortDescriptor {
+            PortDescriptor {
                 port_id: String::from(INPUT),
                 port_type: String::from("image"),
             },

@@ -25,7 +25,7 @@ use zenoh_flow::{
     default_input_rule, default_output_rule, Component, Context, Data, InputRule, OutputRule,
     PortId, Sink, Source,
 };
-use zenoh_flow::{model::link::ZFPortDescriptor, zf_data, zf_empty_state};
+use zenoh_flow::{model::link::PortDescriptor, zf_data, zf_empty_state};
 use zenoh_flow::{State, ZFResult};
 use zenoh_flow_examples::ZFUsize;
 
@@ -144,7 +144,7 @@ async fn main() {
         .add_static_source(
             hlc,
             "counter-source".into(),
-            ZFPortDescriptor {
+            PortDescriptor {
                 port_id: String::from(SOURCE),
                 port_type: String::from("int"),
             },
@@ -156,7 +156,7 @@ async fn main() {
     zf_graph
         .add_static_sink(
             "generic-sink".into(),
-            ZFPortDescriptor {
+            PortDescriptor {
                 port_id: String::from(SOURCE),
                 port_type: String::from("int"),
             },

@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::model::link::ZFPortDescriptor;
+use crate::model::link::PortDescriptor;
 use crate::serde::{Deserialize, Serialize};
 use crate::{OperatorId, RuntimeId};
 
@@ -36,7 +36,7 @@ pub struct ZFConnectorRecord {
     pub kind: ZFConnectorKind,
     pub id: OperatorId,
     pub resource: String,
-    pub link_id: ZFPortDescriptor,
+    pub link_id: PortDescriptor,
     pub runtime: RuntimeId,
 }
 
