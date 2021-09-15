@@ -22,12 +22,12 @@ use std::fmt::Debug;
 
 // NOTE: This trait is separate from `ZFDataTrait` so that we can provide a `#derive` macro to
 // automatically implement it for the users.
-pub trait ZFDowncastAny {
+pub trait DowncastAny {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
-pub trait Data: ZFDowncastAny + Debug + Send + Sync {
+pub trait Data: DowncastAny + Debug + Send + Sync {
     fn try_serialize(&self) -> ZFResult<Vec<u8>>;
 }
 
