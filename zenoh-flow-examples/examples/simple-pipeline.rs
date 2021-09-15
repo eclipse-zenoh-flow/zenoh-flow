@@ -95,7 +95,7 @@ impl Sink for ExampleGenericSink {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn zenoh_flow::State>,
-        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::ZFDataMessage>,
+        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
     ) -> zenoh_flow::ZFResult<()> {
         println!("#######");
         for (k, v) in inputs {

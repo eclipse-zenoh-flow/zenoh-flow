@@ -134,7 +134,7 @@ impl Operator for ObjDetection {
         &self,
         _context: &mut Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
-        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::ZFDataMessage>,
+        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
         let scale = 1.0 / 255.0;
         let mean = core::Scalar::new(0f64, 0f64, 0f64, 0f64);

@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::runtime::message::ZFDataMessage;
+use crate::runtime::message::DataMessage;
 use crate::{Context, PortId, Token, ZFComponentOutput, ZFResult};
 use async_std::sync::Arc;
 use async_trait::async_trait;
@@ -71,7 +71,7 @@ pub trait Operator: Component + InputRule + OutputRule + Send + Sync {
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
-        inputs: &mut HashMap<PortId, ZFDataMessage>,
+        inputs: &mut HashMap<PortId, DataMessage>,
     ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>>;
 }
 
@@ -90,6 +90,6 @@ pub trait Sink: Component + InputRule + Send + Sync {
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
-        inputs: &mut HashMap<PortId, ZFDataMessage>,
+        inputs: &mut HashMap<PortId, DataMessage>,
     ) -> ZFResult<()>;
 }

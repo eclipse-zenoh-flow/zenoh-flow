@@ -13,7 +13,7 @@
 //
 
 use crate::async_std::sync::Arc;
-use crate::runtime::message::{ZFControlMessage, ZFDataMessage, ZFMessage};
+use crate::runtime::message::{DataMessage, ZFControlMessage, ZFMessage};
 use crate::serde::{Deserialize, Serialize};
 use crate::{Data, State};
 
@@ -63,7 +63,7 @@ pub struct NotReadyToken;
 
 #[derive(Debug, Clone)]
 pub struct ReadyToken {
-    pub data: ZFDataMessage,
+    pub data: DataMessage,
     pub action: TokenAction,
 }
 
@@ -74,7 +74,7 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn new_ready(data: ZFDataMessage) -> Self {
+    pub fn new_ready(data: DataMessage) -> Self {
         Self::Ready(ReadyToken {
             data,
             action: TokenAction::Consume,
@@ -136,7 +136,7 @@ impl Token {
         }
     }
 
-    pub fn data(&self) -> ZFResult<ZFDataMessage> {
+    pub fn data(&self) -> ZFResult<DataMessage> {
         match self {
             Self::Ready(ready) => Ok(ready.data.clone()),
             _ => Err(ZFError::GenericError),
@@ -150,7 +150,7 @@ impl Token {
         }
     }
 
-    pub fn split(self) -> (Option<ZFDataMessage>, TokenAction) {
+    pub fn split(self) -> (Option<DataMessage>, TokenAction) {
         match self {
             Self::Ready(ready) => (Some(ready.data), ready.action),
             Self::NotReady => (None, TokenAction::Wait),
@@ -168,7 +168,7 @@ impl From<Arc<ZFMessage>> for Token {
 }
 
 #[derive(Debug, Clone)]
-pub struct ZFInput(HashMap<String, ZFDataMessage>);
+pub struct ZFInput(HashMap<String, DataMessage>);
 
 impl Default for ZFInput {
     fn default() -> Self {
@@ -181,22 +181,22 @@ impl ZFInput {
         Self(HashMap::new())
     }
 
-    pub fn insert(&mut self, id: String, data: ZFDataMessage) -> Option<ZFDataMessage> {
+    pub fn insert(&mut self, id: String, data: DataMessage) -> Option<DataMessage> {
         self.0.insert(id, data)
     }
 
-    pub fn get(&self, id: &str) -> Option<&ZFDataMessage> {
+    pub fn get(&self, id: &str) -> Option<&DataMessage> {
         self.0.get(id)
     }
 
-    pub fn get_mut(&mut self, id: &str) -> Option<&mut ZFDataMessage> {
+    pub fn get_mut(&mut self, id: &str) -> Option<&mut DataMessage> {
         self.0.get_mut(id)
     }
 }
 
 impl<'a> IntoIterator for &'a ZFInput {
-    type Item = (&'a String, &'a ZFDataMessage);
-    type IntoIter = std::collections::hash_map::Iter<'a, String, ZFDataMessage>;
+    type Item = (&'a String, &'a DataMessage);
+    type IntoIter = std::collections::hash_map::Iter<'a, String, DataMessage>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()

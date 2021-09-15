@@ -14,7 +14,7 @@
 
 use async_std::sync::Arc;
 use std::collections::HashMap;
-use zenoh_flow::runtime::message::ZFDataMessage;
+use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
@@ -39,7 +39,7 @@ impl Operator for BuzzOperator {
         &self,
         _context: &mut Context,
         dyn_state: &mut Box<dyn State>,
-        inputs: &mut HashMap<zenoh_flow::PortId, ZFDataMessage>,
+        inputs: &mut HashMap<zenoh_flow::PortId, DataMessage>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn Data>>> {
         let mut results = HashMap::<zenoh_flow::PortId, Arc<dyn Data>>::with_capacity(1);
 

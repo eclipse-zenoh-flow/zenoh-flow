@@ -14,7 +14,7 @@
 
 use async_std::sync::Arc;
 use std::collections::HashMap;
-use zenoh_flow::runtime::message::ZFDataMessage;
+use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::Token;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
@@ -55,7 +55,7 @@ impl Operator for FizzOperator {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn State>,
-        inputs: &mut HashMap<PortId, ZFDataMessage>,
+        inputs: &mut HashMap<PortId, DataMessage>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
         let mut results = HashMap::<PortId, Arc<dyn Data>>::with_capacity(2);
 

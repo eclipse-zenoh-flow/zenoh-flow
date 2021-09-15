@@ -15,7 +15,7 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
-use zenoh_flow::runtime::message::ZFDataMessage;
+use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::Token;
 use zenoh_flow::{
@@ -53,7 +53,7 @@ impl Sink for GenericSink {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn State>,
-        inputs: &mut HashMap<PortId, ZFDataMessage>,
+        inputs: &mut HashMap<PortId, DataMessage>,
     ) -> ZFResult<()> {
         let state = downcast!(SinkState, _state).unwrap();
 

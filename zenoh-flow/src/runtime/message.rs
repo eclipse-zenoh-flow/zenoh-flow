@@ -29,12 +29,12 @@ pub enum ZFSerDeData {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ZFDataMessage {
+pub struct DataMessage {
     pub data: ZFSerDeData,
     pub timestamp: Timestamp,
 }
 
-impl ZFDataMessage {
+impl DataMessage {
     pub fn new(data: ZFSerDeData, timestamp: Timestamp) -> Self {
         Self { data, timestamp }
     }
@@ -63,7 +63,7 @@ pub enum ZFControlMessage {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ZFMessage {
-    Data(ZFDataMessage),
+    Data(DataMessage),
     Control(ZFControlMessage),
 }
 
@@ -71,7 +71,7 @@ impl ZFMessage {
     pub fn from_component_output(output: ZFComponentOutput, timestamp: Timestamp) -> Self {
         match output {
             ZFComponentOutput::Control(c) => Self::Control(c),
-            ZFComponentOutput::Data(d) => Self::Data(ZFDataMessage::new_deserialized(d, timestamp)),
+            ZFComponentOutput::Data(d) => Self::Data(DataMessage::new_deserialized(d, timestamp)),
         }
     }
 
@@ -89,7 +89,7 @@ impl ZFMessage {
                         de.try_serialize()
                             .map_err(|_| ZFError::SerializationError)?,
                     );
-                    let serialized_message = ZFMessage::Data(ZFDataMessage::new_serialized(
+                    let serialized_message = ZFMessage::Data(DataMessage::new_serialized(
                         serialized_data,
                         data_message.timestamp,
                     ));
