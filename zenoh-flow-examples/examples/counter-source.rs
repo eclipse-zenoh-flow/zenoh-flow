@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use zenoh_flow::{default_output_rule, PortId, ZFComponent, ZFComponentOutputRule, ZFSourceTrait};
 use zenoh_flow::{
-    types::ZFResult, zenoh_flow_derive::ZFState, zf_data, zf_empty_state, ZFDataTrait, ZFStateTrait,
+    types::ZFResult, zenoh_flow_derive::ZFState, zf_data, zf_empty_state, DataTrait, ZFStateTrait,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -35,8 +35,8 @@ impl ZFSourceTrait for CountSource {
         &self,
         _context: &mut zenoh_flow::Context,
         _state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn ZFDataTrait>>> {
-        let mut results: HashMap<PortId, Arc<dyn ZFDataTrait>> = HashMap::new();
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn DataTrait>>> {
+        let mut results: HashMap<PortId, Arc<dyn DataTrait>> = HashMap::new();
         let d = ZFUsize(COUNTER.fetch_add(1, Ordering::AcqRel));
         results.insert(SOURCE.into(), zf_data!(d));
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
@@ -49,7 +49,7 @@ impl ZFComponentOutputRule for CountSource {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        outputs: &HashMap<PortId, Arc<dyn ZFDataTrait>>,
+        outputs: &HashMap<PortId, Arc<dyn DataTrait>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }

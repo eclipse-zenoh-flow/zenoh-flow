@@ -22,8 +22,8 @@ use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::{
-    default_input_rule, default_output_rule, Context, PortId, ZFComponent, ZFComponentInputRule,
-    ZFComponentOutputRule, ZFDataTrait, ZFSinkTrait, ZFSourceTrait,
+    default_input_rule, default_output_rule, Context, DataTrait, PortId, ZFComponent,
+    ZFComponentInputRule, ZFComponentOutputRule, ZFSinkTrait, ZFSourceTrait,
 };
 use zenoh_flow::{model::link::ZFPortDescriptor, zf_data, zf_empty_state};
 use zenoh_flow::{ZFResult, ZFStateTrait};
@@ -54,8 +54,8 @@ impl ZFSourceTrait for CountSource {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::ZFDataTrait>>> {
-        let mut results: HashMap<PortId, Arc<dyn ZFDataTrait>> = HashMap::new();
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::DataTrait>>> {
+        let mut results: HashMap<PortId, Arc<dyn DataTrait>> = HashMap::new();
         let d = ZFUsize(COUNTER.fetch_add(1, Ordering::AcqRel));
         results.insert(SOURCE.into(), zf_data!(d));
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
@@ -68,7 +68,7 @@ impl ZFComponentOutputRule for CountSource {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        outputs: &HashMap<PortId, Arc<dyn ZFDataTrait>>,
+        outputs: &HashMap<PortId, Arc<dyn DataTrait>>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }

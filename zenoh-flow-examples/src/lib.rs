@@ -3,13 +3,13 @@ use std::cell::RefCell;
 use std::convert::TryInto;
 use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::zenoh_flow_derive::{ZFData, ZFState};
-use zenoh_flow::{ZFDataTrait, ZFDeserializable, ZFError, ZFResult};
+use zenoh_flow::{DataTrait, ZFDeserializable, ZFError, ZFResult};
 // We may want to provide some "built-in" types
 
 #[derive(Debug, Clone, ZFData)]
 pub struct ZFString(pub String);
 
-impl ZFDataTrait for ZFString {
+impl DataTrait for ZFString {
     fn try_serialize(&self) -> zenoh_flow::ZFResult<Vec<u8>> {
         Ok(self.0.as_bytes().to_vec())
     }
@@ -41,7 +41,7 @@ impl ZFDeserializable for ZFString {
 #[derive(Debug, Clone, ZFData)]
 pub struct ZFUsize(pub usize);
 
-impl ZFDataTrait for ZFUsize {
+impl DataTrait for ZFUsize {
     fn try_serialize(&self) -> ZFResult<Vec<u8>> {
         Ok(self.0.to_ne_bytes().to_vec())
     }
@@ -64,7 +64,7 @@ pub struct ZFEmptyState;
 #[derive(Debug, Clone, ZFData)]
 pub struct ZFBytes(pub Vec<u8>);
 
-impl ZFDataTrait for ZFBytes {
+impl DataTrait for ZFBytes {
     fn try_serialize(&self) -> ZFResult<Vec<u8>> {
         Ok(self.0.clone())
     }

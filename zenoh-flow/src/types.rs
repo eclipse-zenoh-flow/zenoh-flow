@@ -15,7 +15,7 @@
 use crate::async_std::sync::Arc;
 use crate::runtime::message::{ZFControlMessage, ZFDataMessage, ZFMessage};
 use crate::serde::{Deserialize, Serialize};
-use crate::{ZFDataTrait, ZFStateTrait};
+use crate::{DataTrait, ZFStateTrait};
 
 use std::collections::HashMap;
 use std::convert::From;
@@ -43,7 +43,7 @@ impl Default for Context {
 
 #[derive(Debug, Clone)]
 pub enum ZFComponentOutput {
-    Data(Arc<dyn ZFDataTrait>),
+    Data(Arc<dyn DataTrait>),
     // TODO Users should not have access to all control messages. When implementing the control
     // messages change this to an enum with a "limited scope".
     Control(ZFControlMessage),
@@ -218,7 +218,7 @@ impl ZFStateTrait for EmptyState {
 
 pub fn default_output_rule(
     _state: &mut Box<dyn ZFStateTrait>,
-    outputs: &HashMap<PortId, Arc<dyn ZFDataTrait>>,
+    outputs: &HashMap<PortId, Arc<dyn DataTrait>>,
 ) -> ZFResult<HashMap<PortId, ZFComponentOutput>> {
     let mut results = HashMap::with_capacity(outputs.len());
     for (k, v) in outputs {

@@ -27,7 +27,7 @@ pub trait ZFDowncastAny {
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
-pub trait ZFDataTrait: ZFDowncastAny + Debug + Send + Sync {
+pub trait DataTrait: ZFDowncastAny + Debug + Send + Sync {
     fn try_serialize(&self) -> ZFResult<Vec<u8>>;
 }
 
@@ -62,7 +62,7 @@ pub trait ZFComponentOutputRule {
         &self,
         context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
-        outputs: &HashMap<PortId, Arc<dyn ZFDataTrait>>,
+        outputs: &HashMap<PortId, Arc<dyn DataTrait>>,
     ) -> ZFResult<HashMap<PortId, ZFComponentOutput>>;
 }
 
@@ -74,7 +74,7 @@ pub trait ZFOperatorTrait:
         context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
         inputs: &mut HashMap<PortId, ZFDataMessage>,
-    ) -> ZFResult<HashMap<PortId, Arc<dyn ZFDataTrait>>>;
+    ) -> ZFResult<HashMap<PortId, Arc<dyn DataTrait>>>;
 }
 
 #[async_trait]
@@ -83,7 +83,7 @@ pub trait ZFSourceTrait: ZFComponent + ZFComponentOutputRule + Send + Sync {
         &self,
         context: &mut Context,
         state: &mut Box<dyn ZFStateTrait>,
-    ) -> ZFResult<HashMap<PortId, Arc<dyn ZFDataTrait>>>;
+    ) -> ZFResult<HashMap<PortId, Arc<dyn DataTrait>>>;
 }
 
 #[async_trait]

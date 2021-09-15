@@ -16,8 +16,8 @@ use async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, PortId, ZFComponent,
-    ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule, ZFDataTrait, ZFOperatorTrait,
+    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, DataTrait, PortId,
+    ZFComponent, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule, ZFOperatorTrait,
     ZFResult, ZFStateTrait,
 };
 use zenoh_flow_examples::ZFUsize;
@@ -39,8 +39,8 @@ impl ZFOperatorTrait for SumAndSend {
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::ZFDataMessage>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn ZFDataTrait>>> {
-        let mut results: HashMap<PortId, Arc<dyn ZFDataTrait>> = HashMap::new();
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn DataTrait>>> {
+        let mut results: HashMap<PortId, Arc<dyn DataTrait>> = HashMap::new();
 
         // Downcasting state to right type
         let mut state = downcast_mut!(SumAndSendState, dyn_state).unwrap();
@@ -71,7 +71,7 @@ impl ZFComponentOutputRule for SumAndSend {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        outputs: &HashMap<PortId, Arc<dyn ZFDataTrait>>,
+        outputs: &HashMap<PortId, Arc<dyn DataTrait>>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)
     }
