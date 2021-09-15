@@ -19,7 +19,7 @@ use zenoh_flow::{
     default_input_rule, downcast, get_input,
     types::{Token, ZFResult},
     zenoh_flow_derive::ZFState,
-    PortId, ZFComponent, ZFComponentInputRule, ZFSinkTrait, ZFStateTrait,
+    PortId, StateTrait, ZFComponent, ZFComponentInputRule, ZFSinkTrait,
 };
 
 use zenoh::net::config;
@@ -49,11 +49,11 @@ impl ZFComponent for ExampleGenericZenohSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    ) -> Box<dyn zenoh_flow::StateTrait> {
         Box::new(ZSinkState::new())
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -62,7 +62,7 @@ impl ZFComponentInputRule for ExampleGenericZenohSink {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        state: &mut Box<dyn zenoh_flow::StateTrait>,
         tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
@@ -74,7 +74,7 @@ impl ZFSinkTrait for ExampleGenericZenohSink {
     async fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        dyn_state: &mut Box<dyn zenoh_flow::StateTrait>,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> ZFResult<()> {
         let state = downcast!(ZSinkState, dyn_state).unwrap();

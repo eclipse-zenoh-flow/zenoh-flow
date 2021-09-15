@@ -37,22 +37,22 @@ pub trait Deserializable {
         Self: Sized;
 }
 
-pub trait ZFStateTrait: Debug + Send + Sync {
+pub trait StateTrait: Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
 pub trait ZFComponent {
-    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn ZFStateTrait>;
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn StateTrait>;
 
-    fn clean(&self, state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()>;
+    fn clean(&self, state: &mut Box<dyn StateTrait>) -> ZFResult<()>;
 }
 
 pub trait ZFComponentInputRule {
     fn input_rule(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn ZFStateTrait>,
+        state: &mut Box<dyn StateTrait>,
         tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool>;
 }
@@ -61,7 +61,7 @@ pub trait ZFComponentOutputRule {
     fn output_rule(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn ZFStateTrait>,
+        state: &mut Box<dyn StateTrait>,
         outputs: &HashMap<PortId, Arc<dyn DataTrait>>,
     ) -> ZFResult<HashMap<PortId, ZFComponentOutput>>;
 }
@@ -72,7 +72,7 @@ pub trait ZFOperatorTrait:
     fn run(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn ZFStateTrait>,
+        state: &mut Box<dyn StateTrait>,
         inputs: &mut HashMap<PortId, ZFDataMessage>,
     ) -> ZFResult<HashMap<PortId, Arc<dyn DataTrait>>>;
 }
@@ -82,7 +82,7 @@ pub trait ZFSourceTrait: ZFComponent + ZFComponentOutputRule + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn ZFStateTrait>,
+        state: &mut Box<dyn StateTrait>,
     ) -> ZFResult<HashMap<PortId, Arc<dyn DataTrait>>>;
 }
 
@@ -91,7 +91,7 @@ pub trait ZFSinkTrait: ZFComponent + ZFComponentInputRule + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn ZFStateTrait>,
+        state: &mut Box<dyn StateTrait>,
         inputs: &mut HashMap<PortId, ZFDataMessage>,
     ) -> ZFResult<()>;
 }

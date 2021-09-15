@@ -18,8 +18,8 @@ use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
-    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, Token, ZFComponent,
-    ZFComponentInputRule, ZFStateTrait,
+    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, StateTrait, Token,
+    ZFComponent, ZFComponentInputRule,
 };
 use zenoh_flow::{Context, PortId, ZFSinkTrait};
 
@@ -51,7 +51,7 @@ impl ZFSinkTrait for GenericSink {
     async fn run(
         &self,
         _context: &mut Context,
-        _state: &mut Box<dyn ZFStateTrait>,
+        _state: &mut Box<dyn StateTrait>,
         inputs: &mut HashMap<PortId, ZFDataMessage>,
     ) -> ZFResult<()> {
         let state = downcast!(SinkState, _state).unwrap();
@@ -85,11 +85,11 @@ impl ZFSinkTrait for GenericSink {
 }
 
 impl ZFComponent for GenericSink {
-    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn ZFStateTrait> {
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn StateTrait> {
         Box::new(SinkState::new(configuration))
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
         let state = downcast_mut!(SinkState, _state).unwrap();
 
         match &mut state.file {
@@ -106,7 +106,7 @@ impl ZFComponentInputRule for GenericSink {
     fn input_rule(
         &self,
         _context: &mut Context,
-        state: &mut Box<dyn ZFStateTrait>,
+        state: &mut Box<dyn StateTrait>,
         tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)

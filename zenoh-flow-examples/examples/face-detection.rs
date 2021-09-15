@@ -16,8 +16,8 @@ use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, runtime::message::ZFDataMessage,
-    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, DataTrait, PortId, ZFComponent,
-    ZFComponentInputRule, ZFComponentOutputRule, ZFOperatorTrait, ZFResult, ZFStateTrait,
+    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, DataTrait, PortId, StateTrait, ZFComponent,
+    ZFComponentInputRule, ZFComponentOutputRule, ZFOperatorTrait, ZFResult,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -68,11 +68,11 @@ impl ZFComponent for FaceDetection {
     fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    ) -> Box<dyn zenoh_flow::StateTrait> {
         Box::new(FDState::new(configuration))
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -81,7 +81,7 @@ impl ZFComponentInputRule for FaceDetection {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        state: &mut Box<dyn zenoh_flow::StateTrait>,
         tokens: &mut HashMap<zenoh_flow::PortId, zenoh_flow::Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
@@ -92,7 +92,7 @@ impl ZFComponentOutputRule for FaceDetection {
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        state: &mut Box<dyn zenoh_flow::StateTrait>,
         outputs: &HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::DataTrait>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
@@ -103,7 +103,7 @@ impl ZFOperatorTrait for FaceDetection {
     fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        dyn_state: &mut Box<dyn ZFStateTrait>,
+        dyn_state: &mut Box<dyn StateTrait>,
         inputs: &mut HashMap<zenoh_flow::PortId, ZFDataMessage>,
     ) -> ZFResult<HashMap<PortId, Arc<dyn DataTrait>>> {
         let mut results: HashMap<zenoh_flow::PortId, Arc<dyn DataTrait>> = HashMap::new();

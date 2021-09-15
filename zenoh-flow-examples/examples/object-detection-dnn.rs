@@ -20,8 +20,8 @@ use std::{
     path::Path,
 };
 use zenoh_flow::{
-    default_input_rule, default_output_rule, Context, DataTrait, PortId, ZFComponent,
-    ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule, ZFOperatorTrait, ZFStateTrait,
+    default_input_rule, default_output_rule, Context, DataTrait, PortId, StateTrait, ZFComponent,
+    ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule, ZFOperatorTrait,
 };
 use zenoh_flow::{
     downcast, get_input,
@@ -98,11 +98,11 @@ impl ZFComponent for ObjDetection {
     fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    ) -> Box<dyn zenoh_flow::StateTrait> {
         Box::new(ODState::new(configuration))
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -111,7 +111,7 @@ impl ZFComponentInputRule for ObjDetection {
     fn input_rule(
         &self,
         _context: &mut Context,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        state: &mut Box<dyn zenoh_flow::StateTrait>,
         tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
@@ -122,7 +122,7 @@ impl ZFComponentOutputRule for ObjDetection {
     fn output_rule(
         &self,
         _context: &mut Context,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        state: &mut Box<dyn zenoh_flow::StateTrait>,
         outputs: &HashMap<PortId, Arc<dyn zenoh_flow::DataTrait>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)
@@ -133,7 +133,7 @@ impl ZFOperatorTrait for ObjDetection {
     fn run(
         &self,
         _context: &mut Context,
-        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        dyn_state: &mut Box<dyn zenoh_flow::StateTrait>,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::DataTrait>>> {
         let scale = 1.0 / 255.0;

@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    zf_empty_state, Token, ZFComponent, ZFComponentInputRule, ZFComponentOutput,
-    ZFComponentOutputRule, ZFOperatorTrait, ZFStateTrait,
+    zf_empty_state, StateTrait, Token, ZFComponent, ZFComponentInputRule, ZFComponentOutput,
+    ZFComponentOutputRule, ZFOperatorTrait,
 };
 use zenoh_flow::{Context, DataTrait, PortId};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -33,7 +33,7 @@ impl ZFComponentInputRule for FizzOperator {
     fn input_rule(
         &self,
         _context: &mut Context,
-        state: &mut Box<dyn ZFStateTrait>,
+        state: &mut Box<dyn StateTrait>,
         inputs: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, inputs)
@@ -41,14 +41,11 @@ impl ZFComponentInputRule for FizzOperator {
 }
 
 impl ZFComponent for FizzOperator {
-    fn initialize(
-        &self,
-        _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn ZFStateTrait> {
+    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> Box<dyn StateTrait> {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -57,7 +54,7 @@ impl ZFOperatorTrait for FizzOperator {
     fn run(
         &self,
         _context: &mut Context,
-        _state: &mut Box<dyn ZFStateTrait>,
+        _state: &mut Box<dyn StateTrait>,
         inputs: &mut HashMap<PortId, ZFDataMessage>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::DataTrait>>> {
         let mut results = HashMap::<PortId, Arc<dyn DataTrait>>::with_capacity(2);
@@ -81,7 +78,7 @@ impl ZFComponentOutputRule for FizzOperator {
     fn output_rule(
         &self,
         _context: &mut Context,
-        state: &mut Box<dyn ZFStateTrait>,
+        state: &mut Box<dyn StateTrait>,
         outputs: &HashMap<PortId, Arc<dyn DataTrait>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)

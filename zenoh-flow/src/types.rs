@@ -15,7 +15,7 @@
 use crate::async_std::sync::Arc;
 use crate::runtime::message::{ZFControlMessage, ZFDataMessage, ZFMessage};
 use crate::serde::{Deserialize, Serialize};
-use crate::{DataTrait, ZFStateTrait};
+use crate::{DataTrait, StateTrait};
 
 use std::collections::HashMap;
 use std::convert::From;
@@ -206,7 +206,7 @@ impl<'a> IntoIterator for &'a ZFInput {
 #[derive(Debug, Clone)]
 pub struct EmptyState;
 
-impl ZFStateTrait for EmptyState {
+impl StateTrait for EmptyState {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -217,7 +217,7 @@ impl ZFStateTrait for EmptyState {
 }
 
 pub fn default_output_rule(
-    _state: &mut Box<dyn ZFStateTrait>,
+    _state: &mut Box<dyn StateTrait>,
     outputs: &HashMap<PortId, Arc<dyn DataTrait>>,
 ) -> ZFResult<HashMap<PortId, ZFComponentOutput>> {
     let mut results = HashMap::with_capacity(outputs.len());
@@ -229,7 +229,7 @@ pub fn default_output_rule(
 }
 
 pub fn default_input_rule(
-    _state: &mut Box<dyn ZFStateTrait>,
+    _state: &mut Box<dyn StateTrait>,
     tokens: &mut HashMap<PortId, Token>,
 ) -> ZFResult<bool> {
     for token in tokens.values() {

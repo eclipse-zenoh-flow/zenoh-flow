@@ -17,7 +17,7 @@ use crate::model::operator::ZFOperatorRecord;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
-use crate::{Context, PortId, ZFOperatorTrait, ZFStateTrait};
+use crate::{Context, PortId, StateTrait, ZFOperatorTrait};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -45,7 +45,7 @@ pub type ZFOperatorIO = (
 pub struct ZFOperatorRunner {
     pub record: Arc<ZFOperatorRecord>,
     pub io: Arc<RwLock<ZFOperatorIO>>,
-    pub state: Arc<RwLock<Box<dyn ZFStateTrait>>>,
+    pub state: Arc<RwLock<Box<dyn StateTrait>>>,
     pub hlc: Arc<HLC>,
     pub operator: Arc<dyn ZFOperatorTrait>,
     pub lib: Arc<Option<Library>>,

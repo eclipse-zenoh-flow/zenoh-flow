@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::{
     default_output_rule, types::ZFResult, zf_data, zf_empty_state, Context, DataTrait, PortId,
-    ZFComponent, ZFComponentOutputRule, ZFSourceTrait, ZFStateTrait,
+    StateTrait, ZFComponent, ZFComponentOutputRule, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -30,11 +30,11 @@ impl ZFComponent for ExampleRandomSource {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    ) -> Box<dyn zenoh_flow::StateTrait> {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -43,7 +43,7 @@ impl ZFComponentOutputRule for ExampleRandomSource {
     fn output_rule(
         &self,
         _context: &mut Context,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        state: &mut Box<dyn zenoh_flow::StateTrait>,
         outputs: &HashMap<PortId, Arc<dyn zenoh_flow::DataTrait>>,
     ) -> ZFResult<HashMap<PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
@@ -55,7 +55,7 @@ impl ZFSourceTrait for ExampleRandomSource {
     async fn run(
         &self,
         _context: &mut Context,
-        _state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
+        _state: &mut Box<dyn zenoh_flow::StateTrait>,
     ) -> ZFResult<HashMap<PortId, Arc<dyn DataTrait>>> {
         let mut results: HashMap<PortId, Arc<dyn DataTrait>> = HashMap::with_capacity(1);
         results.insert(SOURCE.into(), zf_data!(ZFUsize(rand::random::<usize>())));

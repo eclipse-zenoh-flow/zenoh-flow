@@ -18,8 +18,8 @@ use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    Token, ZFComponent, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule,
-    ZFOperatorTrait, ZFStateTrait,
+    StateTrait, Token, ZFComponent, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule,
+    ZFOperatorTrait,
 };
 use zenoh_flow::{downcast, Context, DataTrait};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -39,7 +39,7 @@ impl ZFOperatorTrait for BuzzOperator {
     fn run(
         &self,
         _context: &mut Context,
-        dyn_state: &mut Box<dyn ZFStateTrait>,
+        dyn_state: &mut Box<dyn StateTrait>,
         inputs: &mut HashMap<zenoh_flow::PortId, ZFDataMessage>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn DataTrait>>> {
         let mut results = HashMap::<zenoh_flow::PortId, Arc<dyn DataTrait>>::with_capacity(1);
@@ -60,7 +60,7 @@ impl ZFOperatorTrait for BuzzOperator {
 }
 
 impl ZFComponent for BuzzOperator {
-    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn ZFStateTrait> {
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn StateTrait> {
         let state = match configuration {
             Some(config) => match config.get("buzzword") {
                 Some(buzzword) => BuzzState {
@@ -77,7 +77,7 @@ impl ZFComponent for BuzzOperator {
         Box::new(state)
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -86,7 +86,7 @@ impl ZFComponentInputRule for BuzzOperator {
     fn input_rule(
         &self,
         _context: &mut Context,
-        state: &mut Box<dyn ZFStateTrait>,
+        state: &mut Box<dyn StateTrait>,
         tokens: &mut HashMap<zenoh_flow::PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
@@ -97,7 +97,7 @@ impl ZFComponentOutputRule for BuzzOperator {
     fn output_rule(
         &self,
         _context: &mut Context,
-        state: &mut Box<dyn ZFStateTrait>,
+        state: &mut Box<dyn StateTrait>,
         outputs: &HashMap<zenoh_flow::PortId, Arc<dyn DataTrait>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)
