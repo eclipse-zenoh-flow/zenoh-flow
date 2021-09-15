@@ -20,7 +20,7 @@ use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::Arc;
-use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
+use zenoh_flow::model::link::{LinkFromDescriptor, ZFLinkToDescriptor};
 use zenoh_flow::{
     default_input_rule, default_output_rule, Component, Context, Data, InputRule, OutputRule,
     PortId, Sink, Source,
@@ -167,7 +167,7 @@ async fn main() {
 
     zf_graph
         .add_link(
-            ZFLinkFromDescriptor {
+            LinkFromDescriptor {
                 component: "counter-source".into(),
                 output: String::from(SOURCE),
             },

@@ -18,7 +18,7 @@ use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LinkDescriptor {
-    pub from: ZFLinkFromDescriptor,
+    pub from: LinkFromDescriptor,
     pub to: ZFLinkToDescriptor,
     pub size: Option<usize>,
     pub queueing_policy: Option<String>,
@@ -46,12 +46,12 @@ impl std::fmt::Display for ZFPortDescriptor {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ZFLinkFromDescriptor {
+pub struct LinkFromDescriptor {
     pub component: OperatorId,
     pub output: String,
 }
 
-impl fmt::Display for ZFLinkFromDescriptor {
+impl fmt::Display for LinkFromDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("{}.{}", self.component, self.output))
     }

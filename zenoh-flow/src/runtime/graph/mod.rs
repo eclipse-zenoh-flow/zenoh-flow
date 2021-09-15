@@ -36,7 +36,7 @@ use crate::runtime::runners::{
 use crate::{
     model::connector::ZFConnectorKind,
     model::dataflow::DataFlowRecord,
-    model::link::{LinkDescriptor, ZFLinkFromDescriptor, ZFLinkToDescriptor, ZFPortDescriptor},
+    model::link::{LinkDescriptor, LinkFromDescriptor, ZFLinkToDescriptor, ZFPortDescriptor},
     model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord},
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
@@ -163,7 +163,7 @@ impl DataFlowGraph {
 
     pub fn add_link(
         &mut self,
-        from: ZFLinkFromDescriptor,
+        from: LinkFromDescriptor,
         to: ZFLinkToDescriptor,
         size: Option<usize>,
         queueing_policy: Option<String>,
