@@ -18,7 +18,7 @@ use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::Token;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    zf_empty_state, Component, InputRule, OutputRule, State, ZFComponentOutput, ZFOperatorTrait,
+    zf_empty_state, Component, InputRule, Operator, OutputRule, State, ZFComponentOutput,
 };
 use zenoh_flow::{Context, Data, PortId};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -50,7 +50,7 @@ impl Component for FizzOperator {
     }
 }
 
-impl ZFOperatorTrait for FizzOperator {
+impl Operator for FizzOperator {
     fn run(
         &self,
         _context: &mut Context,
@@ -87,6 +87,6 @@ impl OutputRule for FizzOperator {
 
 export_operator!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFOperatorTrait>> {
-    Ok(Arc::new(FizzOperator) as Arc<dyn ZFOperatorTrait>)
+fn register() -> ZFResult<Arc<dyn Operator>> {
+    Ok(Arc::new(FizzOperator) as Arc<dyn Operator>)
 }

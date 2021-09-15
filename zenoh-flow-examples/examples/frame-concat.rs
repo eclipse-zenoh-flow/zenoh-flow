@@ -16,8 +16,8 @@ use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, types::ZFResult,
-    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, Component, Data, InputRule, OutputRule,
-    State, ZFOperatorTrait,
+    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, Component, Data, InputRule, Operator,
+    OutputRule, State,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -84,7 +84,7 @@ impl OutputRule for FrameConcat {
     }
 }
 
-impl ZFOperatorTrait for FrameConcat {
+impl Operator for FrameConcat {
     fn run(
         &self,
         _context: &mut zenoh_flow::Context,
@@ -128,6 +128,6 @@ impl ZFOperatorTrait for FrameConcat {
 
 zenoh_flow::export_operator!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFOperatorTrait>> {
-    Ok(Arc::new(FrameConcat) as Arc<dyn ZFOperatorTrait>)
+fn register() -> ZFResult<Arc<dyn Operator>> {
+    Ok(Arc::new(FrameConcat) as Arc<dyn Operator>)
 }

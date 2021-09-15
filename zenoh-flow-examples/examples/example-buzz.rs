@@ -18,7 +18,7 @@ use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    Component, InputRule, OutputRule, State, Token, ZFComponentOutput, ZFOperatorTrait,
+    Component, InputRule, Operator, OutputRule, State, Token, ZFComponentOutput,
 };
 use zenoh_flow::{downcast, Context, Data};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -34,7 +34,7 @@ static LINK_ID_INPUT_INT: &str = "Int";
 static LINK_ID_INPUT_STR: &str = "Str";
 static LINK_ID_OUTPUT_STR: &str = "Str";
 
-impl ZFOperatorTrait for BuzzOperator {
+impl Operator for BuzzOperator {
     fn run(
         &self,
         _context: &mut Context,
@@ -105,6 +105,6 @@ impl OutputRule for BuzzOperator {
 
 export_operator!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFOperatorTrait>> {
-    Ok(Arc::new(BuzzOperator) as Arc<dyn ZFOperatorTrait>)
+fn register() -> ZFResult<Arc<dyn Operator>> {
+    Ok(Arc::new(BuzzOperator) as Arc<dyn Operator>)
 }

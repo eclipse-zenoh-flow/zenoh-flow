@@ -15,7 +15,7 @@
 pub mod link;
 pub mod node;
 
-use crate::{ZFOperatorTrait, ZFSinkTrait, ZFSourceTrait};
+use crate::{Operator, ZFSinkTrait, ZFSourceTrait};
 use async_std::sync::Arc;
 use node::DataFlowNode;
 use petgraph::dot::{Config, Dot};
@@ -89,7 +89,7 @@ impl DataFlowGraph {
         id: OperatorId,
         inputs: Vec<ZFPortDescriptor>,
         outputs: Vec<ZFPortDescriptor>,
-        operator: Arc<dyn ZFOperatorTrait>,
+        operator: Arc<dyn Operator>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
         let record = ZFOperatorRecord {

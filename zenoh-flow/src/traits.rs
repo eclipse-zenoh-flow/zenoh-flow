@@ -66,7 +66,7 @@ pub trait OutputRule {
     ) -> ZFResult<HashMap<PortId, ZFComponentOutput>>;
 }
 
-pub trait ZFOperatorTrait: Component + InputRule + OutputRule + Send + Sync {
+pub trait Operator: Component + InputRule + OutputRule + Send + Sync {
     fn run(
         &self,
         context: &mut Context,

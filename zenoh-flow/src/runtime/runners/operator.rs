@@ -17,13 +17,13 @@ use crate::model::operator::ZFOperatorRecord;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
-use crate::{Context, PortId, State, ZFOperatorTrait};
+use crate::{Context, Operator, PortId, State};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 use uhlc::HLC;
 
-pub type ZFOperatorRegisterFn = fn() -> ZFResult<Arc<dyn ZFOperatorTrait>>;
+pub type ZFOperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
 
 pub struct ZFOperatorDeclaration {
     pub rustc_version: &'static str,
@@ -47,7 +47,7 @@ pub struct ZFOperatorRunner {
     pub io: Arc<RwLock<ZFOperatorIO>>,
     pub state: Arc<RwLock<Box<dyn State>>>,
     pub hlc: Arc<HLC>,
-    pub operator: Arc<dyn ZFOperatorTrait>,
+    pub operator: Arc<dyn Operator>,
     pub lib: Arc<Option<Library>>,
 }
 
@@ -55,7 +55,7 @@ impl ZFOperatorRunner {
     pub fn new(
         record: ZFOperatorRecord,
         hlc: Arc<HLC>,
-        operator: Arc<dyn ZFOperatorTrait>,
+        operator: Arc<dyn Operator>,
         lib: Option<Library>,
     ) -> Self {
         let state = operator.initialize(&record.configuration);
