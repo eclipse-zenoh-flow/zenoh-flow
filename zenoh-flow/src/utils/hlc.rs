@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::model::period::ZFPeriodDescriptor;
+use crate::model::period::PeriodDescriptor;
 use async_std::sync::Arc;
 use std::time::Duration;
 use uhlc::{Timestamp, HLC, NTP64};
@@ -28,7 +28,7 @@ pub struct PeriodicHLC {
 }
 
 impl PeriodicHLC {
-    pub fn new(hlc: Arc<HLC>, period: Option<ZFPeriodDescriptor>) -> Self {
+    pub fn new(hlc: Arc<HLC>, period: Option<PeriodDescriptor>) -> Self {
         match period {
             Some(period_descriptor) => Self {
                 hlc,

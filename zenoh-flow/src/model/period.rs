@@ -16,12 +16,12 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ZFPeriodDescriptor {
+pub struct PeriodDescriptor {
     pub duration: u64,
     pub unit: String,
 }
 
-impl ZFPeriodDescriptor {
+impl PeriodDescriptor {
     pub const SUPPORTED_UNITS: [&'static str; 3] = ["us", "ms", "s"];
 
     /// Converts the period to a `std::core::Duration`.

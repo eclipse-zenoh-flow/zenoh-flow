@@ -13,7 +13,7 @@
 //
 
 use crate::model::link::PortDescriptor;
-use crate::model::period::ZFPeriodDescriptor;
+use crate::model::period::PeriodDescriptor;
 use crate::types::{OperatorId, RuntimeId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -39,7 +39,7 @@ impl std::fmt::Display for SinkDescriptor {
 pub struct SourceDescriptor {
     pub id: OperatorId,
     pub output: PortDescriptor,
-    pub period: Option<ZFPeriodDescriptor>,
+    pub period: Option<PeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: Option<RuntimeId>, // to be removed
@@ -98,7 +98,7 @@ impl ZFSinkRecord {
 pub struct ZFSourceRecord {
     pub id: OperatorId,
     pub output: PortDescriptor,
-    pub period: Option<ZFPeriodDescriptor>,
+    pub period: Option<PeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
     pub runtime: RuntimeId,
