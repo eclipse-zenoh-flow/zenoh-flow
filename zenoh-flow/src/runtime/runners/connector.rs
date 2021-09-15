@@ -63,13 +63,13 @@ impl ZFZenohSender {
 }
 
 #[derive(Clone)]
-pub struct ZFZenohReceiver {
+pub struct ZenohReceiver {
     pub session: Arc<Session>,
     pub resource: String,
     pub output: Arc<RwLock<Option<LinkSender<Message>>>>,
 }
 
-impl ZFZenohReceiver {
+impl ZenohReceiver {
     pub fn new(
         session: Arc<Session>,
         resource: String,

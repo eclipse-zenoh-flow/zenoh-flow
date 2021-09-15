@@ -19,7 +19,7 @@ pub mod source;
 
 use crate::runtime::graph::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
-use crate::runtime::runners::connector::{ZFZenohReceiver, ZFZenohSender};
+use crate::runtime::runners::connector::{ZFZenohSender, ZenohReceiver};
 use crate::runtime::runners::operator::ZFOperatorRunner;
 use crate::runtime::runners::sink::ZFSinkRunner;
 use crate::runtime::runners::source::ZFSourceRunner;
@@ -92,7 +92,7 @@ pub enum Runner {
     Source(ZFSourceRunner),
     Sink(ZFSinkRunner),
     Sender(ZFZenohSender),
-    Receiver(ZFZenohReceiver),
+    Receiver(ZenohReceiver),
 }
 
 impl Runner {

@@ -29,7 +29,7 @@ use zenoh::ZFuture;
 
 use crate::runtime::loader::{load_operator, load_sink, load_source};
 use crate::runtime::message::Message;
-use crate::runtime::runners::connector::{ZFZenohReceiver, ZFZenohSender};
+use crate::runtime::runners::connector::{ZFZenohSender, ZenohReceiver};
 use crate::runtime::runners::{
     operator::ZFOperatorRunner, sink::ZFSinkRunner, source::ZFSourceRunner, Runner,
 };
@@ -291,8 +291,7 @@ impl DataFlowGraph {
                     }
 
                     ZFConnectorKind::Receiver => {
-                        let runner =
-                            ZFZenohReceiver::new(session.clone(), zc.resource.clone(), None);
+                        let runner = ZenohReceiver::new(session.clone(), zc.resource.clone(), None);
                         let runner = Runner::Receiver(runner);
                         self.operators_runners
                             .insert(zc.id.clone(), (runner, DataFlowNodeKind::Connector));
