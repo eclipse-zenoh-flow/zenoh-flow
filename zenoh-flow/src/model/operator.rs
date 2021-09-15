@@ -52,7 +52,7 @@ impl std::fmt::Display for SourceDescriptor {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFOperatorDescriptor {
+pub struct OperatorDescriptor {
     pub id: OperatorId,
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
@@ -61,7 +61,7 @@ pub struct ZFOperatorDescriptor {
     pub runtime: Option<RuntimeId>, // to be removed
 }
 
-impl std::fmt::Display for ZFOperatorDescriptor {
+impl std::fmt::Display for OperatorDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Operator", self.id)
     }
