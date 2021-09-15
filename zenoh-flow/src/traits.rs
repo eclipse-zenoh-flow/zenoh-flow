@@ -37,22 +37,22 @@ pub trait Deserializable {
         Self: Sized;
 }
 
-pub trait StateTrait: Debug + Send + Sync {
+pub trait State: Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
 pub trait Component {
-    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn StateTrait>;
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn State>;
 
-    fn clean(&self, state: &mut Box<dyn StateTrait>) -> ZFResult<()>;
+    fn clean(&self, state: &mut Box<dyn State>) -> ZFResult<()>;
 }
 
 pub trait ZFComponentInputRule {
     fn input_rule(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn StateTrait>,
+        state: &mut Box<dyn State>,
         tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool>;
 }
@@ -61,7 +61,7 @@ pub trait ZFComponentOutputRule {
     fn output_rule(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn StateTrait>,
+        state: &mut Box<dyn State>,
         outputs: &HashMap<PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<PortId, ZFComponentOutput>>;
 }
@@ -72,7 +72,7 @@ pub trait ZFOperatorTrait:
     fn run(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn StateTrait>,
+        state: &mut Box<dyn State>,
         inputs: &mut HashMap<PortId, ZFDataMessage>,
     ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>>;
 }
@@ -82,7 +82,7 @@ pub trait ZFSourceTrait: Component + ZFComponentOutputRule + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn StateTrait>,
+        state: &mut Box<dyn State>,
     ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>>;
 }
 
@@ -91,7 +91,7 @@ pub trait ZFSinkTrait: Component + ZFComponentInputRule + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn StateTrait>,
+        state: &mut Box<dyn State>,
         inputs: &mut HashMap<PortId, ZFDataMessage>,
     ) -> ZFResult<()>;
 }

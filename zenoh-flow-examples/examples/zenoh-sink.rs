@@ -15,7 +15,7 @@
 use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use zenoh_flow::StateTrait;
+use zenoh_flow::State;
 use zenoh_flow::{
     default_input_rule, downcast, get_input,
     types::{Token, ZFResult},
@@ -50,11 +50,11 @@ impl Component for ExampleGenericZenohSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::StateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         Box::new(ZSinkState::new())
     }
 
-    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -63,7 +63,7 @@ impl ZFComponentInputRule for ExampleGenericZenohSink {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::StateTrait>,
+        state: &mut Box<dyn zenoh_flow::State>,
         tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
@@ -75,7 +75,7 @@ impl ZFSinkTrait for ExampleGenericZenohSink {
     async fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        dyn_state: &mut Box<dyn zenoh_flow::StateTrait>,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> ZFResult<()> {
         let state = downcast!(ZSinkState, dyn_state).unwrap();

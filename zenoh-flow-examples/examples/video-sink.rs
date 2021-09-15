@@ -15,7 +15,7 @@
 use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use zenoh_flow::StateTrait;
+use zenoh_flow::State;
 use zenoh_flow::{
     default_input_rule, downcast, get_input, types::ZFResult, zenoh_flow_derive::ZFState,
     Component, ZFComponentInputRule, ZFError, ZFSinkTrait,
@@ -48,7 +48,7 @@ impl ZFComponentInputRule for VideoSink {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::StateTrait>,
+        state: &mut Box<dyn zenoh_flow::State>,
         tokens: &mut HashMap<zenoh_flow::PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
         default_input_rule(state, tokens)
@@ -59,11 +59,11 @@ impl Component for VideoSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::StateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         Box::new(VideoState::new())
     }
 
-    fn clean(&self, state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
+    fn clean(&self, state: &mut Box<dyn State>) -> ZFResult<()> {
         let state = downcast!(VideoState, state).ok_or(ZFError::MissingState)?;
         highgui::destroy_window(&state.window_name).unwrap();
         Ok(())
@@ -75,7 +75,7 @@ impl ZFSinkTrait for VideoSink {
     async fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        dyn_state: &mut Box<dyn zenoh_flow::StateTrait>,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
         inputs: &mut HashMap<zenoh_flow::PortId, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> zenoh_flow::ZFResult<()> {
         // Downcasting to right type

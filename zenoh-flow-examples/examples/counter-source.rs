@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use zenoh_flow::{default_output_rule, Component, PortId, ZFComponentOutputRule, ZFSourceTrait};
 use zenoh_flow::{
-    types::ZFResult, zenoh_flow_derive::ZFState, zf_data, zf_empty_state, Data, StateTrait,
+    types::ZFResult, zenoh_flow_derive::ZFState, zf_data, zf_empty_state, Data, State,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -34,7 +34,7 @@ impl ZFSourceTrait for CountSource {
     async fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        _state: &mut Box<dyn zenoh_flow::StateTrait>,
+        _state: &mut Box<dyn zenoh_flow::State>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn Data>>> {
         let mut results: HashMap<PortId, Arc<dyn Data>> = HashMap::new();
         let d = ZFUsize(COUNTER.fetch_add(1, Ordering::AcqRel));
@@ -48,7 +48,7 @@ impl ZFComponentOutputRule for CountSource {
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::StateTrait>,
+        state: &mut Box<dyn zenoh_flow::State>,
         outputs: &HashMap<PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
@@ -59,7 +59,7 @@ impl Component for CountSource {
     fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::StateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         if let Some(conf) = configuration {
             let initial = conf.get("initial").unwrap().parse::<usize>().unwrap();
             COUNTER.store(initial, Ordering::SeqCst);
@@ -68,7 +68,7 @@ impl Component for CountSource {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }

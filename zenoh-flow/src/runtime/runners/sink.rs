@@ -17,7 +17,7 @@ use crate::model::operator::ZFSinkRecord;
 use crate::runtime::graph::link::ZFLinkReceiver;
 use crate::runtime::message::ZFMessage;
 use crate::types::{Token, ZFResult};
-use crate::{Context, PortId, StateTrait, ZFSinkTrait};
+use crate::{Context, PortId, State, ZFSinkTrait};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -32,11 +32,11 @@ pub struct ZFSinkDeclaration {
 
 pub struct ZFSinkRunnerInner {
     pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
-    pub state: Box<dyn StateTrait>,
+    pub state: Box<dyn State>,
 }
 
 impl ZFSinkRunnerInner {
-    pub fn new(state: Box<dyn StateTrait>) -> Self {
+    pub fn new(state: Box<dyn State>) -> Self {
         Self {
             inputs: vec![],
             state,
@@ -52,7 +52,7 @@ impl ZFSinkRunnerInner {
 #[derive(Clone)]
 pub struct ZFSinkRunner {
     pub record: Arc<ZFSinkRecord>,
-    pub state: Arc<RwLock<Box<dyn StateTrait>>>,
+    pub state: Arc<RwLock<Box<dyn State>>>,
     pub inputs: Arc<RwLock<Vec<ZFLinkReceiver<ZFMessage>>>>,
     pub sink: Arc<dyn ZFSinkTrait>,
     pub lib: Arc<Option<Library>>,

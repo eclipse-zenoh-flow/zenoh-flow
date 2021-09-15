@@ -18,7 +18,7 @@ use opencv::{core, prelude::*, videoio};
 use std::collections::HashMap;
 use zenoh_flow::{
     default_output_rule, downcast_mut, types::ZFResult, zenoh_flow_derive::ZFState, zf_data,
-    zf_spin_lock, Component, Data, StateTrait, ZFComponentOutputRule, ZFSourceTrait,
+    zf_spin_lock, Component, Data, State, ZFComponentOutputRule, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -104,11 +104,11 @@ impl Component for CameraSource {
     fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::StateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         Box::new(CameraState::new(configuration))
     }
 
-    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -117,7 +117,7 @@ impl ZFComponentOutputRule for CameraSource {
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::StateTrait>,
+        state: &mut Box<dyn zenoh_flow::State>,
         outputs: &HashMap<zenoh_flow::PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
@@ -129,7 +129,7 @@ impl ZFSourceTrait for CameraSource {
     async fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        dyn_state: &mut Box<dyn zenoh_flow::StateTrait>,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn Data>>> {
         let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::with_capacity(1);
 

@@ -15,7 +15,7 @@
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc, usize};
 use zenoh_flow::{
-    zf_data, zf_empty_state, Component, Context, Data, PortId, StateTrait, ZFComponentOutputRule,
+    zf_data, zf_empty_state, Component, Context, Data, PortId, State, ZFComponentOutputRule,
     ZFError, ZFResult, ZFSourceTrait,
 };
 use zenoh_flow_examples::ZFUsize;
@@ -29,7 +29,7 @@ impl ZFSourceTrait for ManualSource {
     async fn run(
         &self,
         _context: &mut Context,
-        _state: &mut Box<dyn StateTrait>,
+        _state: &mut Box<dyn State>,
     ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>> {
         let mut results: HashMap<PortId, Arc<dyn Data>> = HashMap::with_capacity(1);
 
@@ -52,11 +52,11 @@ impl ZFSourceTrait for ManualSource {
 }
 
 impl Component for ManualSource {
-    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> Box<dyn StateTrait> {
+    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> Box<dyn State> {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -65,7 +65,7 @@ impl ZFComponentOutputRule for ManualSource {
     fn output_rule(
         &self,
         _context: &mut Context,
-        state: &mut Box<dyn StateTrait>,
+        state: &mut Box<dyn State>,
         outputs: &HashMap<PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<PortId, zenoh_flow::ZFComponentOutput>> {
         zenoh_flow::default_output_rule(state, outputs)

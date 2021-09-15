@@ -16,7 +16,7 @@ use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, types::ZFResult,
-    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, Component, Data, StateTrait,
+    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, Component, Data, State,
     ZFComponentInputRule, ZFComponentOutputRule, ZFOperatorTrait,
 };
 use zenoh_flow_examples::ZFBytes;
@@ -53,11 +53,11 @@ impl Component for FrameConcat {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::StateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         Box::new(FrameConcatState::new())
     }
 
-    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -66,7 +66,7 @@ impl ZFComponentInputRule for FrameConcat {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::StateTrait>,
+        state: &mut Box<dyn zenoh_flow::State>,
         tokens: &mut HashMap<zenoh_flow::PortId, zenoh_flow::Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
@@ -77,7 +77,7 @@ impl ZFComponentOutputRule for FrameConcat {
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::StateTrait>,
+        state: &mut Box<dyn zenoh_flow::State>,
         outputs: &HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ZFComponentOutput>> {
         default_output_rule(state, outputs)
@@ -88,7 +88,7 @@ impl ZFOperatorTrait for FrameConcat {
     fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        dyn_state: &mut Box<dyn zenoh_flow::StateTrait>,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
         inputs: &mut HashMap<zenoh_flow::PortId, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
         let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::new();

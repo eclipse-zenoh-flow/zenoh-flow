@@ -18,7 +18,7 @@ use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::PortId;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, Component, Data,
-    StateTrait, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule, ZFOperatorTrait,
+    State, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule, ZFOperatorTrait,
     ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
@@ -38,7 +38,7 @@ impl ZFOperatorTrait for SumAndSend {
     fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        dyn_state: &mut Box<dyn zenoh_flow::StateTrait>,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::ZFDataMessage>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn Data>>> {
         let mut results: HashMap<PortId, Arc<dyn Data>> = HashMap::new();
@@ -60,7 +60,7 @@ impl ZFComponentInputRule for SumAndSend {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::StateTrait>,
+        state: &mut Box<dyn zenoh_flow::State>,
         tokens: &mut HashMap<PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
         default_input_rule(state, tokens)
@@ -71,7 +71,7 @@ impl ZFComponentOutputRule for SumAndSend {
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::StateTrait>,
+        state: &mut Box<dyn zenoh_flow::State>,
         outputs: &HashMap<PortId, Arc<dyn Data>>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)
@@ -82,11 +82,11 @@ impl Component for SumAndSend {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::StateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         Box::new(SumAndSendState { x: ZFUsize(0) })
     }
 
-    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }

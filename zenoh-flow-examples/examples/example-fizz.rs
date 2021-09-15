@@ -18,7 +18,7 @@ use zenoh_flow::runtime::message::ZFDataMessage;
 use zenoh_flow::Token;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    zf_empty_state, Component, StateTrait, ZFComponentInputRule, ZFComponentOutput,
+    zf_empty_state, Component, State, ZFComponentInputRule, ZFComponentOutput,
     ZFComponentOutputRule, ZFOperatorTrait,
 };
 use zenoh_flow::{Context, Data, PortId};
@@ -34,7 +34,7 @@ impl ZFComponentInputRule for FizzOperator {
     fn input_rule(
         &self,
         _context: &mut Context,
-        state: &mut Box<dyn StateTrait>,
+        state: &mut Box<dyn State>,
         inputs: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, inputs)
@@ -42,11 +42,11 @@ impl ZFComponentInputRule for FizzOperator {
 }
 
 impl Component for FizzOperator {
-    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> Box<dyn StateTrait> {
+    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> Box<dyn State> {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn StateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -55,7 +55,7 @@ impl ZFOperatorTrait for FizzOperator {
     fn run(
         &self,
         _context: &mut Context,
-        _state: &mut Box<dyn StateTrait>,
+        _state: &mut Box<dyn State>,
         inputs: &mut HashMap<PortId, ZFDataMessage>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
         let mut results = HashMap::<PortId, Arc<dyn Data>>::with_capacity(2);
@@ -79,7 +79,7 @@ impl ZFComponentOutputRule for FizzOperator {
     fn output_rule(
         &self,
         _context: &mut Context,
-        state: &mut Box<dyn StateTrait>,
+        state: &mut Box<dyn State>,
         outputs: &HashMap<PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, ZFComponentOutput>> {
         default_output_rule(state, outputs)
