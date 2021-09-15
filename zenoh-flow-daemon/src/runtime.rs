@@ -17,8 +17,8 @@ use zenoh::ZFuture;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::dataflow::DataFlowDescriptor;
 use zenoh_flow::model::{
+    component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
     dataflow::DataFlowRecord,
-    operator::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
 };
 use zenoh_flow::runtime::graph::DataFlowGraph;
 use zenoh_flow::runtime::message::ControlMessage;

@@ -13,7 +13,7 @@
 //
 
 use crate::{
-    model::operator::{OperatorRecord, SinkRecord, SourceRecord},
+    model::component::{OperatorRecord, SinkRecord, SourceRecord},
     runtime::runners::{
         operator::{ZFOperatorDeclaration, ZFOperatorRunner},
         sink::{ZFSinkDeclaration, ZFSinkRunner},

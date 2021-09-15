@@ -34,10 +34,10 @@ use crate::runtime::runners::{
     operator::ZFOperatorRunner, sink::ZFSinkRunner, source::ZFSourceRunner, Runner,
 };
 use crate::{
+    model::component::{OperatorRecord, SinkRecord, SourceRecord},
     model::connector::ZFConnectorKind,
     model::dataflow::DataFlowRecord,
     model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor},
-    model::operator::{OperatorRecord, SinkRecord, SourceRecord},
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
     types::{OperatorId, ZFError, ZFResult},

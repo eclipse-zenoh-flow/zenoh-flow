@@ -12,11 +12,11 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
-use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
-use crate::model::operator::{
+use crate::model::component::{
     OperatorDescriptor, OperatorRecord, SinkDescriptor, SinkRecord, SourceDescriptor, SourceRecord,
 };
+use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
+use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{OperatorId, RuntimeId, ZFError, ZFResult};

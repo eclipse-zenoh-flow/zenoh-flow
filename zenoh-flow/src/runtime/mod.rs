@@ -18,8 +18,8 @@ use std::sync::Arc;
 
 use crate::{
     model::{
+        component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
         dataflow::DataFlowRecord,
-        operator::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
     },
     serde::{Deserialize, Serialize},
 };

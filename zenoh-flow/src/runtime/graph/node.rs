@@ -12,8 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::model::component::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
-use crate::model::operator::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::{OperatorId, RuntimeId, ZFError, ZFResult};
 use serde::{Deserialize, Serialize};
 

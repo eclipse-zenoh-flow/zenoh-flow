@@ -13,7 +13,7 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::operator::OperatorRecord;
+use crate::model::component::OperatorRecord;
 use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
 use crate::runtime::message::Message;
 use crate::types::{Token, ZFResult};
