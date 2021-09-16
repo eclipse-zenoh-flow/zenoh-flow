@@ -45,8 +45,8 @@ macro_rules! export_sink {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsink_declaration: $crate::runtime::runners::sink::ZFSinkDeclaration =
-            $crate::runtime::runners::sink::ZFSinkDeclaration {
+        pub static zfsink_declaration: $crate::runtime::runners::sink::SinkDeclaration =
+            $crate::runtime::runners::sink::SinkDeclaration {
                 rustc_version: $crate::runtime::loader::RUSTC_VERSION,
                 core_version: $crate::runtime::loader::CORE_VERSION,
                 register: $register,

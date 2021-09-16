@@ -24,7 +24,7 @@ use std::collections::HashMap;
 
 pub type ZFSinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
 
-pub struct ZFSinkDeclaration {
+pub struct SinkDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
     pub register: ZFSinkRegisterFn,

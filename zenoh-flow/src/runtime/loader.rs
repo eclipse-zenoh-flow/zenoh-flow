@@ -16,7 +16,7 @@ use crate::{
     model::component::{OperatorRecord, SinkRecord, SourceRecord},
     runtime::runners::{
         operator::{OperatorDeclaration, OperatorRunner},
-        sink::{SinkRunner, ZFSinkDeclaration},
+        sink::{SinkDeclaration, SinkRunner},
         source::{ZFSourceDeclaration, ZFSourceRunner},
     },
     types::{ZFError, ZFResult},
@@ -145,7 +145,7 @@ pub unsafe fn load_lib_sink(record: SinkRecord, path: String) -> ZFResult<SinkRu
     let library = Library::new(path)?;
 
     let decl = library
-        .get::<*mut ZFSinkDeclaration>(b"zfsink_declaration\0")?
+        .get::<*mut SinkDeclaration>(b"zfsink_declaration\0")?
         .read();
 
     // version checks to prevent accidental ABI incompatibilities
