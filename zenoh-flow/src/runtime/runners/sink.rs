@@ -22,12 +22,12 @@ use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 
-pub type ZFSinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
+pub type SinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
 
 pub struct SinkDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: ZFSinkRegisterFn,
+    pub register: SinkRegisterFn,
 }
 
 pub struct SinkRunnerInner {
