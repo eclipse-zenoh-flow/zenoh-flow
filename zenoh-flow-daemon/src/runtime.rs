@@ -38,7 +38,7 @@ pub struct RTState {
 }
 
 #[derive(Clone)]
-pub struct Daemon {
+pub struct Runtime {
     pub zn: Arc<ZSession>,
     pub store: DataStore,
     pub state: Arc<Mutex<RTState>>,
@@ -46,7 +46,7 @@ pub struct Daemon {
     pub runtime_name: Arc<str>,
 }
 
-impl Daemon {
+impl Runtime {
     pub fn new(
         zn: Arc<ZSession>,
         z: Arc<zenoh::Zenoh>,
@@ -227,7 +227,7 @@ pub fn get_machine_uuid() -> ZFResult<Uuid> {
 }
 
 #[znserver]
-impl Runtime for Daemon {
+impl ZFRuntime for Runtime {
     async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow...
 
