@@ -25,7 +25,9 @@ use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::ZFRuntimeClient;
-use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
+use zenoh_flow::runtime::{
+    RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind, ZFRuntime,
+};
 use zenoh_flow::types::{ZFError, ZFResult};
 
 use std::convert::TryFrom;
@@ -261,7 +263,7 @@ impl ZFRuntime for Runtime {
         }
 
         // self prepare
-        let dfr = Runtime::prepare(self, mapped.clone(), record_uuid).await?;
+        let dfr = ZFRuntime::prepare(self, mapped.clone(), record_uuid).await?;
 
         // remote start
         for client in rt_clients.iter() {
@@ -269,7 +271,7 @@ impl ZFRuntime for Runtime {
         }
 
         // self start
-        Runtime::start(self, record_uuid).await?;
+        ZFRuntime::start(self, record_uuid).await?;
 
         // remote start sources
         for client in rt_clients.iter() {
@@ -277,7 +279,7 @@ impl ZFRuntime for Runtime {
         }
 
         // self start sources
-        Runtime::start_sources(self, record_uuid).await?;
+        ZFRuntime::start_sources(self, record_uuid).await?;
 
         log::info!(
             "Done Instantiating Flow {} - Instance UUID: {}",
@@ -324,7 +326,7 @@ impl ZFRuntime for Runtime {
 
         // local stop
         if is_also_local {
-            Runtime::stop(self, record_id).await?;
+            ZFRuntime::stop(self, record_id).await?;
         }
 
         // remote stop clean
