@@ -24,7 +24,7 @@ extern crate serde_cbor;
 extern crate serde_json;
 
 use crate::model::dataflow::DataFlowRecord;
-use crate::runtime::{RuntimeInfo, ZFRuntimeConfig, ZFRuntimeStatus};
+use crate::runtime::{RuntimeInfo, RuntimeStatus, ZFRuntimeConfig};
 use crate::serde::{de::DeserializeOwned, Serialize};
 use crate::{async_std::sync::Arc, ZFError, ZFResult};
 use async_std::pin::Pin;
@@ -404,7 +404,7 @@ impl DataStore {
         Ok(ws.put(&path, encoded_info.into()).await?)
     }
 
-    pub async fn get_runtime_status(&self, rtid: &Uuid) -> ZFResult<ZFRuntimeStatus> {
+    pub async fn get_runtime_status(&self, rtid: &Uuid) -> ZFResult<RuntimeStatus> {
         let selector = zenoh::Selector::try_from(RT_STATUS_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -418,7 +418,7 @@ impl DataStore {
                 let kv = &data[0];
                 match &kv.value {
                     zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<ZFRuntimeStatus>(&buf.to_vec())?;
+                        let ni = deserialize_data::<RuntimeStatus>(&buf.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -436,7 +436,7 @@ impl DataStore {
         Ok(ws.delete(&path).await?)
     }
 
-    pub async fn add_runtime_status(&self, rtid: &Uuid, rt_info: &ZFRuntimeStatus) -> ZFResult<()> {
+    pub async fn add_runtime_status(&self, rtid: &Uuid, rt_info: &RuntimeStatus) -> ZFResult<()> {
         let path = zenoh::Path::try_from(RT_STATUS_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let encoded_info = serialize_data(rt_info)?;

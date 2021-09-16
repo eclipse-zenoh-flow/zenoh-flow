@@ -26,7 +26,7 @@ use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::ZFRuntimeClient;
 use zenoh_flow::runtime::{
-    RuntimeInfo, RuntimeStatusKind, ZFRuntime, ZFRuntimeConfig, ZFRuntimeStatus,
+    RuntimeInfo, RuntimeStatus, RuntimeStatusKind, ZFRuntime, ZFRuntimeConfig,
 };
 use zenoh_flow::types::{ZFError, ZFResult};
 
@@ -180,7 +180,7 @@ impl Runtime {
             status: RuntimeStatusKind::NotReady,
         };
 
-        let rt_status = ZFRuntimeStatus {
+        let rt_status = RuntimeStatus {
             id: self.runtime_uuid,
             status: RuntimeStatusKind::NotReady,
             running_flows: 0,

@@ -125,7 +125,7 @@ pub struct RuntimeInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFRuntimeStatus {
+pub struct RuntimeStatus {
     pub id: Uuid,
     pub status: RuntimeStatusKind,
     pub running_flows: usize,
