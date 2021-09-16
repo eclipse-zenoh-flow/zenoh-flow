@@ -22,12 +22,12 @@ use crate::{Context, PortId, Source, State};
 use libloading::Library;
 use std::collections::HashMap;
 
-pub type ZFSourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
+pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
 
 pub struct ZFSourceDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: ZFSourceRegisterFn,
+    pub register: SourceRegisterFn,
 }
 
 // Do not reorder the fields in this struct.
