@@ -30,12 +30,12 @@ pub struct ZFSinkDeclaration {
     pub register: ZFSinkRegisterFn,
 }
 
-pub struct ZFSinkRunnerInner {
+pub struct SinkRunnerInner {
     pub inputs: Vec<LinkReceiver<Message>>,
     pub state: Box<dyn State>,
 }
 
-impl ZFSinkRunnerInner {
+impl SinkRunnerInner {
     pub fn new(state: Box<dyn State>) -> Self {
         Self {
             inputs: vec![],
