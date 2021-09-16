@@ -31,7 +31,7 @@ use crate::runtime::loader::{load_operator, load_sink, load_source};
 use crate::runtime::message::Message;
 use crate::runtime::runners::connector::{ZenohReceiver, ZenohSender};
 use crate::runtime::runners::{
-    operator::OperatorRunner, sink::ZFSinkRunner, source::ZFSourceRunner, Runner,
+    operator::OperatorRunner, sink::SinkRunner, source::ZFSourceRunner, Runner,
 };
 use crate::{
     model::component::{OperatorRecord, SinkRecord, SourceRecord},
@@ -155,7 +155,7 @@ impl DataFlowGraph {
             self.graph.add_node(DataFlowNode::Sink(record.clone())),
             DataFlowNode::Sink(record.clone()),
         ));
-        let runner = Runner::Sink(ZFSinkRunner::new(record, sink, None));
+        let runner = Runner::Sink(SinkRunner::new(record, sink, None));
         self.operators_runners
             .insert(id, (runner, DataFlowNodeKind::Sink));
         Ok(())

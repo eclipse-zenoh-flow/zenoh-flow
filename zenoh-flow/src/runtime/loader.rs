@@ -16,7 +16,7 @@ use crate::{
     model::component::{OperatorRecord, SinkRecord, SourceRecord},
     runtime::runners::{
         operator::{OperatorDeclaration, OperatorRunner},
-        sink::{ZFSinkDeclaration, ZFSinkRunner},
+        sink::{SinkRunner, ZFSinkDeclaration},
         source::{ZFSourceDeclaration, ZFSourceRunner},
     },
     types::{ZFError, ZFResult},
@@ -124,7 +124,7 @@ pub unsafe fn load_lib_source(
 
 // SINK
 
-pub fn load_sink(record: SinkRecord, path: String) -> ZFResult<ZFSinkRunner> {
+pub fn load_sink(record: SinkRecord, path: String) -> ZFResult<SinkRunner> {
     let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
@@ -140,7 +140,7 @@ pub fn load_sink(record: SinkRecord, path: String) -> ZFResult<ZFSinkRunner> {
 /// This function dynamically loads an external library, things can go wrong:
 /// - it will panick if the symbol `zfsink_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
-pub unsafe fn load_lib_sink(record: SinkRecord, path: String) -> ZFResult<ZFSinkRunner> {
+pub unsafe fn load_lib_sink(record: SinkRecord, path: String) -> ZFResult<SinkRunner> {
     log::debug!("Sink Loading {}", path);
     let library = Library::new(path)?;
 
@@ -155,7 +155,7 @@ pub unsafe fn load_lib_sink(record: SinkRecord, path: String) -> ZFResult<ZFSink
 
     let sink = (decl.register)()?;
 
-    let runner = ZFSinkRunner::new(record, sink, Some(library));
+    let runner = SinkRunner::new(record, sink, Some(library));
     Ok(runner)
 }
 

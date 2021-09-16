@@ -50,7 +50,7 @@ impl ZFSinkRunnerInner {
 // We need the state to be dropped before the sink/lib, otherwise we
 // will have a SIGSEV.
 #[derive(Clone)]
-pub struct ZFSinkRunner {
+pub struct SinkRunner {
     pub record: Arc<SinkRecord>,
     pub state: Arc<RwLock<Box<dyn State>>>,
     pub inputs: Arc<RwLock<Vec<LinkReceiver<Message>>>>,
@@ -58,7 +58,7 @@ pub struct ZFSinkRunner {
     pub lib: Arc<Option<Library>>,
 }
 
-impl ZFSinkRunner {
+impl SinkRunner {
     pub fn new(record: SinkRecord, sink: Arc<dyn Sink>, lib: Option<Library>) -> Self {
         let state = sink.initialize(&record.configuration);
         Self {

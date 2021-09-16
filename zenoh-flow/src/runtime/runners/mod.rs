@@ -21,7 +21,7 @@ use crate::runtime::graph::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
 use crate::runtime::runners::connector::{ZenohReceiver, ZenohSender};
 use crate::runtime::runners::operator::OperatorRunner;
-use crate::runtime::runners::sink::ZFSinkRunner;
+use crate::runtime::runners::sink::SinkRunner;
 use crate::runtime::runners::source::ZFSourceRunner;
 use crate::types::ZFResult;
 use crate::ZFError;
@@ -90,7 +90,7 @@ pub enum RunAction {
 pub enum Runner {
     Operator(OperatorRunner),
     Source(ZFSourceRunner),
-    Sink(ZFSinkRunner),
+    Sink(SinkRunner),
     Sender(ZenohSender),
     Receiver(ZenohReceiver),
 }
