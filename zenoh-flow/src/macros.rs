@@ -31,8 +31,8 @@ macro_rules! export_source {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsource_declaration: $crate::runtime::runners::source::ZFSourceDeclaration =
-            $crate::runtime::runners::source::ZFSourceDeclaration {
+        pub static zfsource_declaration: $crate::runtime::runners::source::SourceDeclaration =
+            $crate::runtime::runners::source::SourceDeclaration {
                 rustc_version: $crate::runtime::loader::RUSTC_VERSION,
                 core_version: $crate::runtime::loader::CORE_VERSION,
                 register: $register,

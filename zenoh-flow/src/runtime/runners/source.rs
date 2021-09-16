@@ -24,7 +24,7 @@ use std::collections::HashMap;
 
 pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
 
-pub struct ZFSourceDeclaration {
+pub struct SourceDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
     pub register: SourceRegisterFn,

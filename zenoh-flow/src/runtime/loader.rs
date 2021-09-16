@@ -17,7 +17,7 @@ use crate::{
     runtime::runners::{
         operator::{OperatorDeclaration, OperatorRunner},
         sink::{SinkDeclaration, SinkRunner},
-        source::{ZFSourceDeclaration, ZFSourceRunner},
+        source::{SourceDeclaration, ZFSourceRunner},
     },
     types::{ZFError, ZFResult},
     utils::hlc::PeriodicHLC,
@@ -108,7 +108,7 @@ pub unsafe fn load_lib_source(
     log::debug!("Source Loading {}", path);
     let library = Library::new(path)?;
     let decl = library
-        .get::<*mut ZFSourceDeclaration>(b"zfsource_declaration\0")?
+        .get::<*mut SourceDeclaration>(b"zfsource_declaration\0")?
         .read();
 
     // version checks to prevent accidental ABI incompatibilities
