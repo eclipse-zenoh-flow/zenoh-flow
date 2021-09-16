@@ -14,10 +14,12 @@
 
 #![allow(clippy::manual_async_fn)]
 
+use std::sync::Arc;
+
 use crate::{
     model::{
+        component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
         dataflow::DataFlowRecord,
-        operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor},
     },
     serde::{Deserialize, Serialize},
 };
@@ -28,7 +30,7 @@ use crate::{
     ZFResult,
 };
 
-use crate::runtime::message::ZFControlMessage;
+use crate::runtime::message::ControlMessage;
 
 use znrpc_macros::znservice;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
@@ -52,6 +54,8 @@ pub async fn map_to_infrastructure(
 ) -> ZFResult<DataFlowDescriptor> {
     log::debug!("[Dataflow mapping] Begin mapping for: {}", descriptor.flow);
 
+    let runtime_id: Arc<str> = runtime.into();
+
     // Initial "stupid" mapping, if an operator is not mapped, we map to the local runtime.
     // function is async because it could involve other nodes.
 
@@ -63,7 +67,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).to_string(),
+                    runtime: runtime_id.clone(),
                 };
                 mappings.push(mapping);
             }
@@ -76,7 +80,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).to_string(),
+                    runtime: runtime_id.clone(),
                 };
                 mappings.push(mapping);
             }
@@ -89,7 +93,7 @@ pub async fn map_to_infrastructure(
             None => {
                 let mapping = Mapping {
                     id: o.id.clone(),
-                    runtime: (*runtime).to_string(),
+                    runtime: runtime_id.clone(),
                 };
                 mappings.push(mapping);
             }
@@ -106,24 +110,24 @@ pub async fn map_to_infrastructure(
 // Runtime related types, maybe can be moved.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
-pub enum ZFRuntimeStatusKind {
+pub enum RuntimeStatusKind {
     Ready,
     NotReady,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFRuntimeInfo {
+pub struct RuntimeInfo {
     pub id: Uuid,
-    pub name: String,
+    pub name: Arc<str>,
     pub tags: Vec<String>,
-    pub status: ZFRuntimeStatusKind,
+    pub status: RuntimeStatusKind,
     // Do we need/want also RAM usage?
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFRuntimeStatus {
+pub struct RuntimeStatus {
     pub id: Uuid,
-    pub status: ZFRuntimeStatusKind,
+    pub status: RuntimeStatusKind,
     pub running_flows: usize,
     pub running_operators: usize,
     pub running_sources: usize,
@@ -155,7 +159,7 @@ pub struct ZenohConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFRuntimeConfig {
+pub struct RuntimeConfig {
     pub pid_file: String, //Where the PID file resides
     pub path: String,     //Where the libraries are downloaded/located
     pub name: Option<String>,
@@ -170,7 +174,7 @@ pub struct ZFRuntimeConfig {
     prefix = "/zf/runtime",
     service_uuid = "00000000-0000-0000-0000-000000000001"
 )]
-pub trait ZFRuntime {
+pub trait Runtime {
     /// Sends an initiation request for the given [`FlowId`]
     /// Note the request is asynchronous, the runtime that receives the request
     /// flattens the descriptor, maps it to the infrastructure,
@@ -231,18 +235,18 @@ pub trait ZFRuntime {
         &self,
         record_id: Uuid,
         runtime: String,
-        message: ZFControlMessage,
+        message: ControlMessage,
     ) -> ZFResult<()>;
 
     /// Checks the compatibility for the given `operator`
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
-    async fn check_operator_compatibility(&self, operator: ZFOperatorDescriptor) -> ZFResult<bool>;
+    async fn check_operator_compatibility(&self, operator: OperatorDescriptor) -> ZFResult<bool>;
 
     /// Checks the compatibility for the given `source`
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
-    async fn check_source_compatibility(&self, source: ZFSourceDescriptor) -> ZFResult<bool>;
+    async fn check_source_compatibility(&self, source: SourceDescriptor) -> ZFResult<bool>;
 
     /// Checks the compatibility for the given `sink`
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
-    async fn check_sink_compatibility(&self, sink: ZFSinkDescriptor) -> ZFResult<bool>;
+    async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> ZFResult<bool>;
 }

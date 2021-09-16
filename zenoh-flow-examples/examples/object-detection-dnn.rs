@@ -20,8 +20,8 @@ use std::{
     path::Path,
 };
 use zenoh_flow::{
-    default_input_rule, default_output_rule, ZFComponent, ZFComponentInputRule, ZFComponentOutput,
-    ZFComponentOutputRule, ZFContext, ZFDataTrait, ZFOperatorTrait, ZFStateTrait,
+    default_input_rule, default_output_rule, Component, ComponentOutput, Context, Data, InputRule,
+    Operator, OutputRule, PortId, State,
 };
 use zenoh_flow::{
     downcast, get_input,
@@ -94,52 +94,52 @@ impl ODState {
     }
 }
 
-impl ZFComponent for ObjDetection {
+impl Component for ObjDetection {
     fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         Box::new(ODState::new(configuration))
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
 
-impl ZFComponentInputRule for ObjDetection {
+impl InputRule for ObjDetection {
     fn input_rule(
         &self,
-        _context: &mut ZFContext,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        tokens: &mut HashMap<String, Token>,
+        _context: &mut Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }
 }
 
-impl ZFComponentOutputRule for ObjDetection {
+impl OutputRule for ObjDetection {
     fn output_rule(
         &self,
-        _context: &mut ZFContext,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn zenoh_flow::ZFDataTrait>>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, ZFComponentOutput>> {
+        _context: &mut Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        outputs: &HashMap<PortId, Arc<dyn zenoh_flow::Data>>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }
 
-impl ZFOperatorTrait for ObjDetection {
+impl Operator for ObjDetection {
     fn run(
         &self,
-        _context: &mut ZFContext,
-        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
+        _context: &mut Context,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
+        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
         let scale = 1.0 / 255.0;
         let mean = core::Scalar::new(0f64, 0f64, 0f64, 0f64);
 
-        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::with_capacity(1);
+        let mut results: HashMap<PortId, Arc<dyn Data>> = HashMap::with_capacity(1);
 
         let mut detections: opencv::types::VectorOfMat = core::Vector::new();
 
@@ -319,7 +319,7 @@ impl ZFOperatorTrait for ObjDetection {
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
-        results.insert(String::from(OUTPUT), zf_data!(ZFBytes(buf.into())));
+        results.insert(OUTPUT.into(), zf_data!(ZFBytes(buf.into())));
 
         Ok(results)
     }
@@ -327,6 +327,6 @@ impl ZFOperatorTrait for ObjDetection {
 
 zenoh_flow::export_operator!(register);
 
-fn register() -> ZFResult<Arc<dyn zenoh_flow::ZFOperatorTrait>> {
-    Ok(Arc::new(ObjDetection) as Arc<dyn zenoh_flow::ZFOperatorTrait>)
+fn register() -> ZFResult<Arc<dyn zenoh_flow::Operator>> {
+    Ok(Arc::new(ObjDetection) as Arc<dyn zenoh_flow::Operator>)
 }

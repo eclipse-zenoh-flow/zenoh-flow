@@ -17,9 +17,8 @@ macro_rules! export_operator {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfoperator_declaration:
-            $crate::runtime::runners::operator::ZFOperatorDeclaration =
-            $crate::runtime::runners::operator::ZFOperatorDeclaration {
+        pub static zfoperator_declaration: $crate::runtime::runners::operator::OperatorDeclaration =
+            $crate::runtime::runners::operator::OperatorDeclaration {
                 rustc_version: $crate::runtime::loader::RUSTC_VERSION,
                 core_version: $crate::runtime::loader::CORE_VERSION,
                 register: $register,
@@ -32,8 +31,8 @@ macro_rules! export_source {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsource_declaration: $crate::runtime::runners::source::ZFSourceDeclaration =
-            $crate::runtime::runners::source::ZFSourceDeclaration {
+        pub static zfsource_declaration: $crate::runtime::runners::source::SourceDeclaration =
+            $crate::runtime::runners::source::SourceDeclaration {
                 rustc_version: $crate::runtime::loader::RUSTC_VERSION,
                 core_version: $crate::runtime::loader::CORE_VERSION,
                 register: $register,
@@ -46,8 +45,8 @@ macro_rules! export_sink {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsink_declaration: $crate::runtime::runners::sink::ZFSinkDeclaration =
-            $crate::runtime::runners::sink::ZFSinkDeclaration {
+        pub static zfsink_declaration: $crate::runtime::runners::sink::SinkDeclaration =
+            $crate::runtime::runners::sink::SinkDeclaration {
                 rustc_version: $crate::runtime::loader::RUSTC_VERSION,
                 core_version: $crate::runtime::loader::CORE_VERSION,
                 register: $register,
@@ -117,25 +116,25 @@ macro_rules! get_state {
 #[macro_export]
 macro_rules! get_input {
     ($ident : ident, $index : expr, $map : expr) => {
-        match $map.get_mut(&$index) {
+        match $map.get_mut::<str>(&$index) {
             Some(mut data_message) => match &data_message.data {
-                zenoh_flow::runtime::message::ZFSerDeData::Deserialized(de) => {
+                zenoh_flow::runtime::message::SerDeData::Deserialized(de) => {
                     match zenoh_flow::downcast!($ident, de) {
                         Some(data) => Ok((data_message.timestamp.clone(), data.clone())),
                         None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
                     }
                 }
-                zenoh_flow::runtime::message::ZFSerDeData::Serialized(ser) => {
-                    let de: Arc<dyn zenoh_flow::ZFDataTrait> = Arc::new(
-                        <$ident as zenoh_flow::ZFDeserializable>::try_deserialize(ser.as_slice())
+                zenoh_flow::runtime::message::SerDeData::Serialized(ser) => {
+                    let de: Arc<dyn zenoh_flow::Data> = Arc::new(
+                        <$ident as zenoh_flow::Deserializable>::try_deserialize(ser.as_slice())
                             .map_err(|_| zenoh_flow::types::ZFError::DeseralizationError)?,
                     );
 
                     (*data_message).data =
-                        zenoh_flow::runtime::message::ZFSerDeData::Deserialized(de);
+                        zenoh_flow::runtime::message::SerDeData::Deserialized(de);
 
                     match &data_message.data {
-                        zenoh_flow::runtime::message::ZFSerDeData::Deserialized(de) => {
+                        zenoh_flow::runtime::message::SerDeData::Deserialized(de) => {
                             match zenoh_flow::downcast!($ident, de) {
                                 Some(data) => Ok((data_message.timestamp.clone(), data.clone())),
                                 None => Err(zenoh_flow::types::ZFError::InvalidData($index)),

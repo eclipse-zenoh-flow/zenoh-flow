@@ -12,30 +12,29 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::{PortId, ZFResult};
 use async_std::sync::{Arc, Mutex};
 
-use crate::ZFResult;
-
 #[derive(Clone, Debug)]
-pub struct ZFLinkSender<T> {
-    pub id: String,
+pub struct LinkSender<T> {
+    pub id: PortId,
     pub sender: flume::Sender<Arc<T>>,
 }
 
 #[derive(Clone, Debug)]
-pub struct ZFLinkReceiver<T> {
-    pub id: String,
+pub struct LinkReceiver<T> {
+    pub id: PortId,
     pub receiver: flume::Receiver<Arc<T>>,
     pub last_message: Arc<Mutex<Option<Arc<T>>>>,
 }
 
-pub type ZFLinkOutput<T> = ZFResult<(String, Arc<T>)>;
+pub type ZFLinkOutput<T> = ZFResult<(PortId, Arc<T>)>;
 
-impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
+impl<T: std::marker::Send + std::marker::Sync> LinkReceiver<T> {
     pub fn peek(
         &self,
     ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_>> {
-        async fn __peek<T>(_self: &ZFLinkReceiver<T>) -> ZFResult<(String, Arc<T>)> {
+        async fn __peek<T>(_self: &LinkReceiver<T>) -> ZFResult<(PortId, Arc<T>)> {
             let mut guard = _self.last_message.lock().await;
 
             match &*guard {
@@ -55,7 +54,7 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
         &self,
     ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_ + Send + Sync>>
     {
-        async fn __recv<T>(_self: &ZFLinkReceiver<T>) -> ZFResult<(String, Arc<T>)> {
+        async fn __recv<T>(_self: &LinkReceiver<T>) -> ZFResult<(PortId, Arc<T>)> {
             let mut guard = _self.last_message.lock().await;
             match &*guard {
                 Some(message) => {
@@ -77,12 +76,12 @@ impl<T: std::marker::Send + std::marker::Sync> ZFLinkReceiver<T> {
         Ok(())
     }
 
-    pub fn id(&self) -> String {
+    pub fn id(&self) -> PortId {
         self.id.clone()
     }
 }
 
-impl<T> ZFLinkSender<T> {
+impl<T> LinkSender<T> {
     pub async fn send(&self, data: Arc<T>) -> ZFResult<()> {
         Ok(self.sender.send_async(data).await?)
     }
@@ -99,7 +98,7 @@ impl<T> ZFLinkSender<T> {
         self.sender.capacity()
     }
 
-    pub fn id(&self) -> String {
+    pub fn id(&self) -> PortId {
         self.id.clone()
     }
 }
@@ -108,19 +107,19 @@ pub fn link<T>(
     capacity: Option<usize>,
     send_id: String,
     recv_id: String,
-) -> (ZFLinkSender<T>, ZFLinkReceiver<T>) {
+) -> (LinkSender<T>, LinkReceiver<T>) {
     let (sender, receiver) = match capacity {
         None => flume::unbounded(),
         Some(cap) => flume::bounded(cap),
     };
 
     (
-        ZFLinkSender {
-            id: send_id,
+        LinkSender {
+            id: send_id.into(),
             sender,
         },
-        ZFLinkReceiver {
-            id: recv_id,
+        LinkReceiver {
+            id: recv_id.into(),
             receiver,
             last_message: Arc::new(Mutex::new(None)),
         },

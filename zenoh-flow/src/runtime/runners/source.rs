@@ -13,21 +13,21 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::operator::ZFSourceRecord;
-use crate::runtime::graph::link::ZFLinkSender;
-use crate::runtime::message::ZFMessage;
+use crate::model::component::SourceRecord;
+use crate::runtime::graph::link::LinkSender;
+use crate::runtime::message::Message;
 use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
-use crate::{ZFContext, ZFSourceTrait, ZFStateTrait};
+use crate::{Context, PortId, Source, State};
 use libloading::Library;
 use std::collections::HashMap;
 
-pub type ZFSourceRegisterFn = fn() -> ZFResult<Arc<dyn ZFSourceTrait>>;
+pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
 
-pub struct ZFSourceDeclaration {
+pub struct SourceDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: ZFSourceRegisterFn,
+    pub register: SourceRegisterFn,
 }
 
 // Do not reorder the fields in this struct.
@@ -36,20 +36,20 @@ pub struct ZFSourceDeclaration {
 // We need the state to be dropped before the source/lib, otherwise we
 // will have a SIGSEV.
 #[derive(Clone)]
-pub struct ZFSourceRunner {
-    pub record: Arc<ZFSourceRecord>,
+pub struct SourceRunner {
+    pub record: Arc<SourceRecord>,
     pub hlc: Arc<PeriodicHLC>,
-    pub state: Arc<RwLock<Box<dyn ZFStateTrait>>>,
-    pub outputs: Arc<RwLock<HashMap<String, Vec<ZFLinkSender<ZFMessage>>>>>,
-    pub source: Arc<dyn ZFSourceTrait>,
+    pub state: Arc<RwLock<Box<dyn State>>>,
+    pub outputs: Arc<RwLock<HashMap<PortId, Vec<LinkSender<Message>>>>>,
+    pub source: Arc<dyn Source>,
     pub lib: Arc<Option<Library>>,
 }
 
-impl ZFSourceRunner {
+impl SourceRunner {
     pub fn new(
-        record: ZFSourceRecord,
+        record: SourceRecord,
         hlc: PeriodicHLC,
-        source: Arc<dyn ZFSourceTrait>,
+        source: Arc<dyn Source>,
         lib: Option<Library>,
     ) -> Self {
         let state = source.initialize(&record.configuration);
@@ -63,10 +63,10 @@ impl ZFSourceRunner {
         }
     }
 
-    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
+    pub async fn add_output(&self, output: LinkSender<Message>) {
         let mut outputs = self.outputs.write().await;
         let key = output.id();
-        if let Some(links) = outputs.get_mut(&key) {
+        if let Some(links) = outputs.get_mut(key.as_ref()) {
             links.push(output);
         } else {
             outputs.insert(key, vec![output]);
@@ -79,7 +79,7 @@ impl ZFSourceRunner {
     }
 
     pub async fn run(&self) -> ZFResult<()> {
-        let mut context = ZFContext::default();
+        let mut context = Context::default();
 
         loop {
             // Guards are taken at the beginning of each iteration to allow
@@ -104,7 +104,7 @@ impl ZFSourceRunner {
                 log::debug!("Sending on {:?} data: {:?}", id, output);
 
                 if let Some(links) = outputs_links.get(&id) {
-                    let zf_message = Arc::new(ZFMessage::from_component_output(output, timestamp));
+                    let zf_message = Arc::new(Message::from_component_output(output, timestamp));
 
                     for tx in links {
                         log::debug!("Sending on: {:?}", tx);

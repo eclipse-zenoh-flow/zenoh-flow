@@ -15,11 +15,12 @@
 use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use zenoh_flow::State;
 use zenoh_flow::{
     default_input_rule, downcast, get_input,
     types::{Token, ZFResult},
     zenoh_flow_derive::ZFState,
-    ZFComponent, ZFComponentInputRule, ZFSinkTrait, ZFStateTrait,
+    Component, InputRule, PortId, Sink,
 };
 
 use zenoh::net::config;
@@ -45,37 +46,37 @@ impl ZSinkState {
     }
 }
 
-impl ZFComponent for ExampleGenericZenohSink {
+impl Component for ExampleGenericZenohSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         Box::new(ZSinkState::new())
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
 
-impl ZFComponentInputRule for ExampleGenericZenohSink {
+impl InputRule for ExampleGenericZenohSink {
     fn input_rule(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        tokens: &mut HashMap<String, Token>,
+        _context: &mut zenoh_flow::Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }
 }
 
 #[async_trait]
-impl ZFSinkTrait for ExampleGenericZenohSink {
+impl Sink for ExampleGenericZenohSink {
     async fn run(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
-        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
+        _context: &mut zenoh_flow::Context,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
+        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
     ) -> ZFResult<()> {
         let state = downcast!(ZSinkState, dyn_state).unwrap();
 
@@ -93,6 +94,6 @@ impl ZFSinkTrait for ExampleGenericZenohSink {
 
 zenoh_flow::export_sink!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFSinkTrait>> {
+fn register() -> ZFResult<Arc<dyn Sink>> {
     Ok(Arc::new(ExampleGenericZenohSink))
 }

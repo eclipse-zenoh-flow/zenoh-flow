@@ -15,13 +15,14 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
-use zenoh_flow::runtime::message::ZFDataMessage;
+use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
+use zenoh_flow::Token;
 use zenoh_flow::{
-    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, Token, ZFComponent,
-    ZFComponentInputRule, ZFStateTrait,
+    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, Component, InputRule,
+    State,
 };
-use zenoh_flow::{ZFContext, ZFSinkTrait};
+use zenoh_flow::{Context, PortId, Sink};
 
 use std::fs::File;
 use std::io::Write;
@@ -47,12 +48,12 @@ impl SinkState {
 }
 
 #[async_trait]
-impl ZFSinkTrait for GenericSink {
+impl Sink for GenericSink {
     async fn run(
         &self,
-        _context: &mut ZFContext,
-        _state: &mut Box<dyn ZFStateTrait>,
-        inputs: &mut HashMap<String, ZFDataMessage>,
+        _context: &mut Context,
+        _state: &mut Box<dyn State>,
+        inputs: &mut HashMap<PortId, DataMessage>,
     ) -> ZFResult<()> {
         let state = downcast!(SinkState, _state).unwrap();
 
@@ -84,12 +85,12 @@ impl ZFSinkTrait for GenericSink {
     }
 }
 
-impl ZFComponent for GenericSink {
-    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn ZFStateTrait> {
+impl Component for GenericSink {
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn State> {
         Box::new(SinkState::new(configuration))
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         let state = downcast_mut!(SinkState, _state).unwrap();
 
         match &mut state.file {
@@ -102,12 +103,12 @@ impl ZFComponent for GenericSink {
     }
 }
 
-impl ZFComponentInputRule for GenericSink {
+impl InputRule for GenericSink {
     fn input_rule(
         &self,
-        _context: &mut ZFContext,
-        state: &mut Box<dyn ZFStateTrait>,
-        tokens: &mut HashMap<String, Token>,
+        _context: &mut Context,
+        state: &mut Box<dyn State>,
+        tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }
@@ -115,6 +116,6 @@ impl ZFComponentInputRule for GenericSink {
 
 export_sink!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFSinkTrait>> {
-    Ok(Arc::new(GenericSink) as Arc<dyn ZFSinkTrait>)
+fn register() -> ZFResult<Arc<dyn Sink>> {
+    Ok(Arc::new(GenericSink) as Arc<dyn Sink>)
 }

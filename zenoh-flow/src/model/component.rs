@@ -12,56 +12,56 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::model::link::ZFPortDescriptor;
-use crate::model::period::ZFPeriodDescriptor;
-use crate::types::{ZFOperatorId, ZFRuntimeID};
+use crate::model::link::PortDescriptor;
+use crate::model::period::PeriodDescriptor;
+use crate::types::{OperatorId, RuntimeId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // Descriptors
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSinkDescriptor {
-    pub id: ZFOperatorId,
-    pub input: ZFPortDescriptor,
+pub struct SinkDescriptor {
+    pub id: OperatorId,
+    pub input: PortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<ZFRuntimeID>, // to be removed
+    pub runtime: Option<RuntimeId>, // to be removed
 }
 
-impl std::fmt::Display for ZFSinkDescriptor {
+impl std::fmt::Display for SinkDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Sink", self.id)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSourceDescriptor {
-    pub id: ZFOperatorId,
-    pub output: ZFPortDescriptor,
-    pub period: Option<ZFPeriodDescriptor>,
+pub struct SourceDescriptor {
+    pub id: OperatorId,
+    pub output: PortDescriptor,
+    pub period: Option<PeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<ZFRuntimeID>, // to be removed
+    pub runtime: Option<RuntimeId>, // to be removed
 }
 
-impl std::fmt::Display for ZFSourceDescriptor {
+impl std::fmt::Display for SourceDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Source", self.id)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFOperatorDescriptor {
-    pub id: ZFOperatorId,
-    pub inputs: Vec<ZFPortDescriptor>,
-    pub outputs: Vec<ZFPortDescriptor>,
+pub struct OperatorDescriptor {
+    pub id: OperatorId,
+    pub inputs: Vec<PortDescriptor>,
+    pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: Option<ZFRuntimeID>, // to be removed
+    pub runtime: Option<RuntimeId>, // to be removed
 }
 
-impl std::fmt::Display for ZFOperatorDescriptor {
+impl std::fmt::Display for OperatorDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Operator", self.id)
     }
@@ -70,21 +70,21 @@ impl std::fmt::Display for ZFOperatorDescriptor {
 // Records
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSinkRecord {
-    pub id: ZFOperatorId,
-    pub input: ZFPortDescriptor,
+pub struct SinkRecord {
+    pub id: OperatorId,
+    pub input: PortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: ZFRuntimeID,
+    pub runtime: RuntimeId,
 }
 
-impl std::fmt::Display for ZFSinkRecord {
+impl std::fmt::Display for SinkRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Sink", self.id)
     }
 }
 
-impl ZFSinkRecord {
+impl SinkRecord {
     pub fn get_input_type(&self, id: &str) -> Option<String> {
         if self.input.port_id == *id {
             Some(self.input.port_type.clone())
@@ -95,22 +95,22 @@ impl ZFSinkRecord {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFSourceRecord {
-    pub id: ZFOperatorId,
-    pub output: ZFPortDescriptor,
-    pub period: Option<ZFPeriodDescriptor>,
+pub struct SourceRecord {
+    pub id: OperatorId,
+    pub output: PortDescriptor,
+    pub period: Option<PeriodDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: ZFRuntimeID,
+    pub runtime: RuntimeId,
 }
 
-impl std::fmt::Display for ZFSourceRecord {
+impl std::fmt::Display for SourceRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Source", self.id)
     }
 }
 
-impl ZFSourceRecord {
+impl SourceRecord {
     pub fn get_output_type(&self, id: &str) -> Option<String> {
         if self.output.port_id == *id {
             Some(self.output.port_type.clone())
@@ -121,22 +121,22 @@ impl ZFSourceRecord {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFOperatorRecord {
-    pub id: ZFOperatorId,
-    pub inputs: Vec<ZFPortDescriptor>,
-    pub outputs: Vec<ZFPortDescriptor>,
+pub struct OperatorRecord {
+    pub id: OperatorId,
+    pub inputs: Vec<PortDescriptor>,
+    pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
-    pub runtime: ZFRuntimeID,
+    pub runtime: RuntimeId,
 }
 
-impl std::fmt::Display for ZFOperatorRecord {
+impl std::fmt::Display for OperatorRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Operator", self.id)
     }
 }
 
-impl ZFOperatorRecord {
+impl OperatorRecord {
     pub fn get_output_type(&self, id: &str) -> Option<String> {
         self.outputs
             .iter()

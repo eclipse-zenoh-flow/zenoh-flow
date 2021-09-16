@@ -16,8 +16,8 @@ use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input, types::ZFResult,
-    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, ZFComponent, ZFComponentInputRule,
-    ZFComponentOutputRule, ZFDataTrait, ZFOperatorTrait, ZFStateTrait,
+    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, Component, Data, InputRule, Operator,
+    OutputRule, State,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -49,49 +49,49 @@ impl FrameConcatState {
 
 struct FrameConcat;
 
-impl ZFComponent for FrameConcat {
+impl Component for FrameConcat {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         Box::new(FrameConcatState::new())
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
 
-impl ZFComponentInputRule for FrameConcat {
+impl InputRule for FrameConcat {
     fn input_rule(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        tokens: &mut HashMap<String, zenoh_flow::Token>,
+        _context: &mut zenoh_flow::Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        tokens: &mut HashMap<zenoh_flow::PortId, zenoh_flow::Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }
 }
 
-impl ZFComponentOutputRule for FrameConcat {
+impl OutputRule for FrameConcat {
     fn output_rule(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn zenoh_flow::ZFDataTrait>>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        _context: &mut zenoh_flow::Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }
 
-impl ZFOperatorTrait for FrameConcat {
+impl Operator for FrameConcat {
     fn run(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
-        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
-        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
+        _context: &mut zenoh_flow::Context,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
+        inputs: &mut HashMap<zenoh_flow::PortId, zenoh_flow::runtime::message::DataMessage>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
+        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::new();
 
         let state = downcast!(FrameConcatState, dyn_state).unwrap();
         let encode_options = zf_spin_lock!(state.encode_options);
@@ -120,7 +120,7 @@ impl ZFOperatorTrait for FrameConcat {
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
-        results.insert(String::from(OUTPUT), zf_data!(ZFBytes(buf.into())));
+        results.insert(OUTPUT.into(), zf_data!(ZFBytes(buf.into())));
 
         Ok(results)
     }
@@ -128,6 +128,6 @@ impl ZFOperatorTrait for FrameConcat {
 
 zenoh_flow::export_operator!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFOperatorTrait>> {
-    Ok(Arc::new(FrameConcat) as Arc<dyn ZFOperatorTrait>)
+fn register() -> ZFResult<Arc<dyn Operator>> {
+    Ok(Arc::new(FrameConcat) as Arc<dyn Operator>)
 }

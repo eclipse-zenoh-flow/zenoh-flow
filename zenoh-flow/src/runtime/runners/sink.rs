@@ -13,30 +13,30 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::operator::ZFSinkRecord;
-use crate::runtime::graph::link::ZFLinkReceiver;
-use crate::runtime::message::ZFMessage;
+use crate::model::component::SinkRecord;
+use crate::runtime::graph::link::LinkReceiver;
+use crate::runtime::message::Message;
 use crate::types::{Token, ZFResult};
-use crate::{ZFContext, ZFSinkTrait, ZFStateTrait};
+use crate::{Context, PortId, Sink, State};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 
-pub type ZFSinkRegisterFn = fn() -> ZFResult<Arc<dyn ZFSinkTrait>>;
+pub type SinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
 
-pub struct ZFSinkDeclaration {
+pub struct SinkDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: ZFSinkRegisterFn,
+    pub register: SinkRegisterFn,
 }
 
-pub struct ZFSinkRunnerInner {
-    pub inputs: Vec<ZFLinkReceiver<ZFMessage>>,
-    pub state: Box<dyn ZFStateTrait>,
+pub struct SinkRunnerInner {
+    pub inputs: Vec<LinkReceiver<Message>>,
+    pub state: Box<dyn State>,
 }
 
-impl ZFSinkRunnerInner {
-    pub fn new(state: Box<dyn ZFStateTrait>) -> Self {
+impl SinkRunnerInner {
+    pub fn new(state: Box<dyn State>) -> Self {
         Self {
             inputs: vec![],
             state,
@@ -50,16 +50,16 @@ impl ZFSinkRunnerInner {
 // We need the state to be dropped before the sink/lib, otherwise we
 // will have a SIGSEV.
 #[derive(Clone)]
-pub struct ZFSinkRunner {
-    pub record: Arc<ZFSinkRecord>,
-    pub state: Arc<RwLock<Box<dyn ZFStateTrait>>>,
-    pub inputs: Arc<RwLock<Vec<ZFLinkReceiver<ZFMessage>>>>,
-    pub sink: Arc<dyn ZFSinkTrait>,
+pub struct SinkRunner {
+    pub record: Arc<SinkRecord>,
+    pub state: Arc<RwLock<Box<dyn State>>>,
+    pub inputs: Arc<RwLock<Vec<LinkReceiver<Message>>>>,
+    pub sink: Arc<dyn Sink>,
     pub lib: Arc<Option<Library>>,
 }
 
-impl ZFSinkRunner {
-    pub fn new(record: ZFSinkRecord, sink: Arc<dyn ZFSinkTrait>, lib: Option<Library>) -> Self {
+impl SinkRunner {
+    pub fn new(record: SinkRecord, sink: Arc<dyn Sink>, lib: Option<Library>) -> Self {
         let state = sink.initialize(&record.configuration);
         Self {
             record: Arc::new(record),
@@ -70,7 +70,7 @@ impl ZFSinkRunner {
         }
     }
 
-    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
+    pub async fn add_input(&self, input: LinkReceiver<Message>) {
         self.inputs.write().await.push(input);
     }
 
@@ -80,7 +80,7 @@ impl ZFSinkRunner {
     }
 
     pub async fn run(&self) -> ZFResult<()> {
-        let mut context = ZFContext::default();
+        let mut context = Context::default();
 
         loop {
             // Guards are taken at the beginning of each iteration to allow
@@ -89,7 +89,7 @@ impl ZFSinkRunner {
             let mut state = self.state.write().await;
 
             // we should start from an HashMap with all PortId and not ready tokens
-            let mut msgs: HashMap<String, Token> = HashMap::new();
+            let mut msgs: HashMap<PortId, Token> = HashMap::new();
 
             for i in inputs.iter() {
                 msgs.insert(i.id(), Token::NotReady);

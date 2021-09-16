@@ -14,82 +14,82 @@
 
 extern crate serde;
 
-use crate::{ZFComponentOutput, ZFDataTrait, ZFError, ZFResult};
+use crate::{ComponentOutput, Data, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use uhlc::Timestamp;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ZFSerDeData {
+pub enum SerDeData {
     Serialized(Arc<Vec<u8>>),
     #[serde(skip_serializing, skip_deserializing)]
     // Deserialized data is never serialized directly
-    Deserialized(Arc<dyn ZFDataTrait>),
+    Deserialized(Arc<dyn Data>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ZFDataMessage {
-    pub data: ZFSerDeData,
+pub struct DataMessage {
+    pub data: SerDeData,
     pub timestamp: Timestamp,
 }
 
-impl ZFDataMessage {
-    pub fn new(data: ZFSerDeData, timestamp: Timestamp) -> Self {
+impl DataMessage {
+    pub fn new(data: SerDeData, timestamp: Timestamp) -> Self {
         Self { data, timestamp }
     }
 
     pub fn new_serialized(data: Arc<Vec<u8>>, timestamp: Timestamp) -> Self {
         Self {
-            data: ZFSerDeData::Serialized(data),
+            data: SerDeData::Serialized(data),
             timestamp,
         }
     }
 
-    pub fn new_deserialized(data: Arc<dyn ZFDataTrait>, timestamp: Timestamp) -> Self {
+    pub fn new_deserialized(data: Arc<dyn Data>, timestamp: Timestamp) -> Self {
         Self {
-            data: ZFSerDeData::Deserialized(data),
+            data: SerDeData::Deserialized(data),
             timestamp,
         }
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ZFControlMessage {
+pub enum ControlMessage {
     ReadyToMigrate,
     ChangeMode(u8, u128),
     Watermark,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ZFMessage {
-    Data(ZFDataMessage),
-    Control(ZFControlMessage),
+pub enum Message {
+    Data(DataMessage),
+    Control(ControlMessage),
 }
 
-impl ZFMessage {
-    pub fn from_component_output(output: ZFComponentOutput, timestamp: Timestamp) -> Self {
+impl Message {
+    pub fn from_component_output(output: ComponentOutput, timestamp: Timestamp) -> Self {
         match output {
-            ZFComponentOutput::Control(c) => Self::Control(c),
-            ZFComponentOutput::Data(d) => Self::Data(ZFDataMessage::new_deserialized(d, timestamp)),
+            ComponentOutput::Control(c) => Self::Control(c),
+            ComponentOutput::Data(d) => Self::Data(DataMessage::new_deserialized(d, timestamp)),
         }
     }
 
     pub fn serialize_bincode(&self) -> ZFResult<Vec<u8>> {
         match &self {
-            ZFMessage::Control(_) => {
+            Message::Control(_) => {
                 bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
             }
-            ZFMessage::Data(data_message) => match &data_message.data {
-                ZFSerDeData::Serialized(_) => {
+            Message::Data(data_message) => match &data_message.data {
+                SerDeData::Serialized(_) => {
                     bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
                 }
-                ZFSerDeData::Deserialized(de) => {
+                SerDeData::Deserialized(de) => {
                     let serialized_data = Arc::new(
                         de.try_serialize()
                             .map_err(|_| ZFError::SerializationError)?,
                     );
-                    let serialized_message = ZFMessage::Data(ZFDataMessage::new_serialized(
+                    let serialized_message = Message::Data(DataMessage::new_serialized(
                         serialized_data,
                         data_message.timestamp,
                     ));

@@ -12,8 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::runtime::message::ZFDataMessage;
-use crate::{Token, ZFComponentOutput, ZFContext, ZFPortID, ZFResult};
+use crate::runtime::message::DataMessage;
+use crate::{ComponentOutput, Context, PortId, Token, ZFResult};
 use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::any::Any;
@@ -22,76 +22,74 @@ use std::fmt::Debug;
 
 // NOTE: This trait is separate from `ZFDataTrait` so that we can provide a `#derive` macro to
 // automatically implement it for the users.
-pub trait ZFDowncastAny {
+pub trait DowncastAny {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
-pub trait ZFDataTrait: ZFDowncastAny + Debug + Send + Sync {
+pub trait Data: DowncastAny + Debug + Send + Sync {
     fn try_serialize(&self) -> ZFResult<Vec<u8>>;
 }
 
-pub trait ZFDeserializable {
+pub trait Deserializable {
     fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
     where
         Self: Sized;
 }
 
-pub trait ZFStateTrait: Debug + Send + Sync {
+pub trait State: Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
-pub trait ZFComponent {
-    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn ZFStateTrait>;
+pub trait Component {
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn State>;
 
-    fn clean(&self, state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()>;
+    fn clean(&self, state: &mut Box<dyn State>) -> ZFResult<()>;
 }
 
-pub trait ZFComponentInputRule {
+pub trait InputRule {
     fn input_rule(
         &self,
-        context: &mut ZFContext,
-        state: &mut Box<dyn ZFStateTrait>,
-        tokens: &mut HashMap<String, Token>,
+        context: &mut Context,
+        state: &mut Box<dyn State>,
+        tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool>;
 }
 
-pub trait ZFComponentOutputRule {
+pub trait OutputRule {
     fn output_rule(
         &self,
-        context: &mut ZFContext,
-        state: &mut Box<dyn ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-    ) -> ZFResult<HashMap<ZFPortID, ZFComponentOutput>>;
+        context: &mut Context,
+        state: &mut Box<dyn State>,
+        outputs: &HashMap<PortId, Arc<dyn Data>>,
+    ) -> ZFResult<HashMap<PortId, ComponentOutput>>;
 }
 
-pub trait ZFOperatorTrait:
-    ZFComponent + ZFComponentInputRule + ZFComponentOutputRule + Send + Sync
-{
+pub trait Operator: Component + InputRule + OutputRule + Send + Sync {
     fn run(
         &self,
-        context: &mut ZFContext,
-        state: &mut Box<dyn ZFStateTrait>,
-        inputs: &mut HashMap<String, ZFDataMessage>,
-    ) -> ZFResult<HashMap<ZFPortID, Arc<dyn ZFDataTrait>>>;
+        context: &mut Context,
+        state: &mut Box<dyn State>,
+        inputs: &mut HashMap<PortId, DataMessage>,
+    ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>>;
 }
 
 #[async_trait]
-pub trait ZFSourceTrait: ZFComponent + ZFComponentOutputRule + Send + Sync {
+pub trait Source: Component + OutputRule + Send + Sync {
     async fn run(
         &self,
-        context: &mut ZFContext,
-        state: &mut Box<dyn ZFStateTrait>,
-    ) -> ZFResult<HashMap<ZFPortID, Arc<dyn ZFDataTrait>>>;
+        context: &mut Context,
+        state: &mut Box<dyn State>,
+    ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>>;
 }
 
 #[async_trait]
-pub trait ZFSinkTrait: ZFComponent + ZFComponentInputRule + Send + Sync {
+pub trait Sink: Component + InputRule + Send + Sync {
     async fn run(
         &self,
-        context: &mut ZFContext,
-        state: &mut Box<dyn ZFStateTrait>,
-        inputs: &mut HashMap<String, ZFDataMessage>,
+        context: &mut Context,
+        state: &mut Box<dyn State>,
+        inputs: &mut HashMap<PortId, DataMessage>,
     ) -> ZFResult<()>;
 }

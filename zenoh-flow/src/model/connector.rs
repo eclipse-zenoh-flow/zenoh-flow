@@ -12,9 +12,9 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::model::link::ZFPortDescriptor;
+use crate::model::link::PortDescriptor;
 use crate::serde::{Deserialize, Serialize};
-use crate::ZFRuntimeID;
+use crate::{OperatorId, RuntimeId};
 
 #[derive(PartialEq, Serialize, Deserialize, Debug, Clone)]
 pub enum ZFConnectorKind {
@@ -34,10 +34,10 @@ impl std::fmt::Display for ZFConnectorKind {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFConnectorRecord {
     pub kind: ZFConnectorKind,
-    pub id: String,
+    pub id: OperatorId,
     pub resource: String,
-    pub link_id: ZFPortDescriptor,
-    pub runtime: ZFRuntimeID,
+    pub link_id: PortDescriptor,
+    pub runtime: RuntimeId,
 }
 
 impl std::fmt::Display for ZFConnectorRecord {

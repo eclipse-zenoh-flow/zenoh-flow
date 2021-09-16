@@ -17,17 +17,15 @@ use zenoh::ZFuture;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::dataflow::DataFlowDescriptor;
 use zenoh_flow::model::{
+    component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
     dataflow::DataFlowRecord,
-    operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor},
 };
 use zenoh_flow::runtime::graph::DataFlowGraph;
-use zenoh_flow::runtime::message::ZFControlMessage;
-use zenoh_flow::runtime::resources::ZFDataStore;
+use zenoh_flow::runtime::message::ControlMessage;
+use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
-use zenoh_flow::runtime::ZFRuntimeClient;
-use zenoh_flow::runtime::{
-    ZFRuntime, ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus, ZFRuntimeStatusKind,
-};
+use zenoh_flow::runtime::RuntimeClient;
+use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
 use zenoh_flow::types::{ZFError, ZFResult};
 
 use std::convert::TryFrom;
@@ -36,25 +34,25 @@ use zrpc::ZNServe;
 
 pub struct RTState {
     pub graphs: HashMap<Uuid, (DataFlowGraph, Vec<RunnerManager>)>,
-    pub config: ZFRuntimeConfig,
+    pub config: RuntimeConfig,
 }
 
 #[derive(Clone)]
-pub struct Runtime {
+pub struct Daemon {
     pub zn: Arc<ZSession>,
-    pub store: ZFDataStore,
+    pub store: DataStore,
     pub state: Arc<Mutex<RTState>>,
     pub runtime_uuid: Uuid,
-    pub runtime_name: String,
+    pub runtime_name: Arc<str>,
 }
 
-impl Runtime {
+impl Daemon {
     pub fn new(
         zn: Arc<ZSession>,
         z: Arc<zenoh::Zenoh>,
         runtime_uuid: Uuid,
         runtime_name: String,
-        config: ZFRuntimeConfig,
+        config: RuntimeConfig,
     ) -> Self {
         let state = Arc::new(Mutex::new(RTState {
             graphs: HashMap::new(),
@@ -63,14 +61,14 @@ impl Runtime {
 
         Self {
             zn,
-            store: ZFDataStore::new(z),
+            store: DataStore::new(z),
             runtime_uuid,
-            runtime_name,
+            runtime_name: runtime_name.into(),
             state,
         }
     }
 
-    pub fn from_config(config: ZFRuntimeConfig) -> ZFResult<Self> {
+    pub fn from_config(config: RuntimeConfig) -> ZFResult<Self> {
         let uuid = match &config.uuid {
             Some(u) => *u,
             None => get_machine_uuid()?,
@@ -106,7 +104,7 @@ impl Runtime {
 
         let rt_server = self
             .clone()
-            .get_zf_runtime_server(self.zn.clone(), Some(self.runtime_uuid));
+            .get_runtime_server(self.zn.clone(), Some(self.runtime_uuid));
         let (rt_stopper, _hrt) = rt_server
             .connect()
             .await
@@ -131,8 +129,8 @@ impl Runtime {
         let mut rt_info = self.store.get_runtime_info(&self.runtime_uuid).await?;
         let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
 
-        rt_info.status = ZFRuntimeStatusKind::Ready;
-        rt_status.status = ZFRuntimeStatusKind::Ready;
+        rt_info.status = RuntimeStatusKind::Ready;
+        rt_status.status = RuntimeStatusKind::Ready;
 
         self.store
             .add_runtime_info(&self.runtime_uuid, &rt_info)
@@ -173,16 +171,16 @@ impl Runtime {
         let (s, r) = async_std::channel::bounded::<()>(1);
         let rt = self.clone();
 
-        let rt_info = ZFRuntimeInfo {
+        let rt_info = RuntimeInfo {
             id: self.runtime_uuid,
             name: self.runtime_name.clone(),
             tags: Vec::new(),
-            status: ZFRuntimeStatusKind::NotReady,
+            status: RuntimeStatusKind::NotReady,
         };
 
-        let rt_status = ZFRuntimeStatus {
+        let rt_status = RuntimeStatus {
             id: self.runtime_uuid,
-            status: ZFRuntimeStatusKind::NotReady,
+            status: RuntimeStatusKind::NotReady,
             running_flows: 0,
             running_operators: 0,
             running_sources: 0,
@@ -229,7 +227,7 @@ pub fn get_machine_uuid() -> ZFResult<Uuid> {
 }
 
 #[znserver]
-impl ZFRuntime for Runtime {
+impl Runtime for Daemon {
     async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow...
 
@@ -253,7 +251,7 @@ impl ZFRuntime for Runtime {
 
         for rt in involved_runtimes {
             let rt_info = self.store.get_runtime_info_by_name(&rt).await?;
-            let client = ZFRuntimeClient::new(self.zn.clone(), rt_info.id);
+            let client = RuntimeClient::new(self.zn.clone(), rt_info.id);
             rt_clients.push(client);
         }
 
@@ -263,7 +261,7 @@ impl ZFRuntime for Runtime {
         }
 
         // self prepare
-        let dfr = ZFRuntime::prepare(self, mapped.clone(), record_uuid).await?;
+        let dfr = Runtime::prepare(self, mapped.clone(), record_uuid).await?;
 
         // remote start
         for client in rt_clients.iter() {
@@ -271,7 +269,7 @@ impl ZFRuntime for Runtime {
         }
 
         // self start
-        ZFRuntime::start(self, record_uuid).await?;
+        Runtime::start(self, record_uuid).await?;
 
         // remote start sources
         for client in rt_clients.iter() {
@@ -279,7 +277,7 @@ impl ZFRuntime for Runtime {
         }
 
         // self start sources
-        ZFRuntime::start_sources(self, record_uuid).await?;
+        Runtime::start_sources(self, record_uuid).await?;
 
         log::info!(
             "Done Instantiating Flow {} - Instance UUID: {}",
@@ -305,7 +303,7 @@ impl ZFRuntime for Runtime {
             .filter(|rt| *rt != self.runtime_uuid);
 
         for rt in remote_involved_runtimes {
-            let client = ZFRuntimeClient::new(self.zn.clone(), rt);
+            let client = RuntimeClient::new(self.zn.clone(), rt);
             rt_clients.push(client);
         }
 
@@ -326,7 +324,7 @@ impl ZFRuntime for Runtime {
 
         // local stop
         if is_also_local {
-            ZFRuntime::stop(self, record_id).await?;
+            Runtime::stop(self, record_id).await?;
         }
 
         // remote stop clean
@@ -580,17 +578,17 @@ impl ZFRuntime for Runtime {
         &self,
         record_id: Uuid,
         node: String,
-        message: ZFControlMessage,
+        message: ControlMessage,
     ) -> ZFResult<()> {
         Err(ZFError::Unimplemented)
     }
-    async fn check_operator_compatibility(&self, operator: ZFOperatorDescriptor) -> ZFResult<bool> {
+    async fn check_operator_compatibility(&self, operator: OperatorDescriptor) -> ZFResult<bool> {
         Err(ZFError::Unimplemented)
     }
-    async fn check_source_compatibility(&self, source: ZFSourceDescriptor) -> ZFResult<bool> {
+    async fn check_source_compatibility(&self, source: SourceDescriptor) -> ZFResult<bool> {
         Err(ZFError::Unimplemented)
     }
-    async fn check_sink_compatibility(&self, sink: ZFSinkDescriptor) -> ZFResult<bool> {
+    async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> ZFResult<bool> {
         Err(ZFError::Unimplemented)
     }
 }

@@ -13,27 +13,27 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::operator::ZFOperatorRecord;
-use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
-use crate::runtime::message::ZFMessage;
+use crate::model::component::OperatorRecord;
+use crate::runtime::graph::link::{LinkReceiver, LinkSender};
+use crate::runtime::message::Message;
 use crate::types::{Token, ZFResult};
-use crate::{ZFContext, ZFOperatorTrait, ZFStateTrait};
+use crate::{Context, Operator, PortId, State};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 use uhlc::HLC;
 
-pub type ZFOperatorRegisterFn = fn() -> ZFResult<Arc<dyn ZFOperatorTrait>>;
+pub type OperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
 
-pub struct ZFOperatorDeclaration {
+pub struct OperatorDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: ZFOperatorRegisterFn,
+    pub register: OperatorRegisterFn,
 }
 
-pub type ZFOperatorIO = (
-    Vec<ZFLinkReceiver<ZFMessage>>,
-    HashMap<String, Vec<ZFLinkSender<ZFMessage>>>,
+pub type OperatorIO = (
+    Vec<LinkReceiver<Message>>,
+    HashMap<PortId, Vec<LinkSender<Message>>>,
 );
 
 // Do not reorder the fields in this struct.
@@ -42,20 +42,20 @@ pub type ZFOperatorIO = (
 // We need the state to be dropped before the operator/lib, otherwise we
 // will have a SIGSEV.
 #[derive(Clone)]
-pub struct ZFOperatorRunner {
-    pub record: Arc<ZFOperatorRecord>,
-    pub io: Arc<RwLock<ZFOperatorIO>>,
-    pub state: Arc<RwLock<Box<dyn ZFStateTrait>>>,
+pub struct OperatorRunner {
+    pub record: Arc<OperatorRecord>,
+    pub io: Arc<RwLock<OperatorIO>>,
+    pub state: Arc<RwLock<Box<dyn State>>>,
     pub hlc: Arc<HLC>,
-    pub operator: Arc<dyn ZFOperatorTrait>,
+    pub operator: Arc<dyn Operator>,
     pub lib: Arc<Option<Library>>,
 }
 
-impl ZFOperatorRunner {
+impl OperatorRunner {
     pub fn new(
-        record: ZFOperatorRecord,
+        record: OperatorRecord,
         hlc: Arc<HLC>,
-        operator: Arc<dyn ZFOperatorTrait>,
+        operator: Arc<dyn Operator>,
         lib: Option<Library>,
     ) -> Self {
         let state = operator.initialize(&record.configuration);
@@ -69,14 +69,14 @@ impl ZFOperatorRunner {
         }
     }
 
-    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
+    pub async fn add_input(&self, input: LinkReceiver<Message>) {
         self.io.write().await.0.push(input);
     }
 
-    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
+    pub async fn add_output(&self, output: LinkSender<Message>) {
         let mut guard = self.io.write().await;
         let key = output.id();
-        if let Some(links) = guard.1.get_mut(&key) {
+        if let Some(links) = guard.1.get_mut(key.as_ref()) {
             links.push(output);
         } else {
             guard.1.insert(key, vec![output]);
@@ -89,7 +89,7 @@ impl ZFOperatorRunner {
     }
 
     pub async fn run(&self) -> ZFResult<()> {
-        let mut context = ZFContext::default();
+        let mut context = Context::default();
 
         loop {
             // Guards are taken at the beginning of each iteration to allow
@@ -98,7 +98,7 @@ impl ZFOperatorRunner {
             let mut state = self.state.write().await;
 
             // we should start from an HashMap with all PortId and not ready tokens
-            let mut msgs: HashMap<String, Token> = HashMap::new();
+            let mut msgs: HashMap<PortId, Token> = HashMap::new();
 
             for i in io.0.iter() {
                 msgs.insert(i.id(), Token::NotReady);
@@ -165,7 +165,7 @@ impl ZFOperatorRunner {
                 // getting link
                 log::debug!("id: {:?}, message: {:?}", id, output);
                 if let Some(links) = io.1.get(&id) {
-                    let zf_message = Arc::new(ZFMessage::from_component_output(output, timestamp));
+                    let zf_message = Arc::new(Message::from_component_output(output, timestamp));
 
                     for tx in links {
                         log::debug!("Sending on: {:?}", tx);

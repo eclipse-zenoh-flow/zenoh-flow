@@ -15,8 +15,8 @@
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc, usize};
 use zenoh_flow::{
-    zf_data, zf_empty_state, ZFComponent, ZFComponentOutputRule, ZFContext, ZFDataTrait, ZFError,
-    ZFPortID, ZFResult, ZFSourceTrait, ZFStateTrait,
+    zf_data, zf_empty_state, Component, Context, Data, OutputRule, PortId, Source, State, ZFError,
+    ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -25,13 +25,13 @@ struct ManualSource;
 static LINK_ID_INPUT_INT: &str = "Int";
 
 #[async_trait]
-impl ZFSourceTrait for ManualSource {
+impl Source for ManualSource {
     async fn run(
         &self,
-        _context: &mut ZFContext,
-        _state: &mut Box<dyn ZFStateTrait>,
-    ) -> ZFResult<HashMap<ZFPortID, Arc<dyn ZFDataTrait>>> {
-        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::with_capacity(1);
+        _context: &mut Context,
+        _state: &mut Box<dyn State>,
+    ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>> {
+        let mut results: HashMap<PortId, Arc<dyn Data>> = HashMap::with_capacity(1);
 
         println!("> Please input a number: ");
         let mut number = String::new();
@@ -45,38 +45,35 @@ impl ZFSourceTrait for ManualSource {
             Err(_) => return Err(ZFError::GenericError),
         };
 
-        results.insert(String::from(LINK_ID_INPUT_INT), zf_data!(ZFUsize(value)));
+        results.insert(LINK_ID_INPUT_INT.into(), zf_data!(ZFUsize(value)));
 
         Ok(results)
     }
 }
 
-impl ZFComponent for ManualSource {
-    fn initialize(
-        &self,
-        _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn ZFStateTrait> {
+impl Component for ManualSource {
+    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> Box<dyn State> {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
 
-impl ZFComponentOutputRule for ManualSource {
+impl OutputRule for ManualSource {
     fn output_rule(
         &self,
-        _context: &mut ZFContext,
-        state: &mut Box<dyn ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-    ) -> ZFResult<HashMap<ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        _context: &mut Context,
+        state: &mut Box<dyn State>,
+        outputs: &HashMap<PortId, Arc<dyn Data>>,
+    ) -> ZFResult<HashMap<PortId, zenoh_flow::ComponentOutput>> {
         zenoh_flow::default_output_rule(state, outputs)
     }
 }
 
 zenoh_flow::export_source!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFSourceTrait>> {
-    Ok(Arc::new(ManualSource) as Arc<dyn ZFSourceTrait>)
+fn register() -> ZFResult<Arc<dyn Source>> {
+    Ok(Arc::new(ManualSource) as Arc<dyn Source>)
 }

@@ -12,58 +12,58 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::ZFOperatorId;
+use crate::OperatorId;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFLinkDescriptor {
-    pub from: ZFLinkFromDescriptor,
-    pub to: ZFLinkToDescriptor,
+pub struct LinkDescriptor {
+    pub from: LinkFromDescriptor,
+    pub to: LinkToDescriptor,
     pub size: Option<usize>,
     pub queueing_policy: Option<String>,
     pub priority: Option<usize>,
 }
 
-impl std::fmt::Display for ZFLinkDescriptor {
+impl std::fmt::Display for LinkDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} => {}", self.from, self.to)
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ZFPortDescriptor {
+pub struct PortDescriptor {
     #[serde(alias = "id")]
     pub port_id: String,
     #[serde(alias = "type")]
     pub port_type: String,
 }
 
-impl std::fmt::Display for ZFPortDescriptor {
+impl std::fmt::Display for PortDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}:{}", self.port_id, self.port_type)
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ZFLinkFromDescriptor {
-    pub component: ZFOperatorId,
+pub struct LinkFromDescriptor {
+    pub component: OperatorId,
     pub output: String,
 }
 
-impl fmt::Display for ZFLinkFromDescriptor {
+impl fmt::Display for LinkFromDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("{}.{}", self.component, self.output))
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ZFLinkToDescriptor {
-    pub component: ZFOperatorId,
+pub struct LinkToDescriptor {
+    pub component: OperatorId,
     pub input: String,
 }
 
-impl fmt::Display for ZFLinkToDescriptor {
+impl fmt::Display for LinkToDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("{}.{}", self.component, self.input))
     }

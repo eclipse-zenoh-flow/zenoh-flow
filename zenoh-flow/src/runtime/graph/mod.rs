@@ -15,7 +15,7 @@
 pub mod link;
 pub mod node;
 
-use crate::{ZFOperatorTrait, ZFSinkTrait, ZFSourceTrait};
+use crate::{Operator, Sink, Source};
 use async_std::sync::Arc;
 use node::DataFlowNode;
 use petgraph::dot::{Config, Dot};
@@ -28,19 +28,19 @@ use uhlc::HLC;
 use zenoh::ZFuture;
 
 use crate::runtime::loader::{load_operator, load_sink, load_source};
-use crate::runtime::message::ZFMessage;
-use crate::runtime::runners::connector::{ZFZenohReceiver, ZFZenohSender};
+use crate::runtime::message::Message;
+use crate::runtime::runners::connector::{ZenohReceiver, ZenohSender};
 use crate::runtime::runners::{
-    operator::ZFOperatorRunner, sink::ZFSinkRunner, source::ZFSourceRunner, Runner,
+    operator::OperatorRunner, sink::SinkRunner, source::SourceRunner, Runner,
 };
 use crate::{
+    model::component::{OperatorRecord, SinkRecord, SourceRecord},
     model::connector::ZFConnectorKind,
     model::dataflow::DataFlowRecord,
-    model::link::{ZFLinkDescriptor, ZFLinkFromDescriptor, ZFLinkToDescriptor, ZFPortDescriptor},
-    model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord},
+    model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor},
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
-    types::{ZFError, ZFOperatorId, ZFOperatorName, ZFResult},
+    types::{OperatorId, ZFError, ZFResult},
     utils::hlc::PeriodicHLC,
 };
 use uuid::Uuid;
@@ -49,9 +49,9 @@ pub struct DataFlowGraph {
     pub uuid: Uuid,
     pub flow: String,
     pub operators: Vec<(NodeIndex, DataFlowNode)>,
-    pub links: Vec<(EdgeIndex, ZFLinkDescriptor)>,
+    pub links: Vec<(EdgeIndex, LinkDescriptor)>,
     pub graph: StableGraph<DataFlowNode, (String, String)>,
-    pub operators_runners: HashMap<ZFOperatorName, (Runner, DataFlowNodeKind)>,
+    pub operators_runners: HashMap<OperatorId, (Runner, DataFlowNodeKind)>,
 }
 
 impl Default for DataFlowGraph {
@@ -86,25 +86,25 @@ impl DataFlowGraph {
     pub fn add_static_operator(
         &mut self,
         hlc: Arc<HLC>,
-        id: ZFOperatorId,
-        inputs: Vec<ZFPortDescriptor>,
-        outputs: Vec<ZFPortDescriptor>,
-        operator: Arc<dyn ZFOperatorTrait>,
+        id: OperatorId,
+        inputs: Vec<PortDescriptor>,
+        outputs: Vec<PortDescriptor>,
+        operator: Arc<dyn Operator>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let record = ZFOperatorRecord {
+        let record = OperatorRecord {
             id: id.clone(),
             inputs,
             outputs,
             uri: None,
             configuration,
-            runtime: String::from("self"),
+            runtime: "self".into(),
         };
         self.operators.push((
             self.graph.add_node(DataFlowNode::Operator(record.clone())),
             DataFlowNode::Operator(record.clone()),
         ));
-        let runner = Runner::Operator(ZFOperatorRunner::new(record, hlc, operator, None));
+        let runner = Runner::Operator(OperatorRunner::new(record, hlc, operator, None));
         self.operators_runners
             .insert(id, (runner, DataFlowNodeKind::Operator));
         Ok(())
@@ -113,25 +113,25 @@ impl DataFlowGraph {
     pub fn add_static_source(
         &mut self,
         hlc: Arc<HLC>,
-        id: ZFOperatorId,
-        output: ZFPortDescriptor,
-        source: Arc<dyn ZFSourceTrait>,
+        id: OperatorId,
+        output: PortDescriptor,
+        source: Arc<dyn Source>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let record = ZFSourceRecord {
+        let record = SourceRecord {
             id: id.clone(),
             output,
             period: None,
             uri: None,
             configuration,
-            runtime: String::from("self"),
+            runtime: "self".into(),
         };
         self.operators.push((
             self.graph.add_node(DataFlowNode::Source(record.clone())),
             DataFlowNode::Source(record.clone()),
         ));
         let non_periodic_hlc = PeriodicHLC::new(hlc, None);
-        let runner = Runner::Source(ZFSourceRunner::new(record, non_periodic_hlc, source, None));
+        let runner = Runner::Source(SourceRunner::new(record, non_periodic_hlc, source, None));
         self.operators_runners
             .insert(id, (runner, DataFlowNodeKind::Source));
         Ok(())
@@ -139,23 +139,23 @@ impl DataFlowGraph {
 
     pub fn add_static_sink(
         &mut self,
-        id: ZFOperatorId,
-        input: ZFPortDescriptor,
-        sink: Arc<dyn ZFSinkTrait>,
+        id: OperatorId,
+        input: PortDescriptor,
+        sink: Arc<dyn Sink>,
         configuration: Option<HashMap<String, String>>,
     ) -> ZFResult<()> {
-        let record = ZFSinkRecord {
+        let record = SinkRecord {
             id: id.clone(),
             input,
             uri: None,
             configuration,
-            runtime: String::from("self"),
+            runtime: "self".into(),
         };
         self.operators.push((
             self.graph.add_node(DataFlowNode::Sink(record.clone())),
             DataFlowNode::Sink(record.clone()),
         ));
-        let runner = Runner::Sink(ZFSinkRunner::new(record, sink, None));
+        let runner = Runner::Sink(SinkRunner::new(record, sink, None));
         self.operators_runners
             .insert(id, (runner, DataFlowNodeKind::Sink));
         Ok(())
@@ -163,13 +163,13 @@ impl DataFlowGraph {
 
     pub fn add_link(
         &mut self,
-        from: ZFLinkFromDescriptor,
-        to: ZFLinkToDescriptor,
+        from: LinkFromDescriptor,
+        to: LinkToDescriptor,
         size: Option<usize>,
         queueing_policy: Option<String>,
         priority: Option<usize>,
     ) -> ZFResult<()> {
-        let connection = ZFLinkDescriptor {
+        let connection = LinkDescriptor {
             from,
             to,
             size,
@@ -234,7 +234,7 @@ impl DataFlowGraph {
         let hlc = Arc::new(uhlc::HLC::default());
 
         for (_, op) in &self.operators {
-            if op.get_runtime() != runtime {
+            if op.get_runtime().as_ref() != runtime {
                 continue;
             }
 
@@ -284,15 +284,14 @@ impl DataFlowGraph {
                 }
                 DataFlowNode::Connector(zc) => match zc.kind {
                     ZFConnectorKind::Sender => {
-                        let runner = ZFZenohSender::new(session.clone(), zc.resource.clone(), None);
+                        let runner = ZenohSender::new(session.clone(), zc.resource.clone(), None);
                         let runner = Runner::Sender(runner);
                         self.operators_runners
                             .insert(zc.id.clone(), (runner, DataFlowNodeKind::Connector));
                     }
 
                     ZFConnectorKind::Receiver => {
-                        let runner =
-                            ZFZenohReceiver::new(session.clone(), zc.resource.clone(), None);
+                        let runner = ZenohReceiver::new(session.clone(), zc.resource.clone(), None);
                         let runner = Runner::Receiver(runner);
                         self.operators_runners
                             .insert(zc.id.clone(), (runner, DataFlowNodeKind::Connector));
@@ -307,7 +306,7 @@ impl DataFlowGraph {
         // Connects the operators via our FIFOs
 
         for (idx, up_op) in &self.operators {
-            if up_op.get_runtime() != runtime {
+            if up_op.get_runtime().as_ref() != runtime {
                 continue;
             }
 
@@ -349,7 +348,6 @@ impl DataFlowGraph {
                         .operators_runners
                         .get(&down_op.get_id())
                         .ok_or_else(|| ZFError::OperatorNotFound(down_op.get_id()))?;
-                    // let mut down_runner = down_runner.lock().await;
 
                     log::debug!(
                         "\t Creating link between {:?} -> {:?}: {:?} -> {:?}",
@@ -358,11 +356,8 @@ impl DataFlowGraph {
                         link_id_from,
                         link_id_to,
                     );
-                    let (tx, rx) = link::<ZFMessage>(
-                        None,
-                        String::from(link_id_from),
-                        String::from(link_id_to),
-                    );
+                    let (tx, rx) =
+                        link::<Message>(None, String::from(link_id_from), String::from(link_id_to));
 
                     up_runner.add_output(tx).await?;
                     down_runner.add_input(rx).await?;
@@ -372,7 +367,7 @@ impl DataFlowGraph {
         Ok(())
     }
 
-    pub fn get_runner(&self, operator_id: &str) -> Option<&Runner> {
+    pub fn get_runner(&self, operator_id: &OperatorId) -> Option<&Runner> {
         self.operators_runners.get(operator_id).map(|(r, _)| r)
     }
 
@@ -436,7 +431,7 @@ impl TryFrom<DataFlowRecord> for DataFlowGraph {
     fn try_from(dr: DataFlowRecord) -> Result<Self, Self::Error> {
         let mut graph = StableGraph::<DataFlowNode, (String, String)>::new();
         let mut operators = Vec::new();
-        let mut links: Vec<(EdgeIndex, ZFLinkDescriptor)> = Vec::new();
+        let mut links: Vec<(EdgeIndex, LinkDescriptor)> = Vec::new();
         for o in dr.operators {
             operators.push((
                 graph.add_node(DataFlowNode::Operator(o.clone())),

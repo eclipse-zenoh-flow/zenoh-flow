@@ -12,9 +12,9 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::model::component::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
-use crate::model::operator::{ZFOperatorRecord, ZFSinkRecord, ZFSourceRecord};
-use crate::{ZFError, ZFOperatorId, ZFResult, ZFRuntimeID};
+use crate::{OperatorId, RuntimeId, ZFError, ZFResult};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -27,9 +27,9 @@ pub enum DataFlowNodeKind {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum DataFlowNode {
-    Operator(ZFOperatorRecord),
-    Source(ZFSourceRecord),
-    Sink(ZFSinkRecord),
+    Operator(OperatorRecord),
+    Source(SourceRecord),
+    Sink(SinkRecord),
     Connector(ZFConnectorRecord),
 }
 
@@ -129,7 +129,7 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_id(&self) -> ZFOperatorId {
+    pub fn get_id(&self) -> OperatorId {
         match self {
             DataFlowNode::Operator(op) => op.id.clone(),
             DataFlowNode::Sink(s) => s.id.clone(),
@@ -141,7 +141,7 @@ impl DataFlowNode {
         }
     }
 
-    pub fn get_runtime(&self) -> ZFRuntimeID {
+    pub fn get_runtime(&self) -> RuntimeId {
         match self {
             DataFlowNode::Operator(op) => op.runtime.clone(),
             DataFlowNode::Sink(s) => s.runtime.clone(),

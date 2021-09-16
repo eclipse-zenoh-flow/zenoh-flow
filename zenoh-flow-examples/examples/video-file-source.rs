@@ -20,8 +20,7 @@ use zenoh_flow::{
     default_output_rule, downcast,
     types::{ZFError, ZFResult},
     zenoh_flow_derive::ZFState,
-    zf_data, zf_spin_lock, ZFComponent, ZFComponentOutputRule, ZFDataTrait, ZFSourceTrait,
-    ZFStateTrait,
+    zf_data, zf_spin_lock, Component, Data, OutputRule, Source, State,
 };
 use zenoh_flow_examples::ZFBytes;
 
@@ -78,38 +77,38 @@ impl VideoSourceState {
     }
 }
 
-impl ZFComponent for VideoSource {
+impl Component for VideoSource {
     fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         Box::new(VideoSourceState::new(configuration))
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
 
-impl ZFComponentOutputRule for VideoSource {
+impl OutputRule for VideoSource {
     fn output_rule(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn zenoh_flow::ZFDataTrait>>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        _context: &mut zenoh_flow::Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }
 
 #[async_trait]
-impl ZFSourceTrait for VideoSource {
+impl Source for VideoSource {
     async fn run(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
-        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
-        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
+        _context: &mut zenoh_flow::Context,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
+        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::new();
 
         let state = downcast!(VideoSourceState, dyn_state).unwrap();
 
@@ -144,7 +143,7 @@ impl ZFSourceTrait for VideoSource {
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
-        results.insert(String::from(SOURCE), zf_data!(ZFBytes(buf.into())));
+        results.insert(SOURCE.into(), zf_data!(ZFBytes(buf.into())));
 
         drop(cam);
         drop(encode_options);
@@ -158,6 +157,6 @@ impl ZFSourceTrait for VideoSource {
 
 zenoh_flow::export_source!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFSourceTrait>> {
-    Ok(Arc::new(VideoSource) as Arc<dyn ZFSourceTrait>)
+fn register() -> ZFResult<Arc<dyn Source>> {
+    Ok(Arc::new(VideoSource) as Arc<dyn Source>)
 }

@@ -13,22 +13,17 @@
 //
 
 use crate::async_std::sync::Arc;
-use crate::runtime::message::{ZFControlMessage, ZFDataMessage, ZFMessage};
+use crate::runtime::message::{ControlMessage, DataMessage, Message};
 use crate::serde::{Deserialize, Serialize};
-use crate::{ZFDataTrait, ZFStateTrait};
+use crate::{Data, State};
 
 use std::collections::HashMap;
 use std::convert::From;
 use uhlc::Timestamp;
 
-// Placeholder types
-pub type ZFOperatorId = String;
-pub type ZFZenohResource = String;
-pub type ZFOperatorName = String;
-pub type ZFTimestamp = usize; //TODO: improve it, usize is just a placeholder
-
-pub type ZFPortID = String;
-pub type ZFRuntimeID = String;
+pub type OperatorId = Arc<str>;
+pub type PortId = Arc<str>;
+pub type RuntimeId = Arc<str>;
 
 pub type ZFResult<T> = Result<T, ZFError>;
 
@@ -36,22 +31,22 @@ pub use crate::ZFError;
 
 /// ZFContext is a structure provided by Zenoh Flow to access the execution context directly from
 /// the components.
-pub struct ZFContext {
+pub struct Context {
     pub mode: usize,
 }
 
-impl Default for ZFContext {
+impl Default for Context {
     fn default() -> Self {
         Self { mode: 0 }
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum ZFComponentOutput {
-    Data(Arc<dyn ZFDataTrait>),
+pub enum ComponentOutput {
+    Data(Arc<dyn Data>),
     // TODO Users should not have access to all control messages. When implementing the control
     // messages change this to an enum with a "limited scope".
-    Control(ZFControlMessage),
+    Control(ControlMessage),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -68,7 +63,7 @@ pub struct NotReadyToken;
 
 #[derive(Debug, Clone)]
 pub struct ReadyToken {
-    pub data: ZFDataMessage,
+    pub data: DataMessage,
     pub action: TokenAction,
 }
 
@@ -79,7 +74,7 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn new_ready(data: ZFDataMessage) -> Self {
+    pub fn new_ready(data: DataMessage) -> Self {
         Self::Ready(ReadyToken {
             data,
             action: TokenAction::Consume,
@@ -141,7 +136,7 @@ impl Token {
         }
     }
 
-    pub fn data(&self) -> ZFResult<ZFDataMessage> {
+    pub fn data(&self) -> ZFResult<DataMessage> {
         match self {
             Self::Ready(ready) => Ok(ready.data.clone()),
             _ => Err(ZFError::GenericError),
@@ -155,7 +150,7 @@ impl Token {
         }
     }
 
-    pub fn split(self) -> (Option<ZFDataMessage>, TokenAction) {
+    pub fn split(self) -> (Option<DataMessage>, TokenAction) {
         match self {
             Self::Ready(ready) => (Some(ready.data), ready.action),
             Self::NotReady => (None, TokenAction::Wait),
@@ -163,17 +158,17 @@ impl Token {
     }
 }
 
-impl From<Arc<ZFMessage>> for Token {
-    fn from(message: Arc<ZFMessage>) -> Self {
+impl From<Arc<Message>> for Token {
+    fn from(message: Arc<Message>) -> Self {
         match message.as_ref() {
-            ZFMessage::Control(_) => Token::NotReady,
-            ZFMessage::Data(data_message) => Token::new_ready(data_message.clone()),
+            Message::Control(_) => Token::NotReady,
+            Message::Data(data_message) => Token::new_ready(data_message.clone()),
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct ZFInput(HashMap<String, ZFDataMessage>);
+pub struct ZFInput(HashMap<String, DataMessage>);
 
 impl Default for ZFInput {
     fn default() -> Self {
@@ -186,22 +181,22 @@ impl ZFInput {
         Self(HashMap::new())
     }
 
-    pub fn insert(&mut self, id: String, data: ZFDataMessage) -> Option<ZFDataMessage> {
+    pub fn insert(&mut self, id: String, data: DataMessage) -> Option<DataMessage> {
         self.0.insert(id, data)
     }
 
-    pub fn get(&self, id: &str) -> Option<&ZFDataMessage> {
+    pub fn get(&self, id: &str) -> Option<&DataMessage> {
         self.0.get(id)
     }
 
-    pub fn get_mut(&mut self, id: &str) -> Option<&mut ZFDataMessage> {
+    pub fn get_mut(&mut self, id: &str) -> Option<&mut DataMessage> {
         self.0.get_mut(id)
     }
 }
 
 impl<'a> IntoIterator for &'a ZFInput {
-    type Item = (&'a String, &'a ZFDataMessage);
-    type IntoIter = std::collections::hash_map::Iter<'a, String, ZFDataMessage>;
+    type Item = (&'a String, &'a DataMessage);
+    type IntoIter = std::collections::hash_map::Iter<'a, String, DataMessage>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
@@ -211,7 +206,7 @@ impl<'a> IntoIterator for &'a ZFInput {
 #[derive(Debug, Clone)]
 pub struct EmptyState;
 
-impl ZFStateTrait for EmptyState {
+impl State for EmptyState {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -222,20 +217,20 @@ impl ZFStateTrait for EmptyState {
 }
 
 pub fn default_output_rule(
-    _state: &mut Box<dyn ZFStateTrait>,
-    outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-) -> ZFResult<HashMap<ZFPortID, ZFComponentOutput>> {
+    _state: &mut Box<dyn State>,
+    outputs: &HashMap<PortId, Arc<dyn Data>>,
+) -> ZFResult<HashMap<PortId, ComponentOutput>> {
     let mut results = HashMap::with_capacity(outputs.len());
     for (k, v) in outputs {
-        results.insert(k.clone(), ZFComponentOutput::Data(v.clone()));
+        results.insert(k.clone(), ComponentOutput::Data(v.clone()));
     }
 
     Ok(results)
 }
 
 pub fn default_input_rule(
-    _state: &mut Box<dyn ZFStateTrait>,
-    tokens: &mut HashMap<String, Token>,
+    _state: &mut Box<dyn State>,
+    tokens: &mut HashMap<PortId, Token>,
 ) -> ZFResult<bool> {
     for token in tokens.values() {
         match token {

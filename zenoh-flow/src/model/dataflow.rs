@@ -12,17 +12,14 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::model::component::{
+    OperatorDescriptor, OperatorRecord, SinkDescriptor, SinkRecord, SourceDescriptor, SourceRecord,
+};
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
-use crate::model::link::{
-    ZFLinkDescriptor, ZFLinkFromDescriptor, ZFLinkToDescriptor, ZFPortDescriptor,
-};
-use crate::model::operator::{
-    ZFOperatorDescriptor, ZFOperatorRecord, ZFSinkDescriptor, ZFSinkRecord, ZFSourceDescriptor,
-    ZFSourceRecord,
-};
+use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{ZFError, ZFOperatorId, ZFResult, ZFRuntimeID};
+use crate::types::{OperatorId, RuntimeId, ZFError, ZFResult};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -31,10 +28,10 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DataFlowDescriptor {
     pub flow: String,
-    pub operators: Vec<ZFOperatorDescriptor>,
-    pub sources: Vec<ZFSourceDescriptor>,
-    pub sinks: Vec<ZFSinkDescriptor>,
-    pub links: Vec<ZFLinkDescriptor>,
+    pub operators: Vec<OperatorDescriptor>,
+    pub sources: Vec<SourceDescriptor>,
+    pub sinks: Vec<SinkDescriptor>,
+    pub links: Vec<LinkDescriptor>,
     pub mapping: Option<Vec<Mapping>>,
 }
 
@@ -56,11 +53,11 @@ impl DataFlowDescriptor {
         serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
-    pub fn get_mapping(&self, id: &str) -> Option<ZFRuntimeID> {
+    pub fn get_mapping(&self, id: &str) -> Option<RuntimeId> {
         match &self.mapping {
             Some(mapping) => mapping
                 .iter()
-                .find(|&o| o.id == *id)
+                .find(|&o| o.id.as_ref() == id)
                 .map(|m| m.runtime.clone()),
             None => None,
         }
@@ -73,7 +70,7 @@ impl DataFlowDescriptor {
         }
     }
 
-    pub fn get_runtimes(&self) -> Vec<ZFRuntimeID> {
+    pub fn get_runtimes(&self) -> Vec<RuntimeId> {
         let mut runtimes = HashSet::new();
 
         match &self.mapping {
@@ -104,19 +101,19 @@ impl Eq for DataFlowDescriptor {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Mapping {
-    pub id: ZFOperatorId,
-    pub runtime: ZFRuntimeID,
+    pub id: OperatorId,
+    pub runtime: RuntimeId,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DataFlowRecord {
     pub uuid: Uuid,
     pub flow: String,
-    pub operators: Vec<ZFOperatorRecord>,
-    pub sinks: Vec<ZFSinkRecord>,
-    pub sources: Vec<ZFSourceRecord>,
+    pub operators: Vec<OperatorRecord>,
+    pub sinks: Vec<SinkRecord>,
+    pub sources: Vec<SourceRecord>,
     pub connectors: Vec<ZFConnectorRecord>,
-    pub links: Vec<ZFLinkDescriptor>,
+    pub links: Vec<LinkDescriptor>,
 }
 
 impl DataFlowRecord {
@@ -138,7 +135,7 @@ impl DataFlowRecord {
         serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
-    pub fn find_component_runtime(&self, id: &str) -> Option<ZFRuntimeID> {
+    pub fn find_component_runtime(&self, id: &str) -> Option<RuntimeId> {
         match self.get_operator(id) {
             Some(o) => Some(o.runtime),
             None => match self.get_source(id) {
@@ -186,23 +183,29 @@ impl DataFlowRecord {
         }
     }
 
-    fn get_operator(&self, id: &str) -> Option<ZFOperatorRecord> {
-        self.operators.iter().find(|&o| o.id == *id).cloned()
+    fn get_operator(&self, id: &str) -> Option<OperatorRecord> {
+        self.operators
+            .iter()
+            .find(|&o| o.id.as_ref() == id)
+            .cloned()
     }
 
-    fn get_source(&self, id: &str) -> Option<ZFSourceRecord> {
-        self.sources.iter().find(|&o| o.id == *id).cloned()
+    fn get_source(&self, id: &str) -> Option<SourceRecord> {
+        self.sources.iter().find(|&o| o.id.as_ref() == id).cloned()
     }
 
-    fn get_sink(&self, id: &str) -> Option<ZFSinkRecord> {
-        self.sinks.iter().find(|&o| o.id == *id).cloned()
+    fn get_sink(&self, id: &str) -> Option<SinkRecord> {
+        self.sinks.iter().find(|&o| o.id.as_ref() == id).cloned()
     }
 
     fn get_connector(&self, id: &str) -> Option<ZFConnectorRecord> {
-        self.connectors.iter().find(|&o| o.id == *id).cloned()
+        self.connectors
+            .iter()
+            .find(|&o| o.id.as_ref() == id)
+            .cloned()
     }
 
-    fn add_links(&mut self, links: &[ZFLinkDescriptor]) -> ZFResult<()> {
+    fn add_links(&mut self, links: &[LinkDescriptor]) -> ZFResult<()> {
         for l in links {
             let from_runtime = match self.find_component_runtime(&l.from.component) {
                 Some(rt) => rt,
@@ -278,9 +281,9 @@ impl DataFlowRecord {
                     );
                     let sender = ZFConnectorRecord {
                         kind: ZFConnectorKind::Sender,
-                        id: sender_id.clone(),
+                        id: sender_id.clone().into(),
                         resource: z_resource_name.clone(),
-                        link_id: ZFPortDescriptor {
+                        link_id: PortDescriptor {
                             port_id: l.from.output.clone(),
                             port_type: from_type,
                         },
@@ -289,10 +292,10 @@ impl DataFlowRecord {
                     };
 
                     // creating link between component and sender
-                    let link_sender = ZFLinkDescriptor {
+                    let link_sender = LinkDescriptor {
                         from: l.from.clone(),
-                        to: ZFLinkToDescriptor {
-                            component: sender_id,
+                        to: LinkToDescriptor {
+                            component: sender_id.into(),
                             input: l.from.output.clone(),
                         },
                         size: None,
@@ -312,9 +315,9 @@ impl DataFlowRecord {
                 );
                 let receiver = ZFConnectorRecord {
                     kind: ZFConnectorKind::Receiver,
-                    id: receiver_id.clone(),
+                    id: receiver_id.clone().into(),
                     resource: z_resource_name.clone(),
-                    link_id: ZFPortDescriptor {
+                    link_id: PortDescriptor {
                         port_id: l.to.input.clone(),
                         port_type: to_type,
                     },
@@ -323,9 +326,9 @@ impl DataFlowRecord {
                 };
 
                 //creating link between receiver and component
-                let link_receiver = ZFLinkDescriptor {
-                    from: ZFLinkFromDescriptor {
-                        component: receiver_id,
+                let link_receiver = LinkDescriptor {
+                    from: LinkFromDescriptor {
+                        component: receiver_id.into(),
                         output: l.to.input.clone(),
                     },
                     to: l.to.clone(),
@@ -362,7 +365,7 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
         for o in &d.operators {
             match d.get_mapping(&o.id) {
                 Some(m) => {
-                    let or = ZFOperatorRecord {
+                    let or = OperatorRecord {
                         id: o.id.clone(),
                         // name: o.name.clone(),
                         inputs: o.inputs.clone(),
@@ -385,7 +388,7 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
         for s in &d.sources {
             match d.get_mapping(&s.id) {
                 Some(m) => {
-                    let sr = ZFSourceRecord {
+                    let sr = SourceRecord {
                         id: s.id.clone(),
                         period: s.period.clone(),
                         output: s.output.clone(),
@@ -407,7 +410,7 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
         for s in &d.sinks {
             match d.get_mapping(&s.id) {
                 Some(m) => {
-                    let sr = ZFSinkRecord {
+                    let sr = SinkRecord {
                         id: s.id.clone(),
                         // name: s.name.clone(),
                         input: s.input.clone(),

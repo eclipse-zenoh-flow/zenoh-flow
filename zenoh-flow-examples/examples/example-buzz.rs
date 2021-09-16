@@ -14,14 +14,13 @@
 
 use async_std::sync::Arc;
 use std::collections::HashMap;
-use zenoh_flow::runtime::message::ZFDataMessage;
+use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    Token, ZFComponent, ZFComponentInputRule, ZFComponentOutput, ZFComponentOutputRule,
-    ZFOperatorTrait, ZFStateTrait,
+    Component, ComponentOutput, InputRule, Operator, OutputRule, State, Token,
 };
-use zenoh_flow::{downcast, ZFContext, ZFDataTrait};
+use zenoh_flow::{downcast, Context, Data};
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
 struct BuzzOperator;
@@ -35,14 +34,14 @@ static LINK_ID_INPUT_INT: &str = "Int";
 static LINK_ID_INPUT_STR: &str = "Str";
 static LINK_ID_OUTPUT_STR: &str = "Str";
 
-impl ZFOperatorTrait for BuzzOperator {
+impl Operator for BuzzOperator {
     fn run(
         &self,
-        _context: &mut ZFContext,
-        dyn_state: &mut Box<dyn ZFStateTrait>,
-        inputs: &mut HashMap<String, ZFDataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn ZFDataTrait>>> {
-        let mut results = HashMap::<String, Arc<dyn ZFDataTrait>>::with_capacity(1);
+        _context: &mut Context,
+        dyn_state: &mut Box<dyn State>,
+        inputs: &mut HashMap<zenoh_flow::PortId, DataMessage>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn Data>>> {
+        let mut results = HashMap::<zenoh_flow::PortId, Arc<dyn Data>>::with_capacity(1);
 
         let state = downcast!(BuzzState, dyn_state).unwrap();
         let (_, fizz) = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?;
@@ -53,14 +52,14 @@ impl ZFOperatorTrait for BuzzOperator {
             buzz.0.push_str(&state.buzzword);
         }
 
-        results.insert(String::from(LINK_ID_OUTPUT_STR), zf_data!(buzz));
+        results.insert(LINK_ID_OUTPUT_STR.into(), zf_data!(buzz));
 
         Ok(results)
     }
 }
 
-impl ZFComponent for BuzzOperator {
-    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn ZFStateTrait> {
+impl Component for BuzzOperator {
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn State> {
         let state = match configuration {
             Some(config) => match config.get("buzzword") {
                 Some(buzzword) => BuzzState {
@@ -77,35 +76,35 @@ impl ZFComponent for BuzzOperator {
         Box::new(state)
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
 
-impl ZFComponentInputRule for BuzzOperator {
+impl InputRule for BuzzOperator {
     fn input_rule(
         &self,
-        _context: &mut ZFContext,
-        state: &mut Box<dyn ZFStateTrait>,
-        tokens: &mut HashMap<String, Token>,
+        _context: &mut Context,
+        state: &mut Box<dyn State>,
+        tokens: &mut HashMap<zenoh_flow::PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }
 }
 
-impl ZFComponentOutputRule for BuzzOperator {
+impl OutputRule for BuzzOperator {
     fn output_rule(
         &self,
-        _context: &mut ZFContext,
-        state: &mut Box<dyn ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, ZFComponentOutput>> {
+        _context: &mut Context,
+        state: &mut Box<dyn State>,
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn Data>>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }
 
 export_operator!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFOperatorTrait>> {
-    Ok(Arc::new(BuzzOperator) as Arc<dyn ZFOperatorTrait>)
+fn register() -> ZFResult<Arc<dyn Operator>> {
+    Ok(Arc::new(BuzzOperator) as Arc<dyn Operator>)
 }

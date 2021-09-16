@@ -13,24 +13,24 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::runtime::graph::link::{ZFLinkReceiver, ZFLinkSender};
-use crate::runtime::message::ZFMessage;
+use crate::runtime::graph::link::{LinkReceiver, LinkSender};
+use crate::runtime::message::Message;
 use crate::{ZFError, ZFResult};
 use futures::prelude::*;
 use zenoh::net::{Reliability, Session, SubInfo, SubMode};
 
 #[derive(Clone)]
-pub struct ZFZenohSender {
+pub struct ZenohSender {
     pub session: Arc<Session>,
     pub resource: String,
-    pub input: Arc<RwLock<Option<ZFLinkReceiver<ZFMessage>>>>,
+    pub input: Arc<RwLock<Option<LinkReceiver<Message>>>>,
 }
 
-impl ZFZenohSender {
+impl ZenohSender {
     pub fn new(
         session: Arc<Session>,
         resource: String,
-        input: Option<ZFLinkReceiver<ZFMessage>>,
+        input: Option<LinkReceiver<Message>>,
     ) -> Self {
         Self {
             session,
@@ -57,23 +57,23 @@ impl ZFZenohSender {
         Err(ZFError::Disconnected)
     }
 
-    pub async fn add_input(&self, input: ZFLinkReceiver<ZFMessage>) {
+    pub async fn add_input(&self, input: LinkReceiver<Message>) {
         *(self.input.write().await) = Some(input);
     }
 }
 
 #[derive(Clone)]
-pub struct ZFZenohReceiver {
+pub struct ZenohReceiver {
     pub session: Arc<Session>,
     pub resource: String,
-    pub output: Arc<RwLock<Option<ZFLinkSender<ZFMessage>>>>,
+    pub output: Arc<RwLock<Option<LinkSender<Message>>>>,
 }
 
-impl ZFZenohReceiver {
+impl ZenohReceiver {
     pub fn new(
         session: Arc<Session>,
         resource: String,
-        output: Option<ZFLinkSender<ZFMessage>>,
+        output: Option<LinkSender<Message>>,
     ) -> Self {
         Self {
             session,
@@ -99,7 +99,7 @@ impl ZFZenohReceiver {
 
             while let Some(msg) = subscriber.receiver().next().await {
                 log::debug!("ZenohSender - {}<={:?} ", self.resource, msg);
-                let de: ZFMessage = bincode::deserialize(&msg.payload.contiguous())
+                let de: Message = bincode::deserialize(&msg.payload.contiguous())
                     .map_err(|_| ZFError::DeseralizationError)?;
                 log::debug!("ZenohSender - OUT =>{:?} ", de);
                 output.send(Arc::new(de)).await?;
@@ -109,7 +109,7 @@ impl ZFZenohReceiver {
         Err(ZFError::Disconnected)
     }
 
-    pub async fn add_output(&self, output: ZFLinkSender<ZFMessage>) {
+    pub async fn add_output(&self, output: LinkSender<Message>) {
         (*self.output.write().await) = Some(output);
     }
 }

@@ -3,13 +3,13 @@ use std::cell::RefCell;
 use std::convert::TryInto;
 use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::zenoh_flow_derive::{ZFData, ZFState};
-use zenoh_flow::{ZFDataTrait, ZFDeserializable, ZFError, ZFResult};
+use zenoh_flow::{Data, Deserializable, ZFError, ZFResult};
 // We may want to provide some "built-in" types
 
 #[derive(Debug, Clone, ZFData)]
 pub struct ZFString(pub String);
 
-impl ZFDataTrait for ZFString {
+impl Data for ZFString {
     fn try_serialize(&self) -> zenoh_flow::ZFResult<Vec<u8>> {
         Ok(self.0.as_bytes().to_vec())
     }
@@ -27,7 +27,7 @@ impl From<&str> for ZFString {
     }
 }
 
-impl ZFDeserializable for ZFString {
+impl Deserializable for ZFString {
     fn try_deserialize(bytes: &[u8]) -> ZFResult<ZFString>
     where
         Self: Sized,
@@ -41,13 +41,13 @@ impl ZFDeserializable for ZFString {
 #[derive(Debug, Clone, ZFData)]
 pub struct ZFUsize(pub usize);
 
-impl ZFDataTrait for ZFUsize {
+impl Data for ZFUsize {
     fn try_serialize(&self) -> ZFResult<Vec<u8>> {
         Ok(self.0.to_ne_bytes().to_vec())
     }
 }
 
-impl ZFDeserializable for ZFUsize {
+impl Deserializable for ZFUsize {
     fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
     where
         Self: Sized,
@@ -64,13 +64,13 @@ pub struct ZFEmptyState;
 #[derive(Debug, Clone, ZFData)]
 pub struct ZFBytes(pub Vec<u8>);
 
-impl ZFDataTrait for ZFBytes {
+impl Data for ZFBytes {
     fn try_serialize(&self) -> ZFResult<Vec<u8>> {
         Ok(self.0.clone())
     }
 }
 
-impl ZFDeserializable for ZFBytes {
+impl Deserializable for ZFBytes {
     fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
     where
         Self: Sized,

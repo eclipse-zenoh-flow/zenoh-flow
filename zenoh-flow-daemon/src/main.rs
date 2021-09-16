@@ -19,9 +19,9 @@ use async_std::fs;
 use async_std::path::Path;
 use async_std::prelude::*;
 
-mod runtime;
-use runtime::Runtime;
-use zenoh_flow::runtime::ZFRuntimeConfig;
+mod daemon;
+use daemon::Daemon;
+use zenoh_flow::runtime::RuntimeConfig;
 
 static RUNTIME_CONFIG_FILE: &str = "/etc/zenoh-flow/runtime.yaml";
 
@@ -63,15 +63,14 @@ async fn main() {
     }
 
     if args.node_uuid {
-        println!("{}", runtime::get_machine_uuid().unwrap());
+        println!("{}", daemon::get_machine_uuid().unwrap());
         std::process::exit(0);
     }
 
     let conf_file_path = Path::new(&args.config);
-    let config =
-        serde_yaml::from_str::<ZFRuntimeConfig>(&(read_file(conf_file_path).await)).unwrap();
+    let config = serde_yaml::from_str::<RuntimeConfig>(&(read_file(conf_file_path).await)).unwrap();
 
-    let rt = Runtime::from_config(config).unwrap();
+    let rt = Daemon::from_config(config).unwrap();
 
     let (s, h) = rt.start().await.unwrap();
 

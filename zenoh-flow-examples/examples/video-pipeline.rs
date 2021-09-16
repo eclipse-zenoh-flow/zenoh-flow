@@ -20,14 +20,14 @@ use std::fs::File;
 use std::io::Write;
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
-use zenoh_flow::model::link::{ZFLinkFromDescriptor, ZFLinkToDescriptor};
+use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
 use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast, get_input, model::link::ZFPortDescriptor,
-    zenoh_flow_derive::ZFState, zf_data, ZFComponent, ZFComponentInputRule, ZFComponentOutputRule,
-    ZFDataTrait, ZFError, ZFSinkTrait, ZFSourceTrait,
+    default_input_rule, default_output_rule, downcast, get_input, model::link::PortDescriptor,
+    zenoh_flow_derive::ZFState, zf_data, Component, Data, InputRule, OutputRule, PortId, Sink,
+    Source, ZFError,
 };
-use zenoh_flow::{ZFResult, ZFStateTrait};
+use zenoh_flow::{State, ZFResult};
 use zenoh_flow_examples::ZFBytes;
 
 static SOURCE: &str = "Frame";
@@ -76,13 +76,13 @@ impl CameraState {
 }
 
 #[async_trait]
-impl ZFSourceTrait for CameraSource {
+impl Source for CameraSource {
     async fn run(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
-        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
-        let mut results: HashMap<String, Arc<dyn ZFDataTrait>> = HashMap::new();
+        _context: &mut zenoh_flow::Context,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
+        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::new();
 
         // Downcasting to right type
         let state = downcast!(CameraState, dyn_state).unwrap();
@@ -110,7 +110,7 @@ impl ZFSourceTrait for CameraSource {
 
             let data = ZFBytes(buf.into());
 
-            results.insert(String::from(SOURCE), zf_data!(data));
+            results.insert(SOURCE.into(), zf_data!(data));
 
             drop(cam);
             drop(encode_options);
@@ -121,26 +121,26 @@ impl ZFSourceTrait for CameraSource {
     }
 }
 
-impl ZFComponentOutputRule for CameraSource {
+impl OutputRule for CameraSource {
     fn output_rule(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::ZFPortID, zenoh_flow::ZFComponentOutput>> {
+        _context: &mut zenoh_flow::Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn Data>>,
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }
 
-impl ZFComponent for CameraSource {
+impl Component for CameraSource {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         Box::new(CameraState::new())
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -163,26 +163,26 @@ impl VideoState {
     }
 }
 
-impl ZFComponentInputRule for VideoSink {
+impl InputRule for VideoSink {
     fn input_rule(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
-        state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        tokens: &mut HashMap<String, zenoh_flow::Token>,
+        _context: &mut zenoh_flow::Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
         default_input_rule(state, tokens)
     }
 }
 
-impl ZFComponent for VideoSink {
+impl Component for VideoSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFStateTrait> {
+    ) -> Box<dyn zenoh_flow::State> {
         Box::new(VideoState::new())
     }
 
-    fn clean(&self, state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, state: &mut Box<dyn State>) -> ZFResult<()> {
         let state = downcast!(VideoState, state).ok_or(ZFError::MissingState)?;
         highgui::destroy_window(&state.window_name).unwrap();
         Ok(())
@@ -190,12 +190,12 @@ impl ZFComponent for VideoSink {
 }
 
 #[async_trait]
-impl ZFSinkTrait for VideoSink {
+impl Sink for VideoSink {
     async fn run(
         &self,
-        _context: &mut zenoh_flow::ZFContext,
-        dyn_state: &mut Box<dyn zenoh_flow::ZFStateTrait>,
-        inputs: &mut HashMap<String, zenoh_flow::runtime::message::ZFDataMessage>,
+        _context: &mut zenoh_flow::Context,
+        dyn_state: &mut Box<dyn zenoh_flow::State>,
+        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
     ) -> zenoh_flow::ZFResult<()> {
         // Downcasting to right type
         let state = downcast!(VideoState, dyn_state).unwrap();
@@ -230,8 +230,8 @@ async fn main() {
     zf_graph
         .add_static_source(
             hlc,
-            "camera-source".to_string(),
-            ZFPortDescriptor {
+            "camera-source".into(),
+            PortDescriptor {
                 port_id: String::from(SOURCE),
                 port_type: String::from("image"),
             },
@@ -242,8 +242,8 @@ async fn main() {
 
     zf_graph
         .add_static_sink(
-            "video-sink".to_string(),
-            ZFPortDescriptor {
+            "video-sink".into(),
+            PortDescriptor {
                 port_id: String::from(INPUT),
                 port_type: String::from("image"),
             },
@@ -254,12 +254,12 @@ async fn main() {
 
     zf_graph
         .add_link(
-            ZFLinkFromDescriptor {
-                component: "camera-source".to_string(),
+            LinkFromDescriptor {
+                component: "camera-source".into(),
                 output: String::from(SOURCE),
             },
-            ZFLinkToDescriptor {
-                component: "video-sink".to_string(),
+            LinkToDescriptor {
+                component: "video-sink".into(),
                 input: String::from(INPUT),
             },
             None,

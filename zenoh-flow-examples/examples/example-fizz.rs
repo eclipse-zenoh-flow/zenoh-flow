@@ -14,13 +14,13 @@
 
 use async_std::sync::Arc;
 use std::collections::HashMap;
-use zenoh_flow::runtime::message::ZFDataMessage;
+use zenoh_flow::runtime::message::DataMessage;
+use zenoh_flow::Token;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    zf_empty_state, Token, ZFComponent, ZFComponentInputRule, ZFComponentOutput,
-    ZFComponentOutputRule, ZFOperatorTrait, ZFStateTrait,
+    zf_empty_state, Component, ComponentOutput, InputRule, Operator, OutputRule, State,
 };
-use zenoh_flow::{ZFContext, ZFDataTrait};
+use zenoh_flow::{Context, Data, PortId};
 use zenoh_flow_examples::{ZFString, ZFUsize};
 
 struct FizzOperator;
@@ -29,38 +29,35 @@ static LINK_ID_INPUT_INT: &str = "Int";
 static LINK_ID_OUTPUT_INT: &str = "Int";
 static LINK_ID_OUTPUT_STR: &str = "Str";
 
-impl ZFComponentInputRule for FizzOperator {
+impl InputRule for FizzOperator {
     fn input_rule(
         &self,
-        _context: &mut ZFContext,
-        state: &mut Box<dyn ZFStateTrait>,
-        inputs: &mut HashMap<String, Token>,
+        _context: &mut Context,
+        state: &mut Box<dyn State>,
+        inputs: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
         default_input_rule(state, inputs)
     }
 }
 
-impl ZFComponent for FizzOperator {
-    fn initialize(
-        &self,
-        _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn ZFStateTrait> {
+impl Component for FizzOperator {
+    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> Box<dyn State> {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFStateTrait>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
     }
 }
 
-impl ZFOperatorTrait for FizzOperator {
+impl Operator for FizzOperator {
     fn run(
         &self,
-        _context: &mut ZFContext,
-        _state: &mut Box<dyn ZFStateTrait>,
-        inputs: &mut HashMap<String, ZFDataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, Arc<dyn zenoh_flow::ZFDataTrait>>> {
-        let mut results = HashMap::<String, Arc<dyn ZFDataTrait>>::with_capacity(2);
+        _context: &mut Context,
+        _state: &mut Box<dyn State>,
+        inputs: &mut HashMap<PortId, DataMessage>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
+        let mut results = HashMap::<PortId, Arc<dyn Data>>::with_capacity(2);
 
         let mut fizz = ZFString::from("");
 
@@ -70,26 +67,26 @@ impl ZFOperatorTrait for FizzOperator {
             fizz = ZFString::from("Fizz");
         }
 
-        results.insert(String::from(LINK_ID_OUTPUT_INT), zf_data!(zfusize));
-        results.insert(String::from(LINK_ID_OUTPUT_STR), zf_data!(fizz));
+        results.insert(LINK_ID_OUTPUT_INT.into(), zf_data!(zfusize));
+        results.insert(LINK_ID_OUTPUT_STR.into(), zf_data!(fizz));
 
         Ok(results)
     }
 }
 
-impl ZFComponentOutputRule for FizzOperator {
+impl OutputRule for FizzOperator {
     fn output_rule(
         &self,
-        _context: &mut ZFContext,
-        state: &mut Box<dyn ZFStateTrait>,
-        outputs: &HashMap<String, Arc<dyn ZFDataTrait>>,
-    ) -> ZFResult<HashMap<zenoh_flow::ZFPortID, ZFComponentOutput>> {
+        _context: &mut Context,
+        state: &mut Box<dyn State>,
+        outputs: &HashMap<PortId, Arc<dyn Data>>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
         default_output_rule(state, outputs)
     }
 }
 
 export_operator!(register);
 
-fn register() -> ZFResult<Arc<dyn ZFOperatorTrait>> {
-    Ok(Arc::new(FizzOperator) as Arc<dyn ZFOperatorTrait>)
+fn register() -> ZFResult<Arc<dyn Operator>> {
+    Ok(Arc::new(FizzOperator) as Arc<dyn Operator>)
 }
