@@ -26,7 +26,7 @@ use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::ZFRuntimeClient;
 use zenoh_flow::runtime::{
-    RuntimeInfo, ZFRuntime, ZFRuntimeConfig, ZFRuntimeStatus, ZFRuntimeStatusKind,
+    RuntimeInfo, RuntimeStatusKind, ZFRuntime, ZFRuntimeConfig, ZFRuntimeStatus,
 };
 use zenoh_flow::types::{ZFError, ZFResult};
 
@@ -131,8 +131,8 @@ impl Runtime {
         let mut rt_info = self.store.get_runtime_info(&self.runtime_uuid).await?;
         let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
 
-        rt_info.status = ZFRuntimeStatusKind::Ready;
-        rt_status.status = ZFRuntimeStatusKind::Ready;
+        rt_info.status = RuntimeStatusKind::Ready;
+        rt_status.status = RuntimeStatusKind::Ready;
 
         self.store
             .add_runtime_info(&self.runtime_uuid, &rt_info)
@@ -177,12 +177,12 @@ impl Runtime {
             id: self.runtime_uuid,
             name: self.runtime_name.clone(),
             tags: Vec::new(),
-            status: ZFRuntimeStatusKind::NotReady,
+            status: RuntimeStatusKind::NotReady,
         };
 
         let rt_status = ZFRuntimeStatus {
             id: self.runtime_uuid,
-            status: ZFRuntimeStatusKind::NotReady,
+            status: RuntimeStatusKind::NotReady,
             running_flows: 0,
             running_operators: 0,
             running_sources: 0,

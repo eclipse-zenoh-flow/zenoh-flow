@@ -110,7 +110,7 @@ pub async fn map_to_infrastructure(
 // Runtime related types, maybe can be moved.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
-pub enum ZFRuntimeStatusKind {
+pub enum RuntimeStatusKind {
     Ready,
     NotReady,
 }
@@ -120,14 +120,14 @@ pub struct RuntimeInfo {
     pub id: Uuid,
     pub name: Arc<str>,
     pub tags: Vec<String>,
-    pub status: ZFRuntimeStatusKind,
+    pub status: RuntimeStatusKind,
     // Do we need/want also RAM usage?
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFRuntimeStatus {
     pub id: Uuid,
-    pub status: ZFRuntimeStatusKind,
+    pub status: RuntimeStatusKind,
     pub running_flows: usize,
     pub running_operators: usize,
     pub running_sources: usize,
