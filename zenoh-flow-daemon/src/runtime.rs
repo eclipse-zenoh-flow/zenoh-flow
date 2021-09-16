@@ -22,7 +22,7 @@ use zenoh_flow::model::{
 };
 use zenoh_flow::runtime::graph::DataFlowGraph;
 use zenoh_flow::runtime::message::ControlMessage;
-use zenoh_flow::runtime::resources::ZFDataStore;
+use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::ZFRuntimeClient;
 use zenoh_flow::runtime::{
@@ -42,7 +42,7 @@ pub struct RTState {
 #[derive(Clone)]
 pub struct Runtime {
     pub zn: Arc<ZSession>,
-    pub store: ZFDataStore,
+    pub store: DataStore,
     pub state: Arc<Mutex<RTState>>,
     pub runtime_uuid: Uuid,
     pub runtime_name: Arc<str>,
@@ -63,7 +63,7 @@ impl Runtime {
 
         Self {
             zn,
-            store: ZFDataStore::new(z),
+            store: DataStore::new(z),
             runtime_uuid,
             runtime_name: runtime_name.into(),
             state,

@@ -30,7 +30,7 @@ use structopt::StructOpt;
 use uuid::Uuid;
 use zenoh::*;
 use zenoh_flow::async_std::sync::Arc;
-use zenoh_flow::runtime::resources::ZFDataStore;
+use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::ZFRuntimeClient;
 
 const GIT_VERSION: &str = git_version!(prefix = "v", cargo_prefix = "v");
@@ -100,7 +100,7 @@ async fn main() {
             .unwrap(),
     );
 
-    let store = ZFDataStore::new(zsession);
+    let store = DataStore::new(zsession);
 
     match args {
         ZFCtl::Add(ak) => match ak {

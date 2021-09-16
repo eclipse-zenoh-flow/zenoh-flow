@@ -258,12 +258,12 @@ impl Stream for ZFRuntimeConfigStream<'_> {
 }
 
 #[derive(Clone)]
-pub struct ZFDataStore {
+pub struct DataStore {
     //Name TBD
     z: Arc<zenoh::Zenoh>,
 }
 
-impl ZFDataStore {
+impl DataStore {
     pub fn new(z: Arc<zenoh::Zenoh>) -> Self {
         Self { z }
     }
