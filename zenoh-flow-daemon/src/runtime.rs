@@ -25,9 +25,7 @@ use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::ZFRuntimeClient;
-use zenoh_flow::runtime::{
-    RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind, ZFRuntime,
-};
+use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
 use zenoh_flow::types::{ZFError, ZFResult};
 
 use std::convert::TryFrom;
@@ -229,7 +227,7 @@ pub fn get_machine_uuid() -> ZFResult<Uuid> {
 }
 
 #[znserver]
-impl ZFRuntime for Daemon {
+impl Runtime for Daemon {
     async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow...
 
@@ -263,7 +261,7 @@ impl ZFRuntime for Daemon {
         }
 
         // self prepare
-        let dfr = ZFRuntime::prepare(self, mapped.clone(), record_uuid).await?;
+        let dfr = Runtime::prepare(self, mapped.clone(), record_uuid).await?;
 
         // remote start
         for client in rt_clients.iter() {
@@ -271,7 +269,7 @@ impl ZFRuntime for Daemon {
         }
 
         // self start
-        ZFRuntime::start(self, record_uuid).await?;
+        Runtime::start(self, record_uuid).await?;
 
         // remote start sources
         for client in rt_clients.iter() {
@@ -279,7 +277,7 @@ impl ZFRuntime for Daemon {
         }
 
         // self start sources
-        ZFRuntime::start_sources(self, record_uuid).await?;
+        Runtime::start_sources(self, record_uuid).await?;
 
         log::info!(
             "Done Instantiating Flow {} - Instance UUID: {}",
@@ -326,7 +324,7 @@ impl ZFRuntime for Daemon {
 
         // local stop
         if is_also_local {
-            ZFRuntime::stop(self, record_id).await?;
+            Runtime::stop(self, record_id).await?;
         }
 
         // remote stop clean
