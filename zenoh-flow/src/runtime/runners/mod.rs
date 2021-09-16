@@ -22,7 +22,7 @@ use crate::runtime::message::Message;
 use crate::runtime::runners::connector::{ZenohReceiver, ZenohSender};
 use crate::runtime::runners::operator::OperatorRunner;
 use crate::runtime::runners::sink::SinkRunner;
-use crate::runtime::runners::source::ZFSourceRunner;
+use crate::runtime::runners::source::SourceRunner;
 use crate::types::ZFResult;
 use crate::ZFError;
 
@@ -89,7 +89,7 @@ pub enum RunAction {
 #[derive(Clone)]
 pub enum Runner {
     Operator(OperatorRunner),
-    Source(ZFSourceRunner),
+    Source(SourceRunner),
     Sink(SinkRunner),
     Sender(ZenohSender),
     Receiver(ZenohReceiver),

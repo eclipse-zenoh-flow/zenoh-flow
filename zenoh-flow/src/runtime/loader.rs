@@ -17,7 +17,7 @@ use crate::{
     runtime::runners::{
         operator::{OperatorDeclaration, OperatorRunner},
         sink::{SinkDeclaration, SinkRunner},
-        source::{SourceDeclaration, ZFSourceRunner},
+        source::{SourceDeclaration, SourceRunner},
     },
     types::{ZFError, ZFResult},
     utils::hlc::PeriodicHLC,
@@ -80,11 +80,7 @@ pub unsafe fn load_lib_operator(
 
 // SOURCE
 
-pub fn load_source(
-    record: SourceRecord,
-    hlc: PeriodicHLC,
-    path: String,
-) -> ZFResult<ZFSourceRunner> {
+pub fn load_source(record: SourceRecord, hlc: PeriodicHLC, path: String) -> ZFResult<SourceRunner> {
     let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
@@ -104,7 +100,7 @@ pub unsafe fn load_lib_source(
     record: SourceRecord,
     hlc: PeriodicHLC,
     path: String,
-) -> ZFResult<ZFSourceRunner> {
+) -> ZFResult<SourceRunner> {
     log::debug!("Source Loading {}", path);
     let library = Library::new(path)?;
     let decl = library
@@ -118,7 +114,7 @@ pub unsafe fn load_lib_source(
 
     let source = (decl.register)()?;
 
-    let runner = ZFSourceRunner::new(record, hlc, source, Some(library));
+    let runner = SourceRunner::new(record, hlc, source, Some(library));
     Ok(runner)
 }
 

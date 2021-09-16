@@ -36,7 +36,7 @@ pub struct SourceDeclaration {
 // We need the state to be dropped before the source/lib, otherwise we
 // will have a SIGSEV.
 #[derive(Clone)]
-pub struct ZFSourceRunner {
+pub struct SourceRunner {
     pub record: Arc<SourceRecord>,
     pub hlc: Arc<PeriodicHLC>,
     pub state: Arc<RwLock<Box<dyn State>>>,
@@ -45,7 +45,7 @@ pub struct ZFSourceRunner {
     pub lib: Arc<Option<Library>>,
 }
 
-impl ZFSourceRunner {
+impl SourceRunner {
     pub fn new(
         record: SourceRecord,
         hlc: PeriodicHLC,

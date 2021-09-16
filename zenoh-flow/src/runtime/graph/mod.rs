@@ -31,7 +31,7 @@ use crate::runtime::loader::{load_operator, load_sink, load_source};
 use crate::runtime::message::Message;
 use crate::runtime::runners::connector::{ZenohReceiver, ZenohSender};
 use crate::runtime::runners::{
-    operator::OperatorRunner, sink::SinkRunner, source::ZFSourceRunner, Runner,
+    operator::OperatorRunner, sink::SinkRunner, source::SourceRunner, Runner,
 };
 use crate::{
     model::component::{OperatorRecord, SinkRecord, SourceRecord},
@@ -131,7 +131,7 @@ impl DataFlowGraph {
             DataFlowNode::Source(record.clone()),
         ));
         let non_periodic_hlc = PeriodicHLC::new(hlc, None);
-        let runner = Runner::Source(ZFSourceRunner::new(record, non_periodic_hlc, source, None));
+        let runner = Runner::Source(SourceRunner::new(record, non_periodic_hlc, source, None));
         self.operators_runners
             .insert(id, (runner, DataFlowNodeKind::Source));
         Ok(())
