@@ -116,7 +116,7 @@ pub enum ZFRuntimeStatusKind {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZFRuntimeInfo {
+pub struct RuntimeInfo {
     pub id: Uuid,
     pub name: Arc<str>,
     pub tags: Vec<String>,

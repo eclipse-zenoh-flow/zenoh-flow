@@ -26,7 +26,7 @@ use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::ZFRuntimeClient;
 use zenoh_flow::runtime::{
-    ZFRuntime, ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus, ZFRuntimeStatusKind,
+    RuntimeInfo, ZFRuntime, ZFRuntimeConfig, ZFRuntimeStatus, ZFRuntimeStatusKind,
 };
 use zenoh_flow::types::{ZFError, ZFResult};
 
@@ -173,7 +173,7 @@ impl Runtime {
         let (s, r) = async_std::channel::bounded::<()>(1);
         let rt = self.clone();
 
-        let rt_info = ZFRuntimeInfo {
+        let rt_info = RuntimeInfo {
             id: self.runtime_uuid,
             name: self.runtime_name.clone(),
             tags: Vec::new(),

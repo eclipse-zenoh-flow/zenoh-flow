@@ -24,7 +24,7 @@ extern crate serde_cbor;
 extern crate serde_json;
 
 use crate::model::dataflow::DataFlowRecord;
-use crate::runtime::{ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus};
+use crate::runtime::{RuntimeInfo, ZFRuntimeConfig, ZFRuntimeStatus};
 use crate::serde::{de::DeserializeOwned, Serialize};
 use crate::{async_std::sync::Arc, ZFError, ZFResult};
 use async_std::pin::Pin;
@@ -268,7 +268,7 @@ impl DataStore {
         Self { z }
     }
 
-    pub async fn get_runtime_info(&self, rtid: &Uuid) -> ZFResult<ZFRuntimeInfo> {
+    pub async fn get_runtime_info(&self, rtid: &Uuid) -> ZFResult<RuntimeInfo> {
         let selector = zenoh::Selector::try_from(RT_INFO_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -282,7 +282,7 @@ impl DataStore {
                 let kv = &data[0];
                 match &kv.value {
                     zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<ZFRuntimeInfo>(&buf.to_vec())?;
+                        let ni = deserialize_data::<RuntimeInfo>(&buf.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -294,7 +294,7 @@ impl DataStore {
         }
     }
 
-    pub async fn get_all_runtime_info(&self) -> ZFResult<Vec<ZFRuntimeInfo>> {
+    pub async fn get_all_runtime_info(&self) -> ZFResult<Vec<RuntimeInfo>> {
         let selector = zenoh::Selector::try_from(RT_INFO_PATH!(ROOT_STANDALONE, "*"))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -306,7 +306,7 @@ impl DataStore {
         for kv in data {
             match &kv.value {
                 zenoh::Value::Raw(_, buf) => {
-                    let ni = deserialize_data::<ZFRuntimeInfo>(&buf.to_vec())?;
+                    let ni = deserialize_data::<RuntimeInfo>(&buf.to_vec())?;
                     runtimes.push(ni);
                 }
                 _ => return Err(ZFError::DeseralizationError),
@@ -316,7 +316,7 @@ impl DataStore {
         Ok(runtimes)
     }
 
-    pub async fn get_runtime_info_by_name(&self, rtid: &str) -> ZFResult<ZFRuntimeInfo> {
+    pub async fn get_runtime_info_by_name(&self, rtid: &str) -> ZFResult<RuntimeInfo> {
         let selector = zenoh::Selector::try_from(RT_INFO_PATH!(ROOT_STANDALONE, "*"))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -327,7 +327,7 @@ impl DataStore {
         for kv in data.into_iter() {
             match &kv.value {
                 zenoh::Value::Raw(_, buf) => {
-                    let ni = deserialize_data::<ZFRuntimeInfo>(&buf.to_vec())?;
+                    let ni = deserialize_data::<RuntimeInfo>(&buf.to_vec())?;
                     if ni.name.as_ref() == rtid {
                         return Ok(ni);
                     }
@@ -345,7 +345,7 @@ impl DataStore {
         Ok(ws.delete(&path).await?)
     }
 
-    pub async fn add_runtime_info(&self, rtid: &Uuid, rt_info: &ZFRuntimeInfo) -> ZFResult<()> {
+    pub async fn add_runtime_info(&self, rtid: &Uuid, rt_info: &RuntimeInfo) -> ZFResult<()> {
         let path = zenoh::Path::try_from(RT_INFO_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let encoded_info = serialize_data(rt_info)?;
