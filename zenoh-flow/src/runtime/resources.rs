@@ -24,7 +24,7 @@ extern crate serde_cbor;
 extern crate serde_json;
 
 use crate::model::dataflow::DataFlowRecord;
-use crate::runtime::{RuntimeInfo, RuntimeStatus, ZFRuntimeConfig};
+use crate::runtime::{RuntimeConfig, RuntimeInfo, RuntimeStatus};
 use crate::serde::{de::DeserializeOwned, Serialize};
 use crate::{async_std::sync::Arc, ZFError, ZFResult};
 use async_std::pin::Pin;
@@ -224,7 +224,7 @@ impl ZFRuntimeConfigStream<'_> {
 }
 
 impl Stream for ZFRuntimeConfigStream<'_> {
-    type Item = crate::runtime::ZFRuntimeConfig;
+    type Item = crate::runtime::RuntimeConfig;
 
     #[inline(always)]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
@@ -236,8 +236,7 @@ impl Stream for ZFRuntimeConfigStream<'_> {
                 zenoh::ChangeKind::Put | zenoh::ChangeKind::Patch => match change.value {
                     Some(value) => match value {
                         zenoh::Value::Raw(_, buf) => {
-                            match deserialize_data::<crate::runtime::ZFRuntimeConfig>(&buf.to_vec())
-                            {
+                            match deserialize_data::<crate::runtime::RuntimeConfig>(&buf.to_vec()) {
                                 Ok(info) => Poll::Ready(Some(info)),
                                 Err(_) => Poll::Pending,
                             }
@@ -352,7 +351,7 @@ impl DataStore {
         Ok(ws.put(&path, encoded_info.into()).await?)
     }
 
-    pub async fn get_runtime_config(&self, rtid: &Uuid) -> ZFResult<ZFRuntimeConfig> {
+    pub async fn get_runtime_config(&self, rtid: &Uuid) -> ZFResult<RuntimeConfig> {
         let selector = zenoh::Selector::try_from(RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -366,7 +365,7 @@ impl DataStore {
                 let kv = &data[0];
                 match &kv.value {
                     zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<ZFRuntimeConfig>(&buf.to_vec())?;
+                        let ni = deserialize_data::<RuntimeConfig>(&buf.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -397,7 +396,7 @@ impl DataStore {
         Ok(ws.delete(&path).await?)
     }
 
-    pub async fn add_runtime_config(&self, rtid: &Uuid, rt_info: &ZFRuntimeConfig) -> ZFResult<()> {
+    pub async fn add_runtime_config(&self, rtid: &Uuid, rt_info: &RuntimeConfig) -> ZFResult<()> {
         let path = zenoh::Path::try_from(RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
         let ws = self.z.workspace(None).await?;
         let encoded_info = serialize_data(rt_info)?;

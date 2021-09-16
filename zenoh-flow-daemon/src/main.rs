@@ -21,7 +21,7 @@ use async_std::prelude::*;
 
 mod runtime;
 use runtime::Runtime;
-use zenoh_flow::runtime::ZFRuntimeConfig;
+use zenoh_flow::runtime::RuntimeConfig;
 
 static RUNTIME_CONFIG_FILE: &str = "/etc/zenoh-flow/runtime.yaml";
 
@@ -68,8 +68,7 @@ async fn main() {
     }
 
     let conf_file_path = Path::new(&args.config);
-    let config =
-        serde_yaml::from_str::<ZFRuntimeConfig>(&(read_file(conf_file_path).await)).unwrap();
+    let config = serde_yaml::from_str::<RuntimeConfig>(&(read_file(conf_file_path).await)).unwrap();
 
     let rt = Runtime::from_config(config).unwrap();
 

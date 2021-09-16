@@ -26,7 +26,7 @@ use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::ZFRuntimeClient;
 use zenoh_flow::runtime::{
-    RuntimeInfo, RuntimeStatus, RuntimeStatusKind, ZFRuntime, ZFRuntimeConfig,
+    RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind, ZFRuntime,
 };
 use zenoh_flow::types::{ZFError, ZFResult};
 
@@ -36,7 +36,7 @@ use zrpc::ZNServe;
 
 pub struct RTState {
     pub graphs: HashMap<Uuid, (DataFlowGraph, Vec<RunnerManager>)>,
-    pub config: ZFRuntimeConfig,
+    pub config: RuntimeConfig,
 }
 
 #[derive(Clone)]
@@ -54,7 +54,7 @@ impl Runtime {
         z: Arc<zenoh::Zenoh>,
         runtime_uuid: Uuid,
         runtime_name: String,
-        config: ZFRuntimeConfig,
+        config: RuntimeConfig,
     ) -> Self {
         let state = Arc::new(Mutex::new(RTState {
             graphs: HashMap::new(),
@@ -70,7 +70,7 @@ impl Runtime {
         }
     }
 
-    pub fn from_config(config: ZFRuntimeConfig) -> ZFResult<Self> {
+    pub fn from_config(config: RuntimeConfig) -> ZFResult<Self> {
         let uuid = match &config.uuid {
             Some(u) => *u,
             None => get_machine_uuid()?,
