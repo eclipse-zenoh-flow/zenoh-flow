@@ -174,7 +174,7 @@ pub struct RuntimeConfig {
     prefix = "/zf/runtime",
     service_uuid = "00000000-0000-0000-0000-000000000001"
 )]
-pub trait ZFRuntime {
+pub trait Runtime {
     /// Sends an initiation request for the given [`FlowId`]
     /// Note the request is asynchronous, the runtime that receives the request
     /// flattens the descriptor, maps it to the infrastructure,

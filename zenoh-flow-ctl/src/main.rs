@@ -31,7 +31,7 @@ use uuid::Uuid;
 use zenoh::*;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::runtime::resources::DataStore;
-use zenoh_flow::runtime::ZFRuntimeClient;
+use zenoh_flow::runtime::RuntimeClient;
 
 const GIT_VERSION: &str = git_version!(prefix = "v", cargo_prefix = "v");
 
@@ -87,12 +87,12 @@ async fn main() {
             .unwrap(),
     );
 
-    let servers = ZFRuntimeClient::find_servers(znsession.clone())
+    let servers = RuntimeClient::find_servers(znsession.clone())
         .await
         .unwrap();
     let entry_point = servers.choose(&mut rand::thread_rng()).unwrap();
     log::debug!("Selected entrypoint runtime: {:?}", entry_point);
-    let client = ZFRuntimeClient::new(znsession, *entry_point);
+    let client = RuntimeClient::new(znsession, *entry_point);
 
     let zsession = Arc::new(
         zenoh::Zenoh::new(Properties::from(String::from("mode=peer")).into())
