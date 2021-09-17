@@ -12,12 +12,11 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-
+use crate::{CZFError, CZFResult};
 use serde::Serialize;
 use tinytemplate::TinyTemplate;
-use crate::{CZFError, CZFResult};
 
-static OP_TEMPLATE : &'static str = r#"
+static OP_TEMPLATE: &str = r#"
 use zenoh_flow::async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
@@ -86,12 +85,10 @@ fn register() -> ZFResult<Arc<dyn ZFOperatorTrait>> \{
 
 "#;
 
-
 #[derive(Serialize)]
 struct OperatorContext {
-    name : String,
+    name: String,
 }
-
 
 fn some_kind_of_uppercase_first_letter(s: &str) -> String {
     let mut c = s.chars();
@@ -103,12 +100,13 @@ fn some_kind_of_uppercase_first_letter(s: &str) -> String {
 
 pub fn operator_template(name: String) -> CZFResult<String> {
     let mut tt = TinyTemplate::new();
-    tt.add_template("operator", OP_TEMPLATE).map_err(|e| CZFError::GenericError(format!("{}",e)))?;
+    tt.add_template("operator", OP_TEMPLATE)
+        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
 
     let ctx = OperatorContext {
         name: some_kind_of_uppercase_first_letter(&name),
     };
 
-    Ok(tt.render("operator", &ctx).map_err(|e| CZFError::GenericError(format!("{}",e)))?)
-
+    tt.render("operator", &ctx)
+        .map_err(|e| CZFError::GenericError(format!("{}", e)))
 }

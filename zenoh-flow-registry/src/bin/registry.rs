@@ -20,7 +20,7 @@ use std::{convert::TryFrom, str};
 use async_std::fs;
 use async_std::path::Path;
 use async_std::prelude::*;
-use zenoh_flow_registry::registry::{ZFRegistry, RegistryConfig};
+use zenoh_flow_registry::registry::{RegistryConfig, ZFRegistry};
 
 static REGISTRY_CONFIG_FILE: &str = "/etc/zenoh-flow/runtime.yaml";
 const GIT_VERSION: &str = git_version::git_version!(prefix = "v", cargo_prefix = "v");

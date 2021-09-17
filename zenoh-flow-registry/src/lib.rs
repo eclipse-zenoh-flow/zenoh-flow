@@ -13,24 +13,23 @@
 //
 #![allow(clippy::manual_async_fn)]
 
+use std::path::Path;
 use uuid::Uuid;
-use zenoh_flow::OperatorId;
+use zenoh::Path as ZPath;
+use zenoh_cdn::client::Client;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::model::RegistryComponentArchitecture;
+use zenoh_flow::OperatorId;
 use zenoh_flow::{
     model::{
-        dataflow::DataFlowDescriptor,
         component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
+        dataflow::DataFlowDescriptor,
         RegistryGraph,
     },
     ZFResult,
 };
 use znrpc_macros::znservice;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
-use zenoh_cdn::client::Client;
-use zenoh::{Path as ZPath};
-use std::path::Path;
-
 
 pub mod config;
 pub mod registry;
@@ -124,8 +123,11 @@ pub trait Registry {
         tag: Option<String>,
     ) -> ZFResult<OperatorDescriptor>;
 
-    async fn remove_sink(&self, sink_id: OperatorId, tag: Option<String>)
-        -> ZFResult<SinkDescriptor>;
+    async fn remove_sink(
+        &self,
+        sink_id: OperatorId,
+        tag: Option<String>,
+    ) -> ZFResult<SinkDescriptor>;
 
     async fn remove_source(
         &self,
@@ -145,8 +147,11 @@ pub trait Registry {
 
     async fn add_sink(&self, sink: SinkDescriptor, tag: Option<String>) -> ZFResult<OperatorId>;
 
-    async fn add_source(&self, source: SourceDescriptor, tag: Option<String>)
-        -> ZFResult<OperatorId>;
+    async fn add_source(
+        &self,
+        source: SourceDescriptor,
+        tag: Option<String>,
+    ) -> ZFResult<OperatorId>;
 }
 
 #[derive(Clone)]
@@ -155,9 +160,16 @@ pub struct RegistryFileClient {
 }
 
 impl RegistryFileClient {
-    pub async fn send_component(&self, path: &Path, id: &str, arch : &RegistryComponentArchitecture, tag: &str) -> CZFResult<()> {
-        let resource_name = ZPath::try_from(format!("/{}/{}/{}/{}/library", id, tag, arch.os, arch.arch))?;
-        Ok(self.zcdn.upload(&path, &resource_name).await?)
+    pub async fn send_component(
+        &self,
+        path: &Path,
+        id: &str,
+        arch: &RegistryComponentArchitecture,
+        tag: &str,
+    ) -> CZFResult<()> {
+        let resource_name =
+            ZPath::try_from(format!("/{}/{}/{}/{}/library", id, tag, arch.os, arch.arch))?;
+        Ok(self.zcdn.upload(path, &resource_name).await?)
     }
 
     pub async fn get_component(_component_id: String, _path: &Path) -> CZFResult<()> {

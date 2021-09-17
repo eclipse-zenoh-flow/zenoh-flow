@@ -17,9 +17,9 @@ use std::convert::TryFrom;
 
 use zenoh::net::Session as ZSession;
 use zenoh::ZFuture;
-use zenoh_flow::OperatorId;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::dataflow::DataFlowDescriptor;
+use zenoh_flow::OperatorId;
 
 use zenoh_flow::model::{
     component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
@@ -27,12 +27,12 @@ use zenoh_flow::model::{
 };
 
 use zenoh_flow::runtime::resources::DataStore;
-use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::runtime::ZenohConfig;
+use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::types::{ZFError, ZFResult};
 
-use zenoh_cdn::types::ServerConfig;
 use zenoh_cdn::server::Server;
+use zenoh_cdn::types::ServerConfig;
 
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
@@ -68,12 +68,14 @@ pub struct ZFRegistry {
 
 impl ZFRegistry {
     pub fn new(zn: Arc<ZSession>, z: Arc<zenoh::Zenoh>, config: RegistryConfig) -> Self {
-        let state = Arc::new(Mutex::new(RegistryState { config: config.clone() }));
+        let state = Arc::new(Mutex::new(RegistryState {
+            config: config.clone(),
+        }));
         Self {
             zn,
             store: DataStore::new(z.clone()),
             state,
-            cdn_server : Server::new(z, config.cdn.clone()),
+            cdn_server: Server::new(z, config.cdn),
         }
     }
 

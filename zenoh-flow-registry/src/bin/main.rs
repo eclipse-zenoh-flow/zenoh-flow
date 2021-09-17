@@ -17,9 +17,9 @@ use structopt::StructOpt;
 use zenoh::*;
 use zenoh_flow::model::component::OperatorDescriptor;
 use zenoh_flow::model::{RegistryComponentArchitecture, RegistryComponentTag, RegistryGraph};
+use zenoh_flow::OperatorId;
 use zenoh_flow_registry::config::ComponentKind;
 use zenoh_flow_registry::RegistryClient;
-use zenoh_flow::OperatorId;
 use zenoh_flow_registry::RegistryFileClient;
 
 #[derive(StructOpt, Debug)]
@@ -77,7 +77,6 @@ async fn main() {
     let entry_point = servers.choose(&mut rand::thread_rng()).unwrap();
     log::debug!("Selected entrypoint runtime: {:?}", entry_point);
     let client = RegistryClient::new(znsession, *entry_point);
-
 
     let zsession = Arc::new(
         zenoh::Zenoh::new(Properties::from(String::from("mode=peer")).into())
@@ -171,12 +170,20 @@ async fn main() {
 
             client.add_graph(metadata_graph).await.unwrap().unwrap();
 
-            file_client.send_component(&std::path::PathBuf::from(target), &component_info.id, &metadata_arch, &version_tag).await.unwrap();
-
-
+            file_client
+                .send_component(
+                    &std::path::PathBuf::from(target),
+                    &component_info.id,
+                    &metadata_arch,
+                    &version_tag,
+                )
+                .await
+                .unwrap();
         }
         ZFCtl::New { name, kind } => {
-            zenoh_flow_registry::config::create_crate(&name, kind).await.unwrap();
+            zenoh_flow_registry::config::create_crate(&name, kind)
+                .await
+                .unwrap();
         }
         ZFCtl::List => {
             println!("{:?}", client.get_all_graphs().await);
