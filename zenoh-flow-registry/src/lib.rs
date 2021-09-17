@@ -14,13 +14,14 @@
 #![allow(clippy::manual_async_fn)]
 
 use uuid::Uuid;
+use zenoh_flow::OperatorId;
 use zenoh_flow::async_std::sync::Arc;
-use zenoh_flow::model::ZFRegistryComponentArchitecture;
+use zenoh_flow::model::RegistryComponentArchitecture;
 use zenoh_flow::{
     model::{
         dataflow::DataFlowDescriptor,
-        operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor},
-        ZFRegistryGraph,
+        component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
+        RegistryGraph,
     },
     ZFResult,
 };
@@ -90,62 +91,62 @@ pub type CZFResult<T> = Result<T, CZFError>;
     prefix = "/zf/registry",
     service_uuid = "00000000-0000-0000-0000-000000000002"
 )]
-pub trait ZFRegistry {
-    async fn get_flow(&self, flow_id: String) -> ZFResult<DataFlowDescriptor>;
+pub trait Registry {
+    async fn get_flow(&self, flow_id: OperatorId) -> ZFResult<DataFlowDescriptor>;
 
     //async fn get_graph(&self, graph_id: String) -> ZFResult<GraphDescriptor>;
 
-    async fn get_all_graphs(&self) -> ZFResult<Vec<ZFRegistryGraph>>;
+    async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryGraph>>;
 
     async fn get_operator(
         &self,
-        operator_id: String,
+        operator_id: OperatorId,
         tag: Option<String>,
         os: String,
         arch: String,
-    ) -> ZFResult<ZFOperatorDescriptor>;
+    ) -> ZFResult<OperatorDescriptor>;
 
-    async fn get_sink(&self, sink_id: String, tag: Option<String>) -> ZFResult<ZFSinkDescriptor>;
+    async fn get_sink(&self, sink_id: OperatorId, tag: Option<String>) -> ZFResult<SinkDescriptor>;
 
     async fn get_source(
         &self,
-        source_id: String,
+        source_id: OperatorId,
         tag: Option<String>,
-    ) -> ZFResult<ZFSourceDescriptor>;
+    ) -> ZFResult<SourceDescriptor>;
 
-    async fn remove_flow(&self, flow_id: String) -> ZFResult<DataFlowDescriptor>;
+    async fn remove_flow(&self, flow_id: OperatorId) -> ZFResult<DataFlowDescriptor>;
 
     // async fn remove_graph(&self, graph_id: String) -> ZFResult<GraphDescriptor>;
 
     async fn remove_operator(
         &self,
-        operator_id: String,
+        operator_id: OperatorId,
         tag: Option<String>,
-    ) -> ZFResult<ZFOperatorDescriptor>;
+    ) -> ZFResult<OperatorDescriptor>;
 
-    async fn remove_sink(&self, sink_id: String, tag: Option<String>)
-        -> ZFResult<ZFSinkDescriptor>;
+    async fn remove_sink(&self, sink_id: OperatorId, tag: Option<String>)
+        -> ZFResult<SinkDescriptor>;
 
     async fn remove_source(
         &self,
-        source_id: String,
+        source_id: OperatorId,
         tag: Option<String>,
-    ) -> ZFResult<ZFSourceDescriptor>;
+    ) -> ZFResult<SourceDescriptor>;
 
-    async fn add_flow(&self, flow: DataFlowDescriptor) -> ZFResult<String>;
+    async fn add_flow(&self, flow: DataFlowDescriptor) -> ZFResult<OperatorId>;
 
-    async fn add_graph(&self, graph: ZFRegistryGraph) -> ZFResult<String>;
+    async fn add_graph(&self, graph: RegistryGraph) -> ZFResult<OperatorId>;
 
     async fn add_operator(
         &self,
-        operator: ZFOperatorDescriptor,
+        operator: OperatorDescriptor,
         tag: Option<String>,
-    ) -> ZFResult<String>;
+    ) -> ZFResult<OperatorId>;
 
-    async fn add_sink(&self, sink: ZFSinkDescriptor, tag: Option<String>) -> ZFResult<String>;
+    async fn add_sink(&self, sink: SinkDescriptor, tag: Option<String>) -> ZFResult<OperatorId>;
 
-    async fn add_source(&self, source: ZFSourceDescriptor, tag: Option<String>)
-        -> ZFResult<String>;
+    async fn add_source(&self, source: SourceDescriptor, tag: Option<String>)
+        -> ZFResult<OperatorId>;
 }
 
 #[derive(Clone)]
@@ -154,7 +155,7 @@ pub struct RegistryFileClient {
 }
 
 impl RegistryFileClient {
-    pub async fn send_component(&self, path: &Path, id: &str, arch : &ZFRegistryComponentArchitecture, tag: &str) -> CZFResult<()> {
+    pub async fn send_component(&self, path: &Path, id: &str, arch : &RegistryComponentArchitecture, tag: &str) -> CZFResult<()> {
         let resource_name = ZPath::try_from(format!("/{}/{}/{}/{}/library", id, tag, arch.os, arch.arch))?;
         Ok(self.zcdn.upload(&path, &resource_name).await?)
     }

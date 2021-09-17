@@ -15,10 +15,11 @@ use async_std::sync::Arc;
 use rand::seq::SliceRandom;
 use structopt::StructOpt;
 use zenoh::*;
-use zenoh_flow::model::operator::ZFOperatorDescriptor;
-use zenoh_flow::model::{ZFRegistryComponentArchitecture, ZFRegistryComponentTag, ZFRegistryGraph};
+use zenoh_flow::model::component::OperatorDescriptor;
+use zenoh_flow::model::{RegistryComponentArchitecture, RegistryComponentTag, RegistryGraph};
 use zenoh_flow_registry::config::ComponentKind;
-use zenoh_flow_registry::ZFRegistryClient;
+use zenoh_flow_registry::RegistryClient;
+use zenoh_flow::OperatorId;
 use zenoh_flow_registry::RegistryFileClient;
 
 #[derive(StructOpt, Debug)]
@@ -70,12 +71,12 @@ async fn main() {
         .unwrap(),
     );
 
-    let servers = ZFRegistryClient::find_servers(znsession.clone())
+    let servers = RegistryClient::find_servers(znsession.clone())
         .await
         .unwrap();
     let entry_point = servers.choose(&mut rand::thread_rng()).unwrap();
     log::debug!("Selected entrypoint runtime: {:?}", entry_point);
-    let client = ZFRegistryClient::new(znsession, *entry_point);
+    let client = RegistryClient::new(znsession, *entry_point);
 
 
     let zsession = Arc::new(
@@ -123,8 +124,8 @@ async fn main() {
             };
             let uri = format!("file://{}", target);
 
-            let descriptor = ZFOperatorDescriptor {
-                id: component_info.id.clone(),
+            let descriptor = OperatorDescriptor {
+                id: OperatorId::from(component_info.id.clone()),
                 inputs: component_info.inputs.clone().unwrap(),
                 outputs: component_info.outputs.clone().unwrap(),
                 uri: Some(uri.clone()),
@@ -132,7 +133,7 @@ async fn main() {
                 runtime: None,
             };
 
-            let metadata_arch = ZFRegistryComponentArchitecture {
+            let metadata_arch = RegistryComponentArchitecture {
                 arch: String::from(std::env::consts::ARCH),
                 os: String::from(std::env::consts::OS),
                 uri,
@@ -140,14 +141,14 @@ async fn main() {
                 signature: String::from(""),
             };
 
-            let metadata_tag = ZFRegistryComponentTag {
+            let metadata_tag = RegistryComponentTag {
                 name: version_tag.clone(),
                 requirement_labels: vec![],
                 architectures: vec![metadata_arch.clone()],
             };
 
-            let metadata_graph = ZFRegistryGraph {
-                id: component_info.id.clone(),
+            let metadata_graph = RegistryGraph {
+                id: OperatorId::from(component_info.id.clone()),
                 classes: vec![],
                 tags: vec![metadata_tag],
                 inputs: component_info.inputs.clone().unwrap(),

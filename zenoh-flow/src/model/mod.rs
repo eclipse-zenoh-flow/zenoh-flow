@@ -18,24 +18,25 @@ pub mod dataflow;
 pub mod link;
 pub mod period;
 
-use crate::model::link::ZFPortDescriptor;
-use crate::model::period::ZFPeriodDescriptor;
+use crate::model::link::PortDescriptor;
+use crate::model::period::PeriodDescriptor;
 use crate::serde::{Deserialize, Serialize};
+use crate::OperatorId;
 
 // Registry metadata
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ZFRegistryGraph {
-    pub id: String,
+pub struct RegistryGraph {
+    pub id: OperatorId,
     pub classes: Vec<String>,
-    pub tags: Vec<ZFRegistryComponentTag>,
-    pub inputs: Vec<ZFPortDescriptor>,
-    pub outputs: Vec<ZFPortDescriptor>,
-    pub period: Option<ZFPeriodDescriptor>,
+    pub tags: Vec<RegistryComponentTag>,
+    pub inputs: Vec<PortDescriptor>,
+    pub outputs: Vec<PortDescriptor>,
+    pub period: Option<PeriodDescriptor>,
 }
 
-impl ZFRegistryGraph {
-    pub fn add_tag(&mut self, tag: ZFRegistryComponentTag) {
+impl RegistryGraph {
+    pub fn add_tag(&mut self, tag: RegistryComponentTag) {
         let index = self.tags.iter().position(|t| t.name == tag.name);
         match index {
             Some(i) => {
@@ -53,14 +54,14 @@ impl ZFRegistryGraph {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ZFRegistryComponentTag {
+pub struct RegistryComponentTag {
     pub name: String,
     pub requirement_labels: Vec<String>,
-    pub architectures: Vec<ZFRegistryComponentArchitecture>,
+    pub architectures: Vec<RegistryComponentArchitecture>,
 }
 
-impl ZFRegistryComponentTag {
-    pub fn add_architecture(&mut self, arch: ZFRegistryComponentArchitecture) {
+impl RegistryComponentTag {
+    pub fn add_architecture(&mut self, arch: RegistryComponentArchitecture) {
         let index = self
             .architectures
             .iter()
@@ -78,7 +79,7 @@ impl ZFRegistryComponentTag {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ZFRegistryComponentArchitecture {
+pub struct RegistryComponentArchitecture {
     pub arch: String,
     pub os: String,
     pub uri: String,

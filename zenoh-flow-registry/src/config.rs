@@ -19,8 +19,8 @@ use crate::{CZFError, CZFResult};
 use serde::Deserialize;
 use async_std::prelude::*;
 use std::process::Command;
-use zenoh_flow::model::link::ZFPortDescriptor;
-use zenoh_flow::model::ZFRegistryGraph;
+use zenoh_flow::model::link::PortDescriptor;
+use zenoh_flow::model::RegistryGraph;
 
 pub static ZF_OUTPUT_DIRECTORY: &str = "zenoh-flow";
 
@@ -68,8 +68,8 @@ pub struct CargoPkgMetadata {
 pub struct CargoZenohFlow {
     pub id: String,
     pub kind: ComponentKind,
-    pub inputs: Option<Vec<ZFPortDescriptor>>,
-    pub outputs: Option<Vec<ZFPortDescriptor>>,
+    pub inputs: Option<Vec<PortDescriptor>>,
+    pub outputs: Option<Vec<PortDescriptor>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -366,7 +366,7 @@ pub fn cargo_build(flags: &[String], release: bool, manifest_dir: &Path) -> CZFR
     Ok(())
 }
 
-pub fn store_zf_metadata(metadata: &ZFRegistryGraph, target_dir: &Path) -> CZFResult<()> {
+pub fn store_zf_metadata(metadata: &RegistryGraph, target_dir: &Path) -> CZFResult<()> {
     std::fs::remove_dir_all(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY)).map_err(
         |e| {
             CZFError::IoFile(

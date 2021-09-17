@@ -24,8 +24,8 @@ extern crate serde_cbor;
 extern crate serde_json;
 
 use crate::model::dataflow::DataFlowRecord;
-use crate::model::ZFRegistryGraph;
-use crate::runtime::{ZFRuntimeConfig, ZFRuntimeInfo, ZFRuntimeStatus};
+use crate::model::RegistryGraph;
+use crate::runtime::{RuntimeConfig, RuntimeInfo, RuntimeStatus};
 use crate::serde::{de::DeserializeOwned, Serialize};
 use crate::{async_std::sync::Arc, ZFError, ZFResult};
 use async_std::pin::Pin;
@@ -630,14 +630,14 @@ impl DataStore {
 
     // Registry Related
 
-    pub async fn add_graph(&self, graph: &ZFRegistryGraph) -> ZFResult<()> {
+    pub async fn add_graph(&self, graph: &RegistryGraph) -> ZFResult<()> {
         let path = zenoh::Path::try_from(REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph.id))?;
         let ws = self.z.workspace(None).await?;
         let encoded_info = serialize_data(graph)?;
         Ok(ws.put(&path, encoded_info.into()).await?)
     }
 
-    pub async fn get_graph(&self, graph_id: &str) -> ZFResult<ZFRegistryGraph> {
+    pub async fn get_graph(&self, graph_id: &str) -> ZFResult<RegistryGraph> {
         let selector = zenoh::Selector::try_from(REG_GRAPH_SELECTOR!(ROOT_STANDALONE, graph_id))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -650,7 +650,7 @@ impl DataStore {
                 let kv = &data[0];
                 match &kv.value {
                     zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<ZFRegistryGraph>(&buf.to_vec())?;
+                        let ni = deserialize_data::<RegistryGraph>(&buf.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -659,7 +659,7 @@ impl DataStore {
         }
     }
 
-    pub async fn get_all_graphs(&self) -> ZFResult<Vec<ZFRegistryGraph>> {
+    pub async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryGraph>> {
         let selector = zenoh::Selector::try_from(REG_GRAPH_SELECTOR!(ROOT_STANDALONE, "*"))?;
         let ws = self.z.workspace(None).await?;
         let mut ds = ws.get(&selector).await?;
@@ -671,7 +671,7 @@ impl DataStore {
         for kv in data.into_iter() {
             match &kv.value {
                 zenoh::Value::Raw(_, buf) => {
-                    let ni = deserialize_data::<ZFRegistryGraph>(&buf.to_vec())?;
+                    let ni = deserialize_data::<RegistryGraph>(&buf.to_vec())?;
                     graphs.push(ni);
                 }
                 _ => return Err(ZFError::DeseralizationError),

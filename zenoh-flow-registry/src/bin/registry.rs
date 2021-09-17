@@ -20,7 +20,7 @@ use std::{convert::TryFrom, str};
 use async_std::fs;
 use async_std::path::Path;
 use async_std::prelude::*;
-use zenoh_flow_registry::registry::{Registry, RegistryConfig};
+use zenoh_flow_registry::registry::{ZFRegistry, RegistryConfig};
 
 static REGISTRY_CONFIG_FILE: &str = "/etc/zenoh-flow/runtime.yaml";
 const GIT_VERSION: &str = git_version::git_version!(prefix = "v", cargo_prefix = "v");
@@ -57,7 +57,7 @@ async fn main() {
     let conf_file_path = Path::new(&args.config);
     let conf = RegistryConfig::try_from(read_file(conf_file_path).await).unwrap();
 
-    let registry = Registry::try_from(conf).unwrap();
+    let registry = ZFRegistry::try_from(conf).unwrap();
 
     let (s, h) = registry.start().await.unwrap();
 

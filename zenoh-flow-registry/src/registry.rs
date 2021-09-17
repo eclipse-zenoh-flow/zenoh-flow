@@ -12,20 +12,21 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::ZFRegistry;
+use crate::Registry;
 use std::convert::TryFrom;
 
 use zenoh::net::Session as ZSession;
 use zenoh::ZFuture;
+use zenoh_flow::OperatorId;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::dataflow::DataFlowDescriptor;
 
 use zenoh_flow::model::{
-    operator::{ZFOperatorDescriptor, ZFSinkDescriptor, ZFSourceDescriptor},
-    ZFRegistryGraph,
+    component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
+    RegistryGraph,
 };
 
-use zenoh_flow::runtime::resources::ZFDataStore;
+use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::runtime::ZenohConfig;
 use zenoh_flow::types::{ZFError, ZFResult};
@@ -58,19 +59,19 @@ pub struct RegistryState {
 }
 
 #[derive(Clone)]
-pub struct Registry {
+pub struct ZFRegistry {
     pub zn: Arc<ZSession>,
-    pub store: ZFDataStore,
+    pub store: DataStore,
     pub state: Arc<Mutex<RegistryState>>,
     pub cdn_server: Server,
 }
 
-impl Registry {
+impl ZFRegistry {
     pub fn new(zn: Arc<ZSession>, z: Arc<zenoh::Zenoh>, config: RegistryConfig) -> Self {
         let state = Arc::new(Mutex::new(RegistryState { config: config.clone() }));
         Self {
             zn,
-            store: ZFDataStore::new(z.clone()),
+            store: DataStore::new(z.clone()),
             state,
             cdn_server : Server::new(z, config.cdn.clone()),
         }
@@ -79,7 +80,7 @@ impl Registry {
     pub async fn run(&self, stop: async_std::channel::Receiver<()>) -> ZFResult<()> {
         log::info!("Registry main loop starting");
 
-        let reg_server = self.clone().get_zf_registry_server(self.zn.clone(), None);
+        let reg_server = self.clone().get_registry_server(self.zn.clone(), None);
         let (reg_stopper, _hrt) = reg_server.connect().await?;
 
         reg_server.initialize().await?;
@@ -132,7 +133,7 @@ impl Registry {
     }
 }
 
-impl TryFrom<RegistryConfig> for Registry {
+impl TryFrom<RegistryConfig> for ZFRegistry {
     type Error = ZFError;
 
     fn try_from(config: RegistryConfig) -> Result<Self, Self::Error> {
@@ -158,24 +159,24 @@ impl TryFrom<RegistryConfig> for Registry {
 }
 
 #[znserver]
-impl ZFRegistry for Registry {
-    async fn get_flow(&self, flow_id: String) -> ZFResult<DataFlowDescriptor> {
+impl Registry for ZFRegistry {
+    async fn get_flow(&self, flow_id: OperatorId) -> ZFResult<DataFlowDescriptor> {
         Err(ZFError::Unimplemented)
     }
 
     //async fn get_graph(&self, graph_id: String) -> ZFResult<GraphDescriptor>;
 
-    async fn get_all_graphs(&self) -> ZFResult<Vec<ZFRegistryGraph>> {
+    async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryGraph>> {
         self.store.get_all_graphs().await
     }
 
     async fn get_operator(
         &self,
-        operator_id: String,
+        operator_id: OperatorId,
         tag: Option<String>,
         os: String,
         arch: String,
-    ) -> ZFResult<ZFOperatorDescriptor> {
+    ) -> ZFResult<OperatorDescriptor> {
         let metadata = self.store.get_graph(&operator_id).await?;
 
         let tag = tag.unwrap_or_else(|| String::from("latest"));
@@ -195,7 +196,7 @@ impl ZFRegistry for Registry {
 
         let specific_metadata = filtered_metadata()?;
 
-        let descriptor = ZFOperatorDescriptor {
+        let descriptor = OperatorDescriptor {
             id: metadata.id.clone(),
             inputs: metadata.inputs.clone(),
             outputs: metadata.outputs.clone(),
@@ -207,19 +208,19 @@ impl ZFRegistry for Registry {
         Ok(descriptor)
     }
 
-    async fn get_sink(&self, sink_id: String, tag: Option<String>) -> ZFResult<ZFSinkDescriptor> {
+    async fn get_sink(&self, sink_id: OperatorId, tag: Option<String>) -> ZFResult<SinkDescriptor> {
         Err(ZFError::Unimplemented)
     }
 
     async fn get_source(
         &self,
-        source_id: String,
+        source_id: OperatorId,
         tag: Option<String>,
-    ) -> ZFResult<ZFSourceDescriptor> {
+    ) -> ZFResult<SourceDescriptor> {
         Err(ZFError::Unimplemented)
     }
 
-    async fn remove_flow(&self, flow_id: String) -> ZFResult<DataFlowDescriptor> {
+    async fn remove_flow(&self, flow_id: OperatorId) -> ZFResult<DataFlowDescriptor> {
         Err(ZFError::Unimplemented)
     }
 
@@ -227,33 +228,33 @@ impl ZFRegistry for Registry {
 
     async fn remove_operator(
         &self,
-        operator_id: String,
+        operator_id: OperatorId,
         tag: Option<String>,
-    ) -> ZFResult<ZFOperatorDescriptor> {
+    ) -> ZFResult<OperatorDescriptor> {
         Err(ZFError::Unimplemented)
     }
 
     async fn remove_sink(
         &self,
-        sink_id: String,
+        sink_id: OperatorId,
         tag: Option<String>,
-    ) -> ZFResult<ZFSinkDescriptor> {
+    ) -> ZFResult<SinkDescriptor> {
         Err(ZFError::Unimplemented)
     }
 
     async fn remove_source(
         &self,
-        source_id: String,
+        source_id: OperatorId,
         tag: Option<String>,
-    ) -> ZFResult<ZFSourceDescriptor> {
+    ) -> ZFResult<SourceDescriptor> {
         Err(ZFError::Unimplemented)
     }
 
-    async fn add_flow(&self, flow: DataFlowDescriptor) -> ZFResult<String> {
+    async fn add_flow(&self, flow: DataFlowDescriptor) -> ZFResult<OperatorId> {
         Err(ZFError::Unimplemented)
     }
 
-    async fn add_graph(&self, graph: ZFRegistryGraph) -> ZFResult<String> {
+    async fn add_graph(&self, graph: RegistryGraph) -> ZFResult<OperatorId> {
         log::info!("Adding graph {:?}", graph);
         match self.store.get_graph(&graph.id).await {
             Ok(mut metadata) => {
@@ -276,21 +277,21 @@ impl ZFRegistry for Registry {
 
     async fn add_operator(
         &self,
-        operator: ZFOperatorDescriptor,
+        operator: OperatorDescriptor,
         tag: Option<String>,
-    ) -> ZFResult<String> {
+    ) -> ZFResult<OperatorId> {
         Err(ZFError::Unimplemented)
     }
 
-    async fn add_sink(&self, sink: ZFSinkDescriptor, tag: Option<String>) -> ZFResult<String> {
+    async fn add_sink(&self, sink: SinkDescriptor, tag: Option<String>) -> ZFResult<OperatorId> {
         Err(ZFError::Unimplemented)
     }
 
     async fn add_source(
         &self,
-        source: ZFSourceDescriptor,
+        source: SourceDescriptor,
         tag: Option<String>,
-    ) -> ZFResult<String> {
+    ) -> ZFResult<OperatorId> {
         Err(ZFError::Unimplemented)
     }
 }
