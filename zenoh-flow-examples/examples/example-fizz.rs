@@ -79,7 +79,7 @@ impl OutputRule for FizzOperator {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn State>,
-        outputs: &HashMap<PortId, Arc<dyn Data>>,
+        outputs: HashMap<PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
         default_output_rule(state, outputs)
     }

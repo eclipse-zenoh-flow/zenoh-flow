@@ -93,7 +93,7 @@ impl SourceRunner {
             // Output
             let mut outputs = self
                 .source
-                .output_rule(&mut context, &mut state, &run_outputs)?;
+                .output_rule(&mut context, &mut state, run_outputs)?;
 
             log::debug!("Outputs: {:?}", outputs);
 

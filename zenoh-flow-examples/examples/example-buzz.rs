@@ -97,7 +97,7 @@ impl OutputRule for BuzzOperator {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn State>,
-        outputs: &HashMap<zenoh_flow::PortId, Arc<dyn Data>>,
+        outputs: HashMap<zenoh_flow::PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
         default_output_rule(state, outputs)
     }

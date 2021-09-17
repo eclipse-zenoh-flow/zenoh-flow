@@ -62,7 +62,7 @@ pub trait OutputRule {
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
-        outputs: &HashMap<PortId, Arc<dyn Data>>,
+        outputs: HashMap<PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<PortId, ComponentOutput>>;
 }
 

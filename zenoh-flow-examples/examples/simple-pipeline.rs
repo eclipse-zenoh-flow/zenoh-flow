@@ -68,7 +68,7 @@ impl OutputRule for CountSource {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: &HashMap<PortId, Arc<dyn Data>>,
+        outputs: HashMap<PortId, Arc<dyn Data>>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
         default_output_rule(state, outputs)
     }
