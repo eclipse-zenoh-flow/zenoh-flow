@@ -66,7 +66,7 @@ impl OutputRule for ManualSource {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn State>,
-        outputs: &HashMap<PortId, Arc<dyn Data>>,
+        outputs: HashMap<PortId, Arc<dyn Data>>,
     ) -> ZFResult<HashMap<PortId, zenoh_flow::ComponentOutput>> {
         zenoh_flow::default_output_rule(state, outputs)
     }

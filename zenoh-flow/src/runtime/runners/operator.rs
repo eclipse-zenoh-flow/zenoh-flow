@@ -158,7 +158,7 @@ impl OperatorRunner {
             // Output rules
             let outputs = self
                 .operator
-                .output_rule(&mut context, &mut state, &run_outputs)?;
+                .output_rule(&mut context, &mut state, run_outputs)?;
 
             // Send to Links
             for (id, output) in outputs {

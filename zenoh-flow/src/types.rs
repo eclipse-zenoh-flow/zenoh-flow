@@ -218,11 +218,11 @@ impl State for EmptyState {
 
 pub fn default_output_rule(
     _state: &mut Box<dyn State>,
-    outputs: &HashMap<PortId, Arc<dyn Data>>,
+    outputs: HashMap<PortId, Arc<dyn Data>>,
 ) -> ZFResult<HashMap<PortId, ComponentOutput>> {
     let mut results = HashMap::with_capacity(outputs.len());
     for (k, v) in outputs {
-        results.insert(k.clone(), ComponentOutput::Data(v.clone()));
+        results.insert(k, ComponentOutput::Data(v));
     }
 
     Ok(results)

@@ -44,7 +44,7 @@ impl OutputRule for ExampleRandomSource {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: &HashMap<PortId, Arc<dyn zenoh_flow::Data>>,
+        outputs: HashMap<PortId, Arc<dyn zenoh_flow::Data>>,
     ) -> ZFResult<HashMap<PortId, zenoh_flow::ComponentOutput>> {
         default_output_rule(state, outputs)
     }

@@ -123,7 +123,7 @@ impl OutputRule for ObjDetection {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: &HashMap<PortId, Arc<dyn zenoh_flow::Data>>,
+        outputs: HashMap<PortId, Arc<dyn zenoh_flow::Data>>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
         default_output_rule(state, outputs)
     }

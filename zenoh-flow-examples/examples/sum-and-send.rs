@@ -71,7 +71,7 @@ impl OutputRule for SumAndSend {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: &HashMap<PortId, Arc<dyn Data>>,
+        outputs: HashMap<PortId, Arc<dyn Data>>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
         default_output_rule(state, outputs)
     }
