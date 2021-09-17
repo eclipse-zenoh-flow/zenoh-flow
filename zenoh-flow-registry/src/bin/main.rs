@@ -19,6 +19,7 @@ use zenoh_flow::model::operator::ZFOperatorDescriptor;
 use zenoh_flow::model::{ZFRegistryComponentArchitecture, ZFRegistryComponentTag, ZFRegistryGraph};
 use zenoh_flow_registry::config::ComponentKind;
 use zenoh_flow_registry::ZFRegistryClient;
+use zenoh_flow_registry::RegistryFileClient;
 
 #[derive(StructOpt, Debug)]
 pub enum ZFCtl {
@@ -29,6 +30,8 @@ pub enum ZFCtl {
         manifest_path: std::path::PathBuf,
         #[structopt(short, long)]
         release: bool,
+        #[structopt(short = "t", long = "tag", default_value = "latest")]
+        version_tag: String,
         cargo_build_flags: Vec<String>,
     },
     New {
@@ -74,11 +77,20 @@ async fn main() {
     log::debug!("Selected entrypoint runtime: {:?}", entry_point);
     let client = ZFRegistryClient::new(znsession, *entry_point);
 
+
+    let zsession = Arc::new(
+        zenoh::Zenoh::new(Properties::from(String::from("mode=peer")).into())
+            .await
+            .unwrap(),
+    );
+    let file_client = RegistryFileClient::from(zsession);
+
     match args {
         ZFCtl::Build {
             package,
             manifest_path,
             release,
+            version_tag,
             mut cargo_build_flags,
         } => {
             // `cargo zenoh-flow` invocation passes the `zenoh-flow` arg through.
@@ -129,9 +141,9 @@ async fn main() {
             };
 
             let metadata_tag = ZFRegistryComponentTag {
-                name: String::from("latest"),
+                name: version_tag.clone(),
                 requirement_labels: vec![],
-                architectures: vec![metadata_arch],
+                architectures: vec![metadata_arch.clone()],
             };
 
             let metadata_graph = ZFRegistryGraph {
@@ -157,9 +169,13 @@ async fn main() {
             zenoh_flow_registry::config::store_zf_metadata(&metadata_graph, &target_dir).unwrap();
 
             client.add_graph(metadata_graph).await.unwrap().unwrap();
+
+            file_client.send_component(&std::path::PathBuf::from(target), &component_info.id, &metadata_arch, &version_tag).await.unwrap();
+
+
         }
         ZFCtl::New { name, kind } => {
-            zenoh_flow_registry::config::create_crate(&name, kind).unwrap();
+            zenoh_flow_registry::config::create_crate(&name, kind).await.unwrap();
         }
         ZFCtl::List => {
             println!("{:?}", client.get_all_graphs().await);

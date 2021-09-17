@@ -12,6 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::ZFRegistry;
 use std::convert::TryFrom;
 
 use zenoh::net::Session as ZSession;
@@ -26,19 +27,21 @@ use zenoh_flow::model::{
 
 use zenoh_flow::runtime::resources::ZFDataStore;
 use zenoh_flow::serde::{Deserialize, Serialize};
-
-use crate::ZFRegistry;
 use zenoh_flow::runtime::ZenohConfig;
 use zenoh_flow::types::{ZFError, ZFResult};
+
+use zenoh_cdn::types::ServerConfig;
+use zenoh_cdn::server::Server;
 
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RegistryConfig {
     pub pid_file: String,
     pub path: String,
     pub zenoh: ZenohConfig,
+    pub cdn: ServerConfig,
 }
 
 impl TryFrom<String> for RegistryConfig {
@@ -59,15 +62,17 @@ pub struct Registry {
     pub zn: Arc<ZSession>,
     pub store: ZFDataStore,
     pub state: Arc<Mutex<RegistryState>>,
+    pub cdn_server: Server,
 }
 
 impl Registry {
     pub fn new(zn: Arc<ZSession>, z: Arc<zenoh::Zenoh>, config: RegistryConfig) -> Self {
-        let state = Arc::new(Mutex::new(RegistryState { config }));
+        let state = Arc::new(Mutex::new(RegistryState { config: config.clone() }));
         Self {
             zn,
-            store: ZFDataStore::new(z),
+            store: ZFDataStore::new(z.clone()),
             state,
+            cdn_server : Server::new(z, config.cdn.clone()),
         }
     }
 
@@ -80,6 +85,9 @@ impl Registry {
         reg_server.initialize().await?;
 
         reg_server.register().await?;
+
+        log::trace!("Starting Zenoh-CDN Server");
+        let _cdn_handler = self.cdn_server.serve();
 
         log::trace!("Staring ZRPC Servers");
         let (srt, _hrt) = reg_server.start().await?;

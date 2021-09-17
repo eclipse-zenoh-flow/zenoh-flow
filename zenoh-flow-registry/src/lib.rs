@@ -15,6 +15,7 @@
 
 use uuid::Uuid;
 use zenoh_flow::async_std::sync::Arc;
+use zenoh_flow::model::ZFRegistryComponentArchitecture;
 use zenoh_flow::{
     model::{
         dataflow::DataFlowDescriptor,
@@ -25,11 +26,14 @@ use zenoh_flow::{
 };
 use znrpc_macros::znservice;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
+use zenoh_cdn::client::Client;
+use zenoh::{Path as ZPath};
+use std::path::Path;
 
-use zenoh_fragmentation_e2e::{PUTApiArgs, ZenohCdn};
 
 pub mod config;
 pub mod registry;
+pub mod templates;
 
 #[derive(Debug)]
 pub enum CZFError {
@@ -46,6 +50,7 @@ pub enum CZFError {
     ParsingError(&'static str),
     BuildFailed,
     ZenohError(zenoh::ZError),
+    GenericError(String),
 }
 
 impl From<toml::de::Error> for CZFError {
@@ -144,13 +149,14 @@ pub trait ZFRegistry {
 }
 
 #[derive(Clone)]
-pub struct ZFRegistryFileClient {
-    pub zcdn: ZenohCdn,
+pub struct RegistryFileClient {
+    pub zcdn: Client,
 }
 
-impl ZFRegistryFileClient {
-    pub async fn send_component(_path: &Path, _metadata: &ZFRegistryGraph) -> CZFResult<()> {
-        Ok(())
+impl RegistryFileClient {
+    pub async fn send_component(&self, path: &Path, id: &str, arch : &ZFRegistryComponentArchitecture, tag: &str) -> CZFResult<()> {
+        let resource_name = ZPath::try_from(format!("/{}/{}/{}/{}/library", id, tag, arch.os, arch.arch))?;
+        Ok(self.zcdn.upload(&path, &resource_name).await?)
     }
 
     pub async fn get_component(_component_id: String, _path: &Path) -> CZFResult<()> {
@@ -158,13 +164,9 @@ impl ZFRegistryFileClient {
     }
 }
 
-impl From<Arc<zenoh::Zenoh>> for ZFRegistryFileClient {
+impl From<Arc<zenoh::Zenoh>> for RegistryFileClient {
     fn from(zenoh: Arc<zenoh::Zenoh>) -> Self {
-        let mut zcdn = ZenohCdn::new(zenoh);
-        zcdn.set_upload_args(PUTApiArgs {
-            chunk_size: 65000usize,
-        }); //TODO should not be hardcoded
-
+        let zcdn = Client::new(zenoh);
         Self { zcdn }
     }
 }

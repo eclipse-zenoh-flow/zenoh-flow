@@ -5,3 +5,6 @@
       kind: peer
       listen: ["tcp/0.0.0.0:7997","unixsock-stream//tmp/zf-registry.sock"]
       locators: []
+    cdn:
+      chunks_dir : /tmp/zcdn-zf-registry-chunks
+      resource_space: /zenohcdn/**

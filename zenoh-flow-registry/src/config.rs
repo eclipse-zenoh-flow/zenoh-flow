@@ -13,10 +13,11 @@
 //
 
 use std::path::{Path, PathBuf};
+use std::io::Write;
 
 use crate::{CZFError, CZFResult};
 use serde::Deserialize;
-use std::io::Write;
+use async_std::prelude::*;
 use std::process::Command;
 use zenoh_flow::model::link::ZFPortDescriptor;
 use zenoh_flow::model::ZFRegistryGraph;
@@ -196,7 +197,8 @@ pub fn read_metadata(manifest_path: &Path) -> CZFResult<CargoMetadata> {
     Ok(metadata)
 }
 
-pub fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
+pub async fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
+
     let mut cmd = Command::new("cargo");
     cmd.arg("new");
     cmd.arg("--lib");
@@ -219,6 +221,8 @@ pub fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
         .unwrap();
 
     writeln!(file, "zenoh-flow = {{ git = \"https://github.com/eclipse-zenoh/zenoh-flow.git\", branch = \"master\"}}" ).map_err(|e| CZFError::IoFile("unable to write Cargo.toml", e, PathBuf::from(format!("{}/Cargo.toml", name))))?;
+
+
     writeln!(file, "\n[lib]").map_err(|e| {
         CZFError::IoFile(
             "unable to write Cargo.toml",
@@ -287,6 +291,20 @@ pub fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
                     PathBuf::from(format!("{}/Cargo.toml", name)),
                 )
             })?;
+
+            let template = crate::templates::operator_template(name.to_string())?;
+            let lib_path = std::path::PathBuf::from(format!("{}/src/lib.rs", name));
+            std::fs::remove_file(&lib_path).map_err(|e| {
+                CZFError::IoFile(
+                    "unable to delete ",
+                    e,
+                    PathBuf::from(format!("{}/Cargo.toml", name)),
+                )
+            })?;
+            write_string_to_file(&lib_path, &template).await?;
+
+
+
         }
         ComponentKind::Sink => writeln!(file, "inputs=[]",).map_err(|e| {
             CZFError::IoFile(
@@ -304,11 +322,25 @@ pub fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
                 )
             })?;
         }
+
+
     };
 
     drop(file);
     Ok(())
 }
+
+
+
+pub async fn write_string_to_file(filename: &Path, content: &str) -> CZFResult<()> {
+
+    let mut file = async_std::fs::File::create(filename).await.map_err(|e|
+        CZFError::GenericError(format!("Error when creating file {:?} {:?}", filename, e)))?;
+
+    Ok(file.write_all(content.as_bytes()).await.map_err(|e|
+        CZFError::GenericError(format!("Error when writing to file {:?} {:?}", filename, e)))?)
+}
+
 
 pub fn cargo_build(flags: &[String], release: bool, manifest_dir: &Path) -> CZFResult<()> {
     let mut cmd = Command::new("cargo");
