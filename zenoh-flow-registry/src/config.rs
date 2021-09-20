@@ -374,5 +374,5 @@ pub fn store_zf_metadata(metadata: &RegistryGraph, target_dir: &Path) -> CZFResu
         )
     })?;
 
-    Ok(target_metadata.to_string())
+    Ok(target_metadata)
 }

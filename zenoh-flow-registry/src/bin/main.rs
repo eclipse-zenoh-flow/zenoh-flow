@@ -12,6 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 use async_std::sync::Arc;
+use colored::*;
 use rand::seq::SliceRandom;
 use structopt::StructOpt;
 use zenoh::*;
@@ -21,7 +22,6 @@ use zenoh_flow::OperatorId;
 use zenoh_flow_registry::config::ComponentKind;
 use zenoh_flow_registry::RegistryClient;
 use zenoh_flow_registry::RegistryFileClient;
-use colored::*;
 
 #[derive(StructOpt, Debug)]
 pub enum ZFCtl {
@@ -229,15 +229,30 @@ async fn main() {
                     (metadata_graph, metadata_arch)
                 }
             };
-            println!("\t{} Component {} - Kind {}", "Compiling".green().bold(), component_info.id, component_info.kind.to_string());
+            println!(
+                "\t{} Component {} - Kind {}",
+                "Compiling".green().bold(),
+                component_info.id,
+                component_info.kind.to_string()
+            );
 
             zenoh_flow_registry::config::cargo_build(&cargo_build_flags, release, &manifest_dir)
                 .unwrap();
-            let metadata_path = zenoh_flow_registry::config::store_zf_metadata(&metadata_graph, &target_dir).unwrap();
-            println!("\t{} stored in {}", "Metadata".green().bold(), metadata_path.bold());
+            let metadata_path =
+                zenoh_flow_registry::config::store_zf_metadata(&metadata_graph, &target_dir)
+                    .unwrap();
+            println!(
+                "\t{} stored in {}",
+                "Metadata".green().bold(),
+                metadata_path.bold()
+            );
 
             if client.is_some() {
-                println!("\t{} {} to local registry", "Uploading".green().bold(), component_info.id.bold());
+                println!(
+                    "\t{} {} to local registry",
+                    "Uploading".green().bold(),
+                    component_info.id.bold()
+                );
                 client
                     .as_ref()
                     .unwrap()
@@ -247,7 +262,11 @@ async fn main() {
                     .unwrap();
             }
             if client.is_some() {
-                println!("\t{} {} to local registry", "Uploading".green().bold(), target.bold());
+                println!(
+                    "\t{} {} to local registry",
+                    "Uploading".green().bold(),
+                    target.bold()
+                );
                 file_client
                     .send_component(
                         &std::path::PathBuf::from(target),
@@ -258,8 +277,17 @@ async fn main() {
                     .await
                     .unwrap();
             }
-            let build_target = if release { String::from("release") } else {String::from("debug")};
-            println!("{} [{}] component {} ", "Finished".green().bold(), build_target, component_info.id);
+            let build_target = if release {
+                String::from("release")
+            } else {
+                String::from("debug")
+            };
+            println!(
+                "{} [{}] component {} ",
+                "Finished".green().bold(),
+                build_target,
+                component_info.id
+            );
         }
         ZFCtl::New { name, kind } => {
             zenoh_flow_registry::config::create_crate(&name, kind)
