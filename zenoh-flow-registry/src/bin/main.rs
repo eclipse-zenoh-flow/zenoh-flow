@@ -1,3 +1,5 @@
+use std::process::exit;
+
 //
 // Copyright (c) 2017, 2021 ADLINK Technology Inc.
 //
@@ -78,7 +80,13 @@ async fn main() {
             let client = RegistryClient::new(znsession, *entry_point);
             Some(client)
         }
-        None => None,
+        None => {
+            println!(
+                "{}: unable to connect to local registry, component will not be uploaded.",
+                "warning".yellow().bold()
+            );
+            None
+        }
     };
 
     let zsession = Arc::new(
@@ -128,10 +136,39 @@ async fn main() {
 
             let (metadata_graph, metadata_arch) = match component_info.kind {
                 ComponentKind::Operator => {
+                    if component_info.inputs.is_none() {
+                        println!(
+                            "{}: Zenoh-Flow metadata is missing inputs for Operator component",
+                            "error".red().bold()
+                        );
+                        exit(-1);
+                    }
+
+                    if component_info.outputs.is_none() {
+                        println!(
+                            "{}: Zenoh-Flow metadata is missing outputs for Operator component",
+                            "error".red().bold()
+                        );
+                        exit(-1);
+                    }
+
+                    let inputs = component_info.inputs.unwrap();
+                    let outputs = component_info.outputs.unwrap();
+
+                    if inputs.is_empty() {
+                        println!("{}: Zenoh-Flow metadata has empty inputs for Operator, it should have at least one input", "error".red().bold());
+                        exit(-1);
+                    }
+
+                    if outputs.is_empty() {
+                        println!("{}: Zenoh-Flow metadata has empty outputs for Operator, it should have at least one output", "error".red().bold());
+                        exit(-1);
+                    }
+
                     let _descriptor = OperatorDescriptor {
                         id: OperatorId::from(component_info.id.clone()),
-                        inputs: component_info.inputs.clone().unwrap(),
-                        outputs: component_info.outputs.clone().unwrap(),
+                        inputs: inputs.clone(),
+                        outputs: outputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
                         runtime: None,
@@ -155,16 +192,43 @@ async fn main() {
                         id: OperatorId::from(component_info.id.clone()),
                         classes: vec![],
                         tags: vec![metadata_tag],
-                        inputs: component_info.inputs.clone().unwrap(),
-                        outputs: component_info.outputs.clone().unwrap(),
+                        inputs,
+                        outputs,
                         period: None,
                     };
+
                     (metadata_graph, metadata_arch)
                 }
                 ComponentKind::Source => {
+                    if component_info.inputs.is_some() {
+                        println!("{}: Zenoh-Flow metadata has inputs for Source component, they will be discarded", "warning".yellow().bold());
+                    }
+
+                    if component_info.outputs.is_none() {
+                        println!(
+                            "{}: Zenoh-Flow metadata is missing outputs for Source component",
+                            "error".red().bold()
+                        );
+                        exit(-1);
+                    }
+
+                    let outputs = component_info.outputs.unwrap();
+
+                    if outputs.is_empty() {
+                        println!("{}: Zenoh-Flow metadata has empty outputs for Source, it should exactly one output", "error".red().bold());
+                        exit(-1);
+                    }
+
+                    if outputs.len() > 1 {
+                        println!("{}: Zenoh-Flow metadata has more than one output for Source, it should exactly one output", "error".red().bold());
+                        exit(-1);
+                    }
+
+                    let output = &outputs[0];
+
                     let _descriptor = SourceDescriptor {
                         id: OperatorId::from(component_info.id.clone()),
-                        output: component_info.outputs.clone().unwrap()[0].clone(),
+                        output: output.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
                         runtime: None,
@@ -190,15 +254,41 @@ async fn main() {
                         classes: vec![],
                         tags: vec![metadata_tag],
                         inputs: vec![],
-                        outputs: component_info.outputs.clone().unwrap(),
+                        outputs: vec![output.clone()],
                         period: None,
                     };
                     (metadata_graph, metadata_arch)
                 }
                 ComponentKind::Sink => {
+                    if component_info.inputs.is_none() {
+                        println!(
+                            "{}: Zenoh-Flow metadata is missing inputs for Sink component",
+                            "error".red().bold()
+                        );
+                        exit(-1);
+                    }
+
+                    if component_info.outputs.is_some() {
+                        println!("{}: Zenoh-Flow metadata has outputs for Sink component, they will be discarded", "warning".yellow().bold());
+                    }
+
+                    let inputs = component_info.inputs.unwrap();
+
+                    if inputs.is_empty() {
+                        println!("{}: Zenoh-Flow metadata has empty inputs for Sink, it should exactly one inputs", "error".red().bold());
+                        exit(-1);
+                    }
+
+                    if inputs.len() > 1 {
+                        println!("{}: Zenoh-Flow metadata has more than one input for Sink, it should exactly one input", "error".red().bold());
+                        exit(-1);
+                    }
+
+                    let input = &inputs[0];
+
                     let _descriptor = SinkDescriptor {
                         id: OperatorId::from(component_info.id.clone()),
-                        input: component_info.inputs.clone().unwrap()[0].clone(),
+                        input: input.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
                         runtime: None,
@@ -222,7 +312,7 @@ async fn main() {
                         id: OperatorId::from(component_info.id.clone()),
                         classes: vec![],
                         tags: vec![metadata_tag],
-                        inputs: component_info.inputs.clone().unwrap(),
+                        inputs: vec![input.clone()],
                         outputs: vec![],
                         period: None,
                     };
@@ -230,7 +320,7 @@ async fn main() {
                 }
             };
             println!(
-                "\t{} Component {} - Kind {}",
+                "{} Component {} - Kind {}",
                 "Compiling".green().bold(),
                 component_info.id,
                 component_info.kind.to_string()
@@ -242,14 +332,14 @@ async fn main() {
                 zenoh_flow_registry::config::store_zf_metadata(&metadata_graph, &target_dir)
                     .unwrap();
             println!(
-                "\t{} stored in {}",
+                "{} stored in {}",
                 "Metadata".green().bold(),
                 metadata_path.bold()
             );
 
             if client.is_some() {
                 println!(
-                    "\t{} {} to local registry",
+                    "{} {} to local registry",
                     "Uploading".green().bold(),
                     component_info.id.bold()
                 );
@@ -263,7 +353,7 @@ async fn main() {
             }
             if client.is_some() {
                 println!(
-                    "\t{} {} to local registry",
+                    "{} {} to local registry",
                     "Uploading".green().bold(),
                     target.bold()
                 );

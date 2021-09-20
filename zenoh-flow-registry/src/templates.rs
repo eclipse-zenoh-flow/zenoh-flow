@@ -27,8 +27,8 @@ path="src/lib.rs"
 [package.metadata.zenohflow]
 id = "{name}"
 kind = "operator"
-inputs=[]
-outputs=[]
+inputs=[ \{id ="INPUT", type="bytes"}]
+outputs=[ \{id ="OUTPUT", type="bytes"}]
 
 "#;
 
@@ -77,6 +77,8 @@ use zenoh_flow::\{
 #[derive(Debug)]
 struct {name};
 
+static INPUT: &str = "INPUT";
+static OUTPUT: &str = "OUTPUT";
 
 impl Operator for {name} \{
     fn run(
