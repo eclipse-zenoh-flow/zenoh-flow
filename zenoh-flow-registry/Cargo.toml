@@ -40,6 +40,7 @@ serde_yaml = {version = "0.8.13"}
 async-ctrlc ={version = "1.2.0", features = ["stream"]}
 rand = "0.8.3"
 tinytemplate = "1.2.1"
+colored = "2"
 
 [[bin]]
 name = "cargo-zenoh-flow"

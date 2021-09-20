@@ -219,70 +219,11 @@ pub async fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
         .open(format!("{}/Cargo.toml", name))
         .unwrap();
 
-    writeln!(file, "zenoh-flow = {{ git = \"https://github.com/eclipse-zenoh/zenoh-flow.git\", branch = \"master\"}}" ).map_err(|e| CZFError::IoFile("unable to write Cargo.toml", e, PathBuf::from(format!("{}/Cargo.toml", name))))?;
-
-    writeln!(file, "\n[lib]").map_err(|e| {
-        CZFError::IoFile(
-            "unable to write Cargo.toml",
-            e,
-            PathBuf::from(format!("{}/Cargo.toml", name)),
-        )
-    })?;
-    writeln!(file, "name=\"{}\"", name).map_err(|e| {
-        CZFError::IoFile(
-            "unable to write Cargo.toml",
-            e,
-            PathBuf::from(format!("{}/Cargo.toml", name)),
-        )
-    })?;
-    writeln!(file, "crate-type = [\"cdylib\"]").map_err(|e| {
-        CZFError::IoFile(
-            "unable to write Cargo.toml",
-            e,
-            PathBuf::from(format!("{}/Cargo.toml", name)),
-        )
-    })?;
-
-    writeln!(file, "path = \"src/lib.rs\"").map_err(|e| {
-        CZFError::IoFile(
-            "unable to write Cargo.toml",
-            e,
-            PathBuf::from(format!("{}/Cargo.toml", name)),
-        )
-    })?;
-    writeln!(file, "\n[package.metadata.zenohflow]").map_err(|e| {
-        CZFError::IoFile(
-            "unable to write Cargo.toml",
-            e,
-            PathBuf::from(format!("{}/Cargo.toml", name)),
-        )
-    })?;
-    writeln!(file, "id=\"{}\"", name).map_err(|e| {
-        CZFError::IoFile(
-            "unable to write Cargo.toml",
-            e,
-            PathBuf::from(format!("{}/Cargo.toml", name)),
-        )
-    })?;
-
-    writeln!(file, "kind=\"{}\"", kind.to_string()).map_err(|e| {
-        CZFError::IoFile(
-            "unable to write Cargo.toml",
-            e,
-            PathBuf::from(format!("{}/Cargo.toml", name)),
-        )
-    })?;
-
     match kind {
         ComponentKind::Operator => {
-            writeln!(file, "inputs=[]",).map_err(|e| {
-                CZFError::IoFile(
-                    "unable to write Cargo.toml",
-                    e,
-                    PathBuf::from(format!("{}/Cargo.toml", name)),
-                )
-            })?;
-            writeln!(file, "outputs=[]",).map_err(|e| {
+            let cargo_template = crate::templates::operator_template_cargo(name.to_string())?;
+
+            write!(file, "{}", cargo_template).map_err(|e| {
                 CZFError::IoFile(
                     "unable to write Cargo.toml",
                     e,
@@ -290,7 +231,7 @@ pub async fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
                 )
             })?;
 
-            let template = crate::templates::operator_template(name.to_string())?;
+            let template = crate::templates::operator_template_lib(name.to_string())?;
             let lib_path = std::path::PathBuf::from(format!("{}/src/lib.rs", name));
             std::fs::remove_file(&lib_path).map_err(|e| {
                 CZFError::IoFile(
@@ -301,21 +242,49 @@ pub async fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
             })?;
             write_string_to_file(&lib_path, &template).await?;
         }
-        ComponentKind::Sink => writeln!(file, "inputs=[]",).map_err(|e| {
-            CZFError::IoFile(
-                "unable to write Cargo.toml",
-                e,
-                PathBuf::from(format!("{}/Cargo.toml", name)),
-            )
-        })?,
-        ComponentKind::Source => {
-            writeln!(file, "outputs=[]",).map_err(|e| {
+        ComponentKind::Sink => {
+            let cargo_template = crate::templates::sink_template_cargo(name.to_string())?;
+
+            write!(file, "{}", cargo_template).map_err(|e| {
                 CZFError::IoFile(
                     "unable to write Cargo.toml",
                     e,
                     PathBuf::from(format!("{}/Cargo.toml", name)),
                 )
             })?;
+
+            let template = crate::templates::sink_template_lib(name.to_string())?;
+            let lib_path = std::path::PathBuf::from(format!("{}/src/lib.rs", name));
+            std::fs::remove_file(&lib_path).map_err(|e| {
+                CZFError::IoFile(
+                    "unable to delete ",
+                    e,
+                    PathBuf::from(format!("{}/Cargo.toml", name)),
+                )
+            })?;
+            write_string_to_file(&lib_path, &template).await?;
+        }
+        ComponentKind::Source => {
+            let cargo_template = crate::templates::source_template_cargo(name.to_string())?;
+
+            write!(file, "{}", cargo_template).map_err(|e| {
+                CZFError::IoFile(
+                    "unable to write Cargo.toml",
+                    e,
+                    PathBuf::from(format!("{}/Cargo.toml", name)),
+                )
+            })?;
+
+            let template = crate::templates::source_template_lib(name.to_string())?;
+            let lib_path = std::path::PathBuf::from(format!("{}/src/lib.rs", name));
+            std::fs::remove_file(&lib_path).map_err(|e| {
+                CZFError::IoFile(
+                    "unable to delete ",
+                    e,
+                    PathBuf::from(format!("{}/Cargo.toml", name)),
+                )
+            })?;
+            write_string_to_file(&lib_path, &template).await?;
         }
     };
 
@@ -357,26 +326,26 @@ pub fn cargo_build(flags: &[String], release: bool, manifest_dir: &Path) -> CZFR
     Ok(())
 }
 
-pub fn store_zf_metadata(metadata: &RegistryGraph, target_dir: &Path) -> CZFResult<()> {
-    std::fs::remove_dir_all(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY)).map_err(
-        |e| {
+pub fn store_zf_metadata(metadata: &RegistryGraph, target_dir: &Path) -> CZFResult<String> {
+    let metadata_dir = PathBuf::from(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY));
+
+    if metadata_dir.exists() {
+        std::fs::remove_dir_all(&metadata_dir).map_err(|e| {
             CZFError::IoFile(
                 "unable to clean zenoh flow metadata directory",
                 e,
                 PathBuf::from(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY)),
             )
-        },
-    )?;
+        })?;
+    }
 
-    std::fs::create_dir(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY)).map_err(
-        |e| {
-            CZFError::IoFile(
-                "unable to create zenoh flow metadata directory",
-                e,
-                PathBuf::from(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY)),
-            )
-        },
-    )?;
+    std::fs::create_dir(&metadata_dir).map_err(|e| {
+        CZFError::IoFile(
+            "unable to create zenoh flow metadata directory",
+            e,
+            PathBuf::from(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY)),
+        )
+    })?;
 
     let target_metadata = format!(
         "{}/{}/{}.yml",
@@ -388,7 +357,7 @@ pub fn store_zf_metadata(metadata: &RegistryGraph, target_dir: &Path) -> CZFResu
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(target_metadata)
+        .open(&target_metadata)
         .map_err(|e| {
             CZFError::IoFile(
                 "unable to create metadata file",
@@ -405,5 +374,5 @@ pub fn store_zf_metadata(metadata: &RegistryGraph, target_dir: &Path) -> CZFResu
         )
     })?;
 
-    Ok(())
+    Ok(target_metadata.to_string())
 }
