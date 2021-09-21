@@ -19,9 +19,10 @@ use rand::seq::SliceRandom;
 use structopt::StructOpt;
 use zenoh::*;
 use zenoh_flow::model::component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
-use zenoh_flow::model::{RegistryComponentArchitecture, RegistryComponentTag, RegistryGraph};
+use zenoh_flow::model::{
+    ComponentKind, RegistryComponent, RegistryComponentArchitecture, RegistryComponentTag,
+};
 use zenoh_flow::OperatorId;
-use zenoh_flow_registry::config::ComponentKind;
 use zenoh_flow_registry::RegistryClient;
 use zenoh_flow_registry::RegistryFileClient;
 
@@ -60,20 +61,33 @@ async fn main() {
 
     let args = ZFCtl::from_iter(args.iter());
 
-    let znsession = Arc::new(
-        zenoh::net::open(
-            Properties::from(String::from(
-                "mode=peer;peer=unixsock-stream//tmp/zf-registry.sock",
-            ))
-            .into(),
-        )
-        .await
-        .unwrap(),
-    );
+    let znsession = match zenoh::net::open(
+        Properties::from(String::from(
+            "mode=peer;peer=unixsock-stream//tmp/zf-registry.sock",
+        ))
+        .into(),
+    )
+    .await
+    {
+        Ok(zn) => Arc::new(zn),
+        Err(e) => {
+            println!("{}: to create Zenoh session: {:?}", "error".red().bold(), e);
+            exit(-1);
+        }
+    };
 
-    let servers = RegistryClient::find_servers(znsession.clone())
-        .await
-        .unwrap();
+    let servers = match RegistryClient::find_servers(znsession.clone()).await {
+        Ok(s) => s,
+        Err(e) => {
+            println!(
+                "{}: to create find registry servers: {:?}",
+                "error".red().bold(),
+                e
+            );
+            exit(-1);
+        }
+    };
+
     let client = match servers.choose(&mut rand::thread_rng()) {
         Some(entry_point) => {
             log::debug!("Selected entrypoint runtime: {:?}", entry_point);
@@ -89,11 +103,15 @@ async fn main() {
         }
     };
 
-    let zsession = Arc::new(
-        zenoh::Zenoh::new(Properties::from(String::from("mode=peer")).into())
-            .await
-            .unwrap(),
-    );
+    let zsession = match zenoh::Zenoh::new(Properties::from(String::from("mode=peer")).into()).await
+    {
+        Ok(z) => Arc::new(z),
+        Err(e) => {
+            println!("{}: to create Zenoh session: {:?}", "error".red().bold(), e);
+            exit(-1);
+        }
+    };
+
     let file_client = RegistryFileClient::from(zsession);
 
     match args {
@@ -113,8 +131,13 @@ async fn main() {
             }
 
             let (component_info, target_dir, manifest_dir) =
-                zenoh_flow_registry::config::from_manifest(&manifest_path, package).unwrap();
-
+                match zenoh_flow_registry::config::from_manifest(&manifest_path, package) {
+                    Ok(res) => res,
+                    Err(_e) => {
+                        println!("{}: unable to parse Cargo.toml", "error".red().bold());
+                        exit(-1);
+                    }
+                };
             let target = if release {
                 format!(
                     "{}/release/{}{}{}",
@@ -188,8 +211,9 @@ async fn main() {
                         architectures: vec![metadata_arch.clone()],
                     };
 
-                    let metadata_graph = RegistryGraph {
+                    let metadata_graph = RegistryComponent {
                         id: OperatorId::from(component_info.id.clone()),
+                        kind: component_info.kind.clone(),
                         classes: vec![],
                         tags: vec![metadata_tag],
                         inputs,
@@ -249,8 +273,9 @@ async fn main() {
                         architectures: vec![metadata_arch.clone()],
                     };
 
-                    let metadata_graph = RegistryGraph {
+                    let metadata_graph = RegistryComponent {
                         id: OperatorId::from(component_info.id.clone()),
+                        kind: component_info.kind.clone(),
                         classes: vec![],
                         tags: vec![metadata_tag],
                         inputs: vec![],
@@ -308,8 +333,9 @@ async fn main() {
                         architectures: vec![metadata_arch.clone()],
                     };
 
-                    let metadata_graph = RegistryGraph {
+                    let metadata_graph = RegistryComponent {
                         id: OperatorId::from(component_info.id.clone()),
+                        kind: component_info.kind.clone(),
                         classes: vec![],
                         tags: vec![metadata_tag],
                         inputs: vec![input.clone()],

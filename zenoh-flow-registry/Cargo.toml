@@ -42,6 +42,9 @@ rand = "0.8.3"
 tinytemplate = "1.2.1"
 colored = "2"
 
+## tbd
+rusqlite = "0.25"
+
 [[bin]]
 name = "cargo-zenoh-flow"
 path = "src/bin/main.rs"

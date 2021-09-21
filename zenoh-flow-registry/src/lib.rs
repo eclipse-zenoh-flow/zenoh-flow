@@ -24,7 +24,7 @@ use zenoh_flow::{
     model::{
         component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
         dataflow::DataFlowDescriptor,
-        RegistryGraph,
+        RegistryComponent,
     },
     ZFResult,
 };
@@ -50,7 +50,16 @@ pub enum CZFError {
     ParsingError(&'static str),
     BuildFailed,
     ZenohError(zenoh::ZError),
+    ZenohFlowError(zenoh_flow::ZFError),
     GenericError(String),
+    IoError(std::io::Error),
+    DbError(rusqlite::Error),
+}
+
+impl From<std::io::Error> for CZFError {
+    fn from(err: std::io::Error) -> Self {
+        Self::IoError(err)
+    }
 }
 
 impl From<toml::de::Error> for CZFError {
@@ -77,6 +86,18 @@ impl From<zenoh::ZError> for CZFError {
     }
 }
 
+impl From<zenoh_flow::ZFError> for CZFError {
+    fn from(err: zenoh_flow::ZFError) -> Self {
+        Self::ZenohFlowError(err)
+    }
+}
+
+impl From<rusqlite::Error> for CZFError {
+    fn from(err: rusqlite::Error) -> Self {
+        Self::DbError(err)
+    }
+}
+
 impl std::fmt::Display for CZFError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
@@ -95,7 +116,7 @@ pub trait Registry {
 
     //async fn get_graph(&self, graph_id: String) -> ZFResult<GraphDescriptor>;
 
-    async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryGraph>>;
+    async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryComponent>>;
 
     async fn get_operator(
         &self,
@@ -137,19 +158,19 @@ pub trait Registry {
 
     async fn add_flow(&self, flow: DataFlowDescriptor) -> ZFResult<OperatorId>;
 
-    async fn add_graph(&self, graph: RegistryGraph) -> ZFResult<OperatorId>;
+    async fn add_graph(&self, graph: RegistryComponent) -> ZFResult<OperatorId>;
 
     async fn add_operator(
         &self,
-        operator: OperatorDescriptor,
+        operator: RegistryComponent,
         tag: Option<String>,
     ) -> ZFResult<OperatorId>;
 
-    async fn add_sink(&self, sink: SinkDescriptor, tag: Option<String>) -> ZFResult<OperatorId>;
+    async fn add_sink(&self, sink: RegistryComponent, tag: Option<String>) -> ZFResult<OperatorId>;
 
     async fn add_source(
         &self,
-        source: SourceDescriptor,
+        source: RegistryComponent,
         tag: Option<String>,
     ) -> ZFResult<OperatorId>;
 }

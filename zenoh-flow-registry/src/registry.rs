@@ -12,18 +12,24 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::CZFResult;
 use crate::Registry;
 use std::convert::TryFrom;
 
+use futures::prelude::*;
+use futures::select;
+
 use zenoh::net::Session as ZSession;
+use zenoh::net::*;
 use zenoh::ZFuture;
+
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::dataflow::DataFlowDescriptor;
 use zenoh_flow::OperatorId;
 
 use zenoh_flow::model::{
     component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
-    RegistryGraph,
+    RegistryComponent,
 };
 
 use zenoh_flow::runtime::resources::DataStore;
@@ -95,10 +101,53 @@ impl ZFRegistry {
         log::trace!("Staring ZRPC Servers");
         let (srt, _hrt) = reg_server.start().await?;
 
-        let _ = stop
-            .recv()
-            .await
-            .map_err(|e| ZFError::RecvError(format!("{}", e)))?;
+        let run_loop = async {
+            //Setting up local metadata storage
+            let sub_info = SubInfo {
+                reliability: Reliability::Reliable,
+                mode: SubMode::Push,
+                period: None,
+            };
+            let db_path = std::path::PathBuf::from("/tmp/zf-registry.sqlite");
+            let db = rusqlite::Connection::open(&db_path)?;
+
+            db.execute(
+                "CREATE TABLE data (key STRING PRIMARY KEY NOT NULL, value BLOB NOT NULL)",
+                [],
+            )?;
+
+            let resource_space = ResKey::from("/zenoh-flow/registry/**".to_string());
+            let mut subscriber = self
+                .zn
+                .declare_subscriber(&resource_space, &sub_info)
+                .await?;
+            let sample_stream = subscriber.receiver();
+            let mut queryable = self
+                .zn
+                .declare_queryable(&resource_space, zenoh::net::queryable::EVAL)
+                .await?;
+            let query_steam = queryable.receiver();
+
+            loop {
+                select!(
+                    sample = sample_stream.next().fuse() => {
+                        log::debug!("Received sample {:?}", sample);
+                    }
+                    query = query_steam.next().fuse() => {
+                        log::debug!("Received query {:?}", query)
+                    }
+                    _ = stop.recv().fuse() => {
+                        break Ok(());
+                    }
+                )
+            }
+        };
+
+        // let _ = stop
+        //     .recv()
+        //     .await
+        //     .map_err(|e| ZFError::RecvError(format!("{}", e)))?;
+        let _: CZFResult<()> = run_loop.await;
 
         reg_server.stop(srt).await?;
 
@@ -168,7 +217,7 @@ impl Registry for ZFRegistry {
 
     //async fn get_graph(&self, graph_id: String) -> ZFResult<GraphDescriptor>;
 
-    async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryGraph>> {
+    async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryComponent>> {
         self.store.get_all_graphs().await
     }
 
@@ -256,7 +305,7 @@ impl Registry for ZFRegistry {
         Err(ZFError::Unimplemented)
     }
 
-    async fn add_graph(&self, graph: RegistryGraph) -> ZFResult<OperatorId> {
+    async fn add_graph(&self, graph: RegistryComponent) -> ZFResult<OperatorId> {
         log::info!("Adding graph {:?}", graph);
         match self.store.get_graph(&graph.id).await {
             Ok(mut metadata) => {
@@ -279,19 +328,19 @@ impl Registry for ZFRegistry {
 
     async fn add_operator(
         &self,
-        operator: OperatorDescriptor,
+        operator: RegistryComponent,
         tag: Option<String>,
     ) -> ZFResult<OperatorId> {
         Err(ZFError::Unimplemented)
     }
 
-    async fn add_sink(&self, sink: SinkDescriptor, tag: Option<String>) -> ZFResult<OperatorId> {
+    async fn add_sink(&self, sink: RegistryComponent, tag: Option<String>) -> ZFResult<OperatorId> {
         Err(ZFError::Unimplemented)
     }
 
     async fn add_source(
         &self,
-        source: SourceDescriptor,
+        source: RegistryComponent,
         tag: Option<String>,
     ) -> ZFResult<OperatorId> {
         Err(ZFError::Unimplemented)

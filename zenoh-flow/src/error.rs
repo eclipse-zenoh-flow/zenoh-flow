@@ -124,3 +124,9 @@ impl From<std::str::Utf8Error> for ZFError {
         Self::SerializationError
     }
 }
+
+impl std::fmt::Display for ZFError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}

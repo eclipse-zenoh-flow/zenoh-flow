@@ -22,12 +22,52 @@ use crate::model::link::PortDescriptor;
 use crate::model::period::PeriodDescriptor;
 use crate::serde::{Deserialize, Serialize};
 use crate::OperatorId;
+use crate::ZFError;
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ComponentKind {
+    Operator,
+    Sink,
+    Source,
+}
+
+impl std::str::FromStr for ComponentKind {
+    type Err = ZFError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "operator" => Ok(Self::Operator),
+            "sink" => Ok(Self::Sink),
+            "source" => Ok(Self::Source),
+            _ => Err(ZFError::ParsingError(
+                "unable to parse component kind".to_string(),
+            )),
+        }
+    }
+}
+
+impl std::string::ToString for ComponentKind {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Operator => String::from("operator"),
+            Self::Sink => String::from("sink"),
+            Self::Source => String::from("source"),
+        }
+    }
+}
+
+impl Default for ComponentKind {
+    fn default() -> Self {
+        ComponentKind::Operator
+    }
+}
 // Registry metadata
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct RegistryGraph {
+pub struct RegistryComponent {
     pub id: OperatorId,
+    pub kind: ComponentKind,
     pub classes: Vec<String>,
     pub tags: Vec<RegistryComponentTag>,
     pub inputs: Vec<PortDescriptor>,
@@ -35,7 +75,7 @@ pub struct RegistryGraph {
     pub period: Option<PeriodDescriptor>,
 }
 
-impl RegistryGraph {
+impl RegistryComponent {
     pub fn add_tag(&mut self, tag: RegistryComponentTag) {
         let index = self.tags.iter().position(|t| t.name == tag.name);
         match index {
