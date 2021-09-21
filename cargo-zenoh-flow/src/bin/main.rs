@@ -1,5 +1,3 @@
-use std::process::exit;
-
 //
 // Copyright (c) 2017, 2021 ADLINK Technology Inc.
 //
@@ -13,17 +11,26 @@ use std::process::exit;
 // Contributors:
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
-use async_std::sync::Arc;
+
+use async_std::process::exit;
 use colored::*;
-use rand::seq::SliceRandom;
 use structopt::StructOpt;
-use zenoh::*;
+
 use zenoh_flow::model::component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use zenoh_flow::model::{
     ComponentKind, RegistryComponent, RegistryComponentArchitecture, RegistryComponentTag,
 };
 use zenoh_flow::OperatorId;
+
+#[cfg(feature = "local_registry")]
+use async_std::sync::Arc;
+#[cfg(feature = "local_registry")]
+use rand::seq::SliceRandom;
+#[cfg(feature = "local_registry")]
+use zenoh::*;
+#[cfg(feature = "local_registry")]
 use zenoh_flow_registry::RegistryClient;
+#[cfg(feature = "local_registry")]
 use zenoh_flow_registry::RegistryFileClient;
 
 #[derive(StructOpt, Debug)]
@@ -61,6 +68,7 @@ async fn main() {
 
     let args = ZFCtl::from_iter(args.iter());
 
+    #[cfg(feature = "local_registry")]
     let znsession = match zenoh::net::open(
         Properties::from(String::from(
             "mode=peer;peer=unixsock-stream//tmp/zf-registry.sock",
@@ -76,6 +84,7 @@ async fn main() {
         }
     };
 
+    #[cfg(feature = "local_registry")]
     let servers = match RegistryClient::find_servers(znsession.clone()).await {
         Ok(s) => s,
         Err(e) => {
@@ -88,6 +97,7 @@ async fn main() {
         }
     };
 
+    #[cfg(feature = "local_registry")]
     let client = match servers.choose(&mut rand::thread_rng()) {
         Some(entry_point) => {
             log::debug!("Selected entrypoint runtime: {:?}", entry_point);
@@ -103,6 +113,7 @@ async fn main() {
         }
     };
 
+    #[cfg(feature = "local_registry")]
     let zsession = match zenoh::Zenoh::new(Properties::from(String::from("mode=peer")).into()).await
     {
         Ok(z) => Arc::new(z),
@@ -112,6 +123,7 @@ async fn main() {
         }
     };
 
+    #[cfg(feature = "local_registry")]
     let file_client = RegistryFileClient::from(zsession);
 
     match args {
@@ -131,7 +143,7 @@ async fn main() {
             }
 
             let (component_info, target_dir, manifest_dir) =
-                match zenoh_flow_registry::config::from_manifest(&manifest_path, package) {
+                match cargo_zenoh_flow::utils::from_manifest(&manifest_path, package) {
                     Ok(res) => res,
                     Err(_e) => {
                         println!("{}: unable to parse Cargo.toml", "error".red().bold());
@@ -157,7 +169,7 @@ async fn main() {
             };
             let uri = format!("file://{}", target);
 
-            let (metadata_graph, metadata_arch) = match component_info.kind {
+            let (metadata_graph, _metadata_arch, descriptor) = match component_info.kind {
                 ComponentKind::Operator => {
                     if component_info.inputs.is_none() {
                         println!(
@@ -188,7 +200,7 @@ async fn main() {
                         exit(-1);
                     }
 
-                    let _descriptor = OperatorDescriptor {
+                    let descriptor = OperatorDescriptor {
                         id: OperatorId::from(component_info.id.clone()),
                         inputs: inputs.clone(),
                         outputs: outputs.clone(),
@@ -206,7 +218,7 @@ async fn main() {
                     };
 
                     let metadata_tag = RegistryComponentTag {
-                        name: version_tag.clone(),
+                        name: version_tag,
                         requirement_labels: vec![],
                         architectures: vec![metadata_arch.clone()],
                     };
@@ -221,7 +233,14 @@ async fn main() {
                         period: None,
                     };
 
-                    (metadata_graph, metadata_arch)
+                    let yml_descriptor = match serde_yaml::to_string(&descriptor) {
+                        Ok(yml) => yml,
+                        Err(e) => {
+                            println!("{}: unable to serialize descriptor {}", "error".red(), e);
+                            exit(-1)
+                        }
+                    };
+                    (metadata_graph, metadata_arch, yml_descriptor)
                 }
                 ComponentKind::Source => {
                     if component_info.inputs.is_some() {
@@ -250,7 +269,7 @@ async fn main() {
 
                     let output = &outputs[0];
 
-                    let _descriptor = SourceDescriptor {
+                    let descriptor = SourceDescriptor {
                         id: OperatorId::from(component_info.id.clone()),
                         output: output.clone(),
                         uri: Some(uri.clone()),
@@ -268,7 +287,7 @@ async fn main() {
                     };
 
                     let metadata_tag = RegistryComponentTag {
-                        name: version_tag.clone(),
+                        name: version_tag,
                         requirement_labels: vec![],
                         architectures: vec![metadata_arch.clone()],
                     };
@@ -282,7 +301,15 @@ async fn main() {
                         outputs: vec![output.clone()],
                         period: None,
                     };
-                    (metadata_graph, metadata_arch)
+
+                    let yml_descriptor = match serde_yaml::to_string(&descriptor) {
+                        Ok(yml) => yml,
+                        Err(e) => {
+                            println!("{}: unable to serialize descriptor {}", "error".red(), e);
+                            exit(-1)
+                        }
+                    };
+                    (metadata_graph, metadata_arch, yml_descriptor)
                 }
                 ComponentKind::Sink => {
                     if component_info.inputs.is_none() {
@@ -311,7 +338,7 @@ async fn main() {
 
                     let input = &inputs[0];
 
-                    let _descriptor = SinkDescriptor {
+                    let descriptor = SinkDescriptor {
                         id: OperatorId::from(component_info.id.clone()),
                         input: input.clone(),
                         uri: Some(uri.clone()),
@@ -328,7 +355,7 @@ async fn main() {
                     };
 
                     let metadata_tag = RegistryComponentTag {
-                        name: version_tag.clone(),
+                        name: version_tag,
                         requirement_labels: vec![],
                         architectures: vec![metadata_arch.clone()],
                     };
@@ -342,7 +369,14 @@ async fn main() {
                         outputs: vec![],
                         period: None,
                     };
-                    (metadata_graph, metadata_arch)
+                    let yml_descriptor = match serde_yaml::to_string(&descriptor) {
+                        Ok(yml) => yml,
+                        Err(e) => {
+                            println!("{}: unable to serialize descriptor {}", "error".red(), e);
+                            exit(-1)
+                        }
+                    };
+                    (metadata_graph, metadata_arch, yml_descriptor)
                 }
             };
             println!(
@@ -352,17 +386,42 @@ async fn main() {
                 component_info.kind.to_string()
             );
 
-            zenoh_flow_registry::config::cargo_build(&cargo_build_flags, release, &manifest_dir)
-                .unwrap();
-            let metadata_path =
-                zenoh_flow_registry::config::store_zf_metadata(&metadata_graph, &target_dir)
-                    .unwrap();
-            println!(
-                "{} stored in {}",
-                "Metadata".green().bold(),
-                metadata_path.bold()
-            );
+            match cargo_zenoh_flow::utils::cargo_build(&cargo_build_flags, release, &manifest_dir) {
+                Ok(_) => (),
+                Err(_) => {
+                    println!("{}: cargo build failed", "error".red().bold());
+                    exit(-1);
+                }
+            }
+            match cargo_zenoh_flow::utils::store_zf_metadata(&metadata_graph, &target_dir) {
+                Ok(res) => {
+                    println!("{} stored in {}", "Metadata".green().bold(), res.bold());
+                }
+                Err(e) => {
+                    println!("{}: failed to store metadata {:?}", "error".red().bold(), e);
+                    exit(-1);
+                }
+            };
 
+            match cargo_zenoh_flow::utils::store_zf_descriptor(
+                &descriptor,
+                &target_dir,
+                &component_info.id,
+            ) {
+                Ok(res) => {
+                    println!("{} stored in {}", "Descriptor".green().bold(), res.bold());
+                }
+                Err(e) => {
+                    println!(
+                        "{}: failed to store descriptor {:?}",
+                        "error".red().bold(),
+                        e
+                    );
+                    exit(-1);
+                }
+            }
+
+            #[cfg(feature = "local_registry")]
             if client.is_some() {
                 println!(
                     "{} {} to local registry",
@@ -377,6 +436,8 @@ async fn main() {
                     .unwrap()
                     .unwrap();
             }
+
+            #[cfg(feature = "local_registry")]
             if client.is_some() {
                 println!(
                     "{} {} to local registry",
@@ -406,16 +467,36 @@ async fn main() {
             );
         }
         ZFCtl::New { name, kind } => {
-            zenoh_flow_registry::config::create_crate(&name, kind)
-                .await
-                .unwrap();
-        }
-        ZFCtl::List => match client {
-            Some(client) => {
-                println!("{:?}", client.get_all_graphs().await);
+            match cargo_zenoh_flow::utils::create_crate(&name, kind.clone()).await {
+                Ok(_) => {
+                    println!(
+                        "{} boilerplate for {} {} ",
+                        "Created".green().bold(),
+                        kind.to_string(),
+                        name.bold()
+                    );
+                }
+                Err(_) => {
+                    println!(
+                        "{}: failed to create boilerplate for {} {}",
+                        "error".red().bold(),
+                        kind.to_string(),
+                        name.bold(),
+                    );
+                }
             }
-            None => println!("Offline mode!"),
-        },
+        }
+        ZFCtl::List => {
+            #[cfg(feature = "local_registry")]
+            match client {
+                Some(client) => {
+                    println!("{:?}", client.get_all_graphs().await);
+                }
+                None => println!("Offline mode!"),
+            }
+            #[cfg(not(feature = "local_registry"))]
+            println!("Offline mode!")
+        }
         _ => unimplemented!("Not yet..."),
     }
 }

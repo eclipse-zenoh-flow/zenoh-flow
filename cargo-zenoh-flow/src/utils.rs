@@ -268,3 +268,20 @@ pub fn store_zf_metadata(metadata: &RegistryComponent, target_dir: &Path) -> CZF
 
     Ok(target_metadata)
 }
+
+pub fn store_zf_descriptor(descriptor: &str, target_dir: &Path, id: &str) -> CZFResult<String> {
+    let target_descriptor = format!(
+        "{}/{}/descriptor-{}.yml",
+        target_dir.display(),
+        ZF_OUTPUT_DIRECTORY,
+        id
+    );
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&target_descriptor)?;
+
+    write!(file, "{}", descriptor)?;
+
+    Ok(target_descriptor)
+}

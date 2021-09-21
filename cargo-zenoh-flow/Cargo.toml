@@ -1,5 +1,5 @@
 [package]
-name = "zenoh-flow-registry"
+name = "cargo-zenoh-flow"
 version = "0.1.0"
 repository = "https://github.com/eclipse-zenoh/zenoh-flow"
 homepage = "http://zenoh.io"
@@ -21,7 +21,6 @@ zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master"}
 zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
 zrpc = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
 znrpc-macros = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
-zenoh-cdn = { git = "https://github.com/atolab/zenoh-cdn", branch = "master" }
 zenoh-flow = {path = "../zenoh-flow"}
 log = "0.4"
 env_logger = "0.9.0"
@@ -42,17 +41,17 @@ rand = "0.8.3"
 tinytemplate = "1.2.1"
 colored = "2"
 
-## tbd
-rusqlite = "0.25"
 
 [[bin]]
 name = "cargo-zenoh-flow"
 path = "src/bin/main.rs"
 
-[[bin]]
-name = "zenoh-flow-registry"
-path = "src/bin/registry.rs"
-
 
 [lib]
 path = "src/lib.rs"
+
+[features]
+
+local_registry = []
+
+default = []

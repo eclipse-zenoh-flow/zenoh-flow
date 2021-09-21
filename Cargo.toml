@@ -19,7 +19,7 @@ members = [
   "zenoh-flow-examples",
   "zenoh-flow-daemon",
   "zenoh-flow-ctl",
-  "zenoh-flow-registry",
+  "cargo-zenoh-flow",
 ]
 
 [profile.dev]
