@@ -54,11 +54,10 @@ Then you can create your own component with:
 ```bash
 $ cd ~
 $ cargo zenoh-flow new myoperator
-Created boilerplate for operator myoperator
 ```
 
-The `cargo zenoh-flow` will create a Cargo project with a boilerplate for your component. Different kind of components can be created using the `--kind` parameter (eg. sources and sinks).\
-The `Cargo.toml` for the boilerplate will contain metadata information (eg. the inputs/outputs) used during the build process to generate the descriptor.
+By default `cargo zenoh-flow` generates the template for an operator. In order to create a source or a sink you need to add either `--kind source` or `--kind sink`.\
+The `Cargo.toml` will contain metadata information (eg. the inputs/outputs) used during the build process to generate the descriptor.
 
 
 More information about the `cargo zenoh-flow` can be obtained using `cargo zenoh-flow --help`.\
@@ -68,13 +67,6 @@ Once you are done you can build it:
 
 ```bash
 $ cargo zenoh-flow build
-Compiling Component myoperator - Kind operator
-   Compiling proc-macro2 v1.0.29
-   ....
-    Finished dev [unoptimized + debuginfo] target(s) in 3m 50s
-Metadata stored in ~/myoperator/target/zenoh-flow/myoperator.yml
-Descriptor stored in ~/myoperator/target/zenoh-flow/descriptor-myoperator.yml
-Finished [debug] component myoperator
 ```
 
 It will provide you the path of the descriptor for the new component, that can be used inside a flow descriptor.
