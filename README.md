@@ -31,12 +31,53 @@ $ cargo build --release
 -----------
 ## How to run
 
-Assuming that the previous steps completed successfully, you'll find the  the Zenoh-Flow runtime under `target/release/runtime`. This executable expects the following arguments:
+Assuming that the previous steps completed successfully, you'll find the Zenoh-Flow runtime under `target/release/runtime`. This executable expects the following arguments:
 
 - the path of the dataflow graph to execute: `--graph-file zenoh-flow-examples/graphs/fizz_buzz_pipeline.yaml`,
 - a name for the runtime: `--runtime foo`.
 
 The graph describes the different components composing the dataflow. Although mandatory, the name of the runtime is used to "deploy" the graph on different "runtime instances" (see the related examples).
+
+
+-----------
+## Creating your components
+
+Assuming that the build steps completed successfully, you'll be able to use the `cargo zenoh-flow` subcommand to create a boilerplate for your components.
+First let's ensure to have the `cargo-zenoh-flow` binary in the Cargo path.
+
+```bash
+$ ln -s $(pwd)/target/release/cargo-zenoh-flow ~/.cargo/bin/
+```
+
+Then you can create your own component with:
+
+```bash
+$ cd ~
+$ cargo zenoh-flow new myoperator
+Created boilerplate for operator myoperator
+```
+
+The `cargo zenoh-flow` will create a Cargo project with a boilerplate for your component. Different kind of components can be created using the `--kind` parameter (eg. sources and sinks).\
+The `Cargo.toml` for the boilerplate will contain metadata information (eg. the inputs/outputs) used during the build process to generate the descriptor.
+
+
+More information about the `cargo zenoh-flow` can be obtained using `cargo zenoh-flow --help`.\
+You can now modify the `src/lib.rs` file with your business logic and update the `Cargo.toml` according to the `inputs/outputs` that you need.
+
+Once you are done you can build it:
+
+```bash
+$ cargo zenoh-flow build
+Compiling Component myoperator - Kind operator
+   Compiling proc-macro2 v1.0.29
+   ....
+    Finished dev [unoptimized + debuginfo] target(s) in 3m 50s
+Metadata stored in ~/myoperator/target/zenoh-flow/myoperator.yml
+Descriptor stored in ~/myoperator/target/zenoh-flow/descriptor-myoperator.yml
+Finished [debug] component myoperator
+```
+
+It will provide you the path of the descriptor for the new component, that can be used inside a flow descriptor.
 
 -----------
 ## Examples
