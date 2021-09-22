@@ -26,6 +26,7 @@ pub enum CZFError {
     IoFile(&'static str, std::io::Error, std::path::PathBuf),
     ParsingError(&'static str),
     BuildFailed,
+    #[cfg(feature = "local_registry")]
     ZenohError(zenoh::ZError),
     ZenohFlowError(zenoh_flow::ZFError),
     GenericError(String),
@@ -56,6 +57,7 @@ impl From<serde_yaml::Error> for CZFError {
     }
 }
 
+#[cfg(feature = "local_registry")]
 impl From<zenoh::ZError> for CZFError {
     fn from(err: zenoh::ZError) -> Self {
         Self::ZenohError(err)
