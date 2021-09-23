@@ -17,3 +17,112 @@ pub mod connector;
 pub mod dataflow;
 pub mod link;
 pub mod period;
+
+use crate::model::link::PortDescriptor;
+use crate::model::period::PeriodDescriptor;
+use crate::serde::{Deserialize, Serialize};
+use crate::OperatorId;
+use crate::ZFError;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ComponentKind {
+    Operator,
+    Sink,
+    Source,
+}
+
+impl std::str::FromStr for ComponentKind {
+    type Err = ZFError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "operator" => Ok(Self::Operator),
+            "sink" => Ok(Self::Sink),
+            "source" => Ok(Self::Source),
+            _ => Err(ZFError::ParsingError(
+                "unable to parse component kind".to_string(),
+            )),
+        }
+    }
+}
+
+impl std::string::ToString for ComponentKind {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Operator => String::from("operator"),
+            Self::Sink => String::from("sink"),
+            Self::Source => String::from("source"),
+        }
+    }
+}
+
+impl Default for ComponentKind {
+    fn default() -> Self {
+        ComponentKind::Operator
+    }
+}
+// Registry metadata
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RegistryComponent {
+    pub id: OperatorId,
+    pub kind: ComponentKind,
+    pub classes: Vec<String>,
+    pub tags: Vec<RegistryComponentTag>,
+    pub inputs: Vec<PortDescriptor>,
+    pub outputs: Vec<PortDescriptor>,
+    pub period: Option<PeriodDescriptor>,
+}
+
+impl RegistryComponent {
+    pub fn add_tag(&mut self, tag: RegistryComponentTag) {
+        let index = self.tags.iter().position(|t| t.name == tag.name);
+        match index {
+            Some(i) => {
+                let mut old_tag = self.tags.remove(i);
+                for architecture in tag.architectures.into_iter() {
+                    old_tag.add_architecture(architecture);
+                }
+                self.tags.push(old_tag);
+            }
+            None => {
+                self.tags.push(tag);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RegistryComponentTag {
+    pub name: String,
+    pub requirement_labels: Vec<String>,
+    pub architectures: Vec<RegistryComponentArchitecture>,
+}
+
+impl RegistryComponentTag {
+    pub fn add_architecture(&mut self, arch: RegistryComponentArchitecture) {
+        let index = self
+            .architectures
+            .iter()
+            .position(|a| a.os == arch.os && a.arch == arch.arch);
+        match index {
+            Some(i) => {
+                self.architectures.remove(i);
+                self.architectures.push(arch);
+            }
+            None => {
+                self.architectures.push(arch);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RegistryComponentArchitecture {
+    pub arch: String,
+    pub os: String,
+    pub uri: String,
+    pub checksum: String,
+    pub signature: String,
+}

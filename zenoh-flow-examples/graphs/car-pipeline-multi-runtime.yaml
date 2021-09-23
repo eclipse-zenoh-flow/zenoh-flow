@@ -39,14 +39,14 @@ links:
     component : ObjectDetection
     output : Frame
   to:
-    id : Window
+    component : Window
     input : Frame
 
 
 mapping:
   - id: Window
-    runtime: gigot
+    runtime: runtime1
   - id: Camera0
-    runtime: macbook
+    runtime: runtime
   - id: ObjectDetection
-    runtime: cuda
+    runtime: runtime2
