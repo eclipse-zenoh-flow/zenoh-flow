@@ -23,12 +23,11 @@ use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
 use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast, get_input, model::link::PortDescriptor,
-    zenoh_flow_derive::ZFState, zf_data, Component, Data, InputRule, OutputRule, PortId, Sink,
-    Source, ZFError,
+    default_input_rule, default_output_rule, downcast, get_input_raw, model::link::PortDescriptor,
+    zenoh_flow_derive::ZFState, zf_data_raw, Component, InputRule, OutputRule, PortId, SerDeData,
+    Sink, Source, ZFError,
 };
 use zenoh_flow::{State, ZFResult};
-use zenoh_flow_examples::ZFBytes;
 
 static SOURCE: &str = "Frame";
 static INPUT: &str = "Frame";
@@ -81,8 +80,8 @@ impl Source for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
-        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::new();
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
+        let mut results: HashMap<zenoh_flow::PortId, SerDeData> = HashMap::new();
 
         // Downcasting to right type
         let state = downcast!(CameraState, dyn_state).unwrap();
@@ -108,9 +107,9 @@ impl Source for CameraSource {
             let mut buf = opencv::types::VectorOfu8::new();
             opencv::imgcodecs::imencode(".jpeg", &reduced, &mut buf, &encode_options).unwrap();
 
-            let data = ZFBytes(buf.into());
+            let data: Vec<u8> = buf.into();
 
-            results.insert(SOURCE.into(), zf_data!(data));
+            results.insert(SOURCE.into(), zf_data_raw!(data));
 
             drop(cam);
             drop(encode_options);
@@ -126,7 +125,7 @@ impl OutputRule for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<zenoh_flow::PortId, Arc<dyn Data>>,
+        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
         default_output_rule(state, outputs)
     }
@@ -200,10 +199,10 @@ impl Sink for VideoSink {
         // Downcasting to right type
         let state = downcast!(VideoState, dyn_state).unwrap();
 
-        let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_raw!(String::from(INPUT), inputs).unwrap();
 
         let decoded = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(data.0),
+            &opencv::types::VectorOfu8::from_iter(data),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();

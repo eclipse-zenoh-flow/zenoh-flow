@@ -69,7 +69,14 @@ macro_rules! zf_spin_lock {
 #[macro_export]
 macro_rules! zf_data {
     ($val : expr) => {
-        zenoh_flow::async_std::sync::Arc::new($val)
+        zenoh_flow::types::SerDeData::Deserialized(zenoh_flow::async_std::sync::Arc::new($val))
+    };
+}
+
+#[macro_export]
+macro_rules! zf_data_raw {
+    ($val : expr) => {
+        zenoh_flow::types::SerDeData::Serialized(zenoh_flow::async_std::sync::Arc::new($val))
     };
 }
 
@@ -118,29 +125,48 @@ macro_rules! get_input {
     ($ident : ident, $index : expr, $map : expr) => {
         match $map.get_mut::<str>(&$index) {
             Some(mut data_message) => match &data_message.data {
-                zenoh_flow::runtime::message::SerDeData::Deserialized(de) => {
+                zenoh_flow::SerDeData::Deserialized(de) => {
                     match zenoh_flow::downcast!($ident, de) {
                         Some(data) => Ok((data_message.timestamp.clone(), data.clone())),
                         None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
                     }
                 }
-                zenoh_flow::runtime::message::SerDeData::Serialized(ser) => {
+                zenoh_flow::SerDeData::Serialized(ser) => {
                     let de: Arc<dyn zenoh_flow::Data> = Arc::new(
                         <$ident as zenoh_flow::Deserializable>::try_deserialize(ser.as_slice())
                             .map_err(|_| zenoh_flow::types::ZFError::DeseralizationError)?,
                     );
 
-                    (*data_message).data =
-                        zenoh_flow::runtime::message::SerDeData::Deserialized(de);
+                    (*data_message).data = zenoh_flow::SerDeData::Deserialized(de);
 
                     match &data_message.data {
-                        zenoh_flow::runtime::message::SerDeData::Deserialized(de) => {
+                        zenoh_flow::SerDeData::Deserialized(de) => {
                             match zenoh_flow::downcast!($ident, de) {
                                 Some(data) => Ok((data_message.timestamp.clone(), data.clone())),
                                 None => Err(zenoh_flow::types::ZFError::InvalidData($index)),
                             }
                         }
                         _ => Err(zenoh_flow::types::ZFError::Unimplemented),
+                    }
+                }
+            },
+            None => Err(zenoh_flow::types::ZFError::MissingInput($index)),
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! get_input_raw {
+    ($index : expr, $map : expr) => {
+        match $map.remove::<str>(&$index) {
+            Some(data_message) => match data_message.data {
+                zenoh_flow::SerDeData::Deserialized(_) => {
+                    Err(zenoh_flow::types::ZFError::InvalidData($index))
+                }
+                zenoh_flow::SerDeData::Serialized(mut ser) => {
+                    match zenoh_flow::async_std::sync::Arc::try_unwrap(ser) {
+                        Ok(ser) => Ok((data_message.timestamp.clone(), ser)),
+                        Err(_e) => Err(zenoh_flow::types::ZFError::InvalidData($index)),
                     }
                 }
             },

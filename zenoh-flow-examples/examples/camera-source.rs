@@ -17,10 +17,9 @@ use async_trait::async_trait;
 use opencv::{core, prelude::*, videoio};
 use std::collections::HashMap;
 use zenoh_flow::{
-    default_output_rule, downcast_mut, types::ZFResult, zenoh_flow_derive::ZFState, zf_data,
-    zf_spin_lock, Component, Data, OutputRule, Source, State,
+    default_output_rule, downcast_mut, types::ZFResult, zenoh_flow_derive::ZFState, zf_data_raw,
+    zf_spin_lock, Component, SerDeData, OutputRule, Source, State,
 };
-use zenoh_flow_examples::ZFBytes;
 
 #[derive(Debug)]
 struct CameraSource;
@@ -118,7 +117,7 @@ impl OutputRule for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<zenoh_flow::PortId, Arc<dyn Data>>,
+        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
         default_output_rule(state, outputs)
     }
@@ -130,8 +129,8 @@ impl Source for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn Data>>> {
-        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::with_capacity(1);
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
+        let mut results: HashMap<zenoh_flow::PortId, SerDeData> = HashMap::with_capacity(1);
 
         let state = downcast_mut!(CameraState, dyn_state).unwrap();
 
@@ -155,7 +154,8 @@ impl Source for CameraSource {
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &reduced, &mut buf, &encode_options).unwrap();
 
-        results.insert(SOURCE.into(), zf_data!(ZFBytes(buf.into())));
+
+        results.insert(SOURCE.into(), zf_data_raw!(buf.into()));
 
         async_std::task::sleep(std::time::Duration::from_millis(state.delay)).await;
 
