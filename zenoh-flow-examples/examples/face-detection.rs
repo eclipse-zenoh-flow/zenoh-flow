@@ -15,11 +15,10 @@
 use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast, get_input, runtime::message::DataMessage,
-    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, Component, Data, InputRule, Operator,
-    OutputRule, PortId, State, ZFResult,
+    default_input_rule, default_output_rule, downcast, get_input_raw,
+    runtime::message::DataMessage, zenoh_flow_derive::ZFState, zf_data_raw, zf_spin_lock,
+    Component, InputRule, Operator, OutputRule, PortId, SerDeData, State, ZFResult,
 };
-use zenoh_flow_examples::ZFBytes;
 
 use opencv::{core, imgproc, objdetect, prelude::*, types};
 
@@ -93,7 +92,7 @@ impl OutputRule for FaceDetection {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>,
+        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
         default_output_rule(state, outputs)
     }
@@ -105,19 +104,19 @@ impl Operator for FaceDetection {
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn State>,
         inputs: &mut HashMap<zenoh_flow::PortId, DataMessage>,
-    ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>> {
-        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::new();
+    ) -> ZFResult<HashMap<PortId, SerDeData>> {
+        let mut results: HashMap<zenoh_flow::PortId, SerDeData> = HashMap::new();
 
         let state = downcast!(FDState, dyn_state).unwrap();
 
         let mut face = zf_spin_lock!(state.face);
         let encode_options = zf_spin_lock!(state.encode_options);
 
-        let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_raw!(String::from(INPUT), inputs).unwrap();
 
         // Decode Image
         let mut frame = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(data.0),
+            &opencv::types::VectorOfu8::from_iter(data),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
@@ -175,7 +174,7 @@ impl Operator for FaceDetection {
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
-        results.insert(OUTPUT.into(), zf_data!(ZFBytes(buf.into())));
+        results.insert(OUTPUT.into(), zf_data_raw!(buf.into()));
 
         drop(face);
 

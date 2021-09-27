@@ -20,8 +20,8 @@ use std::{
     path::Path,
 };
 use zenoh_flow::{
-    default_input_rule, default_output_rule, Component, ComponentOutput, Context, SerDeData, InputRule,
-    Operator, OutputRule, PortId, State,
+    default_input_rule, default_output_rule, Component, ComponentOutput, Context, InputRule,
+    Operator, OutputRule, PortId, SerDeData, State,
 };
 use zenoh_flow::{
     downcast, get_input_raw,
@@ -29,7 +29,6 @@ use zenoh_flow::{
     zenoh_flow_derive::ZFState,
     zf_data_raw, zf_spin_lock,
 };
-
 
 use opencv::core::prelude::MatTrait;
 use opencv::dnn::NetTrait;
@@ -135,7 +134,7 @@ impl Operator for ObjDetection {
         _context: &mut Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId,SerDeData>> {
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
         let scale = 1.0 / 255.0;
         let mean = core::Scalar::new(0f64, 0f64, 0f64, 0f64);
 

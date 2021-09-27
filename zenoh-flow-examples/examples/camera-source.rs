@@ -18,7 +18,7 @@ use opencv::{core, prelude::*, videoio};
 use std::collections::HashMap;
 use zenoh_flow::{
     default_output_rule, downcast_mut, types::ZFResult, zenoh_flow_derive::ZFState, zf_data_raw,
-    zf_spin_lock, Component, SerDeData, OutputRule, Source, State,
+    zf_spin_lock, Component, OutputRule, SerDeData, Source, State,
 };
 
 #[derive(Debug)]
@@ -153,7 +153,6 @@ impl Source for CameraSource {
 
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &reduced, &mut buf, &encode_options).unwrap();
-
 
         results.insert(SOURCE.into(), zf_data_raw!(buf.into()));
 

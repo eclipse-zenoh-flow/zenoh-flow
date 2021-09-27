@@ -21,7 +21,6 @@ use zenoh_flow::{
     Component, InputRule, Sink, ZFError,
 };
 
-
 use opencv::{highgui, prelude::*};
 
 static INPUT: &str = "Frame";

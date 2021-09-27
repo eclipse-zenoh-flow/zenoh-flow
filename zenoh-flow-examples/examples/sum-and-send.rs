@@ -18,7 +18,7 @@ use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::PortId;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, Component,
-    ComponentOutput, Data, InputRule, Operator, OutputRule, State, ZFResult,
+    ComponentOutput, InputRule, Operator, OutputRule, SerDeData, State, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -39,8 +39,8 @@ impl Operator for SumAndSend {
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn Data>>> {
-        let mut results: HashMap<PortId, Arc<dyn Data>> = HashMap::new();
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
+        let mut results: HashMap<PortId, SerDeData> = HashMap::new();
 
         // Downcasting state to right type
         let mut state = downcast_mut!(SumAndSendState, dyn_state).unwrap();
@@ -71,7 +71,7 @@ impl OutputRule for SumAndSend {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<PortId, Arc<dyn Data>>,
+        outputs: HashMap<PortId, SerDeData>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
         default_output_rule(state, outputs)
     }
