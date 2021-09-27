@@ -13,8 +13,7 @@
 //
 
 use crate::runtime::message::DataMessage;
-use crate::{ComponentOutput, Context, PortId, Token, ZFResult};
-use async_std::sync::Arc;
+use crate::{ComponentOutput, Context, PortId, SerDeData, Token, ZFResult};
 use async_trait::async_trait;
 use std::any::Any;
 use std::collections::HashMap;
@@ -62,7 +61,7 @@ pub trait OutputRule {
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
-        outputs: HashMap<PortId, Arc<dyn Data>>,
+        outputs: HashMap<PortId, SerDeData>,
     ) -> ZFResult<HashMap<PortId, ComponentOutput>>;
 }
 
@@ -72,7 +71,7 @@ pub trait Operator: Component + InputRule + OutputRule + Send + Sync {
         context: &mut Context,
         state: &mut Box<dyn State>,
         inputs: &mut HashMap<PortId, DataMessage>,
-    ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>>;
+    ) -> ZFResult<HashMap<PortId, SerDeData>>;
 }
 
 #[async_trait]
@@ -81,7 +80,7 @@ pub trait Source: Component + OutputRule + Send + Sync {
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
-    ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>>;
+    ) -> ZFResult<HashMap<PortId, SerDeData>>;
 }
 
 #[async_trait]

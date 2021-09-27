@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use zenoh_flow::{default_output_rule, Component, OutputRule, PortId, Source};
 use zenoh_flow::{
-    types::ZFResult, zenoh_flow_derive::ZFState, zf_data, zf_empty_state, Data, State,
+    types::ZFResult, zenoh_flow_derive::ZFState, zf_data, zf_empty_state, SerDeData, State,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -35,8 +35,8 @@ impl Source for CountSource {
         &self,
         _context: &mut zenoh_flow::Context,
         _state: &mut Box<dyn zenoh_flow::State>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn Data>>> {
-        let mut results: HashMap<PortId, Arc<dyn Data>> = HashMap::new();
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
+        let mut results: HashMap<PortId, SerDeData> = HashMap::new();
         let d = ZFUsize(COUNTER.fetch_add(1, Ordering::AcqRel));
         results.insert(SOURCE.into(), zf_data!(d));
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
@@ -49,7 +49,7 @@ impl OutputRule for CountSource {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<PortId, Arc<dyn Data>>,
+        outputs: HashMap<PortId, SerDeData>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
         default_output_rule(state, outputs)
     }

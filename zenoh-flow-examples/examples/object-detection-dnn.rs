@@ -20,16 +20,15 @@ use std::{
     path::Path,
 };
 use zenoh_flow::{
-    default_input_rule, default_output_rule, Component, ComponentOutput, Context, Data, InputRule,
-    Operator, OutputRule, PortId, State,
+    default_input_rule, default_output_rule, Component, ComponentOutput, Context, InputRule,
+    Operator, OutputRule, PortId, SerDeData, State,
 };
 use zenoh_flow::{
-    downcast, get_input,
+    downcast, get_input_raw,
     types::{Token, ZFResult},
     zenoh_flow_derive::ZFState,
-    zf_data, zf_spin_lock,
+    zf_data_raw, zf_spin_lock,
 };
-use zenoh_flow_examples::ZFBytes;
 
 use opencv::core::prelude::MatTrait;
 use opencv::dnn::NetTrait;
@@ -123,7 +122,7 @@ impl OutputRule for ObjDetection {
         &self,
         _context: &mut Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<PortId, Arc<dyn zenoh_flow::Data>>,
+        outputs: HashMap<PortId, SerDeData>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
         default_output_rule(state, outputs)
     }
@@ -135,11 +134,11 @@ impl Operator for ObjDetection {
         _context: &mut Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
         let scale = 1.0 / 255.0;
         let mean = core::Scalar::new(0f64, 0f64, 0f64, 0f64);
 
-        let mut results: HashMap<PortId, Arc<dyn Data>> = HashMap::with_capacity(1);
+        let mut results: HashMap<PortId, SerDeData> = HashMap::with_capacity(1);
 
         let mut detections: opencv::types::VectorOfMat = core::Vector::new();
 
@@ -161,11 +160,11 @@ impl Operator for ObjDetection {
             core::Scalar::new(255f64, 0f64, 0f64, -1f64),
         ];
 
-        let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_raw!(String::from(INPUT), inputs).unwrap();
 
         // Decode Image
         let mut frame = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(data.0),
+            &opencv::types::VectorOfu8::from_iter(data),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
@@ -319,7 +318,7 @@ impl Operator for ObjDetection {
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
-        results.insert(OUTPUT.into(), zf_data!(ZFBytes(buf.into())));
+        results.insert(OUTPUT.into(), zf_data_raw!(buf.into()));
 
         Ok(results)
     }

@@ -41,9 +41,17 @@ impl Default for Context {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum SerDeData {
+    Serialized(Arc<Vec<u8>>),
+    #[serde(skip_serializing, skip_deserializing)]
+    // Deserialized data is never serialized directly
+    Deserialized(Arc<dyn Data>),
+}
+
 #[derive(Debug, Clone)]
 pub enum ComponentOutput {
-    Data(Arc<dyn Data>),
+    Data(SerDeData),
     // TODO Users should not have access to all control messages. When implementing the control
     // messages change this to an enum with a "limited scope".
     Control(ControlMessage),
@@ -218,7 +226,7 @@ impl State for EmptyState {
 
 pub fn default_output_rule(
     _state: &mut Box<dyn State>,
-    outputs: HashMap<PortId, Arc<dyn Data>>,
+    outputs: HashMap<PortId, SerDeData>,
 ) -> ZFResult<HashMap<PortId, ComponentOutput>> {
     let mut results = HashMap::with_capacity(outputs.len());
     for (k, v) in outputs {

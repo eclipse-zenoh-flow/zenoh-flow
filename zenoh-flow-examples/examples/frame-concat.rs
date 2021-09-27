@@ -15,11 +15,10 @@
 use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast, get_input, types::ZFResult,
-    zenoh_flow_derive::ZFState, zf_data, zf_spin_lock, Component, Data, InputRule, Operator,
-    OutputRule, State,
+    default_input_rule, default_output_rule, downcast, get_input_raw, types::ZFResult,
+    zenoh_flow_derive::ZFState, zf_data_raw, zf_spin_lock, Component, InputRule, Operator,
+    OutputRule, SerDeData, State,
 };
-use zenoh_flow_examples::ZFBytes;
 
 use opencv::core;
 
@@ -78,7 +77,7 @@ impl OutputRule for FrameConcat {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>,
+        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
     ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
         default_output_rule(state, outputs)
     }
@@ -90,24 +89,24 @@ impl Operator for FrameConcat {
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
         inputs: &mut HashMap<zenoh_flow::PortId, zenoh_flow::runtime::message::DataMessage>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, Arc<dyn zenoh_flow::Data>>> {
-        let mut results: HashMap<zenoh_flow::PortId, Arc<dyn Data>> = HashMap::new();
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
+        let mut results: HashMap<zenoh_flow::PortId, SerDeData> = HashMap::new();
 
         let state = downcast!(FrameConcatState, dyn_state).unwrap();
         let encode_options = zf_spin_lock!(state.encode_options);
 
-        let (_, frame1) = get_input!(ZFBytes, String::from(INPUT1), inputs)?;
-        let (_, frame2) = get_input!(ZFBytes, String::from(INPUT2), inputs)?;
+        let (_, frame1) = get_input_raw!(String::from(INPUT1), inputs)?;
+        let (_, frame2) = get_input_raw!(String::from(INPUT2), inputs)?;
 
         // Decode Image
         let frame1 = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(frame1.0),
+            &opencv::types::VectorOfu8::from_iter(frame1),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
 
         let frame2 = opencv::imgcodecs::imdecode(
-            &opencv::types::VectorOfu8::from_iter(frame2.0),
+            &opencv::types::VectorOfu8::from_iter(frame2),
             opencv::imgcodecs::IMREAD_COLOR,
         )
         .unwrap();
@@ -120,7 +119,7 @@ impl Operator for FrameConcat {
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
-        results.insert(OUTPUT.into(), zf_data!(ZFBytes(buf.into())));
+        results.insert(OUTPUT.into(), zf_data_raw!(buf.into()));
 
         Ok(results)
     }

@@ -14,19 +14,11 @@
 
 extern crate serde;
 
-use crate::{ComponentOutput, Data, ZFError, ZFResult};
+use crate::{ComponentOutput, Data, SerDeData, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use uhlc::Timestamp;
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum SerDeData {
-    Serialized(Arc<Vec<u8>>),
-    #[serde(skip_serializing, skip_deserializing)]
-    // Deserialized data is never serialized directly
-    Deserialized(Arc<dyn Data>),
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
@@ -71,7 +63,12 @@ impl Message {
     pub fn from_component_output(output: ComponentOutput, timestamp: Timestamp) -> Self {
         match output {
             ComponentOutput::Control(c) => Self::Control(c),
-            ComponentOutput::Data(d) => Self::Data(DataMessage::new_deserialized(d, timestamp)),
+            ComponentOutput::Data(d) => match d {
+                SerDeData::Deserialized(d) => {
+                    Self::Data(DataMessage::new_deserialized(d, timestamp))
+                }
+                SerDeData::Serialized(sd) => Self::Data(DataMessage::new_serialized(sd, timestamp)),
+            },
         }
     }
 
