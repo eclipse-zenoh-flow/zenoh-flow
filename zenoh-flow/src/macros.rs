@@ -160,9 +160,10 @@ macro_rules! get_input_raw {
     ($index : expr, $map : expr) => {
         match $map.remove::<str>(&$index) {
             Some(data_message) => match data_message.data {
-                zenoh_flow::SerDeData::Deserialized(_) => {
-                    Err(zenoh_flow::types::ZFError::InvalidData($index))
-                }
+                zenoh_flow::SerDeData::Deserialized(de) => match de.try_serialize() {
+                    Ok(ser) => Ok((data_message.timestamp.clone(), ser)),
+                    Err(e) => Err(e),
+                },
                 zenoh_flow::SerDeData::Serialized(mut ser) => {
                     match zenoh_flow::async_std::sync::Arc::try_unwrap(ser) {
                         Ok(ser) => Ok((data_message.timestamp.clone(), ser)),
