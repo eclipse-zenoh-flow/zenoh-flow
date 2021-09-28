@@ -70,7 +70,7 @@ use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::\{
     default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, Component,
-    InputRule, ComponentOutput,OutputRule, Data, Operator,
+    InputRule, ComponentOutput,OutputRule, SerDeData, Operator,
     ZFResult, State, PortId
 };
 
@@ -86,7 +86,7 @@ impl Operator for {name} \{
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
-    ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>> \{
+    ) -> ZFResult<HashMap<PortId, SerDeData>> \{
         todo!()
     }
 }
@@ -107,7 +107,7 @@ impl OutputRule for {name} \{
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<PortId, Arc<dyn Data>>,
+        outputs: HashMap<PortId, SerDeData>,
     ) -> ZFResult<HashMap<PortId, ComponentOutput>> \{
         default_output_rule(state, outputs)
     }
@@ -141,7 +141,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::\{
-    default_output_rule, downcast_mut, zf_data, Component, ComponentOutput, OutputRule, Data, Source,
+    default_output_rule, downcast_mut, zf_data, Component, ComponentOutput, OutputRule, SerDeData, Source,
     ZFResult, State, PortId
 };
 
@@ -157,7 +157,7 @@ impl Source for {name} \{
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
-    ) -> ZFResult<HashMap<PortId, Arc<dyn Data>>> \{
+    ) -> ZFResult<HashMap<PortId, SerDeData>> \{
         todo!()
     }
 }
@@ -168,7 +168,7 @@ impl OutputRule for {name} \{
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<PortId, Arc<dyn Data>>,
+        outputs: HashMap<PortId, SerDeData>,
     ) -> ZFResult<HashMap<PortId, ComponentOutput>> \{
         default_output_rule(state, outputs)
     }
@@ -203,7 +203,7 @@ use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::\{
     default_input_rule, downcast_mut, get_input, Component,
-    InputRule, Data, Sink,
+    InputRule, SerDeData, Sink,
     ZFResult, State, PortId
 };
 
