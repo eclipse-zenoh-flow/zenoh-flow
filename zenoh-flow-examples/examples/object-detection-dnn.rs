@@ -20,8 +20,8 @@ use std::{
     path::Path,
 };
 use zenoh_flow::{
-    default_input_rule, default_output_rule, Component, ComponentOutput, Context, InputRule,
-    Operator, OutputRule, PortId, SerDeData, State,
+    default_input_rule, default_output_rule, ComponentOutput, Context, InputRule, Node, Operator,
+    OutputRule, PortId, SerDeData, State,
 };
 use zenoh_flow::{
     downcast, get_input_raw,
@@ -93,7 +93,7 @@ impl ODState {
     }
 }
 
-impl Component for ObjDetection {
+impl Node for ObjDetection {
     fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,

@@ -72,6 +72,15 @@ impl Message {
         }
     }
 
+    pub fn from_serdedata(output: SerDeData, timestamp: Timestamp) -> Self {
+        match output {
+            SerDeData::Deserialized(data) => {
+                Self::Data(DataMessage::new_deserialized(data, timestamp))
+            }
+            SerDeData::Serialized(data) => Self::Data(DataMessage::new_serialized(data, timestamp)),
+        }
+    }
+
     pub fn serialize_bincode(&self) -> ZFResult<Vec<u8>> {
         match &self {
             Message::Control(_) => {

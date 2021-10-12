@@ -18,7 +18,7 @@ use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    Component, ComponentOutput, InputRule, Operator, OutputRule, State, Token,
+    ComponentOutput, InputRule, Node, Operator, OutputRule, State, Token,
 };
 use zenoh_flow::{downcast, Context, SerDeData};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -58,7 +58,7 @@ impl Operator for BuzzOperator {
     }
 }
 
-impl Component for BuzzOperator {
+impl Node for BuzzOperator {
     fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn State> {
         let state = match configuration {
             Some(config) => match config.get("buzzword") {

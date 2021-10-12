@@ -41,7 +41,7 @@ pub trait State: Debug + Send + Sync {
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
-pub trait Component {
+pub trait Node {
     fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn State>;
 
     fn clean(&self, state: &mut Box<dyn State>) -> ZFResult<()>;
@@ -65,7 +65,7 @@ pub trait OutputRule {
     ) -> ZFResult<HashMap<PortId, ComponentOutput>>;
 }
 
-pub trait Operator: Component + InputRule + OutputRule + Send + Sync {
+pub trait Operator: Node + InputRule + OutputRule + Send + Sync {
     fn run(
         &self,
         context: &mut Context,
@@ -75,16 +75,16 @@ pub trait Operator: Component + InputRule + OutputRule + Send + Sync {
 }
 
 #[async_trait]
-pub trait Source: Component + OutputRule + Send + Sync {
+pub trait Source: Node + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
-    ) -> ZFResult<HashMap<PortId, SerDeData>>;
+    ) -> ZFResult<(PortId, SerDeData)>;
 }
 
 #[async_trait]
-pub trait Sink: Component + InputRule + Send + Sync {
+pub trait Sink: Node + InputRule + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,

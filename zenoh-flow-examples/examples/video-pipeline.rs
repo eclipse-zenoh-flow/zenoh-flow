@@ -23,9 +23,9 @@ use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
 use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast, get_input_raw, model::link::PortDescriptor,
-    zenoh_flow_derive::ZFState, zf_data_raw, Component, InputRule, OutputRule, PortId, SerDeData,
-    Sink, Source, ZFError,
+    default_input_rule, downcast, get_input_raw, model::link::PortDescriptor,
+    zenoh_flow_derive::ZFState, zf_data_raw, InputRule, Node, PortId, SerDeData, Sink, Source,
+    ZFError,
 };
 use zenoh_flow::{State, ZFResult};
 
@@ -80,11 +80,10 @@ impl Source for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
-        let mut results: HashMap<zenoh_flow::PortId, SerDeData> = HashMap::new();
-
+    ) -> zenoh_flow::ZFResult<(zenoh_flow::PortId, SerDeData)> {
         // Downcasting to right type
         let state = downcast!(CameraState, dyn_state).unwrap();
+        let data: Vec<u8>;
 
         {
             let mut cam = zf_spin_lock!(state.camera);
@@ -107,31 +106,18 @@ impl Source for CameraSource {
             let mut buf = opencv::types::VectorOfu8::new();
             opencv::imgcodecs::imencode(".jpeg", &reduced, &mut buf, &encode_options).unwrap();
 
-            let data: Vec<u8> = buf.into();
-
-            results.insert(SOURCE.into(), zf_data_raw!(data));
+            data = buf.into();
 
             drop(cam);
             drop(encode_options);
         }
 
         async_std::task::sleep(std::time::Duration::from_millis(state.delay)).await;
-        Ok(results)
+        Ok((SOURCE.into(), zf_data_raw!(data)))
     }
 }
 
-impl OutputRule for CameraSource {
-    fn output_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
-        default_output_rule(state, outputs)
-    }
-}
-
-impl Component for CameraSource {
+impl Node for CameraSource {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
@@ -173,7 +159,7 @@ impl InputRule for VideoSink {
     }
 }
 
-impl Component for VideoSink {
+impl Node for VideoSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,

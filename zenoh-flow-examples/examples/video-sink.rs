@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use zenoh_flow::State;
 use zenoh_flow::{
     default_input_rule, downcast, get_input_raw, types::ZFResult, zenoh_flow_derive::ZFState,
-    Component, InputRule, Sink, ZFError,
+    InputRule, Node, Sink, ZFError,
 };
 
 use opencv::{highgui, prelude::*};
@@ -54,7 +54,7 @@ impl InputRule for VideoSink {
     }
 }
 
-impl Component for VideoSink {
+impl Node for VideoSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,

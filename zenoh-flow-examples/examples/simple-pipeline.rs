@@ -21,10 +21,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
-use zenoh_flow::{
-    default_input_rule, default_output_rule, Component, Context, InputRule, OutputRule, PortId,
-    SerDeData, Sink, Source,
-};
+use zenoh_flow::{default_input_rule, Context, InputRule, Node, PortId, SerDeData, Sink, Source};
 use zenoh_flow::{model::link::PortDescriptor, zf_data, zf_empty_state};
 use zenoh_flow::{State, ZFResult};
 use zenoh_flow_examples::ZFUsize;
@@ -54,27 +51,14 @@ impl Source for CountSource {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn zenoh_flow::State>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
-        let mut results: HashMap<PortId, SerDeData> = HashMap::new();
+    ) -> zenoh_flow::ZFResult<(zenoh_flow::PortId, SerDeData)> {
         let d = ZFUsize(COUNTER.fetch_add(1, Ordering::AcqRel));
-        results.insert(SOURCE.into(), zf_data!(d));
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
-        Ok(results)
+        Ok((SOURCE.into(), zf_data!(d)))
     }
 }
 
-impl OutputRule for CountSource {
-    fn output_rule(
-        &self,
-        _context: &mut Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<PortId, SerDeData>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
-        default_output_rule(state, outputs)
-    }
-}
-
-impl Component for CountSource {
+impl Node for CountSource {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
@@ -117,7 +101,7 @@ impl InputRule for ExampleGenericSink {
     }
 }
 
-impl Component for ExampleGenericSink {
+impl Node for ExampleGenericSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,

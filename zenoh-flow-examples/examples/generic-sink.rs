@@ -19,7 +19,7 @@ use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::Token;
 use zenoh_flow::{
-    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, Component, InputRule,
+    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, InputRule, Node,
     State,
 };
 use zenoh_flow::{Context, PortId, Sink};
@@ -85,7 +85,7 @@ impl Sink for GenericSink {
     }
 }
 
-impl Component for GenericSink {
+impl Node for GenericSink {
     fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn State> {
         Box::new(SinkState::new(configuration))
     }

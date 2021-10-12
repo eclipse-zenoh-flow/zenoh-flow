@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input_raw,
     runtime::message::DataMessage, zenoh_flow_derive::ZFState, zf_data_raw, zf_spin_lock,
-    Component, InputRule, Operator, OutputRule, PortId, SerDeData, State, ZFResult,
+    InputRule, Node, Operator, OutputRule, PortId, SerDeData, State, ZFResult,
 };
 
 use opencv::{core, imgproc, objdetect, prelude::*, types};
@@ -63,7 +63,7 @@ impl FDState {
     }
 }
 
-impl Component for FaceDetection {
+impl Node for FaceDetection {
     fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,

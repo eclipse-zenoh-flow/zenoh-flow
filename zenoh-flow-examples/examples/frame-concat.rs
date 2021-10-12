@@ -16,8 +16,8 @@ use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast, get_input_raw, types::ZFResult,
-    zenoh_flow_derive::ZFState, zf_data_raw, zf_spin_lock, Component, InputRule, Operator,
-    OutputRule, SerDeData, State,
+    zenoh_flow_derive::ZFState, zf_data_raw, zf_spin_lock, InputRule, Node, Operator, OutputRule,
+    SerDeData, State,
 };
 
 use opencv::core;
@@ -48,7 +48,7 @@ impl FrameConcatState {
 
 struct FrameConcat;
 
-impl Component for FrameConcat {
+impl Node for FrameConcat {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,

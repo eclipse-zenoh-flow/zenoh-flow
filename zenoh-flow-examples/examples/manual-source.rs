@@ -15,8 +15,7 @@
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc, usize};
 use zenoh_flow::{
-    zf_data, zf_empty_state, Component, Context, OutputRule, PortId, SerDeData, Source, State,
-    ZFError, ZFResult,
+    zf_data, zf_empty_state, Context, Node, PortId, SerDeData, Source, State, ZFError, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -30,9 +29,7 @@ impl Source for ManualSource {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn State>,
-    ) -> ZFResult<HashMap<PortId, SerDeData>> {
-        let mut results: HashMap<PortId, SerDeData> = HashMap::with_capacity(1);
-
+    ) -> ZFResult<(PortId, SerDeData)> {
         println!("> Please input a number: ");
         let mut number = String::new();
         async_std::io::stdin()
@@ -45,30 +42,17 @@ impl Source for ManualSource {
             Err(_) => return Err(ZFError::GenericError),
         };
 
-        results.insert(LINK_ID_INPUT_INT.into(), zf_data!(ZFUsize(value)));
-
-        Ok(results)
+        Ok((LINK_ID_INPUT_INT.into(), zf_data!(ZFUsize(value))))
     }
 }
 
-impl Component for ManualSource {
+impl Node for ManualSource {
     fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> Box<dyn State> {
         zf_empty_state!()
     }
 
     fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
-    }
-}
-
-impl OutputRule for ManualSource {
-    fn output_rule(
-        &self,
-        _context: &mut Context,
-        state: &mut Box<dyn State>,
-        outputs: HashMap<PortId, SerDeData>,
-    ) -> ZFResult<HashMap<PortId, zenoh_flow::ComponentOutput>> {
-        zenoh_flow::default_output_rule(state, outputs)
     }
 }
 
