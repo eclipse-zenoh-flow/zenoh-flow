@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::PortId;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, ComponentOutput,
-    InputRule, Node, Operator, OutputRule, SerDeData, State, ZFResult,
+    default_input_rule, default_output_rule, downcast_mut, get_input_from, zf_data,
+    ComponentOutput, InputRule, Node, Operator, OutputRule, SerDeData, State, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -45,7 +45,7 @@ impl Operator for SumAndSend {
         // Downcasting state to right type
         let mut state = downcast_mut!(SumAndSendState, dyn_state).unwrap();
 
-        let (_, data) = get_input!(ZFUsize, String::from(INPUT), inputs)?;
+        let (_, data) = get_input_from!(ZFUsize, String::from(INPUT), inputs)?;
 
         let res = ZFUsize(state.x.0 + data.0);
         state.x = res.clone();

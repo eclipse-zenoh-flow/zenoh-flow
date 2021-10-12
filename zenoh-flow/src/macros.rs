@@ -121,7 +121,7 @@ macro_rules! get_state {
 }
 
 #[macro_export]
-macro_rules! get_input {
+macro_rules! get_input_from {
     ($ident : ident, $index : expr, $map : expr) => {
         match $map.get_mut::<str>(&$index) {
             Some(mut data_message) => match &data_message.data {
@@ -156,7 +156,7 @@ macro_rules! get_input {
 }
 
 #[macro_export]
-macro_rules! get_input_raw {
+macro_rules! get_input_raw_from {
     ($index : expr, $map : expr) => {
         match $map.remove::<str>(&$index) {
             Some(data_message) => match data_message.data {

@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::State;
 use zenoh_flow::{
-    default_input_rule, downcast, get_input,
+    default_input_rule, downcast, get_input_from,
     types::{Token, ZFResult},
     zenoh_flow_derive::ZFState,
     InputRule, Node, PortId, Sink,
@@ -81,7 +81,7 @@ impl Sink for ExampleGenericZenohSink {
         let state = downcast!(ZSinkState, dyn_state).unwrap();
 
         let path = format!("/zf/probe/{}", String::from(INPUT));
-        let (_, data) = get_input!(ZFBytes, String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_from!(ZFBytes, String::from(INPUT), inputs).unwrap();
 
         state
             .session

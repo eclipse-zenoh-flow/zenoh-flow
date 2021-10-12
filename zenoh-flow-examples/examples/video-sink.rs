@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::State;
 use zenoh_flow::{
-    default_input_rule, downcast, get_input_raw, types::ZFResult, zenoh_flow_derive::ZFState,
+    default_input_rule, downcast, get_input_raw_from, types::ZFResult, zenoh_flow_derive::ZFState,
     InputRule, Node, Sink, ZFError,
 };
 
@@ -80,7 +80,7 @@ impl Sink for VideoSink {
         // Downcasting to right type
         let state = downcast!(VideoState, dyn_state).unwrap();
 
-        let (_, data) = get_input_raw!(String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_raw_from!(String::from(INPUT), inputs).unwrap();
 
         let decoded = opencv::imgcodecs::imdecode(
             &opencv::types::VectorOfu8::from_iter(data),

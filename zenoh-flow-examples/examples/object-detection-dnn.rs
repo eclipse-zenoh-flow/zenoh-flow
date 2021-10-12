@@ -24,7 +24,7 @@ use zenoh_flow::{
     OutputRule, PortId, SerDeData, State,
 };
 use zenoh_flow::{
-    downcast, get_input_raw,
+    downcast, get_input_raw_from,
     types::{Token, ZFResult},
     zenoh_flow_derive::ZFState,
     zf_data_raw, zf_spin_lock,
@@ -160,7 +160,7 @@ impl Operator for ObjDetection {
             core::Scalar::new(255f64, 0f64, 0f64, -1f64),
         ];
 
-        let (_, data) = get_input_raw!(String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_raw_from!(String::from(INPUT), inputs).unwrap();
 
         // Decode Image
         let mut frame = opencv::imgcodecs::imdecode(

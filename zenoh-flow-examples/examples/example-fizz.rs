@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::Token;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    zf_empty_state, ComponentOutput, InputRule, Node, Operator, OutputRule, State,
+    default_input_rule, default_output_rule, export_operator, get_input_from, types::ZFResult,
+    zf_data, zf_empty_state, ComponentOutput, InputRule, Node, Operator, OutputRule, State,
 };
 use zenoh_flow::{Context, PortId, SerDeData};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -61,7 +61,7 @@ impl Operator for FizzOperator {
 
         let mut fizz = ZFString::from("");
 
-        let (_, zfusize) = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
+        let (_, zfusize) = get_input_from!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
 
         if zfusize.0 % 2 == 0 {
             fizz = ZFString::from("Fizz");

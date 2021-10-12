@@ -23,7 +23,7 @@ use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
 use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
-    default_input_rule, downcast, get_input_raw, model::link::PortDescriptor,
+    default_input_rule, downcast, get_input_raw_from, model::link::PortDescriptor,
     zenoh_flow_derive::ZFState, zf_data_raw, InputRule, Node, PortId, SerDeData, Sink, Source,
     ZFError,
 };
@@ -185,7 +185,7 @@ impl Sink for VideoSink {
         // Downcasting to right type
         let state = downcast!(VideoState, dyn_state).unwrap();
 
-        let (_, data) = get_input_raw!(String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_raw_from!(String::from(INPUT), inputs).unwrap();
 
         let decoded = opencv::imgcodecs::imdecode(
             &opencv::types::VectorOfu8::from_iter(data),

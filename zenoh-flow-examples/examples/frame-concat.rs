@@ -15,7 +15,7 @@
 use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast, get_input_raw, types::ZFResult,
+    default_input_rule, default_output_rule, downcast, get_input_raw_from, types::ZFResult,
     zenoh_flow_derive::ZFState, zf_data_raw, zf_spin_lock, InputRule, Node, Operator, OutputRule,
     SerDeData, State,
 };
@@ -95,8 +95,8 @@ impl Operator for FrameConcat {
         let state = downcast!(FrameConcatState, dyn_state).unwrap();
         let encode_options = zf_spin_lock!(state.encode_options);
 
-        let (_, frame1) = get_input_raw!(String::from(INPUT1), inputs)?;
-        let (_, frame2) = get_input_raw!(String::from(INPUT2), inputs)?;
+        let (_, frame1) = get_input_raw_from!(String::from(INPUT1), inputs)?;
+        let (_, frame2) = get_input_raw_from!(String::from(INPUT2), inputs)?;
 
         // Decode Image
         let frame1 = opencv::imgcodecs::imdecode(

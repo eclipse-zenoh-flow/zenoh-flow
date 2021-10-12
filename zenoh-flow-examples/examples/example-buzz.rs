@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    ComponentOutput, InputRule, Node, Operator, OutputRule, State, Token,
+    default_input_rule, default_output_rule, export_operator, get_input_from, types::ZFResult,
+    zf_data, ComponentOutput, InputRule, Node, Operator, OutputRule, State, Token,
 };
 use zenoh_flow::{downcast, Context, SerDeData};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -44,8 +44,8 @@ impl Operator for BuzzOperator {
         let mut results = HashMap::<zenoh_flow::PortId, SerDeData>::with_capacity(1);
 
         let state = downcast!(BuzzState, dyn_state).unwrap();
-        let (_, fizz) = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?;
-        let (_, value) = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
+        let (_, fizz) = get_input_from!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?;
+        let (_, value) = get_input_from!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
 
         let mut buzz = fizz;
         if value.0 % 3 == 0 {

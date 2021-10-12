@@ -15,7 +15,7 @@
 use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast, get_input_raw,
+    default_input_rule, default_output_rule, downcast, get_input_raw_from,
     runtime::message::DataMessage, zenoh_flow_derive::ZFState, zf_data_raw, zf_spin_lock,
     InputRule, Node, Operator, OutputRule, PortId, SerDeData, State, ZFResult,
 };
@@ -112,7 +112,7 @@ impl Operator for FaceDetection {
         let mut face = zf_spin_lock!(state.face);
         let encode_options = zf_spin_lock!(state.encode_options);
 
-        let (_, data) = get_input_raw!(String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_raw_from!(String::from(INPUT), inputs).unwrap();
 
         // Decode Image
         let mut frame = opencv::imgcodecs::imdecode(
