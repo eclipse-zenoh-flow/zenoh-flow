@@ -17,12 +17,8 @@ use std::collections::HashMap;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
-use zenoh_flow::Token;
-use zenoh_flow::{
-    default_input_rule, downcast, downcast_mut, export_sink, types::ZFResult, InputRule, Node,
-    State,
-};
-use zenoh_flow::{Context, PortId, Sink};
+use zenoh_flow::{downcast, downcast_mut, export_sink, types::ZFResult, Node, State};
+use zenoh_flow::{Context, Sink};
 
 use std::fs::File;
 use std::io::Write;
@@ -53,30 +49,21 @@ impl Sink for GenericSink {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn State>,
-        inputs: &mut HashMap<PortId, DataMessage>,
+        input: DataMessage,
     ) -> ZFResult<()> {
         let state = downcast!(SinkState, _state).unwrap();
 
         match &state.file {
             None => {
                 println!("#######");
-                for (k, v) in inputs {
-                    println!("Example Generic Sink Received on LinkId {:?} -> {:?}", k, v);
-                }
+                println!("Example Generic Sink Received -> {:?}", input);
                 println!("#######");
                 Ok(())
             }
             Some(f) => {
                 let mut guard = f.lock().await;
                 writeln!(&mut guard, "#######").unwrap();
-                for (k, v) in inputs {
-                    writeln!(
-                        &mut guard,
-                        "Example Generic Sink Received on LinkId {:?} -> {:?}",
-                        k, v
-                    )
-                    .unwrap();
-                }
+                writeln!(&mut guard, "Example Generic Sink Received -> {:?}", input).unwrap();
                 writeln!(&mut guard, "#######").unwrap();
                 guard.sync_all().unwrap();
                 Ok(())
@@ -100,17 +87,6 @@ impl Node for GenericSink {
                 Ok(())
             }
         }
-    }
-}
-
-impl InputRule for GenericSink {
-    fn input_rule(
-        &self,
-        _context: &mut Context,
-        state: &mut Box<dyn State>,
-        tokens: &mut HashMap<PortId, Token>,
-    ) -> ZFResult<bool> {
-        default_input_rule(state, tokens)
     }
 }
 

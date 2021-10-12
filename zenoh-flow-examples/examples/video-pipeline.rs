@@ -23,9 +23,8 @@ use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
 use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
-    default_input_rule, downcast, get_input_raw_from, model::link::PortDescriptor,
-    zenoh_flow_derive::ZFState, zf_data_raw, InputRule, Node, PortId, SerDeData, Sink, Source,
-    ZFError,
+    downcast, get_input_raw, model::link::PortDescriptor, zenoh_flow_derive::ZFState, zf_data_raw,
+    Node, SerDeData, Sink, Source, ZFError,
 };
 use zenoh_flow::{State, ZFResult};
 
@@ -148,17 +147,6 @@ impl VideoState {
     }
 }
 
-impl InputRule for VideoSink {
-    fn input_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
-    ) -> zenoh_flow::ZFResult<bool> {
-        default_input_rule(state, tokens)
-    }
-}
-
 impl Node for VideoSink {
     fn initialize(
         &self,
@@ -180,12 +168,12 @@ impl Sink for VideoSink {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
-        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
+        input: zenoh_flow::runtime::message::DataMessage,
     ) -> zenoh_flow::ZFResult<()> {
         // Downcasting to right type
         let state = downcast!(VideoState, dyn_state).unwrap();
 
-        let (_, data) = get_input_raw_from!(String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_raw!(input).unwrap();
 
         let decoded = opencv::imgcodecs::imdecode(
             &opencv::types::VectorOfu8::from_iter(data),

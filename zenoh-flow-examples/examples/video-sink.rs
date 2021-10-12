@@ -17,13 +17,10 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::State;
 use zenoh_flow::{
-    default_input_rule, downcast, get_input_raw_from, types::ZFResult, zenoh_flow_derive::ZFState,
-    InputRule, Node, Sink, ZFError,
+    downcast, get_input_raw, types::ZFResult, zenoh_flow_derive::ZFState, Node, Sink, ZFError,
 };
 
 use opencv::{highgui, prelude::*};
-
-static INPUT: &str = "Frame";
 
 #[derive(Debug)]
 struct VideoSink;
@@ -40,17 +37,6 @@ impl VideoState {
         Self {
             window_name: window_name.to_string(),
         }
-    }
-}
-
-impl InputRule for VideoSink {
-    fn input_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        tokens: &mut HashMap<zenoh_flow::PortId, zenoh_flow::Token>,
-    ) -> zenoh_flow::ZFResult<bool> {
-        default_input_rule(state, tokens)
     }
 }
 
@@ -75,12 +61,12 @@ impl Sink for VideoSink {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
-        inputs: &mut HashMap<zenoh_flow::PortId, zenoh_flow::runtime::message::DataMessage>,
+        input: zenoh_flow::runtime::message::DataMessage,
     ) -> zenoh_flow::ZFResult<()> {
         // Downcasting to right type
         let state = downcast!(VideoState, dyn_state).unwrap();
 
-        let (_, data) = get_input_raw_from!(String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_raw!(input).unwrap();
 
         let decoded = opencv::imgcodecs::imdecode(
             &opencv::types::VectorOfu8::from_iter(data),

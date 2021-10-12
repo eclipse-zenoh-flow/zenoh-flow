@@ -15,17 +15,11 @@
 use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use zenoh_flow::State;
-use zenoh_flow::{
-    default_input_rule, downcast, get_input_from,
-    types::{Token, ZFResult},
-    zenoh_flow_derive::ZFState,
-    InputRule, Node, PortId, Sink,
-};
-
 use zenoh::net::config;
 use zenoh::net::{open, Session};
 use zenoh::ZFuture;
+use zenoh_flow::State;
+use zenoh_flow::{downcast, get_input, types::ZFResult, zenoh_flow_derive::ZFState, Node, Sink};
 use zenoh_flow_examples::ZFBytes;
 
 static INPUT: &str = "Data";
@@ -59,29 +53,18 @@ impl Node for ExampleGenericZenohSink {
     }
 }
 
-impl InputRule for ExampleGenericZenohSink {
-    fn input_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        tokens: &mut HashMap<PortId, Token>,
-    ) -> ZFResult<bool> {
-        default_input_rule(state, tokens)
-    }
-}
-
 #[async_trait]
 impl Sink for ExampleGenericZenohSink {
     async fn run(
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
-        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
+        mut input: zenoh_flow::runtime::message::DataMessage,
     ) -> ZFResult<()> {
         let state = downcast!(ZSinkState, dyn_state).unwrap();
 
         let path = format!("/zf/probe/{}", String::from(INPUT));
-        let (_, data) = get_input_from!(ZFBytes, String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input!(ZFBytes, input).unwrap();
 
         state
             .session

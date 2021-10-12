@@ -84,11 +84,11 @@ pub trait Source: Node + Send + Sync {
 }
 
 #[async_trait]
-pub trait Sink: Node + InputRule + Send + Sync {
+pub trait Sink: Node + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
-        inputs: &mut HashMap<PortId, DataMessage>,
+        input: DataMessage,
     ) -> ZFResult<()>;
 }
