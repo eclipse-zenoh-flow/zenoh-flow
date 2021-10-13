@@ -228,11 +228,11 @@ async fn main() {
     zf_graph
         .add_link(
             LinkFromDescriptor {
-                component: "camera-source".into(),
+                node: "camera-source".into(),
                 output: String::from(SOURCE),
             },
             LinkToDescriptor {
-                component: "video-sink".into(),
+                node: "video-sink".into(),
                 input: String::from(INPUT),
             },
             None,

@@ -18,7 +18,7 @@ use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input_from, types::ZFResult,
-    zf_data, ComponentOutput, Node, Operator, State, Token,
+    zf_data, Node, NodeOutput, Operator, State, Token,
 };
 use zenoh_flow::{downcast, Context, SerDeData};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -71,7 +71,7 @@ impl Operator for BuzzOperator {
         _context: &mut Context,
         state: &mut Box<dyn State>,
         outputs: HashMap<zenoh_flow::PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         default_output_rule(state, outputs)
     }
 }

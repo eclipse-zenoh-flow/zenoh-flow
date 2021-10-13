@@ -22,14 +22,14 @@ sinks:
       type: image
 links:
 - from:
-    component : Camera0
+    node : Camera0
     output : Frame
   to:
-    component : FaceDetection
+    node : FaceDetection
     input : Frame
 - from:
-    component : FaceDetection
+    node : FaceDetection
     output : Frame
   to:
-    component : ZSink
+    node : ZSink
     input : Data

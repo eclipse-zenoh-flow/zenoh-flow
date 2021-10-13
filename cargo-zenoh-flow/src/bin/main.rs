@@ -16,10 +16,8 @@ use async_std::process::exit;
 use colored::*;
 use structopt::StructOpt;
 
-use zenoh_flow::model::component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
-use zenoh_flow::model::{
-    ComponentKind, RegistryComponent, RegistryComponentArchitecture, RegistryComponentTag,
-};
+use zenoh_flow::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
+use zenoh_flow::model::{NodeKind, RegistryNode, RegistryNodeArchitecture, RegistryNodeTag};
 use zenoh_flow::OperatorId;
 
 #[cfg(feature = "local_registry")]
@@ -49,7 +47,7 @@ pub enum ZFCtl {
     New {
         name: String,
         #[structopt(short = "k", long = "kind", default_value = "operator")]
-        kind: ComponentKind,
+        kind: NodeKind,
     },
     List,
     Push {
@@ -106,7 +104,7 @@ async fn main() {
         }
         None => {
             println!(
-                "{}: unable to connect to local registry, component will not be uploaded.",
+                "{}: unable to connect to local registry, node will not be uploaded.",
                 "warning".yellow().bold()
             );
             None
@@ -142,7 +140,7 @@ async fn main() {
                 cargo_build_flags.remove(0);
             }
 
-            let (component_info, target_dir, manifest_dir) =
+            let (node_info, target_dir, manifest_dir) =
                 match cargo_zenoh_flow::utils::from_manifest(&manifest_path, package) {
                     Ok(res) => res,
                     Err(_e) => {
@@ -155,7 +153,7 @@ async fn main() {
                     "{}/release/{}{}{}",
                     target_dir.as_path().display().to_string(),
                     std::env::consts::DLL_PREFIX,
-                    component_info.id,
+                    node_info.id,
                     std::env::consts::DLL_SUFFIX
                 )
             } else {
@@ -163,32 +161,32 @@ async fn main() {
                     "{}/debug/{}{}{}",
                     target_dir.as_path().display().to_string(),
                     std::env::consts::DLL_PREFIX,
-                    component_info.id,
+                    node_info.id,
                     std::env::consts::DLL_SUFFIX
                 )
             };
             let uri = format!("file://{}", target);
 
-            let (metadata_graph, _metadata_arch, descriptor) = match component_info.kind {
-                ComponentKind::Operator => {
-                    if component_info.inputs.is_none() {
+            let (metadata_graph, _metadata_arch, descriptor) = match node_info.kind {
+                NodeKind::Operator => {
+                    if node_info.inputs.is_none() {
                         println!(
-                            "{}: Zenoh-Flow metadata is missing inputs for Operator component",
+                            "{}: Zenoh-Flow metadata is missing inputs for Operator node",
                             "error".red().bold()
                         );
                         exit(-1);
                     }
 
-                    if component_info.outputs.is_none() {
+                    if node_info.outputs.is_none() {
                         println!(
-                            "{}: Zenoh-Flow metadata is missing outputs for Operator component",
+                            "{}: Zenoh-Flow metadata is missing outputs for Operator node",
                             "error".red().bold()
                         );
                         exit(-1);
                     }
 
-                    let inputs = component_info.inputs.unwrap();
-                    let outputs = component_info.outputs.unwrap();
+                    let inputs = node_info.inputs.unwrap();
+                    let outputs = node_info.outputs.unwrap();
 
                     if inputs.is_empty() {
                         println!("{}: Zenoh-Flow metadata has empty inputs for Operator, it should have at least one input", "error".red().bold());
@@ -201,7 +199,7 @@ async fn main() {
                     }
 
                     let descriptor = OperatorDescriptor {
-                        id: OperatorId::from(component_info.id.clone()),
+                        id: OperatorId::from(node_info.id.clone()),
                         inputs: inputs.clone(),
                         outputs: outputs.clone(),
                         uri: Some(uri.clone()),
@@ -209,7 +207,7 @@ async fn main() {
                         runtime: None,
                     };
 
-                    let metadata_arch = RegistryComponentArchitecture {
+                    let metadata_arch = RegistryNodeArchitecture {
                         arch: String::from(std::env::consts::ARCH),
                         os: String::from(std::env::consts::OS),
                         uri,
@@ -217,15 +215,15 @@ async fn main() {
                         signature: String::from(""),
                     };
 
-                    let metadata_tag = RegistryComponentTag {
+                    let metadata_tag = RegistryNodeTag {
                         name: version_tag,
                         requirement_labels: vec![],
                         architectures: vec![metadata_arch.clone()],
                     };
 
-                    let metadata_graph = RegistryComponent {
-                        id: OperatorId::from(component_info.id.clone()),
-                        kind: component_info.kind.clone(),
+                    let metadata_graph = RegistryNode {
+                        id: OperatorId::from(node_info.id.clone()),
+                        kind: node_info.kind.clone(),
                         classes: vec![],
                         tags: vec![metadata_tag],
                         inputs,
@@ -242,20 +240,20 @@ async fn main() {
                     };
                     (metadata_graph, metadata_arch, yml_descriptor)
                 }
-                ComponentKind::Source => {
-                    if component_info.inputs.is_some() {
-                        println!("{}: Zenoh-Flow metadata has inputs for Source component, they will be discarded", "warning".yellow().bold());
+                NodeKind::Source => {
+                    if node_info.inputs.is_some() {
+                        println!("{}: Zenoh-Flow metadata has inputs for Source node, they will be discarded", "warning".yellow().bold());
                     }
 
-                    if component_info.outputs.is_none() {
+                    if node_info.outputs.is_none() {
                         println!(
-                            "{}: Zenoh-Flow metadata is missing outputs for Source component",
+                            "{}: Zenoh-Flow metadata is missing outputs for Source node",
                             "error".red().bold()
                         );
                         exit(-1);
                     }
 
-                    let outputs = component_info.outputs.unwrap();
+                    let outputs = node_info.outputs.unwrap();
 
                     if outputs.is_empty() {
                         println!("{}: Zenoh-Flow metadata has empty outputs for Source, it should exactly one output", "error".red().bold());
@@ -270,7 +268,7 @@ async fn main() {
                     let output = &outputs[0];
 
                     let descriptor = SourceDescriptor {
-                        id: OperatorId::from(component_info.id.clone()),
+                        id: OperatorId::from(node_info.id.clone()),
                         output: output.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
@@ -278,7 +276,7 @@ async fn main() {
                         period: None,
                     };
 
-                    let metadata_arch = RegistryComponentArchitecture {
+                    let metadata_arch = RegistryNodeArchitecture {
                         arch: String::from(std::env::consts::ARCH),
                         os: String::from(std::env::consts::OS),
                         uri,
@@ -286,15 +284,15 @@ async fn main() {
                         signature: String::from(""),
                     };
 
-                    let metadata_tag = RegistryComponentTag {
+                    let metadata_tag = RegistryNodeTag {
                         name: version_tag,
                         requirement_labels: vec![],
                         architectures: vec![metadata_arch.clone()],
                     };
 
-                    let metadata_graph = RegistryComponent {
-                        id: OperatorId::from(component_info.id.clone()),
-                        kind: component_info.kind.clone(),
+                    let metadata_graph = RegistryNode {
+                        id: OperatorId::from(node_info.id.clone()),
+                        kind: node_info.kind.clone(),
                         classes: vec![],
                         tags: vec![metadata_tag],
                         inputs: vec![],
@@ -311,20 +309,20 @@ async fn main() {
                     };
                     (metadata_graph, metadata_arch, yml_descriptor)
                 }
-                ComponentKind::Sink => {
-                    if component_info.inputs.is_none() {
+                NodeKind::Sink => {
+                    if node_info.inputs.is_none() {
                         println!(
-                            "{}: Zenoh-Flow metadata is missing inputs for Sink component",
+                            "{}: Zenoh-Flow metadata is missing inputs for Sink node",
                             "error".red().bold()
                         );
                         exit(-1);
                     }
 
-                    if component_info.outputs.is_some() {
-                        println!("{}: Zenoh-Flow metadata has outputs for Sink component, they will be discarded", "warning".yellow().bold());
+                    if node_info.outputs.is_some() {
+                        println!("{}: Zenoh-Flow metadata has outputs for Sink node, they will be discarded", "warning".yellow().bold());
                     }
 
-                    let inputs = component_info.inputs.unwrap();
+                    let inputs = node_info.inputs.unwrap();
 
                     if inputs.is_empty() {
                         println!("{}: Zenoh-Flow metadata has empty inputs for Sink, it should exactly one inputs", "error".red().bold());
@@ -339,14 +337,14 @@ async fn main() {
                     let input = &inputs[0];
 
                     let descriptor = SinkDescriptor {
-                        id: OperatorId::from(component_info.id.clone()),
+                        id: OperatorId::from(node_info.id.clone()),
                         input: input.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
                         runtime: None,
                     };
 
-                    let metadata_arch = RegistryComponentArchitecture {
+                    let metadata_arch = RegistryNodeArchitecture {
                         arch: String::from(std::env::consts::ARCH),
                         os: String::from(std::env::consts::OS),
                         uri,
@@ -354,15 +352,15 @@ async fn main() {
                         signature: String::from(""),
                     };
 
-                    let metadata_tag = RegistryComponentTag {
+                    let metadata_tag = RegistryNodeTag {
                         name: version_tag,
                         requirement_labels: vec![],
                         architectures: vec![metadata_arch.clone()],
                     };
 
-                    let metadata_graph = RegistryComponent {
-                        id: OperatorId::from(component_info.id.clone()),
-                        kind: component_info.kind.clone(),
+                    let metadata_graph = RegistryNode {
+                        id: OperatorId::from(node_info.id.clone()),
+                        kind: node_info.kind.clone(),
                         classes: vec![],
                         tags: vec![metadata_tag],
                         inputs: vec![input.clone()],
@@ -380,10 +378,10 @@ async fn main() {
                 }
             };
             println!(
-                "{} Component {} - Kind {}",
+                "{} Node {} - Kind {}",
                 "Compiling".green().bold(),
-                component_info.id,
-                component_info.kind.to_string()
+                node_info.id,
+                node_info.kind.to_string()
             );
 
             match cargo_zenoh_flow::utils::cargo_build(&cargo_build_flags, release, &manifest_dir) {
@@ -406,7 +404,7 @@ async fn main() {
             match cargo_zenoh_flow::utils::store_zf_descriptor(
                 &descriptor,
                 &target_dir,
-                &component_info.id,
+                &node_info.id,
             ) {
                 Ok(res) => {
                     println!("{} stored in {}", "Descriptor".green().bold(), res.bold());
@@ -426,7 +424,7 @@ async fn main() {
                 println!(
                     "{} {} to local registry",
                     "Uploading".green().bold(),
-                    component_info.id.bold()
+                    node_info.id.bold()
                 );
                 client
                     .as_ref()
@@ -445,9 +443,9 @@ async fn main() {
                     target.bold()
                 );
                 file_client
-                    .send_component(
+                    .send_node(
                         &std::path::PathBuf::from(target),
-                        &component_info.id,
+                        &node_info.id,
                         &metadata_arch,
                         &version_tag,
                     )
@@ -460,10 +458,10 @@ async fn main() {
                 String::from("debug")
             };
             println!(
-                "{} [{}] component {} ",
+                "{} [{}] node {} ",
                 "Finished".green().bold(),
                 build_target,
-                component_info.id
+                node_info.id
             );
         }
         ZFCtl::New { name, kind } => {

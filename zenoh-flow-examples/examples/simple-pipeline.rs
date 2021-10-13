@@ -137,11 +137,11 @@ async fn main() {
     zf_graph
         .add_link(
             LinkFromDescriptor {
-                component: "counter-source".into(),
+                node: "counter-source".into(),
                 output: String::from(SOURCE),
             },
             LinkToDescriptor {
-                component: "generic-sink".into(),
+                node: "generic-sink".into(),
                 input: String::from(SOURCE),
             },
             None,

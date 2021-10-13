@@ -13,7 +13,7 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::component::OperatorRecord;
+use crate::model::node::OperatorRecord;
 use crate::runtime::graph::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
 use crate::types::{Token, ZFResult};
@@ -165,7 +165,7 @@ impl OperatorRunner {
                 // getting link
                 log::debug!("id: {:?}, message: {:?}", id, output);
                 if let Some(links) = io.1.get(&id) {
-                    let zf_message = Arc::new(Message::from_component_output(output, timestamp));
+                    let zf_message = Arc::new(Message::from_node_output(output, timestamp));
 
                     for tx in links {
                         log::debug!("Sending on: {:?}", tx);

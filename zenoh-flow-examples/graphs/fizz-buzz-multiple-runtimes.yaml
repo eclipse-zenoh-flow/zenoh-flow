@@ -80,76 +80,76 @@ sinks:
 
 links:
   - from:
-      component: ManualSenderOperator
+      node: ManualSenderOperator
       output: Int
     to:
-      component: FizzOperator
+      node: FizzOperator
       input: Int
 
   # FizzOperator -> BuzzOperator
   - from:
-      component: FizzOperator
+      node: FizzOperator
       output: Int
     to:
-      component: BuzzOperator
+      node: BuzzOperator
       input: Int
 
   - from:
-      component: FizzOperator
+      node: FizzOperator
       output: Str
     to:
-      component: BuzzOperator
+      node: BuzzOperator
       input: Str
 
   - from:
-      component: BuzzOperator
+      node: BuzzOperator
       output: Str
     to:
-      component: ReceiverOperator
+      node: ReceiverOperator
       input: Str
 
   # FizzOperator -> BuzzOperator2
   - from:
-      component: FizzOperator
+      node: FizzOperator
       output: Int
     to:
-      component: BuzzOperator2
+      node: BuzzOperator2
       input: Int
 
   - from:
-      component: FizzOperator
+      node: FizzOperator
       output: Str
     to:
-      component: BuzzOperator2
+      node: BuzzOperator2
       input: Str
 
   - from:
-      component: BuzzOperator2
+      node: BuzzOperator2
       output: Str
     to:
-      component: ReceiverOperator2
+      node: ReceiverOperator2
       input: Str
 
   # FizzOperator -> BuzzOperator3
   - from:
-      component: FizzOperator
+      node: FizzOperator
       output: Int
     to:
-      component: BuzzOperator3
+      node: BuzzOperator3
       input: Int
 
   - from:
-      component: FizzOperator
+      node: FizzOperator
       output: Str
     to:
-      component: BuzzOperator3
+      node: BuzzOperator3
       input: Str
 
   - from:
-      component: BuzzOperator3
+      node: BuzzOperator3
       output: Str
     to:
-      component: ReceiverOperator3
+      node: ReceiverOperator3
       input: Str
 
 mapping:

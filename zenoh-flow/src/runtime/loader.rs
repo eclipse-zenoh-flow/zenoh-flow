@@ -13,7 +13,7 @@
 //
 
 use crate::{
-    model::component::{OperatorRecord, SinkRecord, SourceRecord},
+    model::node::{OperatorRecord, SinkRecord, SourceRecord},
     runtime::runners::{
         operator::{OperatorDeclaration, OperatorRunner},
         sink::{SinkDeclaration, SinkRunner},

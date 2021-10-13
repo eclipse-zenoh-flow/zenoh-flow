@@ -12,11 +12,11 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::model::component::{
-    OperatorDescriptor, OperatorRecord, SinkDescriptor, SinkRecord, SourceDescriptor, SourceRecord,
-};
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
+use crate::model::node::{
+    OperatorDescriptor, OperatorRecord, SinkDescriptor, SinkRecord, SourceDescriptor, SourceRecord,
+};
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{OperatorId, RuntimeId, ZFError, ZFResult};
@@ -75,8 +75,8 @@ impl DataFlowDescriptor {
 
         match &self.mapping {
             Some(mapping) => {
-                for component_mapping in mapping.iter() {
-                    runtimes.insert(component_mapping.runtime.clone());
+                for node_mapping in mapping.iter() {
+                    runtimes.insert(node_mapping.runtime.clone());
                 }
             }
             None => (),
@@ -135,7 +135,7 @@ impl DataFlowRecord {
         serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
-    pub fn find_component_runtime(&self, id: &str) -> Option<RuntimeId> {
+    pub fn find_node_runtime(&self, id: &str) -> Option<RuntimeId> {
         match self.get_operator(id) {
             Some(o) => Some(o.runtime),
             None => match self.get_source(id) {
@@ -148,8 +148,8 @@ impl DataFlowRecord {
         }
     }
 
-    pub fn find_component_output_type(&self, id: &str, output: &str) -> Option<String> {
-        log::trace!("find_component_output_type({:?},{:?})", id, output);
+    pub fn find_node_output_type(&self, id: &str, output: &str) -> Option<String> {
+        log::trace!("find_node_output_type({:?},{:?})", id, output);
         match self.get_operator(id) {
             Some(o) => o.get_output_type(output),
             None => match self.get_source(id) {
@@ -159,8 +159,8 @@ impl DataFlowRecord {
         }
     }
 
-    pub fn find_component_input_type(&self, id: &str, input: &str) -> Option<String> {
-        log::trace!("find_component_input_type({:?},{:?})", id, input);
+    pub fn find_node_input_type(&self, id: &str, input: &str) -> Option<String> {
+        log::trace!("find_node_input_type({:?},{:?})", id, input);
         match self.get_operator(id) {
             Some(o) => o.get_input_type(input),
             None => match self.get_sink(id) {
@@ -207,42 +207,41 @@ impl DataFlowRecord {
 
     fn add_links(&mut self, links: &[LinkDescriptor]) -> ZFResult<()> {
         for l in links {
-            let from_runtime = match self.find_component_runtime(&l.from.component) {
+            let from_runtime = match self.find_node_runtime(&l.from.node) {
                 Some(rt) => rt,
                 None => {
                     return Err(ZFError::Uncompleted(format!(
                         "Unable to find runtime for {}",
-                        &l.from.component
+                        &l.from.node
                     )))
                 }
             };
 
-            let to_runtime = match self.find_component_runtime(&l.to.component) {
+            let to_runtime = match self.find_node_runtime(&l.to.node) {
                 Some(rt) => rt,
                 None => {
                     return Err(ZFError::Uncompleted(format!(
                         "Unable to find runtime for {}",
-                        &l.to.component
+                        &l.to.node
                     )))
                 }
             };
 
-            let from_type = match self.find_component_output_type(&l.from.component, &l.from.output)
-            {
+            let from_type = match self.find_node_output_type(&l.from.node, &l.from.output) {
                 Some(t) => t,
                 None => {
                     return Err(ZFError::PortNotFound((
-                        l.from.component.clone(),
+                        l.from.node.clone(),
                         l.from.output.clone(),
                     )))
                 }
             };
 
-            let to_type = match self.find_component_input_type(&l.to.component, &l.to.input) {
+            let to_type = match self.find_node_input_type(&l.to.node, &l.to.input) {
                 Some(t) => t,
                 None => {
                     return Err(ZFError::PortNotFound((
-                        l.to.component.clone(),
+                        l.to.node.clone(),
                         l.to.input.clone(),
                     )))
                 }
@@ -253,17 +252,17 @@ impl DataFlowRecord {
             }
 
             if from_runtime == to_runtime {
-                // link between components on the same runtime
+                // link between nodes on the same runtime
                 self.links.push(l.clone())
             } else {
-                // link between component on different runtime
+                // link between node on different runtime
                 // here we have to create the connectors information
                 // and add the new links
 
                 // creating zenoh resource name
                 let z_resource_name = format!(
                     "/zf/data/{}/{}/{}/{}",
-                    &self.flow, &self.uuid, &l.from.component, &l.from.output
+                    &self.flow, &self.uuid, &l.from.node, &l.from.output
                 );
 
                 // We only create a sender if none was created for the same resource. The rationale
@@ -277,7 +276,7 @@ impl DataFlowRecord {
                     // creating sender
                     let sender_id = format!(
                         "sender-{}-{}-{}-{}",
-                        &self.flow, &self.uuid, &l.from.component, &l.from.output
+                        &self.flow, &self.uuid, &l.from.node, &l.from.output
                     );
                     let sender = ZFConnectorRecord {
                         kind: ZFConnectorKind::Sender,
@@ -291,11 +290,11 @@ impl DataFlowRecord {
                         runtime: from_runtime,
                     };
 
-                    // creating link between component and sender
+                    // creating link between node and sender
                     let link_sender = LinkDescriptor {
                         from: l.from.clone(),
                         to: LinkToDescriptor {
-                            component: sender_id.into(),
+                            node: sender_id.into(),
                             input: l.from.output.clone(),
                         },
                         size: None,
@@ -311,7 +310,7 @@ impl DataFlowRecord {
                 // creating receiver
                 let receiver_id = format!(
                     "receiver-{}-{}-{}-{}",
-                    &self.flow, &self.uuid, &l.to.component, &l.to.input
+                    &self.flow, &self.uuid, &l.to.node, &l.to.input
                 );
                 let receiver = ZFConnectorRecord {
                     kind: ZFConnectorKind::Receiver,
@@ -325,10 +324,10 @@ impl DataFlowRecord {
                     runtime: to_runtime,
                 };
 
-                //creating link between receiver and component
+                // Creating link between receiver and node
                 let link_receiver = LinkDescriptor {
                     from: LinkFromDescriptor {
-                        component: receiver_id.into(),
+                        node: receiver_id.into(),
                         output: l.to.input.clone(),
                     },
                     to: l.to.clone(),

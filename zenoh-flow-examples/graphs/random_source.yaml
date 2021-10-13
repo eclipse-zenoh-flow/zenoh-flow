@@ -14,8 +14,8 @@ sinks:
         type: usize
 links:
 - from:
-    component : RandomGenerator
+    node : RandomGenerator
     output : Random
   to:
-    component : PrintSink
+    node : PrintSink
     input : Data

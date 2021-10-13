@@ -11,7 +11,7 @@ Zenoh-Flow provides a zenoh-based dataflow programming framework for computation
 
 Zenoh-Flow allow users to declare a dataflow graph, via a YAML file, and use tags to express location affinity and requirements for the operators that makeup the graph. When deploying the dataflow graph, Zenoh-Flow automatically deals with distribution by linking remote operators through zenoh.
 
-A dataflow is composed of set of _sources_ — producing data, _operators_ — computing over the data, and _sinks_ — consuming the resulting data. These components are _dynamically_ loaded at runtime.
+A dataflow is composed of set of _nodes_: _sources_ — producing data, _operators_ — computing over the data, and _sinks_ — consuming the resulting data. These nodes are _dynamically_ loaded at runtime.
 
 Remote source, operators, and sinks leverage zenoh to communicate in a transparent manner. In other terms, the dataflow the dafalow graph retails location transparency and could be deployed in different ways depending on specific needs.
 
@@ -36,20 +36,20 @@ Assuming that the previous steps completed successfully, you'll find the Zenoh-F
 - the path of the dataflow graph to execute: `--graph-file zenoh-flow-examples/graphs/fizz_buzz_pipeline.yaml`,
 - a name for the runtime: `--runtime foo`.
 
-The graph describes the different components composing the dataflow. Although mandatory, the name of the runtime is used to "deploy" the graph on different "runtime instances" (see the related examples).
+The graph describes the different nodes composing the dataflow. Although mandatory, the name of the runtime is used to "deploy" the graph on different "runtime instances" (see the related examples).
 
 
 -----------
-## Creating your components
+## Creating your nodes
 
-Assuming that the build steps completed successfully, you'll be able to use the `cargo zenoh-flow` subcommand to create a boilerplate for your components.
+Assuming that the build steps completed successfully, you'll be able to use the `cargo zenoh-flow` subcommand to create a boilerplate for your nodes.
 First let's ensure to have the `cargo-zenoh-flow` binary in the Cargo path.
 
 ```bash
 $ ln -s $(pwd)/target/release/cargo-zenoh-flow ~/.cargo/bin/
 ```
 
-Then you can create your own component with:
+Then you can create your own node with:
 
 ```bash
 $ cd ~
@@ -69,7 +69,7 @@ Once you are done you can build it:
 $ cargo zenoh-flow build
 ```
 
-It will provide you the path of the descriptor for the new component, that can be used inside a flow descriptor.
+It will provide you the path of the descriptor for the new node, that can be used inside a flow descriptor.
 
 -----------
 ## Examples
@@ -86,7 +86,7 @@ This will create, depending on your OS, the libraries that the pipeline will fet
 
 #### Single runtime
 
-To run all components on the same Zenoh Flow runtime:
+To run all nodes on the same Zenoh Flow runtime:
 
 ```bash
 ./target/release/runtime --graph-file zenoh-flow-examples/graphs/fizz_buzz_pipeline.yaml --runtime foo
@@ -132,7 +132,7 @@ This will create, depending on your OS, the libraries that the pipeline will fet
 
 #### Single runtime
 
-To run all components on the same Zenoh Flow runtime:
+To run all nodes on the same Zenoh Flow runtime:
 
 ```bash
 ./target/release/runtime --graph-file zenoh-flow-examples/graphs/face_detection.yaml --runtime foo
@@ -188,7 +188,7 @@ Then please update the files `zenoh-flow-examples/graphs/dnn-object-detection.ya
 
 #### Single runtime
 
-To run all components on the same Zenoh Flow runtime:
+To run all nodes on the same Zenoh Flow runtime:
 
 ```bash
 ./target/release/runtime --graph-file zenoh-flow-examples/graphs/dnn-object-detection.yaml --runtime foo

@@ -31,16 +31,16 @@ sinks: # sources can have only ONE input
 
 links:
 - from:
-    component : Camera0
+    node : Camera0
     output : Frame
   to:
-    component : FaceDetection
+    node : FaceDetection
     input : Frame
 - from:
-    component : FaceDetection
+    node : FaceDetection
     output : Frame
   to:
-    component : Window
+    node : Window
     input : Frame
 
 

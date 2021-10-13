@@ -20,8 +20,8 @@ links:
 
 links:
 - from:
-    component : Camera
+    node : Camera
     output : Frame
   to:
-    component : Window
+    node : Window
     input : Frame

@@ -25,16 +25,16 @@ sinks:
 
 links:
 - from:
-    component : Counter
+    node : Counter
     output : Counter
   to:
-    component : SumOperator
+    node : SumOperator
     input : Number
 - from:
-    component : SumOperator
+    node : SumOperator
     output : Sum
   to:
-    component : PrintSink
+    node : PrintSink
     input : Data
 
 mapping:

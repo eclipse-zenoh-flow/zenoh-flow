@@ -18,7 +18,7 @@ use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::Token;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input_from, types::ZFResult,
-    zf_data, zf_empty_state, ComponentOutput, Node, Operator, State,
+    zf_data, zf_empty_state, Node, NodeOutput, Operator, State,
 };
 use zenoh_flow::{Context, PortId, SerDeData};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -76,7 +76,7 @@ impl Operator for FizzOperator {
         _context: &mut Context,
         state: &mut Box<dyn State>,
         outputs: HashMap<PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         default_output_rule(state, outputs)
     }
 }

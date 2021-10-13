@@ -20,7 +20,7 @@ use std::{
     path::Path,
 };
 use zenoh_flow::{
-    default_input_rule, default_output_rule, ComponentOutput, Context, Node, Operator, PortId,
+    default_input_rule, default_output_rule, Context, Node, NodeOutput, Operator, PortId,
     SerDeData, State,
 };
 use zenoh_flow::{
@@ -315,7 +315,7 @@ impl Operator for ObjDetection {
         _context: &mut Context,
         state: &mut Box<dyn zenoh_flow::State>,
         outputs: HashMap<PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         default_output_rule(state, outputs)
     }
 }

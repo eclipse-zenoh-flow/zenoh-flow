@@ -13,7 +13,7 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::component::SourceRecord;
+use crate::model::node::SourceRecord;
 use crate::runtime::graph::link::LinkSender;
 use crate::runtime::message::Message;
 use crate::types::ZFResult;

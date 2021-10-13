@@ -34,10 +34,10 @@ use crate::runtime::runners::{
     operator::OperatorRunner, sink::SinkRunner, source::SourceRunner, Runner,
 };
 use crate::{
-    model::component::{OperatorRecord, SinkRecord, SourceRecord},
     model::connector::ZFConnectorKind,
     model::dataflow::DataFlowRecord,
     model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor},
+    model::node::{OperatorRecord, SinkRecord, SourceRecord},
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
     types::{OperatorId, ZFError, ZFResult},
@@ -180,35 +180,35 @@ impl DataFlowGraph {
         let (from_index, from_type) = match self
             .operators
             .iter()
-            .find(|&(_, o)| o.get_id() == connection.from.component.clone())
+            .find(|&(_, o)| o.get_id() == connection.from.node.clone())
         {
             Some((idx, op)) => match op.has_output(connection.from.output.clone()) {
                 true => (idx, op.get_output_type(connection.from.output.clone())?),
                 false => {
                     return Err(ZFError::PortNotFound((
-                        connection.from.component.clone(),
+                        connection.from.node.clone(),
                         connection.from.output.clone(),
                     )))
                 }
             },
-            None => return Err(ZFError::OperatorNotFound(connection.from.component.clone())),
+            None => return Err(ZFError::OperatorNotFound(connection.from.node.clone())),
         };
 
         let (to_index, to_type) = match self
             .operators
             .iter()
-            .find(|&(_, o)| o.get_id() == connection.to.component.clone())
+            .find(|&(_, o)| o.get_id() == connection.to.node.clone())
         {
             Some((idx, op)) => match op.has_input(connection.to.input.clone()) {
                 true => (idx, op.get_input_type(connection.to.input.clone())?),
                 false => {
                     return Err(ZFError::PortNotFound((
-                        connection.to.component.clone(),
+                        connection.to.node.clone(),
                         connection.to.input.clone(),
                     )))
                 }
             },
-            None => return Err(ZFError::OperatorNotFound(connection.to.component.clone())),
+            None => return Err(ZFError::OperatorNotFound(connection.to.node.clone())),
         };
 
         if from_type == to_type {
@@ -469,29 +469,24 @@ impl TryFrom<DataFlowRecord> for DataFlowGraph {
             //     )));
             // }
 
-            let (from_index, from_runtime, from_type) = match operators
-                .iter()
-                .find(|&(_, o)| o.get_id() == l.from.component)
-            {
-                Some((idx, op)) => match op.has_output(l.from.output.clone()) {
-                    true => (
-                        idx,
-                        op.get_runtime(),
-                        op.get_output_type(l.from.output.clone())?,
-                    ),
-                    false => {
-                        return Err(ZFError::PortNotFound((
-                            l.from.component,
-                            l.from.output.clone(),
-                        )))
-                    }
-                },
-                None => return Err(ZFError::OperatorNotFound(l.from.component)),
-            };
+            let (from_index, from_runtime, from_type) =
+                match operators.iter().find(|&(_, o)| o.get_id() == l.from.node) {
+                    Some((idx, op)) => match op.has_output(l.from.output.clone()) {
+                        true => (
+                            idx,
+                            op.get_runtime(),
+                            op.get_output_type(l.from.output.clone())?,
+                        ),
+                        false => {
+                            return Err(ZFError::PortNotFound((l.from.node, l.from.output.clone())))
+                        }
+                    },
+                    None => return Err(ZFError::OperatorNotFound(l.from.node)),
+                };
 
             let (to_index, to_runtime, to_type) = match operators
                 .iter()
-                .find(|&(_, o)| o.get_id() == l.to.component)
+                .find(|&(_, o)| o.get_id() == l.to.node)
             {
                 Some((idx, op)) => match op.has_input(l.to.input.clone()) {
                     true => (
@@ -499,11 +494,9 @@ impl TryFrom<DataFlowRecord> for DataFlowGraph {
                         op.get_runtime(),
                         op.get_input_type(l.to.input.clone())?,
                     ),
-                    false => {
-                        return Err(ZFError::PortNotFound((l.to.component, l.to.input.clone())))
-                    }
+                    false => return Err(ZFError::PortNotFound((l.to.node, l.to.input.clone()))),
                 },
-                None => return Err(ZFError::OperatorNotFound(l.to.component)),
+                None => return Err(ZFError::OperatorNotFound(l.to.node)),
             };
 
             if to_type != from_type {

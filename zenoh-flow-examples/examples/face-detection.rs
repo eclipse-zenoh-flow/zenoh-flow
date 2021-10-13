@@ -173,7 +173,7 @@ impl Operator for FaceDetection {
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
         outputs: HashMap<zenoh_flow::PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::NodeOutput>> {
         default_output_rule(state, outputs)
     }
 }
