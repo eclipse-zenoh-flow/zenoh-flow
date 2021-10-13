@@ -72,11 +72,7 @@ pub trait Operator: Node + Send + Sync {
 
 #[async_trait]
 pub trait Source: Node + Send + Sync {
-    async fn run(
-        &self,
-        context: &mut Context,
-        state: &mut Box<dyn State>,
-    ) -> ZFResult<(PortId, SerDeData)>;
+    async fn run(&self, context: &mut Context, state: &mut Box<dyn State>) -> ZFResult<SerDeData>;
 }
 
 #[async_trait]

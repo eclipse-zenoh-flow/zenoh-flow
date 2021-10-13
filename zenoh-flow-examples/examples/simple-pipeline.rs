@@ -51,10 +51,10 @@ impl Source for CountSource {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn zenoh_flow::State>,
-    ) -> zenoh_flow::ZFResult<(zenoh_flow::PortId, SerDeData)> {
+    ) -> zenoh_flow::ZFResult<SerDeData> {
         let d = ZFUsize(COUNTER.fetch_add(1, Ordering::AcqRel));
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
-        Ok((SOURCE.into(), zf_data!(d)))
+        Ok(zf_data!(d))
     }
 }
 

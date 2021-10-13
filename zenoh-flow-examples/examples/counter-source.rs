@@ -22,8 +22,6 @@ use zenoh_flow::{
 use zenoh_flow::{Node, Source};
 use zenoh_flow_examples::ZFUsize;
 
-static SOURCE: &str = "Counter";
-
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug, ZFState)]
@@ -35,10 +33,10 @@ impl Source for CountSource {
         &self,
         _context: &mut zenoh_flow::Context,
         _state: &mut Box<dyn zenoh_flow::State>,
-    ) -> ZFResult<(zenoh_flow::PortId, SerDeData)> {
+    ) -> ZFResult<SerDeData> {
         let d = ZFUsize(COUNTER.fetch_add(1, Ordering::AcqRel));
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
-        Ok((SOURCE.into(), zf_data!(d)))
+        Ok(zf_data!(d))
     }
 }
 
