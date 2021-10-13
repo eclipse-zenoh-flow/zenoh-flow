@@ -11,8 +11,9 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 use std::collections::HashMap;
+use std::convert::TryFrom;
+use uhlc::HLC;
 use uuid::Uuid;
-use zenoh::net::Session as ZSession;
 use zenoh::ZFuture;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::dataflow::DataFlowDescriptor;
@@ -25,10 +26,9 @@ use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::RuntimeClient;
+use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
 use zenoh_flow::types::{ZFError, ZFResult};
-
-use std::convert::TryFrom;
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
@@ -39,31 +39,21 @@ pub struct RTState {
 
 #[derive(Clone)]
 pub struct Daemon {
-    pub zn: Arc<ZSession>,
     pub store: DataStore,
     pub state: Arc<Mutex<RTState>>,
-    pub runtime_uuid: Uuid,
-    pub runtime_name: Arc<str>,
+    pub ctx: RuntimeContext,
 }
 
 impl Daemon {
-    pub fn new(
-        zn: Arc<ZSession>,
-        z: Arc<zenoh::Zenoh>,
-        runtime_uuid: Uuid,
-        runtime_name: String,
-        config: RuntimeConfig,
-    ) -> Self {
+    pub fn new(z: Arc<zenoh::Zenoh>, ctx: RuntimeContext, config: RuntimeConfig) -> Self {
         let state = Arc::new(Mutex::new(RTState {
             graphs: HashMap::new(),
             config,
         }));
 
         Self {
-            zn,
             store: DataStore::new(z),
-            runtime_uuid,
-            runtime_name: runtime_name.into(),
+            ctx,
             state,
         }
     }
@@ -93,10 +83,18 @@ impl Daemon {
             &config.zenoh.locators.join(","),
         ));
 
-        let zn = Arc::new(zenoh::net::open(zn_properties.into()).wait()?);
+        let session = Arc::new(zenoh::net::open(zn_properties.into()).wait()?);
         let z = Arc::new(zenoh::Zenoh::new(zenoh_properties.into()).wait()?);
+        let hlc = Arc::new(HLC::default());
 
-        Ok(Self::new(zn, z, uuid, name, config))
+        let ctx = RuntimeContext {
+            session,
+            hlc,
+            runtime_name: name.into(),
+            runtime_uuid: uuid,
+        };
+
+        Ok(Self::new(z, ctx, config))
     }
 
     pub async fn run(&self, stop: async_std::channel::Receiver<()>) -> ZFResult<()> {
@@ -104,7 +102,7 @@ impl Daemon {
 
         let rt_server = self
             .clone()
-            .get_runtime_server(self.zn.clone(), Some(self.runtime_uuid));
+            .get_runtime_server(self.ctx.session.clone(), Some(self.ctx.runtime_uuid));
         let (rt_stopper, _hrt) = rt_server
             .connect()
             .await
@@ -126,17 +124,20 @@ impl Daemon {
 
         log::trace!("Setting state as Ready");
 
-        let mut rt_info = self.store.get_runtime_info(&self.runtime_uuid).await?;
-        let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
+        let mut rt_info = self.store.get_runtime_info(&self.ctx.runtime_uuid).await?;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
 
         rt_info.status = RuntimeStatusKind::Ready;
         rt_status.status = RuntimeStatusKind::Ready;
 
         self.store
-            .add_runtime_info(&self.runtime_uuid, &rt_info)
+            .add_runtime_info(&self.ctx.runtime_uuid, &rt_info)
             .await?;
         self.store
-            .add_runtime_status(&self.runtime_uuid, &rt_status)
+            .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
             .await?;
 
         let _ = stop
@@ -172,14 +173,14 @@ impl Daemon {
         let rt = self.clone();
 
         let rt_info = RuntimeInfo {
-            id: self.runtime_uuid,
-            name: self.runtime_name.clone(),
+            id: self.ctx.runtime_uuid,
+            name: self.ctx.runtime_name.clone(),
             tags: Vec::new(),
             status: RuntimeStatusKind::NotReady,
         };
 
         let rt_status = RuntimeStatus {
-            id: self.runtime_uuid,
+            id: self.ctx.runtime_uuid,
             status: RuntimeStatusKind::NotReady,
             running_flows: 0,
             running_operators: 0,
@@ -190,15 +191,15 @@ impl Daemon {
 
         let self_state = self.state.lock().await;
         self.store
-            .add_runtime_config(&self.runtime_uuid, &self_state.config)
+            .add_runtime_config(&self.ctx.runtime_uuid, &self_state.config)
             .await?;
         drop(self_state);
 
         self.store
-            .add_runtime_info(&self.runtime_uuid, &rt_info)
+            .add_runtime_info(&self.ctx.runtime_uuid, &rt_info)
             .await?;
         self.store
-            .add_runtime_status(&self.runtime_uuid, &rt_status)
+            .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
             .await?;
 
         let h = async_std::task::spawn_blocking(move || {
@@ -212,9 +213,15 @@ impl Daemon {
             .await
             .map_err(|e| ZFError::SendError(format!("{}", e)))?;
 
-        self.store.remove_runtime_config(&self.runtime_uuid).await?;
-        self.store.remove_runtime_info(&self.runtime_uuid).await?;
-        self.store.remove_runtime_status(&self.runtime_uuid).await?;
+        self.store
+            .remove_runtime_config(&self.ctx.runtime_uuid)
+            .await?;
+        self.store
+            .remove_runtime_info(&self.ctx.runtime_uuid)
+            .await?;
+        self.store
+            .remove_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
 
         Ok(())
     }
@@ -242,16 +249,17 @@ impl Runtime for Daemon {
 
         let mut rt_clients = vec![];
 
-        let mapped = zenoh_flow::runtime::map_to_infrastructure(flow, &self.runtime_name).await?;
+        let mapped =
+            zenoh_flow::runtime::map_to_infrastructure(flow, &self.ctx.runtime_name).await?;
 
         let involved_runtimes = mapped.get_runtimes();
         let involved_runtimes = involved_runtimes
             .into_iter()
-            .filter(|rt| *rt != self.runtime_name);
+            .filter(|rt| *rt != self.ctx.runtime_name);
 
         for rt in involved_runtimes {
             let rt_info = self.store.get_runtime_info_by_name(&rt).await?;
-            let client = RuntimeClient::new(self.zn.clone(), rt_info.id);
+            let client = RuntimeClient::new(self.ctx.session.clone(), rt_info.id);
             rt_clients.push(client);
         }
 
@@ -296,14 +304,14 @@ impl Runtime for Daemon {
 
         let all_involved_runtimes = self.store.get_flow_instance_runtimes(&record_id).await?;
 
-        let is_also_local = all_involved_runtimes.contains(&self.runtime_uuid);
+        let is_also_local = all_involved_runtimes.contains(&self.ctx.runtime_uuid);
 
         let remote_involved_runtimes = all_involved_runtimes
             .into_iter()
-            .filter(|rt| *rt != self.runtime_uuid);
+            .filter(|rt| *rt != self.ctx.runtime_uuid);
 
         for rt in remote_involved_runtimes {
-            let client = RuntimeClient::new(self.zn.clone(), rt);
+            let client = RuntimeClient::new(self.ctx.session.clone(), rt);
             rt_clients.push(client);
         }
 
@@ -352,17 +360,17 @@ impl Runtime for Daemon {
 
         let mut dfr = DataFlowRecord::try_from((flow, record_id))?;
 
-        let mut dataflow_graph = DataFlowGraph::try_from(dfr.clone())?;
+        let mut dataflow_graph = DataFlowGraph::from_record(dfr.clone(), self.ctx.clone())?;
 
-        dataflow_graph.load(&self.runtime_name)?;
+        dataflow_graph.load()?;
 
-        dataflow_graph.make_connections(&self.runtime_name).await?;
+        dataflow_graph.make_connections().await?;
 
         let mut self_state = self.state.lock().await;
         self_state.graphs.insert(dfr.uuid, (dataflow_graph, vec![]));
         drop(self_state);
         self.store
-            .add_runtime_flow(&self.runtime_uuid, &dfr)
+            .add_runtime_flow(&self.ctx.runtime_uuid, &dfr)
             .await?;
 
         log::info!(
@@ -383,11 +391,15 @@ impl Runtime for Daemon {
             Some((dfg, _)) => {
                 let record = self
                     .store
-                    .get_runtime_flow_by_instance(&self.runtime_uuid, &record_id)
+                    .get_runtime_flow_by_instance(&self.ctx.runtime_uuid, &record_id)
                     .await?;
 
                 self.store
-                    .remove_runtime_flow_instance(&self.runtime_uuid, &record.flow, &record.uuid)
+                    .remove_runtime_flow_instance(
+                        &self.ctx.runtime_uuid,
+                        &record.flow,
+                        &record.uuid,
+                    )
                     .await?;
 
                 Ok(record)
@@ -404,7 +416,10 @@ impl Runtime for Daemon {
 
         let mut _state = self.state.lock().await;
 
-        let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
@@ -430,7 +445,7 @@ impl Runtime for Daemon {
                 }
 
                 self.store
-                    .add_runtime_status(&self.runtime_uuid, &rt_status)
+                    .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
                     .await?;
 
                 Ok(())
@@ -443,7 +458,10 @@ impl Runtime for Daemon {
 
         let mut _state = self.state.lock().await;
 
-        let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
@@ -457,7 +475,7 @@ impl Runtime for Daemon {
                 rt_status.running_flows += 1;
 
                 self.store
-                    .add_runtime_status(&self.runtime_uuid, &rt_status)
+                    .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
                     .await?;
 
                 Ok(())
@@ -473,7 +491,10 @@ impl Runtime for Daemon {
 
         let mut _state = self.state.lock().await;
 
-        let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
@@ -516,7 +537,7 @@ impl Runtime for Daemon {
                 }
 
                 self.store
-                    .add_runtime_status(&self.runtime_uuid, &rt_status)
+                    .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
                     .await?;
 
                 Ok(())
@@ -528,7 +549,10 @@ impl Runtime for Daemon {
         log::info!("Stopping sources for Instance UUID: {}", record_id);
 
         let mut _state = self.state.lock().await;
-        let mut rt_status = self.store.get_runtime_status(&self.runtime_uuid).await?;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
@@ -560,7 +584,7 @@ impl Runtime for Daemon {
                 }
 
                 self.store
-                    .add_runtime_status(&self.runtime_uuid, &rt_status)
+                    .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
                     .await?;
 
                 Ok(())

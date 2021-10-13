@@ -21,6 +21,7 @@ use std::io::Write;
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
+use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::zf_spin_lock;
 use zenoh_flow::{
     downcast, get_input_raw, model::link::PortDescriptor, zenoh_flow_derive::ZFState, zf_data_raw,
@@ -194,7 +195,18 @@ impl Sink for VideoSink {
 async fn main() {
     env_logger::init();
 
-    let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new();
+    let session =
+        async_std::sync::Arc::new(zenoh::net::open(zenoh::net::config::peer()).await.unwrap());
+    let hlc = async_std::sync::Arc::new(uhlc::HLC::default());
+
+    let ctx = RuntimeContext {
+        session,
+        hlc,
+        runtime_name: String::from("local").into(),
+        runtime_uuid: uuid::Uuid::new_v4(),
+    };
+
+    let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new(ctx.clone());
 
     let source = Arc::new(CameraSource);
     let sink = Arc::new(VideoSink);
@@ -247,7 +259,7 @@ async fn main() {
     write!(file, "{}", dot_notation).unwrap();
     file.sync_all().unwrap();
 
-    zf_graph.make_connections("self").await.unwrap();
+    zf_graph.make_connections().await.unwrap();
 
     let mut managers = vec![];
 
