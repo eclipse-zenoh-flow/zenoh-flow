@@ -18,7 +18,7 @@ use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::PortId;
 use zenoh_flow::{
     default_input_rule, default_output_rule, downcast_mut, get_input_from, zf_data,
-    ComponentOutput, InputRule, Node, Operator, OutputRule, SerDeData, State, ZFResult,
+    ComponentOutput, Node, Operator, SerDeData, State, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -34,6 +34,15 @@ static INPUT: &str = "Number";
 static OUTPUT: &str = "Sum";
 
 impl Operator for SumAndSend {
+    fn input_rule(
+        &self,
+        _context: &mut zenoh_flow::Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
+    ) -> zenoh_flow::ZFResult<bool> {
+        default_input_rule(state, tokens)
+    }
+
     fn run(
         &self,
         _context: &mut zenoh_flow::Context,
@@ -53,20 +62,7 @@ impl Operator for SumAndSend {
         results.insert(OUTPUT.into(), zf_data!(res));
         Ok(results)
     }
-}
 
-impl InputRule for SumAndSend {
-    fn input_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
-    ) -> zenoh_flow::ZFResult<bool> {
-        default_input_rule(state, tokens)
-    }
-}
-
-impl OutputRule for SumAndSend {
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,

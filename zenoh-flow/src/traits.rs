@@ -47,31 +47,27 @@ pub trait Node {
     fn clean(&self, state: &mut Box<dyn State>) -> ZFResult<()>;
 }
 
-pub trait InputRule {
+pub trait Operator: Node + Send + Sync {
     fn input_rule(
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
         tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool>;
-}
 
-pub trait OutputRule {
-    fn output_rule(
-        &self,
-        context: &mut Context,
-        state: &mut Box<dyn State>,
-        outputs: HashMap<PortId, SerDeData>,
-    ) -> ZFResult<HashMap<PortId, ComponentOutput>>;
-}
-
-pub trait Operator: Node + InputRule + OutputRule + Send + Sync {
     fn run(
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
         inputs: &mut HashMap<PortId, DataMessage>,
     ) -> ZFResult<HashMap<PortId, SerDeData>>;
+
+    fn output_rule(
+        &self,
+        context: &mut Context,
+        state: &mut Box<dyn State>,
+        outputs: HashMap<PortId, SerDeData>,
+    ) -> ZFResult<HashMap<PortId, ComponentOutput>>;
 }
 
 #[async_trait]

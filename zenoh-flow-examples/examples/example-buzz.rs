@@ -18,7 +18,7 @@ use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
     default_input_rule, default_output_rule, export_operator, get_input_from, types::ZFResult,
-    zf_data, ComponentOutput, InputRule, Node, Operator, OutputRule, State, Token,
+    zf_data, ComponentOutput, Node, Operator, State, Token,
 };
 use zenoh_flow::{downcast, Context, SerDeData};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -35,6 +35,15 @@ static LINK_ID_INPUT_STR: &str = "Str";
 static LINK_ID_OUTPUT_STR: &str = "Str";
 
 impl Operator for BuzzOperator {
+    fn input_rule(
+        &self,
+        _context: &mut Context,
+        state: &mut Box<dyn State>,
+        tokens: &mut HashMap<zenoh_flow::PortId, Token>,
+    ) -> ZFResult<bool> {
+        default_input_rule(state, tokens)
+    }
+
     fn run(
         &self,
         _context: &mut Context,
@@ -55,6 +64,15 @@ impl Operator for BuzzOperator {
         results.insert(LINK_ID_OUTPUT_STR.into(), zf_data!(buzz));
 
         Ok(results)
+    }
+
+    fn output_rule(
+        &self,
+        _context: &mut Context,
+        state: &mut Box<dyn State>,
+        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
+        default_output_rule(state, outputs)
     }
 }
 
@@ -78,28 +96,6 @@ impl Node for BuzzOperator {
 
     fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
-    }
-}
-
-impl InputRule for BuzzOperator {
-    fn input_rule(
-        &self,
-        _context: &mut Context,
-        state: &mut Box<dyn State>,
-        tokens: &mut HashMap<zenoh_flow::PortId, Token>,
-    ) -> ZFResult<bool> {
-        default_input_rule(state, tokens)
-    }
-}
-
-impl OutputRule for BuzzOperator {
-    fn output_rule(
-        &self,
-        _context: &mut Context,
-        state: &mut Box<dyn State>,
-        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
-        default_output_rule(state, outputs)
     }
 }
 

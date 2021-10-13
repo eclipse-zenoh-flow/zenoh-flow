@@ -20,8 +20,8 @@ use std::{
     path::Path,
 };
 use zenoh_flow::{
-    default_input_rule, default_output_rule, ComponentOutput, Context, InputRule, Node, Operator,
-    OutputRule, PortId, SerDeData, State,
+    default_input_rule, default_output_rule, ComponentOutput, Context, Node, Operator, PortId,
+    SerDeData, State,
 };
 use zenoh_flow::{
     downcast, get_input_raw_from,
@@ -106,7 +106,7 @@ impl Node for ObjDetection {
     }
 }
 
-impl InputRule for ObjDetection {
+impl Operator for ObjDetection {
     fn input_rule(
         &self,
         _context: &mut Context,
@@ -115,20 +115,7 @@ impl InputRule for ObjDetection {
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }
-}
 
-impl OutputRule for ObjDetection {
-    fn output_rule(
-        &self,
-        _context: &mut Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
-        default_output_rule(state, outputs)
-    }
-}
-
-impl Operator for ObjDetection {
     fn run(
         &self,
         _context: &mut Context,
@@ -321,6 +308,15 @@ impl Operator for ObjDetection {
         results.insert(OUTPUT.into(), zf_data_raw!(buf.into()));
 
         Ok(results)
+    }
+
+    fn output_rule(
+        &self,
+        _context: &mut Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        outputs: HashMap<PortId, SerDeData>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
+        default_output_rule(state, outputs)
     }
 }
 

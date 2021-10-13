@@ -21,8 +21,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
-use zenoh_flow::{default_input_rule, Context, InputRule, Node, PortId, SerDeData, Sink, Source};
 use zenoh_flow::{model::link::PortDescriptor, zf_data, zf_empty_state};
+use zenoh_flow::{Context, Node, SerDeData, Sink, Source};
 use zenoh_flow::{State, ZFResult};
 use zenoh_flow_examples::ZFUsize;
 
@@ -83,17 +83,6 @@ impl Sink for ExampleGenericSink {
     ) -> zenoh_flow::ZFResult<()> {
         println!("Example Generic Sink Received: {:?}", input);
         Ok(())
-    }
-}
-
-impl InputRule for ExampleGenericSink {
-    fn input_rule(
-        &self,
-        _context: &mut Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
-    ) -> zenoh_flow::ZFResult<bool> {
-        default_input_rule(state, tokens)
     }
 }
 
