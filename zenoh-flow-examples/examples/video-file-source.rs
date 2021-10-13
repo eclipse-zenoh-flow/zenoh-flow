@@ -45,8 +45,6 @@ impl std::fmt::Debug for VideoSourceState {
     }
 }
 
-static SOURCE: &str = "Frame";
-
 impl VideoSourceState {
     fn new(configuration: &Option<HashMap<String, String>>) -> Self {
         // Configuration is mandatory
@@ -95,7 +93,7 @@ impl Source for VideoSource {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
-    ) -> ZFResult<(zenoh_flow::PortId, SerDeData)> {
+    ) -> ZFResult<SerDeData> {
         let state = downcast!(VideoSourceState, dyn_state).unwrap();
 
         let mut cam = zf_spin_lock!(state.camera);
@@ -135,7 +133,7 @@ impl Source for VideoSource {
 
         async_std::task::sleep(std::time::Duration::from_millis(state.delay)).await;
 
-        Ok((SOURCE.into(), zf_data_raw!(buf.into())))
+        Ok(zf_data_raw!(buf.into()))
     }
 }
 

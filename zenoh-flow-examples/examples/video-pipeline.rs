@@ -79,7 +79,7 @@ impl Source for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
-    ) -> zenoh_flow::ZFResult<(zenoh_flow::PortId, SerDeData)> {
+    ) -> zenoh_flow::ZFResult<SerDeData> {
         // Downcasting to right type
         let state = downcast!(CameraState, dyn_state).unwrap();
         let data: Vec<u8>;
@@ -112,7 +112,7 @@ impl Source for CameraSource {
         }
 
         async_std::task::sleep(std::time::Duration::from_millis(state.delay)).await;
-        Ok((SOURCE.into(), zf_data_raw!(data)))
+        Ok(zf_data_raw!(data))
     }
 }
 

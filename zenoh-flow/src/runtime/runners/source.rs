@@ -80,6 +80,7 @@ impl SourceRunner {
 
     pub async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
+        let id: Arc<str> = self.record.output.port_id.clone().into();
 
         loop {
             // Guards are taken at the beginning of each iteration to allow interleaving.
@@ -87,7 +88,7 @@ impl SourceRunner {
             let mut state = self.state.write().await;
 
             // Running
-            let (id, output) = self.source.run(&mut context, &mut state).await?;
+            let output = self.source.run(&mut context, &mut state).await?;
 
             let timestamp = self.hlc.new_timestamp();
 

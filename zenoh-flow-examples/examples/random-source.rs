@@ -16,11 +16,9 @@ use async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::{
-    types::ZFResult, zf_data, zf_empty_state, Context, Node, PortId, SerDeData, Source, State,
+    types::ZFResult, zf_data, zf_empty_state, Context, Node, SerDeData, Source, State,
 };
 use zenoh_flow_examples::ZFUsize;
-
-static SOURCE: &str = "Random";
 
 #[derive(Debug)]
 struct ExampleRandomSource;
@@ -44,9 +42,9 @@ impl Source for ExampleRandomSource {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn zenoh_flow::State>,
-    ) -> ZFResult<(PortId, SerDeData)> {
+    ) -> ZFResult<SerDeData> {
         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
-        Ok((SOURCE.into(), zf_data!(ZFUsize(rand::random::<usize>()))))
+        Ok(zf_data!(ZFUsize(rand::random::<usize>())))
     }
 }
 

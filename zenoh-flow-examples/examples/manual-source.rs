@@ -15,13 +15,11 @@
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc, usize};
 use zenoh_flow::{
-    zf_data, zf_empty_state, Context, Node, PortId, SerDeData, Source, State, ZFError, ZFResult,
+    zf_data, zf_empty_state, Context, Node, SerDeData, Source, State, ZFError, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
 struct ManualSource;
-
-static LINK_ID_INPUT_INT: &str = "Int";
 
 #[async_trait]
 impl Source for ManualSource {
@@ -29,7 +27,7 @@ impl Source for ManualSource {
         &self,
         _context: &mut Context,
         _state: &mut Box<dyn State>,
-    ) -> ZFResult<(PortId, SerDeData)> {
+    ) -> ZFResult<SerDeData> {
         println!("> Please input a number: ");
         let mut number = String::new();
         async_std::io::stdin()
@@ -42,7 +40,7 @@ impl Source for ManualSource {
             Err(_) => return Err(ZFError::GenericError),
         };
 
-        Ok((LINK_ID_INPUT_INT.into(), zf_data!(ZFUsize(value))))
+        Ok(zf_data!(ZFUsize(value)))
     }
 }
 

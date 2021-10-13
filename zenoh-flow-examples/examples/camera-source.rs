@@ -43,8 +43,6 @@ impl std::fmt::Debug for CameraState {
     }
 }
 
-static SOURCE: &str = "Frame";
-
 impl CameraState {
     fn new(configuration: &Option<HashMap<String, String>>) -> Self {
         let (camera, resolution, delay) = match configuration {
@@ -118,7 +116,7 @@ impl Source for CameraSource {
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
-    ) -> ZFResult<(zenoh_flow::PortId, SerDeData)> {
+    ) -> ZFResult<SerDeData> {
         let state = downcast_mut!(CameraState, dyn_state).unwrap();
 
         let mut cam = zf_spin_lock!(state.camera);
@@ -143,7 +141,7 @@ impl Source for CameraSource {
 
         async_std::task::sleep(std::time::Duration::from_millis(state.delay)).await;
 
-        Ok((SOURCE.into(), zf_data_raw!(buf.into())))
+        Ok(zf_data_raw!(buf.into()))
     }
 }
 
