@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    Component, ComponentOutput, InputRule, Operator, OutputRule, State, Token,
+    default_input_rule, default_output_rule, export_operator, get_input_from, types::ZFResult,
+    zf_data, Node, NodeOutput, Operator, State, Token,
 };
 use zenoh_flow::{downcast, Context, SerDeData};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -35,6 +35,15 @@ static LINK_ID_INPUT_STR: &str = "Str";
 static LINK_ID_OUTPUT_STR: &str = "Str";
 
 impl Operator for BuzzOperator {
+    fn input_rule(
+        &self,
+        _context: &mut Context,
+        state: &mut Box<dyn State>,
+        tokens: &mut HashMap<zenoh_flow::PortId, Token>,
+    ) -> ZFResult<bool> {
+        default_input_rule(state, tokens)
+    }
+
     fn run(
         &self,
         _context: &mut Context,
@@ -44,8 +53,8 @@ impl Operator for BuzzOperator {
         let mut results = HashMap::<zenoh_flow::PortId, SerDeData>::with_capacity(1);
 
         let state = downcast!(BuzzState, dyn_state).unwrap();
-        let (_, fizz) = get_input!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?;
-        let (_, value) = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
+        let (_, fizz) = get_input_from!(ZFString, String::from(LINK_ID_INPUT_STR), inputs)?;
+        let (_, value) = get_input_from!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
 
         let mut buzz = fizz;
         if value.0 % 3 == 0 {
@@ -56,9 +65,18 @@ impl Operator for BuzzOperator {
 
         Ok(results)
     }
+
+    fn output_rule(
+        &self,
+        _context: &mut Context,
+        state: &mut Box<dyn State>,
+        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
+        default_output_rule(state, outputs)
+    }
 }
 
-impl Component for BuzzOperator {
+impl Node for BuzzOperator {
     fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn State> {
         let state = match configuration {
             Some(config) => match config.get("buzzword") {
@@ -78,28 +96,6 @@ impl Component for BuzzOperator {
 
     fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
         Ok(())
-    }
-}
-
-impl InputRule for BuzzOperator {
-    fn input_rule(
-        &self,
-        _context: &mut Context,
-        state: &mut Box<dyn State>,
-        tokens: &mut HashMap<zenoh_flow::PortId, Token>,
-    ) -> ZFResult<bool> {
-        default_input_rule(state, tokens)
-    }
-}
-
-impl OutputRule for BuzzOperator {
-    fn output_rule(
-        &self,
-        _context: &mut Context,
-        state: &mut Box<dyn State>,
-        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
-        default_output_rule(state, outputs)
     }
 }
 

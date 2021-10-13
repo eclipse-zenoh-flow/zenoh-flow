@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::PortId;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, Component,
-    ComponentOutput, InputRule, Operator, OutputRule, SerDeData, State, ZFResult,
+    default_input_rule, default_output_rule, downcast_mut, get_input_from, zf_data, Node,
+    NodeOutput, Operator, SerDeData, State, ZFResult,
 };
 use zenoh_flow_examples::ZFUsize;
 
@@ -34,6 +34,15 @@ static INPUT: &str = "Number";
 static OUTPUT: &str = "Sum";
 
 impl Operator for SumAndSend {
+    fn input_rule(
+        &self,
+        _context: &mut zenoh_flow::Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
+    ) -> zenoh_flow::ZFResult<bool> {
+        default_input_rule(state, tokens)
+    }
+
     fn run(
         &self,
         _context: &mut zenoh_flow::Context,
@@ -45,7 +54,7 @@ impl Operator for SumAndSend {
         // Downcasting state to right type
         let mut state = downcast_mut!(SumAndSendState, dyn_state).unwrap();
 
-        let (_, data) = get_input!(ZFUsize, String::from(INPUT), inputs)?;
+        let (_, data) = get_input_from!(ZFUsize, String::from(INPUT), inputs)?;
 
         let res = ZFUsize(state.x.0 + data.0);
         state.x = res.clone();
@@ -53,31 +62,18 @@ impl Operator for SumAndSend {
         results.insert(OUTPUT.into(), zf_data!(res));
         Ok(results)
     }
-}
 
-impl InputRule for SumAndSend {
-    fn input_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
-    ) -> zenoh_flow::ZFResult<bool> {
-        default_input_rule(state, tokens)
-    }
-}
-
-impl OutputRule for SumAndSend {
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
         outputs: HashMap<PortId, SerDeData>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         default_output_rule(state, outputs)
     }
 }
 
-impl Component for SumAndSend {
+impl Node for SumAndSend {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,

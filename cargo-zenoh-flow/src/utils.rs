@@ -20,7 +20,7 @@ use async_std::prelude::*;
 use serde::Deserialize;
 use std::process::Command;
 use zenoh_flow::model::link::PortDescriptor;
-use zenoh_flow::model::{ComponentKind, RegistryComponent};
+use zenoh_flow::model::{NodeKind, RegistryNode};
 
 pub static ZF_OUTPUT_DIRECTORY: &str = "zenoh-flow";
 
@@ -67,7 +67,7 @@ pub struct CargoPkgMetadata {
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct CargoZenohFlow {
     pub id: String,
-    pub kind: ComponentKind,
+    pub kind: NodeKind,
     pub inputs: Option<Vec<PortDescriptor>>,
     pub outputs: Option<Vec<PortDescriptor>>,
 }
@@ -159,7 +159,7 @@ pub fn read_metadata(manifest_path: &Path) -> CZFResult<CargoMetadata> {
     Ok(metadata)
 }
 
-pub async fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
+pub async fn create_crate(name: &str, kind: NodeKind) -> CZFResult<()> {
     let mut cmd = Command::new("cargo");
     cmd.arg("new");
     cmd.arg("--lib");
@@ -182,17 +182,17 @@ pub async fn create_crate(name: &str, kind: ComponentKind) -> CZFResult<()> {
         .unwrap();
 
     let (cargo_template, lib_template) = match kind {
-        ComponentKind::Operator => {
+        NodeKind::Operator => {
             let cargo_template = crate::templates::operator_template_cargo(name.to_string())?;
             let template = crate::templates::operator_template_lib(name.to_string())?;
             (cargo_template, template)
         }
-        ComponentKind::Sink => {
+        NodeKind::Sink => {
             let cargo_template = crate::templates::sink_template_cargo(name.to_string())?;
             let template = crate::templates::sink_template_lib(name.to_string())?;
             (cargo_template, template)
         }
-        ComponentKind::Source => {
+        NodeKind::Source => {
             let cargo_template = crate::templates::source_template_cargo(name.to_string())?;
             let template = crate::templates::source_template_lib(name.to_string())?;
             (cargo_template, template)
@@ -243,7 +243,7 @@ pub fn cargo_build(flags: &[String], release: bool, manifest_dir: &Path) -> CZFR
     Ok(())
 }
 
-pub fn store_zf_metadata(metadata: &RegistryComponent, target_dir: &Path) -> CZFResult<String> {
+pub fn store_zf_metadata(metadata: &RegistryNode, target_dir: &Path) -> CZFResult<String> {
     let metadata_dir = PathBuf::from(format!("{}/{}", target_dir.display(), ZF_OUTPUT_DIRECTORY));
 
     if metadata_dir.exists() {

@@ -13,7 +13,7 @@
 //
 
 use crate::runtime::message::DataMessage;
-use crate::{ComponentOutput, Context, PortId, SerDeData, Token, ZFResult};
+use crate::{Context, NodeOutput, PortId, SerDeData, Token, ZFResult};
 use async_trait::async_trait;
 use std::any::Any;
 use std::collections::HashMap;
@@ -41,54 +41,50 @@ pub trait State: Debug + Send + Sync {
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
-pub trait Component {
+pub trait Node {
     fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn State>;
 
     fn clean(&self, state: &mut Box<dyn State>) -> ZFResult<()>;
 }
 
-pub trait InputRule {
+pub trait Operator: Node + Send + Sync {
     fn input_rule(
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
         tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool>;
-}
 
-pub trait OutputRule {
-    fn output_rule(
-        &self,
-        context: &mut Context,
-        state: &mut Box<dyn State>,
-        outputs: HashMap<PortId, SerDeData>,
-    ) -> ZFResult<HashMap<PortId, ComponentOutput>>;
-}
-
-pub trait Operator: Component + InputRule + OutputRule + Send + Sync {
     fn run(
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
         inputs: &mut HashMap<PortId, DataMessage>,
     ) -> ZFResult<HashMap<PortId, SerDeData>>;
+
+    fn output_rule(
+        &self,
+        context: &mut Context,
+        state: &mut Box<dyn State>,
+        outputs: HashMap<PortId, SerDeData>,
+    ) -> ZFResult<HashMap<PortId, NodeOutput>>;
 }
 
 #[async_trait]
-pub trait Source: Component + OutputRule + Send + Sync {
+pub trait Source: Node + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
-    ) -> ZFResult<HashMap<PortId, SerDeData>>;
+    ) -> ZFResult<(PortId, SerDeData)>;
 }
 
 #[async_trait]
-pub trait Sink: Component + InputRule + Send + Sync {
+pub trait Sink: Node + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
         state: &mut Box<dyn State>,
-        inputs: &mut HashMap<PortId, DataMessage>,
+        input: DataMessage,
     ) -> ZFResult<()>;
 }

@@ -15,9 +15,8 @@
 use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast, get_input_raw, types::ZFResult,
-    zenoh_flow_derive::ZFState, zf_data_raw, zf_spin_lock, Component, InputRule, Operator,
-    OutputRule, SerDeData, State,
+    default_input_rule, default_output_rule, downcast, get_input_raw_from, types::ZFResult,
+    zenoh_flow_derive::ZFState, zf_data_raw, zf_spin_lock, Node, Operator, SerDeData, State,
 };
 
 use opencv::core;
@@ -48,7 +47,7 @@ impl FrameConcatState {
 
 struct FrameConcat;
 
-impl Component for FrameConcat {
+impl Node for FrameConcat {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
@@ -61,7 +60,7 @@ impl Component for FrameConcat {
     }
 }
 
-impl InputRule for FrameConcat {
+impl Operator for FrameConcat {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
@@ -70,20 +69,7 @@ impl InputRule for FrameConcat {
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }
-}
 
-impl OutputRule for FrameConcat {
-    fn output_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
-        default_output_rule(state, outputs)
-    }
-}
-
-impl Operator for FrameConcat {
     fn run(
         &self,
         _context: &mut zenoh_flow::Context,
@@ -95,8 +81,8 @@ impl Operator for FrameConcat {
         let state = downcast!(FrameConcatState, dyn_state).unwrap();
         let encode_options = zf_spin_lock!(state.encode_options);
 
-        let (_, frame1) = get_input_raw!(String::from(INPUT1), inputs)?;
-        let (_, frame2) = get_input_raw!(String::from(INPUT2), inputs)?;
+        let (_, frame1) = get_input_raw_from!(String::from(INPUT1), inputs)?;
+        let (_, frame2) = get_input_raw_from!(String::from(INPUT2), inputs)?;
 
         // Decode Image
         let frame1 = opencv::imgcodecs::imdecode(
@@ -122,6 +108,15 @@ impl Operator for FrameConcat {
         results.insert(OUTPUT.into(), zf_data_raw!(buf.into()));
 
         Ok(results)
+    }
+
+    fn output_rule(
+        &self,
+        _context: &mut zenoh_flow::Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::NodeOutput>> {
+        default_output_rule(state, outputs)
     }
 }
 

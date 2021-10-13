@@ -15,9 +15,9 @@
 use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, downcast, get_input_raw,
-    runtime::message::DataMessage, zenoh_flow_derive::ZFState, zf_data_raw, zf_spin_lock,
-    Component, InputRule, Operator, OutputRule, PortId, SerDeData, State, ZFResult,
+    default_input_rule, default_output_rule, downcast, get_input_raw_from,
+    runtime::message::DataMessage, zenoh_flow_derive::ZFState, zf_data_raw, zf_spin_lock, Node,
+    Operator, PortId, SerDeData, State, ZFResult,
 };
 
 use opencv::{core, imgproc, objdetect, prelude::*, types};
@@ -63,7 +63,7 @@ impl FDState {
     }
 }
 
-impl Component for FaceDetection {
+impl Node for FaceDetection {
     fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
@@ -76,7 +76,7 @@ impl Component for FaceDetection {
     }
 }
 
-impl InputRule for FaceDetection {
+impl Operator for FaceDetection {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
@@ -85,20 +85,7 @@ impl InputRule for FaceDetection {
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }
-}
 
-impl OutputRule for FaceDetection {
-    fn output_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
-        default_output_rule(state, outputs)
-    }
-}
-
-impl Operator for FaceDetection {
     fn run(
         &self,
         _context: &mut zenoh_flow::Context,
@@ -112,7 +99,7 @@ impl Operator for FaceDetection {
         let mut face = zf_spin_lock!(state.face);
         let encode_options = zf_spin_lock!(state.encode_options);
 
-        let (_, data) = get_input_raw!(String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_raw_from!(String::from(INPUT), inputs).unwrap();
 
         // Decode Image
         let mut frame = opencv::imgcodecs::imdecode(
@@ -179,6 +166,15 @@ impl Operator for FaceDetection {
         drop(face);
 
         Ok(results)
+    }
+
+    fn output_rule(
+        &self,
+        _context: &mut zenoh_flow::Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::NodeOutput>> {
+        default_output_rule(state, outputs)
     }
 }
 

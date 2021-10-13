@@ -47,24 +47,24 @@ impl std::fmt::Display for PortDescriptor {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LinkFromDescriptor {
-    pub component: OperatorId,
+    pub node: OperatorId,
     pub output: String,
 }
 
 impl fmt::Display for LinkFromDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("{}.{}", self.component, self.output))
+        f.write_fmt(format_args!("{}.{}", self.node, self.output))
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LinkToDescriptor {
-    pub component: OperatorId,
+    pub node: OperatorId,
     pub input: String,
 }
 
 impl fmt::Display for LinkToDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("{}.{}", self.component, self.input))
+        f.write_fmt(format_args!("{}.{}", self.node, self.input))
     }
 }

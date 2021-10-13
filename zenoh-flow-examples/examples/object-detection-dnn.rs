@@ -20,11 +20,11 @@ use std::{
     path::Path,
 };
 use zenoh_flow::{
-    default_input_rule, default_output_rule, Component, ComponentOutput, Context, InputRule,
-    Operator, OutputRule, PortId, SerDeData, State,
+    default_input_rule, default_output_rule, Context, Node, NodeOutput, Operator, PortId,
+    SerDeData, State,
 };
 use zenoh_flow::{
-    downcast, get_input_raw,
+    downcast, get_input_raw_from,
     types::{Token, ZFResult},
     zenoh_flow_derive::ZFState,
     zf_data_raw, zf_spin_lock,
@@ -93,7 +93,7 @@ impl ODState {
     }
 }
 
-impl Component for ObjDetection {
+impl Node for ObjDetection {
     fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
@@ -106,7 +106,7 @@ impl Component for ObjDetection {
     }
 }
 
-impl InputRule for ObjDetection {
+impl Operator for ObjDetection {
     fn input_rule(
         &self,
         _context: &mut Context,
@@ -115,20 +115,7 @@ impl InputRule for ObjDetection {
     ) -> ZFResult<bool> {
         default_input_rule(state, tokens)
     }
-}
 
-impl OutputRule for ObjDetection {
-    fn output_rule(
-        &self,
-        _context: &mut Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
-        default_output_rule(state, outputs)
-    }
-}
-
-impl Operator for ObjDetection {
     fn run(
         &self,
         _context: &mut Context,
@@ -160,7 +147,7 @@ impl Operator for ObjDetection {
             core::Scalar::new(255f64, 0f64, 0f64, -1f64),
         ];
 
-        let (_, data) = get_input_raw!(String::from(INPUT), inputs).unwrap();
+        let (_, data) = get_input_raw_from!(String::from(INPUT), inputs).unwrap();
 
         // Decode Image
         let mut frame = opencv::imgcodecs::imdecode(
@@ -321,6 +308,15 @@ impl Operator for ObjDetection {
         results.insert(OUTPUT.into(), zf_data_raw!(buf.into()));
 
         Ok(results)
+    }
+
+    fn output_rule(
+        &self,
+        _context: &mut Context,
+        state: &mut Box<dyn zenoh_flow::State>,
+        outputs: HashMap<PortId, SerDeData>,
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
+        default_output_rule(state, outputs)
     }
 }
 

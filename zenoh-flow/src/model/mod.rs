@@ -12,10 +12,10 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-pub mod component;
 pub mod connector;
 pub mod dataflow;
 pub mod link;
+pub mod node;
 pub mod period;
 
 use crate::model::link::PortDescriptor;
@@ -26,13 +26,13 @@ use crate::ZFError;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum ComponentKind {
+pub enum NodeKind {
     Operator,
     Sink,
     Source,
 }
 
-impl std::str::FromStr for ComponentKind {
+impl std::str::FromStr for NodeKind {
     type Err = ZFError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -41,13 +41,13 @@ impl std::str::FromStr for ComponentKind {
             "sink" => Ok(Self::Sink),
             "source" => Ok(Self::Source),
             _ => Err(ZFError::ParsingError(
-                "unable to parse component kind".to_string(),
+                "unable to parse node kind".to_string(),
             )),
         }
     }
 }
 
-impl std::string::ToString for ComponentKind {
+impl std::string::ToString for NodeKind {
     fn to_string(&self) -> String {
         match self {
             Self::Operator => String::from("operator"),
@@ -57,26 +57,26 @@ impl std::string::ToString for ComponentKind {
     }
 }
 
-impl Default for ComponentKind {
+impl Default for NodeKind {
     fn default() -> Self {
-        ComponentKind::Operator
+        NodeKind::Operator
     }
 }
 // Registry metadata
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct RegistryComponent {
+pub struct RegistryNode {
     pub id: OperatorId,
-    pub kind: ComponentKind,
+    pub kind: NodeKind,
     pub classes: Vec<String>,
-    pub tags: Vec<RegistryComponentTag>,
+    pub tags: Vec<RegistryNodeTag>,
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
     pub period: Option<PeriodDescriptor>,
 }
 
-impl RegistryComponent {
-    pub fn add_tag(&mut self, tag: RegistryComponentTag) {
+impl RegistryNode {
+    pub fn add_tag(&mut self, tag: RegistryNodeTag) {
         let index = self.tags.iter().position(|t| t.name == tag.name);
         match index {
             Some(i) => {
@@ -94,14 +94,14 @@ impl RegistryComponent {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct RegistryComponentTag {
+pub struct RegistryNodeTag {
     pub name: String,
     pub requirement_labels: Vec<String>,
-    pub architectures: Vec<RegistryComponentArchitecture>,
+    pub architectures: Vec<RegistryNodeArchitecture>,
 }
 
-impl RegistryComponentTag {
-    pub fn add_architecture(&mut self, arch: RegistryComponentArchitecture) {
+impl RegistryNodeTag {
+    pub fn add_architecture(&mut self, arch: RegistryNodeArchitecture) {
         let index = self
             .architectures
             .iter()
@@ -119,7 +119,7 @@ impl RegistryComponentTag {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct RegistryComponentArchitecture {
+pub struct RegistryNodeArchitecture {
     pub arch: String,
     pub os: String,
     pub uri: String,

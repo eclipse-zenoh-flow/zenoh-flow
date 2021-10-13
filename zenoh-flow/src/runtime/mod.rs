@@ -18,8 +18,8 @@ use std::sync::Arc;
 
 use crate::{
     model::{
-        component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
         dataflow::DataFlowRecord,
+        node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
     },
     serde::{Deserialize, Serialize},
 };
@@ -225,8 +225,8 @@ pub trait Runtime {
     /// Gets the state of the given graph node for the given instance.
     /// A graph node can be a source, a sink, a connector, or an operator.
     /// The node state represents the current state of the node:
-    /// `enum ComponentState { Running, Stopped, Error(err) }`
-    // async fn get_node_state(&self, record_id: Uuid, node: String) -> ZFResult<ComponentState>;
+    /// `enum NodeState { Running, Stopped, Error(err) }`
+    // async fn get_node_state(&self, record_id: Uuid, node: String) -> ZFResult<NodeState>;
 
     /// Sends the `message` to `node` for the given record.
     /// This is useful for sending out-of-band notification to a node.

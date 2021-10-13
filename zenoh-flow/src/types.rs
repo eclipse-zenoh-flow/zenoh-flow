@@ -30,7 +30,7 @@ pub type ZFResult<T> = Result<T, ZFError>;
 pub use crate::ZFError;
 
 /// ZFContext is a structure provided by Zenoh Flow to access the execution context directly from
-/// the components.
+/// the nodes.
 pub struct Context {
     pub mode: usize,
 }
@@ -50,7 +50,7 @@ pub enum SerDeData {
 }
 
 #[derive(Debug, Clone)]
-pub enum ComponentOutput {
+pub enum NodeOutput {
     Data(SerDeData),
     // TODO Users should not have access to all control messages. When implementing the control
     // messages change this to an enum with a "limited scope".
@@ -227,10 +227,10 @@ impl State for EmptyState {
 pub fn default_output_rule(
     _state: &mut Box<dyn State>,
     outputs: HashMap<PortId, SerDeData>,
-) -> ZFResult<HashMap<PortId, ComponentOutput>> {
+) -> ZFResult<HashMap<PortId, NodeOutput>> {
     let mut results = HashMap::with_capacity(outputs.len());
     for (k, v) in outputs {
-        results.insert(k, ComponentOutput::Data(v));
+        results.insert(k, NodeOutput::Data(v));
     }
 
     Ok(results)

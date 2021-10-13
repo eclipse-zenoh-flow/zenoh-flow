@@ -13,14 +13,13 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::component::SinkRecord;
+use crate::model::node::SinkRecord;
 use crate::runtime::graph::link::LinkReceiver;
-use crate::runtime::message::Message;
-use crate::types::{Token, ZFResult};
-use crate::{Context, PortId, Sink, State};
+use crate::runtime::message::{DataMessage, Message};
+use crate::types::ZFResult;
+use crate::{Context, Sink, State};
 use futures::future;
 use libloading::Library;
-use std::collections::HashMap;
 
 pub type SinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
 
@@ -83,45 +82,27 @@ impl SinkRunner {
         let mut context = Context::default();
 
         loop {
-            // Guards are taken at the beginning of each iteration to allow
-            // interleaving.
+            // Guards are taken at the beginning of each iteration to allow interleaving.
             let inputs = self.inputs.read().await;
             let mut state = self.state.write().await;
 
-            // we should start from an HashMap with all PortId and not ready tokens
-            let mut msgs: HashMap<PortId, Token> = HashMap::new();
+            let links: Vec<_> = inputs.iter().map(|rx| rx.recv()).collect();
 
-            for i in inputs.iter() {
-                msgs.insert(i.id(), Token::NotReady);
-            }
+            // FEAT. With the introduction of deadline, a DeadlineMissToken could be sent.
+            let input: DataMessage;
 
-            // let ir_fn = self.operator.get_input_rule(context.clone());
-
-            let mut futs = vec![];
-            for rx in inputs.iter() {
-                futs.push(rx.recv()); // this should be peek(), but both requires mut
-            }
-
-            crate::run_input_rules!(self.sink, msgs, futs, &mut state, &mut context);
-
-            // Running
-            let mut data = HashMap::with_capacity(msgs.len());
-
-            for (id, v) in msgs {
-                log::debug!("[SINK] Sending data to run: {:?}", v);
-                let (d, _) = v.split();
-                if d.is_none() {
+            match future::select_all(links).await {
+                (Ok((_, message)), _, _) => match message.as_ref() {
+                    Message::Data(d) => input = d.clone(),
+                    Message::Control(_) => todo!(),
+                },
+                (Err(e), index, _) => {
+                    log::error!("[Link] Received an error on < {} >: {:?}.", index, e);
                     continue;
                 }
-                data.insert(id, d.unwrap());
             }
 
-            self.sink.run(&mut context, &mut state, &mut data).await?;
-
-            //This depends on the Tokens...
-            for rx in inputs.iter() {
-                rx.discard().await?;
-            }
+            self.sink.run(&mut context, &mut state, input).await?;
         }
     }
 }

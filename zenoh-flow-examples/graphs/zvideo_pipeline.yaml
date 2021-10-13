@@ -14,8 +14,8 @@ sinks:
       type: image
 links:
 - from:
-    component : Camera
+    node : Camera
     output : Frame
   to:
-    component : ZSink
+    node : ZSink
     input : Data

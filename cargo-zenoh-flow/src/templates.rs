@@ -69,8 +69,8 @@ use zenoh_flow::async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::\{
-    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, Component,
-    InputRule, ComponentOutput,OutputRule, SerDeData, Operator,
+    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, Node,
+    InputRule, NodeOutput,OutputRule, SerDeData, Operator,
     ZFResult, State, PortId
 };
 
@@ -108,12 +108,12 @@ impl OutputRule for {name} \{
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
         outputs: HashMap<PortId, SerDeData>,
-    ) -> ZFResult<HashMap<PortId, ComponentOutput>> \{
+    ) -> ZFResult<HashMap<PortId, NodeOutput>> \{
         default_output_rule(state, outputs)
     }
 }
 
-impl Component for {name} \{
+impl Node for {name} \{
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
@@ -141,7 +141,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::\{
-    default_output_rule, downcast_mut, zf_data, Component, ComponentOutput, OutputRule, SerDeData, Source,
+    default_output_rule, downcast_mut, zf_data, Node, NodeOutput, OutputRule, SerDeData, Source,
     ZFResult, State, PortId
 };
 
@@ -169,12 +169,12 @@ impl OutputRule for {name} \{
         _context: &mut zenoh_flow::Context,
         state: &mut Box<dyn zenoh_flow::State>,
         outputs: HashMap<PortId, SerDeData>,
-    ) -> ZFResult<HashMap<PortId, ComponentOutput>> \{
+    ) -> ZFResult<HashMap<PortId, NodeOutput>> \{
         default_output_rule(state, outputs)
     }
 }
 
-impl Component for {name} \{
+impl Node for {name} \{
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
@@ -202,7 +202,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::\{
-    default_input_rule, downcast_mut, get_input, Component,
+    default_input_rule, downcast_mut, get_input, Node,
     InputRule, SerDeData, Sink,
     ZFResult, State, PortId
 };
@@ -233,7 +233,7 @@ impl InputRule for {name} \{
     }
 }
 
-impl Component for {name} \{
+impl Node for {name} \{
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,

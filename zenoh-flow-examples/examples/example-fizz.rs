@@ -17,8 +17,8 @@ use std::collections::HashMap;
 use zenoh_flow::runtime::message::DataMessage;
 use zenoh_flow::Token;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, export_operator, get_input, types::ZFResult, zf_data,
-    zf_empty_state, Component, ComponentOutput, InputRule, Operator, OutputRule, State,
+    default_input_rule, default_output_rule, export_operator, get_input_from, types::ZFResult,
+    zf_data, zf_empty_state, Node, NodeOutput, Operator, State,
 };
 use zenoh_flow::{Context, PortId, SerDeData};
 use zenoh_flow_examples::{ZFString, ZFUsize};
@@ -29,18 +29,7 @@ static LINK_ID_INPUT_INT: &str = "Int";
 static LINK_ID_OUTPUT_INT: &str = "Int";
 static LINK_ID_OUTPUT_STR: &str = "Str";
 
-impl InputRule for FizzOperator {
-    fn input_rule(
-        &self,
-        _context: &mut Context,
-        state: &mut Box<dyn State>,
-        inputs: &mut HashMap<PortId, Token>,
-    ) -> ZFResult<bool> {
-        default_input_rule(state, inputs)
-    }
-}
-
-impl Component for FizzOperator {
+impl Node for FizzOperator {
     fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> Box<dyn State> {
         zf_empty_state!()
     }
@@ -51,6 +40,15 @@ impl Component for FizzOperator {
 }
 
 impl Operator for FizzOperator {
+    fn input_rule(
+        &self,
+        _context: &mut Context,
+        state: &mut Box<dyn State>,
+        inputs: &mut HashMap<PortId, Token>,
+    ) -> ZFResult<bool> {
+        default_input_rule(state, inputs)
+    }
+
     fn run(
         &self,
         _context: &mut Context,
@@ -61,7 +59,7 @@ impl Operator for FizzOperator {
 
         let mut fizz = ZFString::from("");
 
-        let (_, zfusize) = get_input!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
+        let (_, zfusize) = get_input_from!(ZFUsize, String::from(LINK_ID_INPUT_INT), inputs)?;
 
         if zfusize.0 % 2 == 0 {
             fizz = ZFString::from("Fizz");
@@ -72,15 +70,13 @@ impl Operator for FizzOperator {
 
         Ok(results)
     }
-}
 
-impl OutputRule for FizzOperator {
     fn output_rule(
         &self,
         _context: &mut Context,
         state: &mut Box<dyn State>,
         outputs: HashMap<PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, ComponentOutput>> {
+    ) -> ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         default_output_rule(state, outputs)
     }
 }

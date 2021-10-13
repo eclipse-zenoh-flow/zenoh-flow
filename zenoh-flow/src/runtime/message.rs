@@ -14,7 +14,7 @@
 
 extern crate serde;
 
-use crate::{ComponentOutput, Data, SerDeData, ZFError, ZFResult};
+use crate::{Data, NodeOutput, SerDeData, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -60,15 +60,24 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn from_component_output(output: ComponentOutput, timestamp: Timestamp) -> Self {
+    pub fn from_node_output(output: NodeOutput, timestamp: Timestamp) -> Self {
         match output {
-            ComponentOutput::Control(c) => Self::Control(c),
-            ComponentOutput::Data(d) => match d {
+            NodeOutput::Control(c) => Self::Control(c),
+            NodeOutput::Data(d) => match d {
                 SerDeData::Deserialized(d) => {
                     Self::Data(DataMessage::new_deserialized(d, timestamp))
                 }
                 SerDeData::Serialized(sd) => Self::Data(DataMessage::new_serialized(sd, timestamp)),
             },
+        }
+    }
+
+    pub fn from_serdedata(output: SerDeData, timestamp: Timestamp) -> Self {
+        match output {
+            SerDeData::Deserialized(data) => {
+                Self::Data(DataMessage::new_deserialized(data, timestamp))
+            }
+            SerDeData::Serialized(data) => Self::Data(DataMessage::new_serialized(data, timestamp)),
         }
     }
 

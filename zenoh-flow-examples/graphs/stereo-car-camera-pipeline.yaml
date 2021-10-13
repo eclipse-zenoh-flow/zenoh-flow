@@ -36,19 +36,19 @@ sinks: # sources can have only ONE input
 
 links:
 - from:
-    component : Camera0
+    node : Camera0
     output : Frame # Output
   to:
-    component : Concatenation
+    node : Concatenation
     input : Frame1 # Input
 - from:
-    component : Camera1
+    node : Camera1
     output : Frame
   to:
-    component : Concatenation
+    node : Concatenation
     input : Frame2
 - from:
-    component: Concatenation
+    node: Concatenation
     output : Frame
   to:
     id: Window

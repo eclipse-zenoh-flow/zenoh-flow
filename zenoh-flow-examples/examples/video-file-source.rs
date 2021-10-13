@@ -17,10 +17,10 @@ use async_trait::async_trait;
 use opencv::{core, prelude::*, videoio};
 use std::collections::HashMap;
 use zenoh_flow::{
-    default_output_rule, downcast,
+    downcast,
     types::{ZFError, ZFResult},
     zenoh_flow_derive::ZFState,
-    zf_data_raw, zf_spin_lock, Component, OutputRule, SerDeData, Source, State,
+    zf_data_raw, zf_spin_lock, Node, SerDeData, Source, State,
 };
 
 #[derive(Debug)]
@@ -76,7 +76,7 @@ impl VideoSourceState {
     }
 }
 
-impl Component for VideoSource {
+impl Node for VideoSource {
     fn initialize(
         &self,
         configuration: &Option<HashMap<String, String>>,
@@ -89,26 +89,13 @@ impl Component for VideoSource {
     }
 }
 
-impl OutputRule for VideoSource {
-    fn output_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<zenoh_flow::PortId, SerDeData>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, zenoh_flow::ComponentOutput>> {
-        default_output_rule(state, outputs)
-    }
-}
-
 #[async_trait]
 impl Source for VideoSource {
     async fn run(
         &self,
         _context: &mut zenoh_flow::Context,
         dyn_state: &mut Box<dyn zenoh_flow::State>,
-    ) -> ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
-        let mut results: HashMap<zenoh_flow::PortId, SerDeData> = HashMap::new();
-
+    ) -> ZFResult<(zenoh_flow::PortId, SerDeData)> {
         let state = downcast!(VideoSourceState, dyn_state).unwrap();
 
         let mut cam = zf_spin_lock!(state.camera);
@@ -142,15 +129,13 @@ impl Source for VideoSource {
         let mut buf = opencv::types::VectorOfu8::new();
         opencv::imgcodecs::imencode(".jpg", &frame, &mut buf, &encode_options).unwrap();
 
-        results.insert(SOURCE.into(), zf_data_raw!(buf.into()));
-
         drop(cam);
         drop(encode_options);
         drop(frame);
 
         async_std::task::sleep(std::time::Duration::from_millis(state.delay)).await;
 
-        Ok(results)
+        Ok((SOURCE.into(), zf_data_raw!(buf.into())))
     }
 }
 

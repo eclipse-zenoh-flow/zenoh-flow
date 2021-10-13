@@ -17,8 +17,8 @@ use zenoh::ZFuture;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::dataflow::DataFlowDescriptor;
 use zenoh_flow::model::{
-    component::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
     dataflow::DataFlowRecord,
+    node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
 };
 use zenoh_flow::runtime::graph::DataFlowGraph;
 use zenoh_flow::runtime::message::ControlMessage;
@@ -398,7 +398,7 @@ impl Runtime for Daemon {
 
     async fn start(&self, record_id: Uuid) -> ZFResult<()> {
         log::info!(
-            "Starting components (not sources) for Instance UUID: {}",
+            "Starting nodes (not sources) for Instance UUID: {}",
             record_id
         );
 
@@ -467,7 +467,7 @@ impl Runtime for Daemon {
     }
     async fn stop(&self, record_id: Uuid) -> ZFResult<()> {
         log::info!(
-            "Stopping components (not sources) for Instance UUID: {}",
+            "Stopping nodes (not sources) for Instance UUID: {}",
             record_id
         );
 

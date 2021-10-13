@@ -209,7 +209,7 @@ impl Runner {
 
 #[macro_export]
 macro_rules! run_input_rules {
-    ($component: expr, $tokens : expr, $links : expr, $state: expr, $context: expr) => {
+    ($node: expr, $tokens : expr, $links : expr, $state: expr, $context: expr) => {
         while !$links.is_empty() {
             match future::select_all($links).await {
                 // this could be "slow" as suggested by LC
@@ -218,7 +218,7 @@ macro_rules! run_input_rules {
                         Message::Data(_) => {
                             $tokens.insert(id, Token::from(message));
 
-                            match $component.input_rule($context, $state, &mut $tokens) {
+                            match $node.input_rule($context, $state, &mut $tokens) {
                                 Ok(true) => {
                                     // we can run
                                     log::debug!("IR: OK");
