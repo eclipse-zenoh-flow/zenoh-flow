@@ -34,12 +34,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Update dependencies
-        run: sudo apt update
-
-      - name: Install dependencies
-        run: sudo apt install libopencv-dev libclang-dev clang -y
-
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
