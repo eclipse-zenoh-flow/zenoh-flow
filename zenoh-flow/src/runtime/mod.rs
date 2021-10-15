@@ -25,6 +25,7 @@ use crate::{
 };
 use uuid::Uuid;
 
+use crate::RuntimeId;
 use crate::{
     model::dataflow::{DataFlowDescriptor, Mapping},
     ZFResult,
@@ -39,14 +40,21 @@ use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 // use std::convert::TryFrom;
 // use futures::prelude::*;
 // use async_std::prelude::FutureExt;
-// use zenoh::*;
-//
-
+use uhlc::HLC;
+use zenoh::net::Session;
 pub mod graph;
 pub mod loader;
 pub mod message;
 pub mod resources;
 pub mod runners;
+
+#[derive(Clone)]
+pub struct RuntimeContext {
+    pub session: Arc<Session>,
+    pub hlc: Arc<HLC>,
+    pub runtime_name: RuntimeId,
+    pub runtime_uuid: Uuid,
+}
 
 pub async fn map_to_infrastructure(
     mut descriptor: DataFlowDescriptor,

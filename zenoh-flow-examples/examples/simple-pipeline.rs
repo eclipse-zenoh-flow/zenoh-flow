@@ -21,6 +21,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use zenoh_flow::async_std::stream::StreamExt;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
+use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::{model::link::PortDescriptor, zf_data, zf_empty_state};
 use zenoh_flow::{Context, Node, SerDeData, Sink, Source};
 use zenoh_flow::{State, ZFResult};
@@ -103,7 +104,18 @@ impl Node for ExampleGenericSink {
 async fn main() {
     env_logger::init();
 
-    let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new();
+    let session =
+        async_std::sync::Arc::new(zenoh::net::open(zenoh::net::config::peer()).await.unwrap());
+    let hlc = async_std::sync::Arc::new(uhlc::HLC::default());
+
+    let ctx = RuntimeContext {
+        session,
+        hlc,
+        runtime_name: String::from("local").into(),
+        runtime_uuid: uuid::Uuid::new_v4(),
+    };
+
+    let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new(ctx.clone());
 
     let source = Arc::new(CountSource::new(None));
     let sink = Arc::new(ExampleGenericSink {});
@@ -156,7 +168,7 @@ async fn main() {
     write!(file, "{}", dot_notation).unwrap();
     file.sync_all().unwrap();
 
-    zf_graph.make_connections("self").await.unwrap();
+    zf_graph.make_connections().await.unwrap();
 
     let mut managers = vec![];
 
