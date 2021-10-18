@@ -22,6 +22,7 @@ pub use ::typetag;
 
 pub mod model;
 pub mod runtime;
+pub use runtime::message::*;
 pub mod types;
 pub use types::*;
 pub mod utils;
