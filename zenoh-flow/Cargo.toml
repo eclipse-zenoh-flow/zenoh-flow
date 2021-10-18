@@ -28,7 +28,6 @@ futures-lite = "1.11.3"
 libloading = "0.7.0"
 log = "0.4"
 paste = "1.0"
-petgraph = "0.6.0"
 pin-project-lite = "0.2.4"
 serde = { version = "1.0.55", features = ["derive", "rc"] }
 serde_cbor = {version = "0.11", optional = true}

@@ -73,12 +73,6 @@ async fn main() {
     let mut dataflow_graph =
         zenoh_flow::runtime::graph::DataFlowGraph::from_record(dfr, ctx.clone()).unwrap();
 
-    let dot_notation = dataflow_graph.to_dot_notation();
-
-    let mut file = File::create(opt.outfile).unwrap();
-    write!(file, "{}", dot_notation).unwrap();
-    file.sync_all().unwrap();
-
     // instantiating
     dataflow_graph.load().unwrap();
 
