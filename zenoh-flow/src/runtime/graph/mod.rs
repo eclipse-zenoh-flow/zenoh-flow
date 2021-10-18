@@ -19,7 +19,6 @@ use crate::{Operator, Sink, Source};
 use async_std::sync::Arc;
 use node::DataFlowNode;
 use std::collections::HashMap;
-use uhlc::HLC;
 
 use crate::runtime::loader::{load_operator, load_sink, load_source};
 use crate::runtime::message::Message;
@@ -114,7 +113,7 @@ impl DataFlowGraph {
                 log::debug!("[Graph instantiation] [same runtime] Pushing link: {:?}", l);
                 links.push(l.clone());
             } else {
-                log::warn!(
+                log::error!(
                     "[Graph instantiation] Link on different runtime detected: {:?}, this should not happen! :P",
                     l
                 );
@@ -139,7 +138,6 @@ impl DataFlowGraph {
 
     pub fn add_static_operator(
         &mut self,
-        hlc: Arc<HLC>,
         id: OperatorId,
         inputs: Vec<PortDescriptor>,
         outputs: Vec<PortDescriptor>,
@@ -156,7 +154,12 @@ impl DataFlowGraph {
         };
         let dfn = DataFlowNode::Operator(record.clone());
         self.operators.insert(dfn.get_id(), dfn);
-        let runner = Runner::Operator(OperatorRunner::new(record, hlc, operator, None));
+        let runner = Runner::Operator(OperatorRunner::new(
+            record,
+            self.ctx.hlc.clone(),
+            operator,
+            None,
+        ));
         self.operators_runners
             .insert(id, (runner, DataFlowNodeKind::Operator));
         Ok(())
@@ -164,7 +167,6 @@ impl DataFlowGraph {
 
     pub fn add_static_source(
         &mut self,
-        hlc: Arc<HLC>,
         id: OperatorId,
         output: PortDescriptor,
         source: Arc<dyn Source>,
@@ -180,7 +182,7 @@ impl DataFlowGraph {
         };
         let dfn = DataFlowNode::Source(record.clone());
         self.operators.insert(dfn.get_id(), dfn);
-        let non_periodic_hlc = PeriodicHLC::new(hlc, None);
+        let non_periodic_hlc = PeriodicHLC::new(self.ctx.hlc.clone(), None);
         let runner = Runner::Source(SourceRunner::new(record, non_periodic_hlc, source, None));
         self.operators_runners
             .insert(id, (runner, DataFlowNodeKind::Source));
