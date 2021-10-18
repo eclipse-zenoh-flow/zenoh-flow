@@ -12,7 +12,7 @@
 //
 
 use crate::serde::{Deserialize, Serialize};
-use crate::OperatorId;
+use crate::{OperatorId, PortId};
 use std::convert::From;
 use uuid::Uuid;
 use zrpc::zrpcresult::ZRPCError;
@@ -30,9 +30,6 @@ pub enum ZFError {
     VersionMismatch,
     Disconnected,
     Uncompleted(String),
-    PortTypeNotMatching((String, String)),
-    OperatorNotFound(OperatorId),
-    PortNotFound((OperatorId, String)),
     RecvError(String),
     SendError(String),
     MissingInput(String),
@@ -52,6 +49,15 @@ pub enum ZFError {
     ReceiverDoNotHaveInputs,
     SinkDoNotHaveOutputs,
     SenderDoNotHaveOutputs,
+    // Validation Error
+    DuplicatedNodeId(OperatorId),
+    DuplicatedInputPort((OperatorId, PortId)),
+    DuplicatedOutputPort((OperatorId, PortId)),
+    DuplicatedConnection((String, String)),
+    PortTypeNotMatching((String, String)),
+    OperatorNotFound(OperatorId),
+    PortNotFound((OperatorId, String)),
+    PortNotConnected((OperatorId, PortId)),
 }
 
 impl From<ZRPCError> for ZFError {
