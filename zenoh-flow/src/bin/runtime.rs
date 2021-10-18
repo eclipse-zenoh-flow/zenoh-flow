@@ -51,7 +51,7 @@ async fn main() {
     let ctx = RuntimeContext {
         session,
         hlc,
-        runtime_name: String::from("local").into(),
+        runtime_name: opt.runtime.clone().into(),
         runtime_uuid: uuid::Uuid::new_v4(),
     };
 
