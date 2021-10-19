@@ -38,17 +38,17 @@ pub struct DataFlowDescriptor {
 
 impl DataFlowDescriptor {
     pub fn from_yaml(data: &str) -> ZFResult<Self> {
-        let my_self = serde_yaml::from_str::<DataFlowDescriptor>(data)
+        let dataflow_descriptor = serde_yaml::from_str::<DataFlowDescriptor>(data)
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
-        my_self.validate()?;
-        Ok(my_self)
+        dataflow_descriptor.validate()?;
+        Ok(dataflow_descriptor)
     }
 
     pub fn from_json(data: &str) -> ZFResult<Self> {
-        let my_self = serde_json::from_str::<DataFlowDescriptor>(data)
+        let dataflow_descriptor = serde_json::from_str::<DataFlowDescriptor>(data)
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
-        my_self.validate()?;
-        Ok(my_self)
+        dataflow_descriptor.validate()?;
+        Ok(dataflow_descriptor)
     }
     pub fn to_json(&self) -> ZFResult<String> {
         serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
@@ -90,16 +90,17 @@ impl DataFlowDescriptor {
     }
 
     fn validate(&self) -> ZFResult<()> {
+        // The clippy::type_complexity raises because of this HashMap.
         let mut nodes: HashMap<OperatorId, (HashMap<String, String>, HashMap<String, String>)> =
             HashMap::new();
 
-        // checks if for duplicate operators
+        // Checks for duplicated operators
         for operator in &self.operators {
             if nodes.contains_key(&operator.id) {
                 return Err(ZFError::DuplicatedNodeId(operator.id.clone()));
             }
 
-            // checks for duplicate ports
+            // Checks for duplicated ports
             let mut inputs: HashMap<String, String> = HashMap::new();
             let mut outputs: HashMap<String, String> = HashMap::new();
             for input in &operator.inputs {
@@ -124,7 +125,7 @@ impl DataFlowDescriptor {
             nodes.insert(operator.id.clone(), (inputs, outputs));
         }
 
-        // checks if for duplicate operators
+        // Checks for duplicated sinks.
         for sink in &self.sinks {
             if nodes.contains_key(&sink.id) {
                 return Err(ZFError::DuplicatedNodeId(sink.id.clone()));
@@ -134,7 +135,7 @@ impl DataFlowDescriptor {
             nodes.insert(sink.id.clone(), (inputs, HashMap::new()));
         }
 
-        // checks if for duplicate operators
+        // Checks for duplicated sources.
         for source in &self.sources {
             if nodes.contains_key(&source.id) {
                 return Err(ZFError::DuplicatedNodeId(source.id.clone()));
@@ -171,49 +172,57 @@ impl DataFlowDescriptor {
             inputs.insert(from_str.clone(), to_str.clone());
             outputs.insert(to_str.clone(), from_str.clone());
 
-            // Checks if the port exists and the types matches
-            if let Some((_, node_outputs)) = nodes.get(&l.from.node) {
-                if let Some(out_port_type) = node_outputs.get(&l.from.output) {
-                    if let Some((node_inputs, _)) = nodes.get(&l.to.node) {
-                        if let Some(in_port_type) = node_inputs.get(&l.to.input) {
-                            if in_port_type != out_port_type {
-                                return Err(ZFError::PortTypeNotMatching((
-                                    out_port_type.clone(),
-                                    in_port_type.clone(),
-                                )));
-                            }
-                        } else {
-                            return Err(ZFError::PortNotFound((
-                                l.to.node.clone(),
-                                l.to.input.clone(),
-                            )));
-                        }
-                    } else {
-                        return Err(ZFError::OperatorNotFound(l.to.node.clone()));
-                    }
-                } else {
-                    return Err(ZFError::PortNotFound((
+            // Checks if the output port exists.
+            let out_port_type = match nodes.get(&l.from.node) {
+                Some((_, node_outputs)) => match node_outputs.get(&l.from.output) {
+                    Some(out_type) => Ok(out_type),
+                    None => Err(ZFError::PortNotFound((
                         l.from.node.clone(),
                         l.from.output.clone(),
-                    )));
-                }
-            } else {
-                return Err(ZFError::OperatorNotFound(l.from.node.clone()));
+                    ))),
+                },
+                None => Err(ZFError::OperatorNotFound(l.from.node.clone())),
+            }?;
+
+            // Checks if the input port exists.
+            let in_port_type = match nodes.get(&l.to.node) {
+                Some((node_inputs, _)) => match node_inputs.get(&l.to.input) {
+                    Some(in_type) => Ok(in_type),
+                    None => Err(ZFError::PortNotFound((
+                        l.to.node.clone(),
+                        l.to.input.clone(),
+                    ))),
+                },
+                None => Err(ZFError::OperatorNotFound(l.to.node.clone())),
+            }?;
+
+            // Checks if the output type and input type matches.
+            if in_port_type != out_port_type {
+                return Err(ZFError::PortTypeNotMatching((
+                    out_port_type.clone(),
+                    in_port_type.clone(),
+                )));
             }
         }
 
         // Checks for non connected ports
-        for (node_id, (node_inputs, node_outputs)) in nodes {
-            for (node_input, _) in node_inputs {
+        for (node_id, (node_inputs, node_outputs)) in &nodes {
+            for node_input in node_inputs.keys() {
                 let to_str = format!("{}.{}", node_id, node_input);
                 if !outputs.contains_key(&to_str) {
-                    return Err(ZFError::PortNotConnected((node_id, node_input.into())));
+                    return Err(ZFError::PortNotConnected((
+                        node_id.clone(),
+                        node_input.clone().into(),
+                    )));
                 }
             }
-            for (node_output, _) in node_outputs {
+            for node_output in node_outputs.keys() {
                 let from_str = format!("{}.{}", node_id, node_output);
                 if !inputs.contains_key(&from_str) {
-                    return Err(ZFError::PortNotConnected((node_id, node_output.into())));
+                    return Err(ZFError::PortNotConnected((
+                        node_id.clone(),
+                        node_output.clone().into(),
+                    )));
                 }
             }
         }
