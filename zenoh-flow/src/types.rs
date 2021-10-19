@@ -13,13 +13,9 @@
 //
 
 use crate::async_std::sync::Arc;
-use crate::runtime::message::{ControlMessage, DataMessage, Message};
 use crate::serde::{Deserialize, Serialize};
-use crate::{Data, State};
-
+use crate::{ControlMessage, Data, DataMessage, State, Token};
 use std::collections::HashMap;
-use std::convert::From;
-use uhlc::Timestamp;
 
 pub type OperatorId = Arc<str>;
 pub type PortId = Arc<str>;
@@ -55,124 +51,6 @@ pub enum NodeOutput {
     // TODO Users should not have access to all control messages. When implementing the control
     // messages change this to an enum with a "limited scope".
     Control(ControlMessage),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum TokenAction {
-    Consume, // Default, data is passed to the run and consumed from the "thing"
-    Drop,    // Data is dropped
-    KeepRun, // Data is passed to the run and kept in the "thing"
-    Keep,    // Data is kept in the "thing"
-    Wait,    //Waits the Data, this is applicable only to NotReadyToken
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct NotReadyToken;
-
-#[derive(Debug, Clone)]
-pub struct ReadyToken {
-    pub data: DataMessage,
-    pub action: TokenAction,
-}
-
-#[derive(Debug, Clone)]
-pub enum Token {
-    NotReady,
-    Ready(ReadyToken),
-}
-
-impl Token {
-    pub fn new_ready(data: DataMessage) -> Self {
-        Self::Ready(ReadyToken {
-            data,
-            action: TokenAction::Consume,
-        })
-    }
-
-    pub fn get_timestamp(&self) -> Option<Timestamp> {
-        match self {
-            Self::NotReady => None,
-            Self::Ready(token) => Some(token.data.timestamp),
-        }
-    }
-
-    pub fn is_ready(&self) -> bool {
-        matches!(self, Self::Ready(_))
-    }
-
-    pub fn is_not_ready(&self) -> bool {
-        matches!(self, Self::NotReady)
-    }
-
-    pub fn consume(&mut self) -> ZFResult<()> {
-        match self {
-            Self::Ready(ref mut ready) => {
-                ready.action = TokenAction::Consume;
-                Ok(())
-            }
-            _ => Err(ZFError::GenericError),
-        }
-    }
-
-    pub fn drop(&mut self) -> ZFResult<()> {
-        match self {
-            Self::Ready(ref mut ready) => {
-                ready.action = TokenAction::Drop;
-                Ok(())
-            }
-            _ => Err(ZFError::GenericError),
-        }
-    }
-
-    pub fn keep_run(&mut self) -> ZFResult<()> {
-        match self {
-            Self::Ready(ref mut ready) => {
-                ready.action = TokenAction::KeepRun;
-                Ok(())
-            }
-            _ => Err(ZFError::GenericError),
-        }
-    }
-
-    pub fn keep(&mut self) -> ZFResult<()> {
-        match self {
-            Self::Ready(ref mut ready) => {
-                ready.action = TokenAction::Keep;
-                Ok(())
-            }
-            _ => Err(ZFError::GenericError),
-        }
-    }
-
-    pub fn data(&self) -> ZFResult<DataMessage> {
-        match self {
-            Self::Ready(ready) => Ok(ready.data.clone()),
-            _ => Err(ZFError::GenericError),
-        }
-    }
-
-    pub fn action(&self) -> &TokenAction {
-        match self {
-            Self::Ready(ready) => &ready.action,
-            Self::NotReady => &TokenAction::Wait,
-        }
-    }
-
-    pub fn split(self) -> (Option<DataMessage>, TokenAction) {
-        match self {
-            Self::Ready(ready) => (Some(ready.data), ready.action),
-            Self::NotReady => (None, TokenAction::Wait),
-        }
-    }
-}
-
-impl From<Arc<Message>> for Token {
-    fn from(message: Arc<Message>) -> Self {
-        match message.as_ref() {
-            Message::Control(_) => Token::NotReady,
-            Message::Data(data_message) => Token::new_ready(data_message.clone()),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
