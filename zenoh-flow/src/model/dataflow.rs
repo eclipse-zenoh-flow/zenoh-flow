@@ -11,6 +11,7 @@
 // Contributors:
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
+#![allow(clippy::type_complexity)]
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
@@ -20,7 +21,7 @@ use crate::model::node::{
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{OperatorId, RuntimeId, ZFError, ZFResult};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 use uuid::Uuid;
@@ -37,13 +38,17 @@ pub struct DataFlowDescriptor {
 
 impl DataFlowDescriptor {
     pub fn from_yaml(data: &str) -> ZFResult<Self> {
-        serde_yaml::from_str::<DataFlowDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))
+        let dataflow_descriptor = serde_yaml::from_str::<DataFlowDescriptor>(data)
+            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        dataflow_descriptor.validate()?;
+        Ok(dataflow_descriptor)
     }
 
     pub fn from_json(data: &str) -> ZFResult<Self> {
-        serde_json::from_str::<DataFlowDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))
+        let dataflow_descriptor = serde_json::from_str::<DataFlowDescriptor>(data)
+            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        dataflow_descriptor.validate()?;
+        Ok(dataflow_descriptor)
     }
     pub fn to_json(&self) -> ZFResult<String> {
         serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
@@ -82,6 +87,144 @@ impl DataFlowDescriptor {
             None => (),
         }
         runtimes.into_iter().collect()
+    }
+
+    fn validate(&self) -> ZFResult<()> {
+        // The clippy::type_complexity raises because of this HashMap.
+        let mut nodes: HashMap<OperatorId, (HashMap<String, String>, HashMap<String, String>)> =
+            HashMap::new();
+
+        // Checks for duplicated operators
+        for operator in &self.operators {
+            if nodes.contains_key(&operator.id) {
+                return Err(ZFError::DuplicatedNodeId(operator.id.clone()));
+            }
+
+            // Checks for duplicated ports
+            let mut inputs: HashMap<String, String> = HashMap::new();
+            let mut outputs: HashMap<String, String> = HashMap::new();
+            for input in &operator.inputs {
+                if inputs.contains_key(&input.port_id) {
+                    return Err(ZFError::DuplicatedInputPort((
+                        operator.id.clone(),
+                        input.port_id.clone().into(),
+                    )));
+                }
+                inputs.insert(input.port_id.clone(), input.port_type.clone());
+            }
+
+            for output in &operator.outputs {
+                if outputs.contains_key(&output.port_id) {
+                    return Err(ZFError::DuplicatedOutputPort((
+                        operator.id.clone(),
+                        output.port_id.clone().into(),
+                    )));
+                }
+                outputs.insert(output.port_id.clone(), output.port_type.clone());
+            }
+            nodes.insert(operator.id.clone(), (inputs, outputs));
+        }
+
+        // Checks for duplicated sinks.
+        for sink in &self.sinks {
+            if nodes.contains_key(&sink.id) {
+                return Err(ZFError::DuplicatedNodeId(sink.id.clone()));
+            }
+            let mut inputs = HashMap::new();
+            inputs.insert(sink.input.port_id.clone(), sink.input.port_type.clone());
+            nodes.insert(sink.id.clone(), (inputs, HashMap::new()));
+        }
+
+        // Checks for duplicated sources.
+        for source in &self.sources {
+            if nodes.contains_key(&source.id) {
+                return Err(ZFError::DuplicatedNodeId(source.id.clone()));
+            }
+            let mut outputs = HashMap::new();
+            outputs.insert(
+                source.output.port_id.clone(),
+                source.output.port_type.clone(),
+            );
+            nodes.insert(source.id.clone(), (HashMap::new(), outputs));
+        }
+
+        let mut inputs: HashMap<String, String> = HashMap::new();
+        let mut outputs: HashMap<String, String> = HashMap::new();
+
+        // Checks links
+        for l in &self.links {
+            // Checks if ports are already connected
+            let from_str = format!("{}.{}", l.from.node, l.from.output);
+            let to_str = format!("{}.{}", l.to.node, l.to.input);
+            match (inputs.get(&from_str), outputs.get(&to_str)) {
+                (None, None) => (),
+                (Some(to), _) => {
+                    return Err(ZFError::DuplicatedConnection((from_str, to.to_string())))
+                }
+                (None, Some(from)) => {
+                    return Err(ZFError::DuplicatedConnection((to_str, from.to_string())))
+                }
+            };
+
+            inputs.insert(from_str.clone(), to_str.clone());
+            outputs.insert(to_str.clone(), from_str.clone());
+
+            // Checks if the output port exists.
+            let out_port_type = match nodes.get(&l.from.node) {
+                Some((_, node_outputs)) => match node_outputs.get(&l.from.output) {
+                    Some(out_type) => Ok(out_type),
+                    None => Err(ZFError::PortNotFound((
+                        l.from.node.clone(),
+                        l.from.output.clone(),
+                    ))),
+                },
+                None => Err(ZFError::OperatorNotFound(l.from.node.clone())),
+            }?;
+
+            // Checks if the input port exists.
+            let in_port_type = match nodes.get(&l.to.node) {
+                Some((node_inputs, _)) => match node_inputs.get(&l.to.input) {
+                    Some(in_type) => Ok(in_type),
+                    None => Err(ZFError::PortNotFound((
+                        l.to.node.clone(),
+                        l.to.input.clone(),
+                    ))),
+                },
+                None => Err(ZFError::OperatorNotFound(l.to.node.clone())),
+            }?;
+
+            // Checks if the output type and input type matches.
+            if in_port_type != out_port_type {
+                return Err(ZFError::PortTypeNotMatching((
+                    out_port_type.clone(),
+                    in_port_type.clone(),
+                )));
+            }
+        }
+
+        // Checks for non connected ports
+        for (node_id, (node_inputs, node_outputs)) in &nodes {
+            for node_input in node_inputs.keys() {
+                let to_str = format!("{}.{}", node_id, node_input);
+                if !outputs.contains_key(&to_str) {
+                    return Err(ZFError::PortNotConnected((
+                        node_id.clone(),
+                        node_input.clone().into(),
+                    )));
+                }
+            }
+            for node_output in node_outputs.keys() {
+                let from_str = format!("{}.{}", node_id, node_output);
+                if !inputs.contains_key(&from_str) {
+                    return Err(ZFError::PortNotConnected((
+                        node_id.clone(),
+                        node_output.clone().into(),
+                    )));
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
