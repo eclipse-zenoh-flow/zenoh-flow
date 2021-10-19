@@ -158,10 +158,7 @@ impl DataFlowDescriptor {
             let to_str = format!("{}.{}", l.to.node, l.to.input);
             match (inputs.get(&from_str), outputs.get(&to_str)) {
                 (None, None) => (),
-                (Some(to), Some(_from)) => {
-                    return Err(ZFError::DuplicatedConnection((from_str, to.to_string())))
-                }
-                (Some(to), None) => {
+                (Some(to), _) => {
                     return Err(ZFError::DuplicatedConnection((from_str, to.to_string())))
                 }
                 (None, Some(from)) => {
