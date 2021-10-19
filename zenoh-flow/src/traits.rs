@@ -13,7 +13,7 @@
 //
 
 use crate::runtime::message::DataMessage;
-use crate::{Context, NodeOutput, PortId, SerDeData, Token, ZFResult};
+use crate::{Context, Data, NodeOutput, PortId, Token, ZFResult};
 use async_trait::async_trait;
 use std::any::Any;
 use std::collections::HashMap;
@@ -26,7 +26,7 @@ pub trait DowncastAny {
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
-pub trait Data: DowncastAny + Debug + Send + Sync {
+pub trait ZFData: DowncastAny + Debug + Send + Sync {
     fn try_serialize(&self) -> ZFResult<Vec<u8>>;
 }
 
@@ -36,43 +36,43 @@ pub trait Deserializable {
         Self: Sized;
 }
 
-pub trait State: Debug + Send + Sync {
+pub trait ZFState: Debug + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
 pub trait Node {
-    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn State>;
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn ZFState>;
 
-    fn clean(&self, state: &mut Box<dyn State>) -> ZFResult<()>;
+    fn clean(&self, state: &mut Box<dyn ZFState>) -> ZFResult<()>;
 }
 
 pub trait Operator: Node + Send + Sync {
     fn input_rule(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn State>,
+        state: &mut Box<dyn ZFState>,
         tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool>;
 
     fn run(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn State>,
+        state: &mut Box<dyn ZFState>,
         inputs: &mut HashMap<PortId, DataMessage>,
-    ) -> ZFResult<HashMap<PortId, SerDeData>>;
+    ) -> ZFResult<HashMap<PortId, Data>>;
 
     fn output_rule(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn State>,
-        outputs: HashMap<PortId, SerDeData>,
+        state: &mut Box<dyn ZFState>,
+        outputs: HashMap<PortId, Data>,
     ) -> ZFResult<HashMap<PortId, NodeOutput>>;
 }
 
 #[async_trait]
 pub trait Source: Node + Send + Sync {
-    async fn run(&self, context: &mut Context, state: &mut Box<dyn State>) -> ZFResult<SerDeData>;
+    async fn run(&self, context: &mut Context, state: &mut Box<dyn ZFState>) -> ZFResult<Data>;
 }
 
 #[async_trait]
@@ -80,7 +80,7 @@ pub trait Sink: Node + Send + Sync {
     async fn run(
         &self,
         context: &mut Context,
-        state: &mut Box<dyn State>,
+        state: &mut Box<dyn ZFState>,
         input: DataMessage,
     ) -> ZFResult<()>;
 }

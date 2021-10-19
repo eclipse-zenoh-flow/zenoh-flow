@@ -16,7 +16,7 @@ use crate::async_std::sync::{Arc, RwLock};
 use crate::model::node::OperatorRecord;
 use crate::runtime::graph::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
-use crate::{Context, Operator, PortId, State, Token, ZFResult};
+use crate::{Context, Operator, PortId, Token, ZFResult, ZFState};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -44,7 +44,7 @@ pub type OperatorIO = (
 pub struct OperatorRunner {
     pub record: Arc<OperatorRecord>,
     pub io: Arc<RwLock<OperatorIO>>,
-    pub state: Arc<RwLock<Box<dyn State>>>,
+    pub state: Arc<RwLock<Box<dyn ZFState>>>,
     pub hlc: Arc<HLC>,
     pub operator: Arc<dyn Operator>,
     pub lib: Arc<Option<Library>>,
