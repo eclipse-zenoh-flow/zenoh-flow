@@ -76,7 +76,7 @@ impl Data {
         *self = (match &self {
             Self::Bytes(bytes) => {
                 let data: Arc<dyn ZFData> = Arc::new(
-                    <Typed as crate::Deserializable>::try_deserialize(bytes.as_slice())
+                    Typed::try_deserialize(bytes.as_slice())
                         .map_err(|_| crate::types::ZFError::DeseralizationError)?,
                 );
                 Ok(Self::Typed(data.clone()))
