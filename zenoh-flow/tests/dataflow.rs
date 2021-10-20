@@ -22,9 +22,9 @@ use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::zenoh_flow_derive::ZFData;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, get_input, get_input_from,
-    model::link::PortDescriptor, zf_data, zf_empty_state, Context, Data, Deserializable, Node,
-    NodeOutput, Operator, PortId, SerDeData, Sink, Source, State, ZFError, ZFResult,
+    default_input_rule, default_output_rule, model::link::PortDescriptor, zf_empty_state, Context,
+    Data, Deserializable, Node, NodeOutput, Operator, PortId, Sink, Source, ZFData, ZFError,
+    ZFResult, ZFState,
 };
 
 // Data Type
@@ -32,7 +32,7 @@ use zenoh_flow::{
 #[derive(Debug, Clone, ZFData)]
 pub struct ZFUsize(pub usize);
 
-impl Data for ZFUsize {
+impl ZFData for ZFUsize {
     fn try_serialize(&self) -> ZFResult<Vec<u8>> {
         Ok(self.0.to_ne_bytes().to_vec())
     }
@@ -74,12 +74,12 @@ impl Source for CountSource {
     async fn run(
         &self,
         _context: &mut Context,
-        _state: &mut Box<dyn zenoh_flow::State>,
-    ) -> zenoh_flow::ZFResult<SerDeData> {
+        _state: &mut Box<dyn zenoh_flow::ZFState>,
+    ) -> zenoh_flow::ZFResult<Data> {
         let _ = self.rx.recv_async().await;
         COUNTER.fetch_add(1, Ordering::AcqRel);
         let d = ZFUsize(COUNTER.load(Ordering::Relaxed));
-        Ok(zf_data!(d))
+        Ok(Data::from::<ZFUsize>(d))
     }
 }
 
@@ -87,11 +87,11 @@ impl Node for CountSource {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::State> {
+    ) -> Box<dyn zenoh_flow::ZFState> {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -105,10 +105,10 @@ impl Sink for ExampleGenericSink {
     async fn run(
         &self,
         _context: &mut Context,
-        _state: &mut Box<dyn zenoh_flow::State>,
+        _state: &mut Box<dyn zenoh_flow::ZFState>,
         mut input: zenoh_flow::runtime::message::DataMessage,
     ) -> zenoh_flow::ZFResult<()> {
-        let (_, data) = get_input!(ZFUsize, input)?;
+        let data = input.data.try_get::<ZFUsize>()?;
 
         assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
 
@@ -121,11 +121,11 @@ impl Node for ExampleGenericSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::State> {
+    ) -> Box<dyn zenoh_flow::ZFState> {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -139,7 +139,7 @@ impl Operator for NoOp {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
+        state: &mut Box<dyn zenoh_flow::ZFState>,
         tokens: &mut HashMap<PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
         default_input_rule(state, tokens)
@@ -148,24 +148,28 @@ impl Operator for NoOp {
     fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        _state: &mut Box<dyn zenoh_flow::State>,
+        _state: &mut Box<dyn zenoh_flow::ZFState>,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
-    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, SerDeData>> {
-        let mut results: HashMap<PortId, SerDeData> = HashMap::new();
+    ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Data>> {
+        let mut results: HashMap<PortId, Data> = HashMap::new();
 
-        let (_, data) = get_input_from!(ZFUsize, String::from(SOURCE), inputs)?;
+        let data = inputs
+            .get_mut(SOURCE)
+            .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?
+            .data
+            .try_get::<ZFUsize>()?;
 
         assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
 
-        results.insert(DESTINATION.into(), zf_data!(data));
+        results.insert(DESTINATION.into(), Data::from::<ZFUsize>(data.clone()));
         Ok(results)
     }
 
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<PortId, SerDeData>,
+        state: &mut Box<dyn zenoh_flow::ZFState>,
+        outputs: HashMap<PortId, Data>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         default_output_rule(state, outputs)
     }
@@ -175,11 +179,11 @@ impl Node for NoOp {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::State> {
+    ) -> Box<dyn zenoh_flow::ZFState> {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> {
+    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
         Ok(())
     }
 }

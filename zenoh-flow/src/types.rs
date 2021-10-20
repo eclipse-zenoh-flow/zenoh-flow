@@ -14,7 +14,7 @@
 
 use crate::async_std::sync::Arc;
 use crate::serde::{Deserialize, Serialize};
-use crate::{ControlMessage, Data, DataMessage, State, Token};
+use crate::{ControlMessage, DataMessage, Token, ZFData, ZFState};
 use std::collections::HashMap;
 
 pub type OperatorId = Arc<str>;
@@ -38,16 +38,67 @@ impl Default for Context {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum SerDeData {
-    Serialized(Arc<Vec<u8>>),
+pub enum Data {
+    Bytes(Arc<Vec<u8>>),
     #[serde(skip_serializing, skip_deserializing)]
-    // Deserialized data is never serialized directly
-    Deserialized(Arc<dyn Data>),
+    // Typed data is never serialized using serde
+    Typed(Arc<dyn ZFData>),
+}
+
+impl Data {
+    pub fn from_bytes(bytes: Vec<u8>) -> Self {
+        Self::Bytes(Arc::new(bytes))
+    }
+
+    pub fn try_as_bytes(&self) -> ZFResult<Arc<Vec<u8>>> {
+        match &self {
+            Self::Bytes(bytes) => Ok(bytes.clone()),
+            Self::Typed(typed) => {
+                let serialized_data = typed
+                    .try_serialize()
+                    .map_err(|_| ZFError::SerializationError)?;
+                Ok(Arc::new(serialized_data))
+            }
+        }
+    }
+
+    pub fn from<Typed>(typed: Typed) -> Self
+    where
+        Typed: ZFData + 'static,
+    {
+        Self::Typed(Arc::new(typed))
+    }
+
+    pub fn try_get<Typed>(&mut self) -> ZFResult<&Typed>
+    where
+        Typed: ZFData + crate::Deserializable + 'static,
+    {
+        *self = (match &self {
+            Self::Bytes(bytes) => {
+                let data: Arc<dyn ZFData> = Arc::new(
+                    Typed::try_deserialize(bytes.as_slice())
+                        .map_err(|_| crate::types::ZFError::DeseralizationError)?,
+                );
+                Ok(Self::Typed(data.clone()))
+            }
+            Self::Typed(typed) => Ok(Self::Typed(typed.clone())),
+        } as ZFResult<Self>)?;
+
+        match self {
+            Self::Typed(typed) => Ok(typed
+                .as_any()
+                .downcast_ref::<Typed>()
+                .ok_or_else(|| ZFError::InvalidData("Could not downcast.".to_string()))?),
+            _ => Err(ZFError::InvalidData(
+                "Should be deserialized first".to_string(),
+            )),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum NodeOutput {
-    Data(SerDeData),
+    Data(Data),
     // TODO Users should not have access to all control messages. When implementing the control
     // messages change this to an enum with a "limited scope".
     Control(ControlMessage),
@@ -92,7 +143,7 @@ impl<'a> IntoIterator for &'a ZFInput {
 #[derive(Debug, Clone)]
 pub struct EmptyState;
 
-impl State for EmptyState {
+impl ZFState for EmptyState {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -103,8 +154,8 @@ impl State for EmptyState {
 }
 
 pub fn default_output_rule(
-    _state: &mut Box<dyn State>,
-    outputs: HashMap<PortId, SerDeData>,
+    _state: &mut Box<dyn ZFState>,
+    outputs: HashMap<PortId, Data>,
 ) -> ZFResult<HashMap<PortId, NodeOutput>> {
     let mut results = HashMap::with_capacity(outputs.len());
     for (k, v) in outputs {
@@ -115,7 +166,7 @@ pub fn default_output_rule(
 }
 
 pub fn default_input_rule(
-    _state: &mut Box<dyn State>,
+    _state: &mut Box<dyn ZFState>,
     tokens: &mut HashMap<PortId, Token>,
 ) -> ZFResult<bool> {
     for token in tokens.values() {

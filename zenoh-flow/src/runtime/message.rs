@@ -14,7 +14,7 @@
 
 extern crate serde;
 
-use crate::{Data, NodeOutput, SerDeData, ZFError, ZFResult};
+use crate::{Data, NodeOutput, ZFData, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -22,25 +22,25 @@ use uhlc::Timestamp;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
-    pub data: SerDeData,
+    pub data: Data,
     pub timestamp: Timestamp,
 }
 
 impl DataMessage {
-    pub fn new(data: SerDeData, timestamp: Timestamp) -> Self {
+    pub fn new(data: Data, timestamp: Timestamp) -> Self {
         Self { data, timestamp }
     }
 
     pub fn new_serialized(data: Arc<Vec<u8>>, timestamp: Timestamp) -> Self {
         Self {
-            data: SerDeData::Serialized(data),
+            data: Data::Bytes(data),
             timestamp,
         }
     }
 
-    pub fn new_deserialized(data: Arc<dyn Data>, timestamp: Timestamp) -> Self {
+    pub fn new_deserialized(data: Arc<dyn ZFData>, timestamp: Timestamp) -> Self {
         Self {
-            data: SerDeData::Deserialized(data),
+            data: Data::Typed(data),
             timestamp,
         }
     }
@@ -64,20 +64,16 @@ impl Message {
         match output {
             NodeOutput::Control(c) => Self::Control(c),
             NodeOutput::Data(d) => match d {
-                SerDeData::Deserialized(d) => {
-                    Self::Data(DataMessage::new_deserialized(d, timestamp))
-                }
-                SerDeData::Serialized(sd) => Self::Data(DataMessage::new_serialized(sd, timestamp)),
+                Data::Typed(d) => Self::Data(DataMessage::new_deserialized(d, timestamp)),
+                Data::Bytes(sd) => Self::Data(DataMessage::new_serialized(sd, timestamp)),
             },
         }
     }
 
-    pub fn from_serdedata(output: SerDeData, timestamp: Timestamp) -> Self {
+    pub fn from_serdedata(output: Data, timestamp: Timestamp) -> Self {
         match output {
-            SerDeData::Deserialized(data) => {
-                Self::Data(DataMessage::new_deserialized(data, timestamp))
-            }
-            SerDeData::Serialized(data) => Self::Data(DataMessage::new_serialized(data, timestamp)),
+            Data::Typed(data) => Self::Data(DataMessage::new_deserialized(data, timestamp)),
+            Data::Bytes(data) => Self::Data(DataMessage::new_serialized(data, timestamp)),
         }
     }
 
@@ -87,14 +83,11 @@ impl Message {
                 bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
             }
             Message::Data(data_message) => match &data_message.data {
-                SerDeData::Serialized(_) => {
+                Data::Bytes(_) => {
                     bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
                 }
-                SerDeData::Deserialized(de) => {
-                    let serialized_data = Arc::new(
-                        de.try_serialize()
-                            .map_err(|_| ZFError::SerializationError)?,
-                    );
+                Data::Typed(_) => {
+                    let serialized_data = data_message.data.try_as_bytes()?;
                     let serialized_message = Message::Data(DataMessage::new_serialized(
                         serialized_data,
                         data_message.timestamp,

@@ -17,7 +17,7 @@ use crate::model::node::SinkRecord;
 use crate::runtime::graph::link::LinkReceiver;
 use crate::runtime::message::{DataMessage, Message};
 use crate::types::ZFResult;
-use crate::{Context, Sink, State};
+use crate::{Context, Sink, ZFState};
 use futures::future;
 use libloading::Library;
 
@@ -31,11 +31,11 @@ pub struct SinkDeclaration {
 
 pub struct SinkRunnerInner {
     pub inputs: Vec<LinkReceiver<Message>>,
-    pub state: Box<dyn State>,
+    pub state: Box<dyn ZFState>,
 }
 
 impl SinkRunnerInner {
-    pub fn new(state: Box<dyn State>) -> Self {
+    pub fn new(state: Box<dyn ZFState>) -> Self {
         Self {
             inputs: vec![],
             state,
@@ -51,7 +51,7 @@ impl SinkRunnerInner {
 #[derive(Clone)]
 pub struct SinkRunner {
     pub record: Arc<SinkRecord>,
-    pub state: Arc<RwLock<Box<dyn State>>>,
+    pub state: Arc<RwLock<Box<dyn ZFState>>>,
     pub inputs: Arc<RwLock<Vec<LinkReceiver<Message>>>>,
     pub sink: Arc<dyn Sink>,
     pub lib: Arc<Option<Library>>,
