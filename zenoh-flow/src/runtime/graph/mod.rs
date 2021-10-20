@@ -34,7 +34,7 @@ use crate::{
     runtime::graph::link::link,
     runtime::graph::node::DataFlowNodeKind,
     runtime::RuntimeContext,
-    types::{OperatorId, ZFError, ZFResult},
+    types::{NodeId, ZFError, ZFResult},
     utils::hlc::PeriodicHLC,
 };
 use uuid::Uuid;
@@ -42,9 +42,9 @@ use uuid::Uuid;
 pub struct DataFlowGraph {
     pub uuid: Uuid,
     pub flow: String,
-    pub operators: HashMap<OperatorId, DataFlowNode>,
+    pub operators: HashMap<NodeId, DataFlowNode>,
     pub links: Vec<LinkDescriptor>,
-    pub operators_runners: HashMap<OperatorId, (Runner, DataFlowNodeKind)>,
+    pub operators_runners: HashMap<NodeId, (Runner, DataFlowNodeKind)>,
     pub ctx: RuntimeContext,
 }
 
@@ -138,7 +138,7 @@ impl DataFlowGraph {
 
     pub fn add_static_operator(
         &mut self,
-        id: OperatorId,
+        id: NodeId,
         inputs: Vec<PortDescriptor>,
         outputs: Vec<PortDescriptor>,
         operator: Arc<dyn Operator>,
@@ -167,7 +167,7 @@ impl DataFlowGraph {
 
     pub fn add_static_source(
         &mut self,
-        id: OperatorId,
+        id: NodeId,
         output: PortDescriptor,
         source: Arc<dyn Source>,
         configuration: Option<HashMap<String, String>>,
@@ -191,7 +191,7 @@ impl DataFlowGraph {
 
     pub fn add_static_sink(
         &mut self,
-        id: OperatorId,
+        id: NodeId,
         input: PortDescriptor,
         sink: Arc<dyn Sink>,
         configuration: Option<HashMap<String, String>>,
@@ -375,7 +375,7 @@ impl DataFlowGraph {
         Ok(())
     }
 
-    pub fn get_runner(&self, operator_id: &OperatorId) -> Option<&Runner> {
+    pub fn get_runner(&self, operator_id: &NodeId) -> Option<&Runner> {
         self.operators_runners.get(operator_id).map(|(r, _)| r)
     }
 

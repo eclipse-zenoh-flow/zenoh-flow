@@ -14,7 +14,7 @@
 
 use crate::model::link::PortDescriptor;
 use crate::model::period::PeriodDescriptor;
-use crate::types::{OperatorId, RuntimeId};
+use crate::types::{NodeId, RuntimeId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -22,7 +22,7 @@ use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SinkDescriptor {
-    pub id: OperatorId,
+    pub id: NodeId,
     pub input: PortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
@@ -37,7 +37,7 @@ impl std::fmt::Display for SinkDescriptor {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SourceDescriptor {
-    pub id: OperatorId,
+    pub id: NodeId,
     pub output: PortDescriptor,
     pub period: Option<PeriodDescriptor>,
     pub uri: Option<String>,
@@ -53,7 +53,7 @@ impl std::fmt::Display for SourceDescriptor {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperatorDescriptor {
-    pub id: OperatorId,
+    pub id: NodeId,
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
@@ -71,7 +71,7 @@ impl std::fmt::Display for OperatorDescriptor {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SinkRecord {
-    pub id: OperatorId,
+    pub id: NodeId,
     pub input: PortDescriptor,
     pub uri: Option<String>,
     pub configuration: Option<HashMap<String, String>>,
@@ -96,7 +96,7 @@ impl SinkRecord {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SourceRecord {
-    pub id: OperatorId,
+    pub id: NodeId,
     pub output: PortDescriptor,
     pub period: Option<PeriodDescriptor>,
     pub uri: Option<String>,
@@ -122,7 +122,7 @@ impl SourceRecord {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperatorRecord {
-    pub id: OperatorId,
+    pub id: NodeId,
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,

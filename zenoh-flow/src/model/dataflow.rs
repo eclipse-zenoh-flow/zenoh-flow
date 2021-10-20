@@ -20,7 +20,7 @@ use crate::model::node::{
 };
 use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{OperatorId, RuntimeId, ZFError, ZFResult};
+use crate::types::{NodeId, RuntimeId, ZFError, ZFResult};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -91,7 +91,7 @@ impl DataFlowDescriptor {
 
     fn validate(&self) -> ZFResult<()> {
         // The clippy::type_complexity raises because of this HashMap.
-        let mut nodes: HashMap<OperatorId, (HashMap<String, String>, HashMap<String, String>)> =
+        let mut nodes: HashMap<NodeId, (HashMap<String, String>, HashMap<String, String>)> =
             HashMap::new();
 
         // Checks for duplicated operators
@@ -244,7 +244,7 @@ impl Eq for DataFlowDescriptor {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Mapping {
-    pub id: OperatorId,
+    pub id: NodeId,
     pub runtime: RuntimeId,
 }
 

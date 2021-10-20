@@ -18,7 +18,7 @@ use structopt::StructOpt;
 
 use zenoh_flow::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use zenoh_flow::model::{NodeKind, RegistryNode, RegistryNodeArchitecture, RegistryNodeTag};
-use zenoh_flow::OperatorId;
+use zenoh_flow::NodeId;
 
 #[cfg(feature = "local_registry")]
 use async_std::sync::Arc;
@@ -199,7 +199,7 @@ async fn main() {
                     }
 
                     let descriptor = OperatorDescriptor {
-                        id: OperatorId::from(node_info.id.clone()),
+                        id: NodeId::from(node_info.id.clone()),
                         inputs: inputs.clone(),
                         outputs: outputs.clone(),
                         uri: Some(uri.clone()),
@@ -222,7 +222,7 @@ async fn main() {
                     };
 
                     let metadata_graph = RegistryNode {
-                        id: OperatorId::from(node_info.id.clone()),
+                        id: NodeId::from(node_info.id.clone()),
                         kind: node_info.kind.clone(),
                         classes: vec![],
                         tags: vec![metadata_tag],
@@ -268,7 +268,7 @@ async fn main() {
                     let output = &outputs[0];
 
                     let descriptor = SourceDescriptor {
-                        id: OperatorId::from(node_info.id.clone()),
+                        id: NodeId::from(node_info.id.clone()),
                         output: output.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
@@ -291,7 +291,7 @@ async fn main() {
                     };
 
                     let metadata_graph = RegistryNode {
-                        id: OperatorId::from(node_info.id.clone()),
+                        id: NodeId::from(node_info.id.clone()),
                         kind: node_info.kind.clone(),
                         classes: vec![],
                         tags: vec![metadata_tag],
@@ -337,7 +337,7 @@ async fn main() {
                     let input = &inputs[0];
 
                     let descriptor = SinkDescriptor {
-                        id: OperatorId::from(node_info.id.clone()),
+                        id: NodeId::from(node_info.id.clone()),
                         input: input.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
@@ -359,7 +359,7 @@ async fn main() {
                     };
 
                     let metadata_graph = RegistryNode {
-                        id: OperatorId::from(node_info.id.clone()),
+                        id: NodeId::from(node_info.id.clone()),
                         kind: node_info.kind.clone(),
                         classes: vec![],
                         tags: vec![metadata_tag],
