@@ -87,7 +87,7 @@ impl Message {
                     bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
                 }
                 Data::Typed(_) => {
-                    let serialized_data = data_message.data.as_bytes()?;
+                    let serialized_data = data_message.data.try_as_bytes()?;
                     let serialized_message = Message::Data(DataMessage::new_serialized(
                         serialized_data,
                         data_message.timestamp,

@@ -50,7 +50,7 @@ impl Data {
         Self::Bytes(Arc::new(bytes))
     }
 
-    pub fn as_bytes(&self) -> ZFResult<Arc<Vec<u8>>> {
+    pub fn try_as_bytes(&self) -> ZFResult<Arc<Vec<u8>>> {
         match &self {
             Self::Bytes(bytes) => Ok(bytes.clone()),
             Self::Typed(typed) => {
@@ -69,7 +69,7 @@ impl Data {
         Self::Typed(Arc::new(typed))
     }
 
-    pub fn get<Typed>(&mut self) -> ZFResult<&Typed>
+    pub fn try_get<Typed>(&mut self) -> ZFResult<&Typed>
     where
         Typed: ZFData + crate::Deserializable + 'static,
     {

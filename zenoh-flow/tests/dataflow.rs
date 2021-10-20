@@ -108,7 +108,7 @@ impl Sink for ExampleGenericSink {
         _state: &mut Box<dyn zenoh_flow::ZFState>,
         mut input: zenoh_flow::runtime::message::DataMessage,
     ) -> zenoh_flow::ZFResult<()> {
-        let data = input.data.get::<ZFUsize>()?;
+        let data = input.data.try_get::<ZFUsize>()?;
 
         assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
 
@@ -157,7 +157,7 @@ impl Operator for NoOp {
             .get_mut(SOURCE)
             .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?
             .data
-            .get::<ZFUsize>()?;
+            .try_get::<ZFUsize>()?;
 
         assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
 
