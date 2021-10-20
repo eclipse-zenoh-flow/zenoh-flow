@@ -41,7 +41,7 @@ pub fn zf_state_derive(input: TokenStream) -> TokenStream {
     let ident = &ast.ident;
     let gen = quote! {
 
-        impl zenoh_flow::State for #ident {
+        impl zenoh_flow::ZFState for #ident {
             fn as_any(&self) -> &dyn std::any::Any {
                 self
             }

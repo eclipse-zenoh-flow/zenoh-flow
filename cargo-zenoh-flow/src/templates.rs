@@ -69,9 +69,8 @@ use zenoh_flow::async_std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::\{
-    default_input_rule, default_output_rule, downcast_mut, get_input, zf_data, Node,
-    InputRule, NodeOutput,OutputRule, SerDeData, Operator,
-    ZFResult, State, PortId
+    default_input_rule, default_output_rule, downcast_mut, Node, NodeOutput, Data, Operator,
+    ZFResult, ZFState, PortId
 };
 
 #[derive(Debug)]
@@ -81,33 +80,30 @@ static INPUT: &str = "INPUT";
 static OUTPUT: &str = "OUTPUT";
 
 impl Operator for {name} \{
-    fn run(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
-    ) -> ZFResult<HashMap<PortId, SerDeData>> \{
-        todo!()
-    }
-}
 
-impl InputRule for {name} \{
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
+        state: &mut Box<dyn zenoh_flow::ZFState>,
         tokens: &mut HashMap<PortId, zenoh_flow::Token>,
     ) -> ZFResult<bool> \{
         default_input_rule(state, tokens)
     }
-}
 
-impl OutputRule for {name} \{
+    fn run(
+        &self,
+        _context: &mut zenoh_flow::Context,
+        state: &mut Box<dyn zenoh_flow::ZFState>,
+        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
+    ) -> ZFResult<HashMap<PortId, Data>> \{
+        todo!()
+    }
+
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<PortId, SerDeData>,
+        state: &mut Box<dyn zenoh_flow::ZFState>,
+        outputs: HashMap<PortId, Data>,
     ) -> ZFResult<HashMap<PortId, NodeOutput>> \{
         default_output_rule(state, outputs)
     }
@@ -117,11 +113,11 @@ impl Node for {name} \{
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::State> \{
+    ) -> Box<dyn zenoh_flow::ZFState> \{
         zenoh_flow::zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> \{
+    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> \{
         Ok(())
     }
 }
@@ -140,49 +136,35 @@ use zenoh_flow::async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
-use zenoh_flow::\{
-    default_output_rule, downcast_mut, zf_data, Node, NodeOutput, OutputRule, SerDeData, Source,
-    ZFResult, State, PortId
+use zenoh_flow::\{downcast_mut, Node, Data, Source,
+    ZFResult, ZFState, PortId
 };
 
 #[derive(Debug)]
 struct {name};
-
-
-static DATA: &str = "Data";
 
 #[async_trait]
 impl Source for {name} \{
     async fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-    ) -> ZFResult<HashMap<PortId, SerDeData>> \{
+        state: &mut Box<dyn zenoh_flow::ZFState>,
+    ) -> ZFResult<Data> \{
         todo!()
     }
+
 }
 
-
-impl OutputRule for {name} \{
-    fn output_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        outputs: HashMap<PortId, SerDeData>,
-    ) -> ZFResult<HashMap<PortId, NodeOutput>> \{
-        default_output_rule(state, outputs)
-    }
-}
 
 impl Node for {name} \{
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::State> \{
+    ) -> Box<dyn zenoh_flow::ZFState> \{
         zenoh_flow::zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> \{
+    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> \{
         Ok(())
     }
 }
@@ -201,10 +183,8 @@ use zenoh_flow::async_std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
-use zenoh_flow::\{
-    default_input_rule, downcast_mut, get_input, Node,
-    InputRule, SerDeData, Sink,
-    ZFResult, State, PortId
+use zenoh_flow::\{downcast_mut, Node, Data, Sink,
+    ZFResult, ZFState, PortId
 };
 
 #[derive(Debug)]
@@ -215,33 +195,23 @@ impl Sink for {name} \{
     async fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
+        state: &mut Box<dyn zenoh_flow::ZFState>,
+        mut input: zenoh_flow::runtime::message::DataMessage,
     ) -> ZFResult<()> \{
         todo!()
     }
 }
 
-impl InputRule for {name} \{
-    fn input_rule(
-        &self,
-        _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::State>,
-        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
-    ) -> ZFResult<bool> \{
-        default_input_rule(state, tokens)
-    }
-}
 
 impl Node for {name} \{
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::State> \{
+    ) -> Box<dyn zenoh_flow::ZFState> \{
         zenoh_flow::zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn State>) -> ZFResult<()> \{
+    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> \{
         Ok(())
     }
 }
