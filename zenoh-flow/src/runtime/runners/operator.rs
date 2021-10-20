@@ -16,10 +16,11 @@ use crate::async_std::sync::{Arc, RwLock};
 use crate::model::node::OperatorRecord;
 use crate::runtime::graph::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
-use crate::{Context, Operator, PortId, State, Token, ZFResult};
+use crate::{Context, DataMessage, Operator, PortId, Token, ZFResult, State};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
+use std::mem;
 use uhlc::HLC;
 
 pub type OperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
@@ -30,10 +31,19 @@ pub struct OperatorDeclaration {
     pub register: OperatorRegisterFn,
 }
 
-pub type OperatorIO = (
-    Vec<LinkReceiver<Message>>,
-    HashMap<PortId, Vec<LinkSender<Message>>>,
-);
+pub struct OperatorIO {
+    inputs: HashMap<PortId, LinkReceiver<Message>>,
+    outputs: HashMap<PortId, Vec<LinkSender<Message>>>,
+}
+
+impl OperatorIO {
+    pub fn new(record: &OperatorRecord) -> Self {
+        Self {
+            inputs: HashMap::with_capacity(record.inputs.len()),
+            outputs: HashMap::with_capacity(record.outputs.len()),
+        }
+    }
+}
 
 // Do not reorder the fields in this struct.
 // Rust drops fields in a struct in the same order they are declared.
@@ -59,26 +69,28 @@ impl OperatorRunner {
     ) -> Self {
         let state = operator.initialize(&record.configuration);
         Self {
-            record: Arc::new(record),
             hlc,
-            io: Arc::new(RwLock::new((vec![], HashMap::new()))),
+            io: Arc::new(RwLock::new(OperatorIO::new(&record))),
             state: Arc::new(RwLock::new(state)),
             operator,
             lib: Arc::new(lib),
+            record: Arc::new(record),
         }
     }
 
     pub async fn add_input(&self, input: LinkReceiver<Message>) {
-        self.io.write().await.0.push(input);
+        let mut guard = self.io.write().await;
+        let key = input.id();
+        guard.inputs.insert(key, input);
     }
 
     pub async fn add_output(&self, output: LinkSender<Message>) {
         let mut guard = self.io.write().await;
         let key = output.id();
-        if let Some(links) = guard.1.get_mut(key.as_ref()) {
+        if let Some(links) = guard.outputs.get_mut(key.as_ref()) {
             links.push(output);
         } else {
-            guard.1.insert(key, vec![output]);
+            guard.outputs.insert(key, vec![output]);
         }
     }
 
@@ -89,49 +101,51 @@ impl OperatorRunner {
 
     pub async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
+        let mut tokens: HashMap<PortId, Token> = self
+            .record
+            .inputs
+            .iter()
+            .map(|port_desc| (port_desc.port_id.clone().into(), Token::NotReady))
+            .collect();
+        let mut data: HashMap<PortId, DataMessage> =
+            HashMap::with_capacity(self.record.inputs.len());
 
         loop {
-            // Guards are taken at the beginning of each iteration to allow
-            // interleaving.
+            // Guards are taken at the beginning of each iteration to allow interleaving.
             let io = self.io.read().await;
             let mut state = self.state.write().await;
 
-            // we should start from an HashMap with all PortId and not ready tokens
-            let mut msgs: HashMap<PortId, Token> = HashMap::new();
-
-            for i in io.0.iter() {
-                msgs.insert(i.id(), Token::NotReady);
-            }
-
-            let mut futs = vec![];
-            for rx in io.0.iter() {
-                futs.push(rx.recv()); // this should be peek(), but both requires mut
-            }
+            let mut links: Vec<_> = io.inputs.values().map(|rx| rx.recv()).collect();
 
             // Input Rules
-            crate::run_input_rules!(self.operator, msgs, futs, &mut state, &mut context);
+            crate::run_input_rules!(self.operator, tokens, links, &mut state, &mut context);
 
-            let mut data = HashMap::with_capacity(msgs.len());
             let mut max_token_timestamp = None;
 
-            for (id, token) in msgs {
-                // Keep the biggest timestamp (i.e. most recent) associated to the inputs. This
-                // timestamp will be reported to all outputs and used to update the HLC.
-                let token_timestamp = token.get_timestamp();
-                max_token_timestamp = match (&max_token_timestamp, &token_timestamp) {
-                    (None, _) => token_timestamp,
-                    (Some(_), None) => max_token_timestamp,
-                    (Some(max_time), Some(time)) => {
-                        if max_time < time {
-                            token_timestamp
-                        } else {
-                            max_token_timestamp
-                        }
+            for (id, token) in tokens.iter_mut() {
+                // TODO: Input Rules — Take action into consideration, only replace when needed.
+                let old_token = mem::replace(token, Token::NotReady);
+                match old_token {
+                    Token::NotReady => {
+                        data.remove(id);
+                        log::debug!("Removing < {} > from tokens for next iteration.", id);
+                    }
+
+                    Token::Ready(ready_token) => {
+                        max_token_timestamp = match max_token_timestamp {
+                            None => Some(ready_token.data.timestamp),
+                            Some(timestamp) => {
+                                if ready_token.data.timestamp > timestamp {
+                                    Some(ready_token.data.timestamp)
+                                } else {
+                                    Some(timestamp)
+                                }
+                            }
+                        };
+
+                        data.insert(id.clone(), ready_token.data);
                     }
                 };
-
-                let (d, _) = token.split();
-                data.insert(id, d.unwrap());
             }
 
             let timestamp = {
@@ -163,7 +177,7 @@ impl OperatorRunner {
             for (id, output) in outputs {
                 // getting link
                 log::debug!("id: {:?}, message: {:?}", id, output);
-                if let Some(links) = io.1.get(&id) {
+                if let Some(links) = io.outputs.get(&id) {
                     let zf_message = Arc::new(Message::from_node_output(output, timestamp));
 
                     for tx in links {
@@ -174,7 +188,7 @@ impl OperatorRunner {
             }
 
             // This depends on the Tokens...
-            for rx in io.0.iter() {
+            for rx in io.inputs.values() {
                 rx.discard().await?;
             }
         }
