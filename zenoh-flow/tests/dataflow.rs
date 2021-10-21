@@ -24,7 +24,7 @@ use zenoh_flow::zenoh_flow_derive::ZFData;
 use zenoh_flow::{
     default_input_rule, default_output_rule, model::link::PortDescriptor, zf_empty_state, Context,
     Data, Deserializable, Node, NodeOutput, Operator, PortId, Sink, Source, ZFData, ZFError,
-    ZFResult, ZFState,
+    ZFResult, State,
 };
 
 // Data Type
@@ -74,7 +74,7 @@ impl Source for CountSource {
     async fn run(
         &self,
         _context: &mut Context,
-        _state: &mut Box<dyn zenoh_flow::ZFState>,
+        _state: &mut State,
     ) -> zenoh_flow::ZFResult<Data> {
         let _ = self.rx.recv_async().await;
         COUNTER.fetch_add(1, Ordering::AcqRel);
@@ -87,11 +87,11 @@ impl Node for CountSource {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFState> {
+    ) -> State {
         zf_empty_state!()
     }
 
-    fn finalize(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -105,7 +105,7 @@ impl Sink for ExampleGenericSink {
     async fn run(
         &self,
         _context: &mut Context,
-        _state: &mut Box<dyn zenoh_flow::ZFState>,
+        _state: &mut State,
         mut input: zenoh_flow::runtime::message::DataMessage,
     ) -> zenoh_flow::ZFResult<()> {
         let data = input.data.try_get::<ZFUsize>()?;
@@ -121,11 +121,11 @@ impl Node for ExampleGenericSink {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFState> {
+    ) -> State {
         zf_empty_state!()
     }
 
-    fn finalize(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -139,7 +139,7 @@ impl Operator for NoOp {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::ZFState>,
+        state: &mut State,
         tokens: &mut HashMap<PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
         default_input_rule(state, tokens)
@@ -148,7 +148,7 @@ impl Operator for NoOp {
     fn run(
         &self,
         _context: &mut zenoh_flow::Context,
-        _state: &mut Box<dyn zenoh_flow::ZFState>,
+        _state: &mut State,
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Data>> {
         let mut results: HashMap<PortId, Data> = HashMap::new();
@@ -168,7 +168,7 @@ impl Operator for NoOp {
     fn output_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        state: &mut Box<dyn zenoh_flow::ZFState>,
+        state: &mut State,
         outputs: HashMap<PortId, Data>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         default_output_rule(state, outputs)
@@ -179,11 +179,11 @@ impl Node for NoOp {
     fn initialize(
         &self,
         _configuration: &Option<HashMap<String, String>>,
-    ) -> Box<dyn zenoh_flow::ZFState> {
+    ) -> State {
         zf_empty_state!()
     }
 
-    fn finalize(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
         Ok(())
     }
 }

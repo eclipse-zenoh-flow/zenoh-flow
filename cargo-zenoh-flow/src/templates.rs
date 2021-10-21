@@ -117,7 +117,7 @@ impl Node for {name} \{
         zenoh_flow::zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> \{
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> \{
         Ok(())
     }
 }
@@ -164,7 +164,7 @@ impl Node for {name} \{
         zenoh_flow::zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> \{
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> \{
         Ok(())
     }
 }
@@ -211,7 +211,7 @@ impl Node for {name} \{
         zenoh_flow::zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> \{
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> \{
         Ok(())
     }
 }

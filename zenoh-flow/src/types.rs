@@ -96,6 +96,31 @@ impl Data {
     }
 }
 
+pub struct State {
+    state: Box<dyn ZFState>,
+}
+
+impl State {
+    pub fn from<S>(state: S) -> Self
+    where
+        S: ZFState + 'static,
+    {
+        Self {
+            state: Box::new(state),
+        }
+    }
+
+    pub fn try_get<S>(&mut self) -> ZFResult<&mut S>
+    where
+        S: ZFState + 'static,
+    {
+        self.state
+            .as_mut_any()
+            .downcast_mut::<S>()
+            .ok_or_else(|| ZFError::InvalidData("Could not downcast.".to_string()))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum NodeOutput {
     Data(Data),
@@ -154,7 +179,7 @@ impl ZFState for EmptyState {
 }
 
 pub fn default_output_rule(
-    _state: &mut Box<dyn ZFState>,
+    _state: &mut State,
     outputs: HashMap<PortId, Data>,
 ) -> ZFResult<HashMap<PortId, NodeOutput>> {
     let mut results = HashMap::with_capacity(outputs.len());
@@ -166,7 +191,7 @@ pub fn default_output_rule(
 }
 
 pub fn default_input_rule(
-    _state: &mut Box<dyn ZFState>,
+    _state: &mut State,
     tokens: &mut HashMap<PortId, Token>,
 ) -> ZFResult<bool> {
     for token in tokens.values() {
