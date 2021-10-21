@@ -91,7 +91,7 @@ impl Node for CountSource {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
+    fn finalize(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -125,7 +125,7 @@ impl Node for ExampleGenericSink {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
+    fn finalize(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
         Ok(())
     }
 }
@@ -183,7 +183,7 @@ impl Node for NoOp {
         zf_empty_state!()
     }
 
-    fn clean(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
+    fn finalize(&self, _state: &mut Box<dyn ZFState>) -> ZFResult<()> {
         Ok(())
     }
 }

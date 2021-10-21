@@ -84,7 +84,7 @@ impl OperatorRunner {
 
     pub async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.write().await;
-        self.operator.clean(&mut state)
+        self.operator.finalize(&mut state)
     }
 
     pub async fn run(&self) -> ZFResult<()> {

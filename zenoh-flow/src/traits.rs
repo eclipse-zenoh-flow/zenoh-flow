@@ -44,7 +44,7 @@ pub trait ZFState: Debug + Send + Sync {
 pub trait Node {
     fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> Box<dyn ZFState>;
 
-    fn clean(&self, state: &mut Box<dyn ZFState>) -> ZFResult<()>;
+    fn finalize(&self, state: &mut Box<dyn ZFState>) -> ZFResult<()>;
 }
 
 pub trait Operator: Node + Send + Sync {

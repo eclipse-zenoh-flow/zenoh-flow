@@ -75,7 +75,7 @@ impl SinkRunner {
 
     pub async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.write().await;
-        self.sink.clean(&mut state)
+        self.sink.finalize(&mut state)
     }
 
     pub async fn run(&self) -> ZFResult<()> {

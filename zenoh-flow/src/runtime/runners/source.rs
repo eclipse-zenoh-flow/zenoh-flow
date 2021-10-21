@@ -75,7 +75,7 @@ impl SourceRunner {
 
     pub async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.write().await;
-        self.source.clean(&mut state)
+        self.source.finalize(&mut state)
     }
 
     pub async fn run(&self) -> ZFResult<()> {
