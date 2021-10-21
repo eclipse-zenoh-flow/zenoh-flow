@@ -23,8 +23,8 @@ use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::zenoh_flow_derive::ZFData;
 use zenoh_flow::{
     default_input_rule, default_output_rule, model::link::PortDescriptor, zf_empty_state, Context,
-    Data, Deserializable, Node, NodeOutput, Operator, PortId, Sink, Source, ZFData, ZFError,
-    ZFResult, State,
+    Data, Deserializable, Node, NodeOutput, Operator, PortId, Sink, Source, State, ZFData, ZFError,
+    ZFResult,
 };
 
 // Data Type
@@ -71,11 +71,7 @@ impl CountSource {
 
 #[async_trait]
 impl Source for CountSource {
-    async fn run(
-        &self,
-        _context: &mut Context,
-        _state: &mut State,
-    ) -> zenoh_flow::ZFResult<Data> {
+    async fn run(&self, _context: &mut Context, _state: &mut State) -> zenoh_flow::ZFResult<Data> {
         let _ = self.rx.recv_async().await;
         COUNTER.fetch_add(1, Ordering::AcqRel);
         let d = ZFUsize(COUNTER.load(Ordering::Relaxed));
@@ -84,10 +80,7 @@ impl Source for CountSource {
 }
 
 impl Node for CountSource {
-    fn initialize(
-        &self,
-        _configuration: &Option<HashMap<String, String>>,
-    ) -> State {
+    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> State {
         zf_empty_state!()
     }
 
@@ -118,10 +111,7 @@ impl Sink for ExampleGenericSink {
 }
 
 impl Node for ExampleGenericSink {
-    fn initialize(
-        &self,
-        _configuration: &Option<HashMap<String, String>>,
-    ) -> State {
+    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> State {
         zf_empty_state!()
     }
 
@@ -176,10 +166,7 @@ impl Operator for NoOp {
 }
 
 impl Node for NoOp {
-    fn initialize(
-        &self,
-        _configuration: &Option<HashMap<String, String>>,
-    ) -> State {
+    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> State {
         zf_empty_state!()
     }
 

@@ -16,7 +16,7 @@ use crate::async_std::sync::{Arc, RwLock};
 use crate::model::node::OperatorRecord;
 use crate::runtime::graph::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
-use crate::{Context, Operator, PortId, Token, ZFResult, State};
+use crate::{Context, Operator, PortId, State, Token, ZFResult};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
