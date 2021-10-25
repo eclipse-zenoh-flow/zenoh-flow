@@ -18,7 +18,7 @@ use crate::runtime::graph::link::LinkSender;
 use crate::runtime::message::Message;
 use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
-use crate::{Context, PortId, Source, ZFState};
+use crate::{Context, PortId, Source, State};
 use libloading::Library;
 use std::collections::HashMap;
 
@@ -39,7 +39,7 @@ pub struct SourceDeclaration {
 pub struct SourceRunner {
     pub record: Arc<SourceRecord>,
     pub hlc: Arc<PeriodicHLC>,
-    pub state: Arc<RwLock<Box<dyn ZFState>>>,
+    pub state: Arc<RwLock<State>>,
     pub outputs: Arc<RwLock<HashMap<PortId, Vec<LinkSender<Message>>>>>,
     pub source: Arc<dyn Source>,
     pub lib: Arc<Option<Library>>,
@@ -75,7 +75,7 @@ impl SourceRunner {
 
     pub async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.write().await;
-        self.source.clean(&mut state)
+        self.source.finalize(&mut state)
     }
 
     pub async fn run(&self) -> ZFResult<()> {

@@ -67,55 +67,8 @@ macro_rules! zf_spin_lock {
 }
 
 #[macro_export]
-macro_rules! downcast {
-    ($ident : ident, $val : expr) => {
-        $val.as_any().downcast_ref::<$ident>()
-    };
-}
-
-#[macro_export]
-macro_rules! downcast_mut {
-    ($ident : ident, $val : expr) => {
-        $val.as_mut_any().downcast_mut::<$ident>()
-    };
-}
-
-#[macro_export]
-macro_rules! take_state {
-    ($ident : ident, $ctx : expr) => {
-        match $ctx.take_state() {
-            Some(mut state) => match zenoh_flow::downcast_mut!($ident, state) {
-                Some(mut data) => Ok((state, data)),
-                None => Err(zenoh_flow::types::ZFError::InvalidState),
-            },
-            None => Err(zenoh_flow::types::ZFError::MissingState),
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! get_state {
-    ($ident : ident, $ctx : expr) => {
-        match $ctx.get_state() {
-            Some(state) => match zenoh_flow::downcast!($ident, state) {
-                Some(data) => Ok((state, data)),
-                None => Err(zenoh_flow::types::ZFError::InvalidState),
-            },
-            None => Err(zenoh_flow::types::ZFError::MissingState),
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! zf_empty_state {
     () => {
-        Box::new(zenoh_flow::EmptyState {})
-    };
-}
-
-#[macro_export]
-macro_rules! zf_source_result {
-    ($result : expr) => {
-        Box::pin($result)
+        zenoh_flow::State::from::<zenoh_flow::EmptyState>(zenoh_flow::EmptyState {})
     };
 }
