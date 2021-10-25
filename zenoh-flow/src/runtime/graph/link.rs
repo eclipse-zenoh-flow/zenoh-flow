@@ -13,7 +13,7 @@
 //
 
 use crate::{PortId, ZFResult};
-use async_std::sync::{Arc};
+use async_std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct LinkSender<T> {
