@@ -176,124 +176,124 @@ impl Node for NoOp {
 }
 
 // Run dataflow in single runtime
-async fn single_runtime() {
-    env_logger::init();
+// async fn single_runtime() {
+//     env_logger::init();
 
-    let (tx, rx) = bounded::<()>(1); // Channel used to trigger source
+//     let (tx, rx) = bounded::<()>(1); // Channel used to trigger source
 
-    let session =
-        async_std::sync::Arc::new(zenoh::net::open(zenoh::net::config::peer()).await.unwrap());
-    let hlc = async_std::sync::Arc::new(uhlc::HLC::default());
-    let rt_uuid = uuid::Uuid::new_v4();
-    let ctx = RuntimeContext {
-        session,
-        hlc,
-        runtime_name: format!("test-runtime-{}", rt_uuid).into(),
-        runtime_uuid: rt_uuid,
-    };
+//     let session =
+//         async_std::sync::Arc::new(zenoh::net::open(zenoh::net::config::peer()).await.unwrap());
+//     let hlc = async_std::sync::Arc::new(uhlc::HLC::default());
+//     let rt_uuid = uuid::Uuid::new_v4();
+//     let ctx = RuntimeContext {
+//         session,
+//         hlc,
+//         runtime_name: format!("test-runtime-{}", rt_uuid).into(),
+//         runtime_uuid: rt_uuid,
+//     };
 
-    let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new(ctx.clone());
+//     let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new(ctx.clone());
 
-    let source = Arc::new(CountSource::new(rx));
-    let sink = Arc::new(ExampleGenericSink {});
-    let operator = Arc::new(NoOp {});
+//     let source = Arc::new(CountSource::new(rx));
+//     let sink = Arc::new(ExampleGenericSink {});
+//     let operator = Arc::new(NoOp {});
 
-    zf_graph
-        .add_static_source(
-            "counter-source".into(),
-            PortDescriptor {
-                port_id: String::from(SOURCE),
-                port_type: String::from("int"),
-            },
-            source,
-            None,
-        )
-        .unwrap();
+//     zf_graph
+//         .add_static_source(
+//             "counter-source".into(),
+//             PortDescriptor {
+//                 port_id: String::from(SOURCE),
+//                 port_type: String::from("int"),
+//             },
+//             source,
+//             None,
+//         )
+//         .unwrap();
 
-    zf_graph
-        .add_static_sink(
-            "generic-sink".into(),
-            PortDescriptor {
-                port_id: String::from(SOURCE),
-                port_type: String::from("int"),
-            },
-            sink,
-            None,
-        )
-        .unwrap();
+//     zf_graph
+//         .add_static_sink(
+//             "generic-sink".into(),
+//             PortDescriptor {
+//                 port_id: String::from(SOURCE),
+//                 port_type: String::from("int"),
+//             },
+//             sink,
+//             None,
+//         )
+//         .unwrap();
 
-    zf_graph
-        .add_static_operator(
-            "noop".into(),
-            vec![PortDescriptor {
-                port_id: String::from(SOURCE),
-                port_type: String::from("int"),
-            }],
-            vec![PortDescriptor {
-                port_id: String::from(DESTINATION),
-                port_type: String::from("int"),
-            }],
-            operator,
-            None,
-        )
-        .unwrap();
+//     zf_graph
+//         .add_static_operator(
+//             "noop".into(),
+//             vec![PortDescriptor {
+//                 port_id: String::from(SOURCE),
+//                 port_type: String::from("int"),
+//             }],
+//             vec![PortDescriptor {
+//                 port_id: String::from(DESTINATION),
+//                 port_type: String::from("int"),
+//             }],
+//             operator,
+//             None,
+//         )
+//         .unwrap();
 
-    zf_graph
-        .add_link(
-            LinkFromDescriptor {
-                node: "counter-source".into(),
-                output: String::from(SOURCE),
-            },
-            LinkToDescriptor {
-                node: "noop".into(),
-                input: String::from(SOURCE),
-            },
-            None,
-            None,
-            None,
-        )
-        .unwrap();
+//     zf_graph
+//         .add_link(
+//             LinkFromDescriptor {
+//                 node: "counter-source".into(),
+//                 output: String::from(SOURCE),
+//             },
+//             LinkToDescriptor {
+//                 node: "noop".into(),
+//                 input: String::from(SOURCE),
+//             },
+//             None,
+//             None,
+//             None,
+//         )
+//         .unwrap();
 
-    zf_graph
-        .add_link(
-            LinkFromDescriptor {
-                node: "noop".into(),
-                output: String::from(DESTINATION),
-            },
-            LinkToDescriptor {
-                node: "generic-sink".into(),
-                input: String::from(SOURCE),
-            },
-            None,
-            None,
-            None,
-        )
-        .unwrap();
+//     zf_graph
+//         .add_link(
+//             LinkFromDescriptor {
+//                 node: "noop".into(),
+//                 output: String::from(DESTINATION),
+//             },
+//             LinkToDescriptor {
+//                 node: "generic-sink".into(),
+//                 input: String::from(SOURCE),
+//             },
+//             None,
+//             None,
+//             None,
+//         )
+//         .unwrap();
 
-    zf_graph.make_connections().await.unwrap();
+//     zf_graph.make_connections().await.unwrap();
 
-    let mut managers = vec![];
+//     let mut managers = vec![];
 
-    let runners = zf_graph.get_runners();
-    for runner in &runners {
-        let m = runner.start();
-        managers.push(m)
-    }
+//     let runners = zf_graph.get_runners();
+//     for runner in &runners {
+//         let m = runner.start();
+//         managers.push(m)
+//     }
 
-    tx.send_async(()).await.unwrap();
+//     tx.send_async(()).await.unwrap();
 
-    zenoh_flow::async_std::task::sleep(std::time::Duration::from_secs(1)).await;
+//     zenoh_flow::async_std::task::sleep(std::time::Duration::from_secs(1)).await;
 
-    for m in managers.iter() {
-        m.kill().await.unwrap()
-    }
+//     for m in managers.iter() {
+//         m.kill().await.unwrap()
+//     }
 
-    futures::future::join_all(managers).await;
-}
+//     futures::future::join_all(managers).await;
+// }
 
-#[test]
-fn run_single_runtime() {
-    let h1 = async_std::task::spawn(async move { single_runtime().await });
+// #[test]
+// fn run_single_runtime() {
+//     let h1 = async_std::task::spawn(async move { single_runtime().await });
 
-    async_std::task::block_on(async move { h1.await })
-}
+//     async_std::task::block_on(async move { h1.await })
+// }

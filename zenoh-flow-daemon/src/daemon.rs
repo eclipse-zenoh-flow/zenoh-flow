@@ -349,6 +349,7 @@ impl Runtime for Daemon {
 
         Ok(record)
     }
+
     async fn prepare(&self, flow: DataFlowDescriptor, record_id: Uuid) -> ZFResult<DataFlowRecord> {
         let flow_name = flow.flow.clone();
 
@@ -360,11 +361,7 @@ impl Runtime for Daemon {
 
         let mut dfr = DataFlowRecord::try_from((flow, record_id))?;
 
-        let mut dataflow_graph = DataFlowGraph::from_record(dfr.clone(), self.ctx.clone())?;
-
-        dataflow_graph.load()?;
-
-        dataflow_graph.make_connections().await?;
+        let mut dataflow_graph = DataFlowGraph::try_new(self.ctx.clone(), dfr.clone())?;
 
         let mut self_state = self.state.lock().await;
         self_state.graphs.insert(dfr.uuid, (dataflow_graph, vec![]));

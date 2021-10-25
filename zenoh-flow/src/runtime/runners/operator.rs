@@ -15,8 +15,10 @@
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::node::OperatorRecord;
 use crate::runtime::graph::link::{LinkReceiver, LinkSender};
+use crate::runtime::loader::load_operator;
 use crate::runtime::message::Message;
-use crate::{Context, DataMessage, Operator, PortId, Token, ZFResult, State};
+use crate::runtime::RuntimeContext;
+use crate::{Context, DataMessage, Operator, PortId, State, Token, ZFError, ZFResult, ZFState};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -31,10 +33,14 @@ pub struct OperatorDeclaration {
     pub register: OperatorRegisterFn,
 }
 
+#[derive(Default)]
 pub struct OperatorIO {
     inputs: HashMap<PortId, LinkReceiver<Message>>,
     outputs: HashMap<PortId, Vec<LinkSender<Message>>>,
 }
+
+pub type InputsLink = HashMap<PortId, LinkReceiver<Message>>;
+pub type OutputsLinks = HashMap<PortId, Vec<LinkSender<Message>>>;
 
 impl OperatorIO {
     pub fn new(record: &OperatorRecord) -> Self {
@@ -42,6 +48,28 @@ impl OperatorIO {
             inputs: HashMap::with_capacity(record.inputs.len()),
             outputs: HashMap::with_capacity(record.outputs.len()),
         }
+    }
+
+    pub fn try_add_input(&mut self, rx: LinkReceiver<Message>) -> ZFResult<()> {
+        if self.inputs.contains_key(&rx.id()) {
+            return Err(ZFError::DuplicatedInputPort((rx.id(), rx.id())));
+        }
+
+        self.inputs.insert(rx.id(), rx);
+
+        Ok(())
+    }
+
+    pub fn add_output(&mut self, tx: LinkSender<Message>) {
+        if let Some(vec_senders) = self.outputs.get_mut(&tx.id()) {
+            vec_senders.push(tx);
+        } else {
+            self.outputs.insert(tx.id(), vec![tx]);
+        }
+    }
+
+    pub fn take(self) -> (InputsLink, OutputsLinks) {
+        (self.inputs, self.outputs)
     }
 }
 
@@ -52,30 +80,44 @@ impl OperatorIO {
 // will have a SIGSEV.
 #[derive(Clone)]
 pub struct OperatorRunner {
-    pub record: Arc<OperatorRecord>,
-    pub io: Arc<RwLock<OperatorIO>>,
-    pub state: Arc<RwLock<State>>,
-    pub hlc: Arc<HLC>,
-    pub operator: Arc<dyn Operator>,
-    pub lib: Arc<Option<Library>>,
+    io: Arc<RwLock<OperatorIO>>,
+    state: Arc<RwLock<State>>,
+    record: OperatorRecord,
+    hlc: Arc<HLC>,
+    operator: Arc<dyn Operator>,
+    library: Arc<Option<Library>>,
 }
 
 impl OperatorRunner {
-    pub fn new(
+    pub fn try_new(
+        context: &RuntimeContext,
         record: OperatorRecord,
-        hlc: Arc<HLC>,
-        operator: Arc<dyn Operator>,
-        lib: Option<Library>,
-    ) -> Self {
+        operator_io: Option<OperatorIO>,
+    ) -> ZFResult<Self> {
+        let io = operator_io.ok_or_else(|| {
+            ZFError::IOError(format!(
+                "Links for Operator < {} > were not created.",
+                &record.id
+            ))
+        })?;
+
+        let uri = record.uri.as_ref().ok_or_else(|| {
+            ZFError::LoadingError(format!(
+                "Missing URI for dynamically loaded Operator < {} >.",
+                record.id.clone()
+            ))
+        })?;
+        let (library, operator) = load_operator(uri)?;
         let state = operator.initialize(&record.configuration);
-        Self {
-            hlc,
-            io: Arc::new(RwLock::new(OperatorIO::new(&record))),
+
+        Ok(Self {
+            hlc: context.hlc.clone(),
+            io: Arc::new(RwLock::new(io)),
             state: Arc::new(RwLock::new(state)),
+            record,
             operator,
-            lib: Arc::new(lib),
-            record: Arc::new(record),
-        }
+            library: Arc::new(Some(library)),
+        })
     }
 
     pub async fn add_input(&self, input: LinkReceiver<Message>) {
@@ -105,10 +147,9 @@ impl OperatorRunner {
             .record
             .inputs
             .iter()
-            .map(|port_desc| (port_desc.port_id.clone().into(), Token::NotReady))
+            .map(|port| (port.port_id.clone().into(), Token::NotReady))
             .collect();
-        let mut data: HashMap<PortId, DataMessage> =
-            HashMap::with_capacity(self.record.inputs.len());
+        let mut data: HashMap<PortId, DataMessage> = HashMap::with_capacity(tokens.len());
 
         loop {
             // Guards are taken at the beginning of each iteration to allow interleaving.

@@ -70,14 +70,10 @@ async fn main() {
     _write_record_to_file(dfr.clone(), "computed-record.yaml");
 
     // creating graph
-    let mut dataflow_graph =
-        zenoh_flow::runtime::graph::DataFlowGraph::from_record(dfr, ctx.clone()).unwrap();
+    let dataflow_graph =
+        zenoh_flow::runtime::graph::DataFlowGraph::try_new(ctx.clone(), dfr).unwrap();
 
     // instantiating
-    dataflow_graph.load().unwrap();
-
-    dataflow_graph.make_connections().await.unwrap();
-
     let mut managers = vec![];
 
     let mut sinks = dataflow_graph.get_sinks();

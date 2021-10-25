@@ -15,12 +15,14 @@
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::node::SourceRecord;
 use crate::runtime::graph::link::LinkSender;
+use crate::runtime::loader::load_source;
 use crate::runtime::message::Message;
+use crate::runtime::runners::operator::OperatorIO;
+use crate::runtime::RuntimeContext;
 use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
-use crate::{Context, PortId, Source, State};
+use crate::{Context, PortId, Source, State, ZFError};
 use libloading::Library;
-use std::collections::HashMap;
 
 pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
 
@@ -37,40 +39,60 @@ pub struct SourceDeclaration {
 // will have a SIGSEV.
 #[derive(Clone)]
 pub struct SourceRunner {
-    pub record: Arc<SourceRecord>,
-    pub hlc: Arc<PeriodicHLC>,
-    pub state: Arc<RwLock<State>>,
-    pub outputs: Arc<RwLock<HashMap<PortId, Vec<LinkSender<Message>>>>>,
-    pub source: Arc<dyn Source>,
-    pub lib: Arc<Option<Library>>,
+    hlc: PeriodicHLC,
+    state: Arc<RwLock<State>>,
+    record: SourceRecord,
+    links: Arc<RwLock<Vec<LinkSender<Message>>>>,
+    source: Arc<dyn Source>,
+    library: Arc<Option<Library>>,
 }
 
 impl SourceRunner {
-    pub fn new(
+    pub fn try_new(
+        context: &RuntimeContext,
         record: SourceRecord,
-        hlc: PeriodicHLC,
-        source: Arc<dyn Source>,
-        lib: Option<Library>,
-    ) -> Self {
+        io: Option<OperatorIO>,
+    ) -> ZFResult<Self> {
+        let io = io.ok_or_else(|| {
+            ZFError::IOError(format!(
+                "Links for Source < {} > were not created.",
+                &record.id
+            ))
+        })?;
+
+        let port_id: Arc<str> = record.output.port_id.clone().into();
+        let (_, mut outputs) = io.take();
+        let links = outputs.remove(&port_id).ok_or_else(|| {
+            ZFError::MissingOutput(format!(
+                "Missing links for port < {} > for Source: < {} >.",
+                &port_id, &record.id
+            ))
+        })?;
+
+        let uri = record.uri.as_ref().ok_or_else(|| {
+            ZFError::LoadingError(format!(
+                "Missing URI for dynamically loaded Source < {} >.",
+                record.id.clone()
+            ))
+        })?;
+        let (library, source) = load_source(uri)?;
+
         let state = source.initialize(&record.configuration);
-        Self {
-            record: Arc::new(record),
-            hlc: Arc::new(hlc),
+
+        Ok(Self {
+            hlc: PeriodicHLC::new(context.hlc.clone(), &record.period),
             state: Arc::new(RwLock::new(state)),
-            outputs: Arc::new(RwLock::new(HashMap::new())),
+            record,
+            links: Arc::new(RwLock::new(links)),
             source,
-            lib: Arc::new(lib),
-        }
+            library: Arc::new(Some(library)),
+        })
     }
 
     pub async fn add_output(&self, output: LinkSender<Message>) {
-        let mut outputs = self.outputs.write().await;
-        let key = output.id();
-        if let Some(links) = outputs.get_mut(key.as_ref()) {
-            links.push(output);
-        } else {
-            outputs.insert(key, vec![output]);
-        }
+        // let mut links = self.links.write().await;
+        // links.push(output);
+        (*self.links.write().await).push(output)
     }
 
     pub async fn clean(&self) -> ZFResult<()> {
@@ -80,11 +102,10 @@ impl SourceRunner {
 
     pub async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
-        let id: Arc<str> = self.record.output.port_id.clone().into();
 
         loop {
             // Guards are taken at the beginning of each iteration to allow interleaving.
-            let outputs_links = self.outputs.read().await;
+            let links = self.links.read().await;
             let mut state = self.state.write().await;
 
             // Running
@@ -93,15 +114,16 @@ impl SourceRunner {
             let timestamp = self.hlc.new_timestamp();
 
             // Send to Links
-            log::debug!("Sending on {:?} data: {:?}", id, output);
+            log::debug!(
+                "Sending on {:?} data: {:?}",
+                self.record.output.port_id,
+                output
+            );
 
-            if let Some(links) = outputs_links.get(&id) {
-                let zf_message = Arc::new(Message::from_serdedata(output, timestamp));
-
-                for tx in links {
-                    log::debug!("Sending on: {:?}", tx);
-                    tx.send(zf_message.clone()).await?;
-                }
+            let zf_message = Arc::new(Message::from_serdedata(output, timestamp));
+            for link in links.iter() {
+                log::debug!("\tSending on: {:?}", link);
+                link.send(zf_message.clone()).await?;
             }
         }
     }
