@@ -21,7 +21,7 @@ use crate::runtime::runners::operator::OperatorIO;
 use crate::runtime::RuntimeContext;
 use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
-use crate::{Context, PortId, Source, State, ZFError};
+use crate::{Context, Source, State, ZFError};
 use libloading::Library;
 
 pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;

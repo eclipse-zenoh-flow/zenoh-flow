@@ -18,7 +18,7 @@ use crate::runtime::graph::link::{LinkReceiver, LinkSender};
 use crate::runtime::loader::load_operator;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
-use crate::{Context, DataMessage, Operator, PortId, State, Token, ZFError, ZFResult, ZFState};
+use crate::{Context, DataMessage, Operator, PortId, State, Token, ZFError, ZFResult};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
