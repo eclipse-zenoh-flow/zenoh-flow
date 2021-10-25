@@ -13,7 +13,7 @@
 //
 
 use crate::{PortId, ZFResult};
-use async_std::sync::{Arc, Mutex};
+use async_std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct LinkSender<T> {
@@ -25,54 +25,23 @@ pub struct LinkSender<T> {
 pub struct LinkReceiver<T> {
     pub id: PortId,
     pub receiver: flume::Receiver<Arc<T>>,
-    pub last_message: Arc<Mutex<Option<Arc<T>>>>,
 }
 
 pub type ZFLinkOutput<T> = ZFResult<(PortId, Arc<T>)>;
 
 impl<T: std::marker::Send + std::marker::Sync> LinkReceiver<T> {
-    pub fn peek(
-        &self,
-    ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_>> {
-        async fn __peek<T>(_self: &LinkReceiver<T>) -> ZFResult<(PortId, Arc<T>)> {
-            let mut guard = _self.last_message.lock().await;
-
-            match &*guard {
-                Some(message) => Ok((_self.id.clone(), message.clone())),
-                None => {
-                    let last_message = _self.receiver.recv_async().await?;
-                    *guard = Some(last_message.clone());
-
-                    Ok((_self.id.clone(), last_message))
-                }
-            }
-        }
-        Box::pin(__peek(self))
-    }
-
     pub fn recv(
         &self,
     ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_ + Send + Sync>>
     {
         async fn __recv<T>(_self: &LinkReceiver<T>) -> ZFResult<(PortId, Arc<T>)> {
-            let mut guard = _self.last_message.lock().await;
-            match &*guard {
-                Some(message) => {
-                    let msg = message.clone();
-                    *guard = None;
-
-                    Ok((_self.id.clone(), msg))
-                }
-                None => Ok((_self.id.clone(), _self.receiver.recv_async().await?)),
-            }
+            Ok((_self.id.clone(), _self.receiver.recv_async().await?))
         }
 
         Box::pin(__recv(self))
     }
 
     pub async fn discard(&self) -> ZFResult<()> {
-        let mut guard = self.last_message.lock().await;
-        *guard = None;
         Ok(())
     }
 
@@ -121,7 +90,6 @@ pub fn link<T>(
         LinkReceiver {
             id: recv_id.into(),
             receiver,
-            last_message: Arc::new(Mutex::new(None)),
         },
     )
 }
