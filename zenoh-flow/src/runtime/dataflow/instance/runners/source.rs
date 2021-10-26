@@ -25,14 +25,6 @@ use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
 use crate::{Context, PortId, Source, State, ZFError};
 
-pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
-
-pub struct SourceDeclaration {
-    pub rustc_version: &'static str,
-    pub core_version: &'static str,
-    pub register: SourceRegisterFn,
-}
-
 // Do not reorder the fields in this struct.
 // Rust drops fields in a struct in the same order they are declared.
 // Ref: https://doc.rust-lang.org/reference/destructors.html

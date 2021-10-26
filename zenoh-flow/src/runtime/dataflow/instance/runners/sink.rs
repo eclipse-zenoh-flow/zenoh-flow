@@ -24,14 +24,6 @@ use crate::{Context, Sink, State, ZFError};
 use libloading::Library;
 use uhlc::HLC;
 
-pub type SinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
-
-pub struct SinkDeclaration {
-    pub rustc_version: &'static str,
-    pub core_version: &'static str,
-    pub register: SinkRegisterFn,
-}
-
 // Do not reorder the fields in this struct.
 // Rust drops fields in a struct in the same order they are declared.
 // Ref: https://doc.rust-lang.org/reference/destructors.html

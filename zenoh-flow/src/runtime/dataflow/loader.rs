@@ -12,9 +12,6 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::runtime::dataflow::instance::runners::operator::OperatorDeclaration;
-use crate::runtime::dataflow::instance::runners::sink::SinkDeclaration;
-use crate::runtime::dataflow::instance::runners::source::SourceDeclaration;
 use crate::{Operator, Sink, Source, ZFError, ZFResult};
 use async_std::sync::Arc;
 use libloading::Library;
@@ -24,6 +21,14 @@ pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 // OPERATOR
+
+pub type OperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
+
+pub struct OperatorDeclaration {
+    pub rustc_version: &'static str,
+    pub core_version: &'static str,
+    pub register: OperatorRegisterFn,
+}
 
 /// # Safety
 ///
@@ -62,6 +67,14 @@ unsafe fn load_lib_operator(path: &str) -> ZFResult<(Library, Arc<dyn Operator>)
 
 // SOURCE
 
+pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
+
+pub struct SourceDeclaration {
+    pub rustc_version: &'static str,
+    pub core_version: &'static str,
+    pub register: SourceRegisterFn,
+}
+
 pub fn load_source(path: &str) -> ZFResult<(Library, Arc<dyn Source>)> {
     let uri = Url::parse(path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
@@ -94,6 +107,14 @@ unsafe fn load_lib_source(path: &str) -> ZFResult<(Library, Arc<dyn Source>)> {
 }
 
 // SINK
+
+pub type SinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
+
+pub struct SinkDeclaration {
+    pub rustc_version: &'static str,
+    pub core_version: &'static str,
+    pub register: SinkRegisterFn,
+}
 
 pub fn load_sink(path: &str) -> ZFResult<(Library, Arc<dyn Sink>)> {
     let uri = Url::parse(path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;

@@ -25,14 +25,6 @@ use std::collections::HashMap;
 use std::mem;
 use uhlc::HLC;
 
-pub type OperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
-
-pub struct OperatorDeclaration {
-    pub rustc_version: &'static str,
-    pub core_version: &'static str,
-    pub register: OperatorRegisterFn,
-}
-
 #[derive(Default)]
 pub struct OperatorIO {
     inputs: HashMap<PortId, LinkReceiver<Message>>,
