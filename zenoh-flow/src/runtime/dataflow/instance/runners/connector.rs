@@ -14,9 +14,9 @@
 
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::connector::ZFConnectorRecord;
-use crate::runtime::graph::link::{LinkReceiver, LinkSender};
+use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
+use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
 use crate::runtime::message::Message;
-use crate::runtime::runners::operator::OperatorIO;
 use crate::runtime::RuntimeContext;
 use crate::{ZFError, ZFResult};
 use futures::prelude::*;

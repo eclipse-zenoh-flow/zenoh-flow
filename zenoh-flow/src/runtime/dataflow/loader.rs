@@ -12,9 +12,9 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::runtime::runners::operator::OperatorDeclaration;
-use crate::runtime::runners::sink::SinkDeclaration;
-use crate::runtime::runners::source::SourceDeclaration;
+use crate::runtime::dataflow::instance::runners::operator::OperatorDeclaration;
+use crate::runtime::dataflow::instance::runners::sink::SinkDeclaration;
+use crate::runtime::dataflow::instance::runners::source::SourceDeclaration;
 use crate::{Operator, Sink, Source, ZFError, ZFResult};
 use async_std::sync::Arc;
 use libloading::Library;

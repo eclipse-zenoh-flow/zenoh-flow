@@ -18,7 +18,6 @@ use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, P
 use crate::model::node::{
     OperatorDescriptor, OperatorRecord, SinkDescriptor, SinkRecord, SourceDescriptor, SourceRecord,
 };
-use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{NodeId, RuntimeId, ZFError, ZFResult};
 use std::collections::{HashMap, HashSet};
@@ -313,19 +312,6 @@ impl DataFlowRecord {
         }
     }
 
-    pub fn find_node(&self, id: &str) -> Option<DataFlowNode> {
-        match self.get_operator(id) {
-            Some(o) => Some(DataFlowNode::Operator(o)),
-            None => match self.get_source(id) {
-                Some(s) => Some(DataFlowNode::Source(s)),
-                None => match self.get_sink(id) {
-                    Some(s) => Some(DataFlowNode::Sink(s)),
-                    None => self.get_connector(id).map(DataFlowNode::Connector),
-                },
-            },
-        }
-    }
-
     fn get_operator(&self, id: &str) -> Option<OperatorRecord> {
         self.operators
             .iter()
@@ -341,12 +327,12 @@ impl DataFlowRecord {
         self.sinks.iter().find(|&o| o.id.as_ref() == id).cloned()
     }
 
-    fn get_connector(&self, id: &str) -> Option<ZFConnectorRecord> {
-        self.connectors
-            .iter()
-            .find(|&o| o.id.as_ref() == id)
-            .cloned()
-    }
+    // fn get_connector(&self, id: &str) -> Option<ZFConnectorRecord> {
+    //     self.connectors
+    //         .iter()
+    //         .find(|&o| o.id.as_ref() == id)
+    //         .cloned()
+    // }
 
     fn add_links(&mut self, links: &[LinkDescriptor]) -> ZFResult<()> {
         for l in links {

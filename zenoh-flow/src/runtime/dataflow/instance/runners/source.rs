@@ -12,17 +12,18 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use libloading::Library;
+
+use super::operator::OperatorIO;
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::node::SourceRecord;
-use crate::runtime::graph::link::LinkSender;
-use crate::runtime::loader::load_source;
+use crate::model::link::PortDescriptor;
+use crate::runtime::dataflow::instance::link::LinkSender;
+use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::message::Message;
-use crate::runtime::runners::operator::OperatorIO;
 use crate::runtime::RuntimeContext;
 use crate::types::ZFResult;
 use crate::utils::hlc::PeriodicHLC;
-use crate::{Context, Source, State, ZFError};
-use libloading::Library;
+use crate::{Context, PortId, Source, State, ZFError};
 
 pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
 
@@ -39,53 +40,43 @@ pub struct SourceDeclaration {
 // will have a SIGSEV.
 #[derive(Clone)]
 pub struct SourceRunner {
-    hlc: PeriodicHLC,
-    state: Arc<RwLock<State>>,
-    record: SourceRecord,
-    links: Arc<RwLock<Vec<LinkSender<Message>>>>,
-    source: Arc<dyn Source>,
-    library: Arc<Option<Library>>,
+    pub(crate) hlc: PeriodicHLC,
+    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) output: PortDescriptor,
+    pub(crate) links: Arc<RwLock<Vec<LinkSender<Message>>>>,
+    pub(crate) source: Arc<dyn Source>,
+    pub(crate) library: Option<Arc<Library>>,
 }
 
 impl SourceRunner {
     pub fn try_new(
         context: &RuntimeContext,
-        record: SourceRecord,
+        source: SourceLoaded,
         io: Option<OperatorIO>,
     ) -> ZFResult<Self> {
         let io = io.ok_or_else(|| {
             ZFError::IOError(format!(
                 "Links for Source < {} > were not created.",
-                &record.id
+                &source.id
             ))
         })?;
 
-        let port_id: Arc<str> = record.output.port_id.clone().into();
+        let port_id: PortId = source.output.port_id.clone().into();
         let (_, mut outputs) = io.take();
         let links = outputs.remove(&port_id).ok_or_else(|| {
             ZFError::MissingOutput(format!(
                 "Missing links for port < {} > for Source: < {} >.",
-                &port_id, &record.id
+                &port_id, &source.id
             ))
         })?;
-
-        let uri = record.uri.as_ref().ok_or_else(|| {
-            ZFError::LoadingError(format!(
-                "Missing URI for dynamically loaded Source < {} >.",
-                record.id.clone()
-            ))
-        })?;
-        let (library, source) = load_source(uri)?;
-
-        let state = source.initialize(&record.configuration);
 
         Ok(Self {
-            hlc: PeriodicHLC::new(context.hlc.clone(), &record.period),
-            state: Arc::new(RwLock::new(state)),
-            record,
+            hlc: PeriodicHLC::new(context.hlc.clone(), &source.period),
+            state: source.state,
+            output: source.output,
             links: Arc::new(RwLock::new(links)),
-            source,
-            library: Arc::new(Some(library)),
+            source: source.source,
+            library: source.library,
         })
     }
 
@@ -114,11 +105,7 @@ impl SourceRunner {
             let timestamp = self.hlc.new_timestamp();
 
             // Send to Links
-            log::debug!(
-                "Sending on {:?} data: {:?}",
-                self.record.output.port_id,
-                output
-            );
+            log::debug!("Sending on {:?} data: {:?}", self.output.port_id, output);
 
             let zf_message = Arc::new(Message::from_serdedata(output, timestamp));
             for link in links.iter() {

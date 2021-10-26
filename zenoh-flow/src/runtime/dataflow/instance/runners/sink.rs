@@ -13,11 +13,11 @@
 //
 
 use crate::async_std::sync::{Arc, RwLock};
-use crate::model::node::SinkRecord;
-use crate::runtime::graph::link::LinkReceiver;
-use crate::runtime::loader::load_sink;
+use crate::model::link::PortDescriptor;
+use crate::runtime::dataflow::instance::link::LinkReceiver;
+use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
+use crate::runtime::dataflow::node::SinkLoaded;
 use crate::runtime::message::Message;
-use crate::runtime::runners::operator::OperatorIO;
 use crate::runtime::RuntimeContext;
 use crate::types::ZFResult;
 use crate::{Context, Sink, State, ZFError};
@@ -39,51 +39,39 @@ pub struct SinkDeclaration {
 // will have a SIGSEV.
 #[derive(Clone)]
 pub struct SinkRunner {
-    state: Arc<RwLock<State>>,
-    hlc: Arc<HLC>,
-    record: SinkRecord,
-    link: Arc<RwLock<LinkReceiver<Message>>>,
-    sink: Arc<dyn Sink>,
-    library: Arc<Option<Library>>,
+    pub(crate) hlc: Arc<HLC>,
+    pub(crate) input: PortDescriptor,
+    pub(crate) link: Arc<RwLock<LinkReceiver<Message>>>,
+    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) sink: Arc<dyn Sink>,
+    pub(crate) library: Option<Arc<Library>>,
 }
 
 impl SinkRunner {
     pub fn try_new(
         context: &RuntimeContext,
-        record: SinkRecord,
+        sink: SinkLoaded,
         io: Option<OperatorIO>,
     ) -> ZFResult<Self> {
         let io = io.ok_or_else(|| {
-            ZFError::IOError(format!(
-                "Links for Sink < {} > were not created.",
-                &record.id
-            ))
+            ZFError::IOError(format!("Links for Sink < {} > were not created.", &sink.id))
         })?;
         let (mut inputs, _) = io.take();
-        let port_id: Arc<str> = record.input.port_id.clone().into();
+        let port_id: Arc<str> = sink.input.port_id.clone().into();
         let link = inputs.remove(&port_id).ok_or_else(|| {
             ZFError::MissingOutput(format!(
                 "Missing link for port < {} > for Sink: < {} >.",
-                &port_id, &record.id
+                &port_id, &sink.id
             ))
         })?;
 
-        let uri = record.uri.as_ref().ok_or_else(|| {
-            ZFError::LoadingError(format!(
-                "Missing URI for dynamically loaded Sink < {} >.",
-                record.id.clone()
-            ))
-        })?;
-        let (library, sink) = load_sink(uri)?;
-
-        let state = sink.initialize(&record.configuration);
         Ok(Self {
             hlc: context.hlc.clone(),
-            state: Arc::new(RwLock::new(state)),
-            record,
+            input: sink.input,
             link: Arc::new(RwLock::new(link)),
-            sink,
-            library: Arc::new(Some(library)),
+            state: sink.state,
+            sink: sink.sink,
+            library: sink.library,
         })
     }
 

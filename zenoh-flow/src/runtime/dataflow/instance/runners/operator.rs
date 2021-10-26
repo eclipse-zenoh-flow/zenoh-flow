@@ -14,8 +14,8 @@
 
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::node::OperatorRecord;
-use crate::runtime::graph::link::{LinkReceiver, LinkSender};
-use crate::runtime::loader::load_operator;
+use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
+use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::{Context, DataMessage, Operator, PortId, State, Token, ZFError, ZFResult};
@@ -80,43 +80,36 @@ impl OperatorIO {
 // will have a SIGSEV.
 #[derive(Clone)]
 pub struct OperatorRunner {
-    io: Arc<RwLock<OperatorIO>>,
-    state: Arc<RwLock<State>>,
-    record: OperatorRecord,
-    hlc: Arc<HLC>,
-    operator: Arc<dyn Operator>,
-    library: Arc<Option<Library>>,
+    pub(crate) hlc: Arc<HLC>,
+    pub(crate) io: Arc<RwLock<OperatorIO>>,
+    pub(crate) inputs: HashMap<PortId, String>,
+    pub(crate) outputs: HashMap<PortId, String>,
+    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) operator: Arc<dyn Operator>,
+    pub(crate) library: Option<Arc<Library>>,
 }
 
 impl OperatorRunner {
     pub fn try_new(
         context: &RuntimeContext,
-        record: OperatorRecord,
+        operator: OperatorLoaded,
         operator_io: Option<OperatorIO>,
     ) -> ZFResult<Self> {
         let io = operator_io.ok_or_else(|| {
             ZFError::IOError(format!(
                 "Links for Operator < {} > were not created.",
-                &record.id
+                &operator.id
             ))
         })?;
-
-        let uri = record.uri.as_ref().ok_or_else(|| {
-            ZFError::LoadingError(format!(
-                "Missing URI for dynamically loaded Operator < {} >.",
-                record.id.clone()
-            ))
-        })?;
-        let (library, operator) = load_operator(uri)?;
-        let state = operator.initialize(&record.configuration);
 
         Ok(Self {
             hlc: context.hlc.clone(),
             io: Arc::new(RwLock::new(io)),
-            state: Arc::new(RwLock::new(state)),
-            record,
-            operator,
-            library: Arc::new(Some(library)),
+            inputs: operator.inputs,
+            outputs: operator.outputs,
+            state: operator.state,
+            operator: operator.operator,
+            library: operator.library,
         })
     }
 
@@ -144,10 +137,9 @@ impl OperatorRunner {
     pub async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
         let mut tokens: HashMap<PortId, Token> = self
-            .record
             .inputs
-            .iter()
-            .map(|port| (port.port_id.clone().into(), Token::NotReady))
+            .keys()
+            .map(|input_id| (input_id.clone(), Token::NotReady))
             .collect();
         let mut data: HashMap<PortId, DataMessage> = HashMap::with_capacity(tokens.len());
 
