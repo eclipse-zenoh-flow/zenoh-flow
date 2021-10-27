@@ -12,7 +12,10 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use std::time::Duration;
+
 use libloading::Library;
+use uhlc::{Timestamp, NTP64};
 
 use super::operator::OperatorIO;
 use crate::async_std::sync::{Arc, RwLock};
@@ -33,9 +36,10 @@ use crate::{Context, NodeId, PortId, Source, State, ZFError};
 pub struct SourceRunner {
     pub(crate) id: NodeId,
     pub(crate) runtime_context: RuntimeContext,
-    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) period: Option<Duration>,
     pub(crate) output: PortDescriptor,
     pub(crate) links: Arc<RwLock<Vec<LinkSender<Message>>>>,
+    pub(crate) state: Arc<RwLock<State>>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -58,6 +62,7 @@ impl SourceRunner {
         Ok(Self {
             id: source.id,
             runtime_context: context,
+            period: source.period.map(|period| period.to_duration()),
             state: source.state,
             output: source.output,
             links: Arc::new(RwLock::new(links)),
@@ -66,9 +71,33 @@ impl SourceRunner {
         })
     }
 
+    fn new_maybe_periodic_timestamp(&self) -> Timestamp {
+        let mut timestamp = self.runtime_context.hlc.new_timestamp();
+        log::debug!("Timestamp generated: {:?}", timestamp);
+
+        if let Some(period) = &self.period {
+            let period_us = period.as_secs_f64();
+            let orig_timestamp_us = timestamp.get_time().to_duration().as_secs_f64();
+
+            let nb_period_floored = f64::floor(orig_timestamp_us / period_us);
+            let periodic_timestamp_us = Duration::from_secs_f64(period_us * nb_period_floored);
+
+            timestamp = Timestamp::new(
+                NTP64::from(periodic_timestamp_us),
+                timestamp.get_id().to_owned(),
+            );
+            log::debug!(
+                "Periodic timestamp: {:?} — period = {:?} — original = {:?}",
+                periodic_timestamp_us,
+                period_us,
+                orig_timestamp_us,
+            );
+        }
+
+        timestamp
+    }
+
     pub async fn add_output(&self, output: LinkSender<Message>) {
-        // let mut links = self.links.write().await;
-        // links.push(output);
         (*self.links.write().await).push(output)
     }
 
@@ -88,7 +117,7 @@ impl SourceRunner {
             // Running
             let output = self.source.run(&mut context, &mut state).await?;
 
-            let timestamp = self.runtime_context.hlc.new_timestamp();
+            let timestamp = self.new_maybe_periodic_timestamp();
 
             // Send to Links
             log::debug!("Sending on {:?} data: {:?}", self.output.port_id, output);
