@@ -19,19 +19,19 @@ pub mod node;
 use async_std::sync::{Arc, RwLock};
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use uuid::Uuid;
 
-use self::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::model::connector::ZFConnectorRecord;
-use crate::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
+use crate::model::dataflow::DataFlowRecord;
+use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::model::period::PeriodDescriptor;
-use crate::{
-    model::dataflow::DataFlowRecord, model::link::LinkDescriptor, runtime::RuntimeContext,
-    types::ZFResult,
-};
-use crate::{NodeId, Operator, PortId, Sink, Source, State, ZFError};
+use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
+use crate::runtime::RuntimeContext;
+use crate::{FlowId, NodeId, Operator, PortId, Sink, Source, State, ZFError, ZFResult};
 
 pub struct Dataflow {
-    pub(crate) flow: Arc<str>,
+    pub(crate) uuid: Uuid,
+    pub(crate) flow_id: FlowId,
     pub(crate) context: RuntimeContext,
     pub(crate) sources: HashMap<NodeId, SourceLoaded>,
     pub(crate) operators: HashMap<NodeId, OperatorLoaded>,
@@ -48,9 +48,15 @@ impl Dataflow {
     ///
     /// After adding the nodes (through `add_static_source`, `add_static_sink` and
     /// `add_static_operator`) you can instantiate your Dataflow by creating a `DataflowInstance`.
-    pub fn new(context: RuntimeContext, flow: &str) -> Self {
+    pub fn new(context: RuntimeContext, id: FlowId, uuid: Option<Uuid>) -> Self {
+        let uuid = match uuid {
+            Some(uuid) => uuid,
+            None => Uuid::new_v4(),
+        };
+
         Self {
-            flow: flow.into(),
+            uuid,
+            flow_id: id,
             context,
             sources: HashMap::default(),
             operators: HashMap::default(),
@@ -102,7 +108,8 @@ impl Dataflow {
             .collect();
 
         Ok(Self {
-            flow: record.flow.into(),
+            uuid: record.uuid,
+            flow_id: record.flow.into(),
             context,
             sources,
             operators,

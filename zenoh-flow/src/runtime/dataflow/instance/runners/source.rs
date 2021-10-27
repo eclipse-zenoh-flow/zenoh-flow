@@ -22,8 +22,7 @@ use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::types::ZFResult;
-use crate::utils::hlc::PeriodicHLC;
-use crate::{Context, PortId, Source, State, ZFError};
+use crate::{Context, NodeId, PortId, Source, State, ZFError};
 
 // Do not reorder the fields in this struct.
 // Rust drops fields in a struct in the same order they are declared.
@@ -32,7 +31,8 @@ use crate::{Context, PortId, Source, State, ZFError};
 // will have a SIGSEV.
 #[derive(Clone)]
 pub struct SourceRunner {
-    pub(crate) hlc: PeriodicHLC,
+    pub(crate) id: NodeId,
+    pub(crate) runtime_context: RuntimeContext,
     pub(crate) state: Arc<RwLock<State>>,
     pub(crate) output: PortDescriptor,
     pub(crate) links: Arc<RwLock<Vec<LinkSender<Message>>>>,
@@ -42,17 +42,10 @@ pub struct SourceRunner {
 
 impl SourceRunner {
     pub fn try_new(
-        context: &RuntimeContext,
+        context: RuntimeContext,
         source: SourceLoaded,
-        io: Option<OperatorIO>,
+        io: OperatorIO,
     ) -> ZFResult<Self> {
-        let io = io.ok_or_else(|| {
-            ZFError::IOError(format!(
-                "Links for Source < {} > were not created.",
-                &source.id
-            ))
-        })?;
-
         let port_id: PortId = source.output.port_id.clone().into();
         let (_, mut outputs) = io.take();
         let links = outputs.remove(&port_id).ok_or_else(|| {
@@ -63,7 +56,8 @@ impl SourceRunner {
         })?;
 
         Ok(Self {
-            hlc: PeriodicHLC::new(context.hlc.clone(), &source.period),
+            id: source.id,
+            runtime_context: context,
             state: source.state,
             output: source.output,
             links: Arc::new(RwLock::new(links)),
@@ -94,7 +88,7 @@ impl SourceRunner {
             // Running
             let output = self.source.run(&mut context, &mut state).await?;
 
-            let timestamp = self.hlc.new_timestamp();
+            let timestamp = self.runtime_context.hlc.new_timestamp();
 
             // Send to Links
             log::debug!("Sending on {:?} data: {:?}", self.output.port_id, output);

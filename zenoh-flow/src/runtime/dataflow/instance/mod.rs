@@ -29,11 +29,11 @@ use crate::runtime::dataflow::instance::runners::source::SourceRunner;
 use crate::runtime::dataflow::instance::runners::Runner;
 use crate::runtime::dataflow::Dataflow;
 use crate::runtime::RuntimeContext;
-use crate::{Message, NodeId, ZFResult};
+use crate::{FlowId, Message, NodeId, ZFError, ZFResult};
 
 pub struct DataflowInstance {
     pub(crate) uuid: Uuid,
-    pub(crate) flow: Arc<str>,
+    pub(crate) flow_id: FlowId,
     pub(crate) context: RuntimeContext,
     pub(crate) runners: HashMap<NodeId, Runner>,
 }
@@ -104,50 +104,79 @@ impl DataflowInstance {
         let mut runners: HashMap<NodeId, Runner> = HashMap::with_capacity(node_ids.len());
 
         for (id, source) in dataflow.sources.into_iter() {
-            let io = links.remove(&id);
+            let io = links.remove(&id).ok_or_else(|| {
+                ZFError::IOError(format!(
+                    "Links for Source < {} > were not created.",
+                    &source.id
+                ))
+            })?;
             runners.insert(
                 id,
-                Runner::Source(SourceRunner::try_new(&dataflow.context, source, io)?),
+                Runner::Source(SourceRunner::try_new(dataflow.context.clone(), source, io)?),
             );
         }
 
         for (id, operator) in dataflow.operators.into_iter() {
-            let io = links.remove(&operator.id);
+            let io = links.remove(&operator.id).ok_or_else(|| {
+                ZFError::IOError(format!(
+                    "Links for Operator < {} > were not created.",
+                    &operator.id
+                ))
+            })?;
             runners.insert(
                 id,
-                Runner::Operator(OperatorRunner::try_new(&dataflow.context, operator, io)?),
+                Runner::Operator(OperatorRunner::try_new(
+                    dataflow.context.clone(),
+                    operator,
+                    io,
+                )?),
             );
         }
 
         for (id, sink) in dataflow.sinks.into_iter() {
-            let io = links.remove(&id);
+            let io = links.remove(&id).ok_or_else(|| {
+                ZFError::IOError(format!("Links for Sink < {} > were not created.", &sink.id))
+            })?;
             runners.insert(
                 id,
-                Runner::Sink(SinkRunner::try_new(&dataflow.context, sink, io)?),
+                Runner::Sink(SinkRunner::try_new(dataflow.context.clone(), sink, io)?),
             );
         }
 
         for (id, connector) in dataflow.connectors.into_iter() {
-            let io = links.remove(&id);
+            let io = links.remove(&id).ok_or_else(|| {
+                ZFError::IOError(format!(
+                    "Links for Connector < {} > were not created.",
+                    &connector.id
+                ))
+            })?;
             match connector.kind {
                 ZFConnectorKind::Sender => {
                     runners.insert(
                         id,
-                        Runner::Sender(ZenohSender::try_new(&dataflow.context, connector, io)?),
+                        Runner::Sender(ZenohSender::try_new(
+                            dataflow.context.clone(),
+                            connector,
+                            io,
+                        )?),
                     );
                 }
                 ZFConnectorKind::Receiver => {
                     runners.insert(
                         id,
-                        Runner::Receiver(ZenohReceiver::try_new(&dataflow.context, connector, io)?),
+                        Runner::Receiver(ZenohReceiver::try_new(
+                            dataflow.context.clone(),
+                            connector,
+                            io,
+                        )?),
                     );
                 }
             }
         }
 
         Ok(Self {
-            uuid: Uuid::new_v4(),
-            flow: dataflow.flow,
+            uuid: dataflow.uuid,
+            flow_id: dataflow.flow_id,
             context: dataflow.context,
             runners,
         })
@@ -158,7 +187,7 @@ impl DataflowInstance {
     }
 
     pub fn get_flow(&self) -> Arc<str> {
-        self.flow.clone()
+        self.flow_id.clone()
     }
 
     pub fn get_runtime_context(&self) -> RuntimeContext {

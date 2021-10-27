@@ -18,7 +18,7 @@ use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
-use crate::{Context, DataMessage, Operator, PortId, State, Token, ZFError, ZFResult};
+use crate::{Context, DataMessage, NodeId, Operator, PortId, State, Token, ZFError, ZFResult};
 use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
@@ -72,7 +72,8 @@ impl OperatorIO {
 // will have a SIGSEV.
 #[derive(Clone)]
 pub struct OperatorRunner {
-    pub(crate) hlc: Arc<HLC>,
+    pub(crate) id: NodeId,
+    pub(crate) runtime_context: RuntimeContext,
     pub(crate) io: Arc<RwLock<OperatorIO>>,
     pub(crate) inputs: HashMap<PortId, String>,
     pub(crate) outputs: HashMap<PortId, String>,
@@ -83,20 +84,15 @@ pub struct OperatorRunner {
 
 impl OperatorRunner {
     pub fn try_new(
-        context: &RuntimeContext,
+        context: RuntimeContext,
         operator: OperatorLoaded,
-        operator_io: Option<OperatorIO>,
+        operator_io: OperatorIO,
     ) -> ZFResult<Self> {
-        let io = operator_io.ok_or_else(|| {
-            ZFError::IOError(format!(
-                "Links for Operator < {} > were not created.",
-                &operator.id
-            ))
-        })?;
-
+        // TODO Check that all ports are used.
         Ok(Self {
-            hlc: context.hlc.clone(),
-            io: Arc::new(RwLock::new(io)),
+            id: operator.id,
+            runtime_context: context,
+            io: Arc::new(RwLock::new(operator_io)),
             inputs: operator.inputs,
             outputs: operator.outputs,
             state: operator.state,
@@ -176,7 +172,11 @@ impl OperatorRunner {
             let timestamp = {
                 match max_token_timestamp {
                     Some(max_timestamp) => {
-                        if let Err(error) = self.hlc.update_with_timestamp(&max_timestamp) {
+                        if let Err(error) = self
+                            .runtime_context
+                            .hlc
+                            .update_with_timestamp(&max_timestamp)
+                        {
                             log::warn!(
                                 "[HLC] Could not update HLC with timestamp {:?}: {:?}",
                                 max_timestamp,
@@ -186,7 +186,7 @@ impl OperatorRunner {
 
                         max_timestamp
                     }
-                    None => self.hlc.new_timestamp(),
+                    None => self.runtime_context.hlc.new_timestamp(),
                 }
             };
 

@@ -18,29 +18,24 @@ use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
-use crate::{ZFError, ZFResult};
+use crate::{NodeId, ZFError, ZFResult};
 use futures::prelude::*;
-use zenoh::net::{Reliability, Session, SubInfo, SubMode};
+use zenoh::net::{Reliability, SubInfo, SubMode};
 
 #[derive(Clone)]
 pub struct ZenohSender {
-    pub session: Arc<Session>,
-    pub record: ZFConnectorRecord,
-    pub link: Arc<RwLock<LinkReceiver<Message>>>,
+    pub(crate) id: NodeId,
+    pub(crate) runtime_context: RuntimeContext,
+    pub(crate) record: ZFConnectorRecord,
+    pub(crate) link: Arc<RwLock<LinkReceiver<Message>>>,
 }
 
 impl ZenohSender {
     pub fn try_new(
-        context: &RuntimeContext,
+        context: RuntimeContext,
         record: ZFConnectorRecord,
-        io: Option<OperatorIO>,
+        io: OperatorIO,
     ) -> ZFResult<Self> {
-        let io = io.ok_or_else(|| {
-            ZFError::IOError(format!(
-                "Links for Connector < {} > were not created.",
-                &record.id
-            ))
-        })?;
         let (mut inputs, _) = io.take();
         let port_id: Arc<str> = record.link_id.port_id.clone().into();
         let link = inputs.remove(&port_id).ok_or_else(|| {
@@ -51,7 +46,8 @@ impl ZenohSender {
         })?;
 
         Ok(Self {
-            session: context.session.clone(),
+            id: record.id.clone(),
+            runtime_context: context,
             record,
             link: Arc::new(RwLock::new(link)),
         })
@@ -65,7 +61,8 @@ impl ZenohSender {
 
             let serialized = message.serialize_bincode()?;
             log::debug!("ZenohSender - {}=>{:?} ", self.record.resource, serialized);
-            self.session
+            self.runtime_context
+                .session
                 .write(&self.record.resource.clone().into(), serialized.into())
                 .await?;
         }
@@ -80,25 +77,19 @@ impl ZenohSender {
 
 #[derive(Clone)]
 pub struct ZenohReceiver {
-    pub session: Arc<Session>,
-    record: ZFConnectorRecord,
-    pub link: Arc<RwLock<LinkSender<Message>>>,
+    pub(crate) id: NodeId,
+    pub(crate) runtime_context: RuntimeContext,
+    pub(crate) record: ZFConnectorRecord,
+    pub(crate) link: Arc<RwLock<LinkSender<Message>>>,
 }
 
 impl ZenohReceiver {
     pub fn try_new(
-        context: &RuntimeContext,
+        context: RuntimeContext,
         record: ZFConnectorRecord,
-        io: Option<OperatorIO>,
+        io: OperatorIO,
     ) -> ZFResult<Self> {
-        let io = io.ok_or_else(|| {
-            ZFError::IOError(format!(
-                "Links for Connector < {} > were not created.",
-                &record.id
-            ))
-        })?;
         let (_, mut outputs) = io.take();
-
         let port_id: Arc<str> = record.link_id.port_id.clone().into();
         let mut links = outputs.remove(&port_id).ok_or_else(|| {
             ZFError::IOError(format!(
@@ -119,7 +110,8 @@ impl ZenohReceiver {
         let link = links.remove(0);
 
         Ok(Self {
-            session: context.session.clone(),
+            id: record.id.clone(),
+            runtime_context: context,
             record,
             link: Arc::new(RwLock::new(link)),
         })
@@ -135,6 +127,7 @@ impl ZenohReceiver {
         };
 
         let mut subscriber = self
+            .runtime_context
             .session
             .declare_subscriber(&self.record.resource.clone().into(), &sub_info)
             .await?;

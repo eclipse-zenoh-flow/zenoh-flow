@@ -20,9 +20,8 @@ use crate::runtime::dataflow::node::SinkLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::types::ZFResult;
-use crate::{Context, Sink, State, ZFError};
+use crate::{Context, NodeId, Sink, State, ZFError};
 use libloading::Library;
-use uhlc::HLC;
 
 // Do not reorder the fields in this struct.
 // Rust drops fields in a struct in the same order they are declared.
@@ -31,7 +30,8 @@ use uhlc::HLC;
 // will have a SIGSEV.
 #[derive(Clone)]
 pub struct SinkRunner {
-    pub(crate) hlc: Arc<HLC>,
+    pub(crate) id: NodeId,
+    pub(crate) runtime_context: RuntimeContext,
     pub(crate) input: PortDescriptor,
     pub(crate) link: Arc<RwLock<LinkReceiver<Message>>>,
     pub(crate) state: Arc<RwLock<State>>,
@@ -40,14 +40,7 @@ pub struct SinkRunner {
 }
 
 impl SinkRunner {
-    pub fn try_new(
-        context: &RuntimeContext,
-        sink: SinkLoaded,
-        io: Option<OperatorIO>,
-    ) -> ZFResult<Self> {
-        let io = io.ok_or_else(|| {
-            ZFError::IOError(format!("Links for Sink < {} > were not created.", &sink.id))
-        })?;
+    pub fn try_new(context: RuntimeContext, sink: SinkLoaded, io: OperatorIO) -> ZFResult<Self> {
         let (mut inputs, _) = io.take();
         let port_id: Arc<str> = sink.input.port_id.clone().into();
         let link = inputs.remove(&port_id).ok_or_else(|| {
@@ -58,7 +51,8 @@ impl SinkRunner {
         })?;
 
         Ok(Self {
-            hlc: context.hlc.clone(),
+            id: sink.id,
+            runtime_context: context,
             input: sink.input,
             link: Arc::new(RwLock::new(link)),
             state: sink.state,
