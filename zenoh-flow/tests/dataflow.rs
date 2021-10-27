@@ -12,19 +12,19 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use async_std::sync::Arc;
 use async_trait::async_trait;
 use flume::{bounded, Receiver};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use zenoh_flow::async_std::sync::Arc;
-use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor};
+use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
+use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::zenoh_flow_derive::ZFData;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, model::link::PortDescriptor, zf_empty_state, Context,
-    Data, Deserializable, Node, NodeOutput, Operator, PortId, Sink, Source, State, ZFData, ZFError,
-    ZFResult,
+    default_input_rule, default_output_rule, zf_empty_state, Context, Data, Deserializable, Node,
+    NodeOutput, Operator, PortId, Sink, Source, State, ZFData, ZFError, ZFResult,
 };
 
 // Data Type
@@ -64,7 +64,7 @@ unsafe impl Send for CountSource {}
 unsafe impl Sync for CountSource {}
 
 impl CountSource {
-    fn new(rx: Receiver<()>) -> Self {
+    pub fn new(rx: Receiver<()>) -> Self {
         CountSource { rx }
     }
 }
@@ -192,53 +192,49 @@ async fn single_runtime() {
         runtime_uuid: rt_uuid,
     };
 
-    let mut zf_graph = zenoh_flow::runtime::graph::DataFlowGraph::new(ctx.clone());
+    let mut dataflow =
+        zenoh_flow::runtime::dataflow::Dataflow::new(ctx.clone(), "test".into(), None);
 
     let source = Arc::new(CountSource::new(rx));
     let sink = Arc::new(ExampleGenericSink {});
     let operator = Arc::new(NoOp {});
 
-    zf_graph
-        .add_static_source(
-            "counter-source".into(),
-            PortDescriptor {
-                port_id: String::from(SOURCE),
-                port_type: String::from("int"),
-            },
-            source,
-            None,
-        )
-        .unwrap();
+    dataflow.add_static_source(
+        "counter-source".into(),
+        None,
+        PortDescriptor {
+            port_id: String::from(SOURCE),
+            port_type: String::from("int"),
+        },
+        source.initialize(&None),
+        source,
+    );
 
-    zf_graph
-        .add_static_sink(
-            "generic-sink".into(),
-            PortDescriptor {
-                port_id: String::from(SOURCE),
-                port_type: String::from("int"),
-            },
-            sink,
-            None,
-        )
-        .unwrap();
+    dataflow.add_static_sink(
+        "generic-sink".into(),
+        PortDescriptor {
+            port_id: String::from(SOURCE),
+            port_type: String::from("int"),
+        },
+        sink.initialize(&None),
+        sink,
+    );
 
-    zf_graph
-        .add_static_operator(
-            "noop".into(),
-            vec![PortDescriptor {
-                port_id: String::from(SOURCE),
-                port_type: String::from("int"),
-            }],
-            vec![PortDescriptor {
-                port_id: String::from(DESTINATION),
-                port_type: String::from("int"),
-            }],
-            operator,
-            None,
-        )
-        .unwrap();
+    dataflow.add_static_operator(
+        "noop".into(),
+        vec![PortDescriptor {
+            port_id: String::from(SOURCE),
+            port_type: String::from("int"),
+        }],
+        vec![PortDescriptor {
+            port_id: String::from(DESTINATION),
+            port_type: String::from("int"),
+        }],
+        operator.initialize(&None),
+        operator,
+    );
 
-    zf_graph
+    dataflow
         .add_link(
             LinkFromDescriptor {
                 node: "counter-source".into(),
@@ -254,7 +250,7 @@ async fn single_runtime() {
         )
         .unwrap();
 
-    zf_graph
+    dataflow
         .add_link(
             LinkFromDescriptor {
                 node: "noop".into(),
@@ -270,11 +266,11 @@ async fn single_runtime() {
         )
         .unwrap();
 
-    zf_graph.make_connections().await.unwrap();
+    let instance = DataflowInstance::try_instantiate(dataflow).unwrap();
 
     let mut managers = vec![];
 
-    let runners = zf_graph.get_runners();
+    let runners = instance.get_runners();
     for runner in &runners {
         let m = runner.start();
         managers.push(m)

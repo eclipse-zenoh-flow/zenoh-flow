@@ -26,8 +26,6 @@ pub use runtime::message::*;
 pub use runtime::token::*;
 pub mod types;
 pub use types::*;
-pub mod utils;
-pub use utils::*;
 pub mod traits;
 pub use traits::*;
 

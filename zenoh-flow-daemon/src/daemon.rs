@@ -21,10 +21,11 @@ use zenoh_flow::model::{
     dataflow::DataFlowRecord,
     node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
 };
-use zenoh_flow::runtime::graph::DataFlowGraph;
+use zenoh_flow::runtime::dataflow::instance::runners::{RunnerKind, RunnerManager};
+use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
+use zenoh_flow::runtime::dataflow::Dataflow;
 use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
-use zenoh_flow::runtime::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::RuntimeClient;
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
@@ -33,7 +34,7 @@ use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
 pub struct RTState {
-    pub graphs: HashMap<Uuid, (DataFlowGraph, Vec<RunnerManager>)>,
+    pub graphs: HashMap<Uuid, (DataflowInstance, Vec<RunnerManager>)>,
     pub config: RuntimeConfig,
 }
 
@@ -349,6 +350,7 @@ impl Runtime for Daemon {
 
         Ok(record)
     }
+
     async fn prepare(&self, flow: DataFlowDescriptor, record_id: Uuid) -> ZFResult<DataFlowRecord> {
         let flow_name = flow.flow.clone();
 
@@ -360,14 +362,11 @@ impl Runtime for Daemon {
 
         let mut dfr = DataFlowRecord::try_from((flow, record_id))?;
 
-        let mut dataflow_graph = DataFlowGraph::from_record(dfr.clone(), self.ctx.clone())?;
-
-        dataflow_graph.load()?;
-
-        dataflow_graph.make_connections().await?;
+        let mut dataflow = Dataflow::try_new(self.ctx.clone(), dfr.clone())?;
+        let mut instance = DataflowInstance::try_instantiate(dataflow)?;
 
         let mut self_state = self.state.lock().await;
-        self_state.graphs.insert(dfr.uuid, (dataflow_graph, vec![]));
+        self_state.graphs.insert(dfr.uuid, (instance, vec![]));
         drop(self_state);
         self.store
             .add_runtime_flow(&self.ctx.runtime_uuid, &dfr)

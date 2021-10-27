@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::OperatorId;
+use crate::NodeId;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -47,7 +47,7 @@ impl std::fmt::Display for PortDescriptor {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LinkFromDescriptor {
-    pub node: OperatorId,
+    pub node: NodeId,
     pub output: String,
 }
 
@@ -59,7 +59,7 @@ impl fmt::Display for LinkFromDescriptor {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LinkToDescriptor {
-    pub node: OperatorId,
+    pub node: NodeId,
     pub input: String,
 }
 

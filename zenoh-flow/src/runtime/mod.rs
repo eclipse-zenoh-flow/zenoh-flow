@@ -42,11 +42,9 @@ use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 // use async_std::prelude::FutureExt;
 use uhlc::HLC;
 use zenoh::net::Session;
-pub mod graph;
-pub mod loader;
+pub mod dataflow;
 pub mod message;
 pub mod resources;
-pub mod runners;
 pub mod token;
 
 #[derive(Clone)]

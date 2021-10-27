@@ -17,10 +17,10 @@ macro_rules! export_operator {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfoperator_declaration: $crate::runtime::runners::operator::OperatorDeclaration =
-            $crate::runtime::runners::operator::OperatorDeclaration {
-                rustc_version: $crate::runtime::loader::RUSTC_VERSION,
-                core_version: $crate::runtime::loader::CORE_VERSION,
+        pub static zfoperator_declaration: $crate::runtime::dataflow::loader::OperatorDeclaration =
+            $crate::runtime::dataflow::loader::OperatorDeclaration {
+                rustc_version: $crate::runtime::dataflow::loader::RUSTC_VERSION,
+                core_version: $crate::runtime::dataflow::loader::CORE_VERSION,
                 register: $register,
             };
     };
@@ -31,10 +31,10 @@ macro_rules! export_source {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsource_declaration: $crate::runtime::runners::source::SourceDeclaration =
-            $crate::runtime::runners::source::SourceDeclaration {
-                rustc_version: $crate::runtime::loader::RUSTC_VERSION,
-                core_version: $crate::runtime::loader::CORE_VERSION,
+        pub static zfsource_declaration: $crate::runtime::dataflow::loader::SourceDeclaration =
+            $crate::runtime::dataflow::loader::SourceDeclaration {
+                rustc_version: $crate::runtime::dataflow::loader::RUSTC_VERSION,
+                core_version: $crate::runtime::dataflow::loader::CORE_VERSION,
                 register: $register,
             };
     };
@@ -45,10 +45,10 @@ macro_rules! export_sink {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsink_declaration: $crate::runtime::runners::sink::SinkDeclaration =
-            $crate::runtime::runners::sink::SinkDeclaration {
-                rustc_version: $crate::runtime::loader::RUSTC_VERSION,
-                core_version: $crate::runtime::loader::CORE_VERSION,
+        pub static zfsink_declaration: $crate::runtime::dataflow::loader::SinkDeclaration =
+            $crate::runtime::dataflow::loader::SinkDeclaration {
+                rustc_version: $crate::runtime::dataflow::loader::RUSTC_VERSION,
+                core_version: $crate::runtime::dataflow::loader::CORE_VERSION,
                 register: $register,
             };
     };

@@ -13,7 +13,7 @@
 //
 
 use zenoh_flow::async_std::sync::Arc;
-use zenoh_flow::runtime::graph::link::{link, LinkReceiver, LinkSender};
+use zenoh_flow::runtime::dataflow::instance::link::{link, LinkReceiver, LinkSender};
 
 async fn same_task_simple() {
     let size = 2;

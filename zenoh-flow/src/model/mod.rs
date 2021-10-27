@@ -21,7 +21,7 @@ pub mod period;
 use crate::model::link::PortDescriptor;
 use crate::model::period::PeriodDescriptor;
 use crate::serde::{Deserialize, Serialize};
-use crate::OperatorId;
+use crate::NodeId;
 use crate::ZFError;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -66,7 +66,7 @@ impl Default for NodeKind {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RegistryNode {
-    pub id: OperatorId,
+    pub id: NodeId,
     pub kind: NodeKind,
     pub classes: Vec<String>,
     pub tags: Vec<RegistryNodeTag>,

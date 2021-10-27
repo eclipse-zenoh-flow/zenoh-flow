@@ -69,36 +69,34 @@ async fn main() {
 
     _write_record_to_file(dfr.clone(), "computed-record.yaml");
 
-    // creating graph
-    let mut dataflow_graph =
-        zenoh_flow::runtime::graph::DataFlowGraph::from_record(dfr, ctx.clone()).unwrap();
+    // creating dataflow
+    let dataflow = zenoh_flow::runtime::dataflow::Dataflow::try_new(ctx.clone(), dfr).unwrap();
 
     // instantiating
-    dataflow_graph.load().unwrap();
-
-    dataflow_graph.make_connections().await.unwrap();
-
+    let instance =
+        zenoh_flow::runtime::dataflow::instance::DataflowInstance::try_instantiate(dataflow)
+            .unwrap();
     let mut managers = vec![];
 
-    let mut sinks = dataflow_graph.get_sinks();
+    let mut sinks = instance.get_sinks();
     for runner in sinks.drain(..) {
         let m = runner.start();
         managers.push(m);
     }
 
-    let mut operators = dataflow_graph.get_operators();
+    let mut operators = instance.get_operators();
     for runner in operators.drain(..) {
         let m = runner.start();
         managers.push(m);
     }
 
-    let mut connectors = dataflow_graph.get_connectors();
+    let mut connectors = instance.get_connectors();
     for runner in connectors.drain(..) {
         let m = runner.start();
         managers.push(m);
     }
 
-    let mut sources = dataflow_graph.get_sources();
+    let mut sources = instance.get_sources();
     for runner in sources.drain(..) {
         let m = runner.start();
         managers.push(m);

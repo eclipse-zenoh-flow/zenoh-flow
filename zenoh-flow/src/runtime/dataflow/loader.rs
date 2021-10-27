@@ -12,19 +12,11 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::{
-    model::node::{OperatorRecord, SinkRecord, SourceRecord},
-    runtime::runners::{
-        operator::{OperatorDeclaration, OperatorRunner},
-        sink::{SinkDeclaration, SinkRunner},
-        source::{SourceDeclaration, SourceRunner},
-    },
-    types::{ZFError, ZFResult},
-    utils::hlc::PeriodicHLC,
-};
+use std::path::PathBuf;
+
+use crate::{Operator, Sink, Source, ZFError, ZFResult};
 use async_std::sync::Arc;
 use libloading::Library;
-use uhlc::HLC;
 use url::Url;
 
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -32,18 +24,22 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 // OPERATOR
 
+pub type OperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
+
+pub struct OperatorDeclaration {
+    pub rustc_version: &'static str,
+    pub core_version: &'static str,
+    pub register: OperatorRegisterFn,
+}
+
 /// # Safety
 ///
 /// TODO remove all copy-pasted code, make macros/functions instead
-pub fn load_operator(
-    record: OperatorRecord,
-    hlc: Arc<HLC>,
-    path: String,
-) -> ZFResult<OperatorRunner> {
-    let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
+pub fn load_operator(path: &str) -> ZFResult<(Library, Arc<dyn Operator>)> {
+    let uri = Url::parse(path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_operator(record, hlc, make_file_path(uri)) },
+        "file" => unsafe { load_lib_operator(make_file_path(uri)) },
         _ => Err(ZFError::Unimplemented),
     }
 }
@@ -55,12 +51,8 @@ pub fn load_operator(
 /// This function dynamically loads an external library, things can go wrong:
 /// - it will panick if the symbol `zfoperator_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
-pub unsafe fn load_lib_operator(
-    record: OperatorRecord,
-    hlc: Arc<HLC>,
-    path: String,
-) -> ZFResult<OperatorRunner> {
-    log::debug!("Operator Loading {}", path);
+unsafe fn load_lib_operator(path: PathBuf) -> ZFResult<(Library, Arc<dyn Operator>)> {
+    log::debug!("Operator Loading {:#?}", path);
 
     let library = Library::new(path)?;
     let decl = library
@@ -72,19 +64,24 @@ pub unsafe fn load_lib_operator(
         return Err(ZFError::VersionMismatch);
     }
 
-    let operator = (decl.register)()?;
-
-    let runner = OperatorRunner::new(record, hlc, operator, Some(library));
-    Ok(runner)
+    Ok((library, (decl.register)()?))
 }
 
 // SOURCE
 
-pub fn load_source(record: SourceRecord, hlc: PeriodicHLC, path: String) -> ZFResult<SourceRunner> {
-    let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
+pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
+
+pub struct SourceDeclaration {
+    pub rustc_version: &'static str,
+    pub core_version: &'static str,
+    pub register: SourceRegisterFn,
+}
+
+pub fn load_source(path: &str) -> ZFResult<(Library, Arc<dyn Source>)> {
+    let uri = Url::parse(path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_source(record, hlc, make_file_path(uri)) },
+        "file" => unsafe { load_lib_source(make_file_path(uri)) },
         _ => Err(ZFError::Unimplemented),
     }
 }
@@ -96,12 +93,8 @@ pub fn load_source(record: SourceRecord, hlc: PeriodicHLC, path: String) -> ZFRe
 /// This function dynamically loads an external library, things can go wrong:
 /// - it will panick if the symbol `zfsource_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
-pub unsafe fn load_lib_source(
-    record: SourceRecord,
-    hlc: PeriodicHLC,
-    path: String,
-) -> ZFResult<SourceRunner> {
-    log::debug!("Source Loading {}", path);
+unsafe fn load_lib_source(path: PathBuf) -> ZFResult<(Library, Arc<dyn Source>)> {
+    log::debug!("Source Loading {:#?}", path);
     let library = Library::new(path)?;
     let decl = library
         .get::<*mut SourceDeclaration>(b"zfsource_declaration\0")?
@@ -112,19 +105,24 @@ pub unsafe fn load_lib_source(
         return Err(ZFError::VersionMismatch);
     }
 
-    let source = (decl.register)()?;
-
-    let runner = SourceRunner::new(record, hlc, source, Some(library));
-    Ok(runner)
+    Ok((library, (decl.register)()?))
 }
 
 // SINK
 
-pub fn load_sink(record: SinkRecord, path: String) -> ZFResult<SinkRunner> {
-    let uri = Url::parse(&path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
+pub type SinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
+
+pub struct SinkDeclaration {
+    pub rustc_version: &'static str,
+    pub core_version: &'static str,
+    pub register: SinkRegisterFn,
+}
+
+pub fn load_sink(path: &str) -> ZFResult<(Library, Arc<dyn Sink>)> {
+    let uri = Url::parse(path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_sink(record, make_file_path(uri)) },
+        "file" => unsafe { load_lib_sink(make_file_path(uri)) },
         _ => Err(ZFError::Unimplemented),
     }
 }
@@ -136,8 +134,8 @@ pub fn load_sink(record: SinkRecord, path: String) -> ZFResult<SinkRunner> {
 /// This function dynamically loads an external library, things can go wrong:
 /// - it will panick if the symbol `zfsink_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
-pub unsafe fn load_lib_sink(record: SinkRecord, path: String) -> ZFResult<SinkRunner> {
-    log::debug!("Sink Loading {}", path);
+unsafe fn load_lib_sink(path: PathBuf) -> ZFResult<(Library, Arc<dyn Sink>)> {
+    log::debug!("Sink Loading {:#?}", path);
     let library = Library::new(path)?;
 
     let decl = library
@@ -149,15 +147,15 @@ pub unsafe fn load_lib_sink(record: SinkRecord, path: String) -> ZFResult<SinkRu
         return Err(ZFError::VersionMismatch);
     }
 
-    let sink = (decl.register)()?;
-
-    let runner = SinkRunner::new(record, sink, Some(library));
-    Ok(runner)
+    Ok((library, (decl.register)()?))
 }
 
-pub fn make_file_path(uri: Url) -> String {
-    match uri.host_str() {
-        Some(h) => format!("{}{}", h, uri.path()),
-        None => uri.path().to_string(),
+pub fn make_file_path(uri: Url) -> PathBuf {
+    let mut path = PathBuf::new();
+    if let Some(host) = uri.host_str() {
+        path.push(host);
     }
+    path.push(uri.path());
+
+    path
 }

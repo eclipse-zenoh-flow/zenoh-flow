@@ -17,9 +17,10 @@ use crate::serde::{Deserialize, Serialize};
 use crate::{ControlMessage, DataMessage, Token, ZFData, ZFState};
 use std::collections::HashMap;
 
-pub type OperatorId = Arc<str>;
+pub type NodeId = Arc<str>;
 pub type PortId = Arc<str>;
 pub type RuntimeId = Arc<str>;
+pub type FlowId = Arc<str>;
 
 pub type ZFResult<T> = Result<T, ZFError>;
 

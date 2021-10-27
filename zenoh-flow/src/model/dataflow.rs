@@ -18,9 +18,8 @@ use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, P
 use crate::model::node::{
     OperatorDescriptor, OperatorRecord, SinkDescriptor, SinkRecord, SourceDescriptor, SourceRecord,
 };
-use crate::runtime::graph::node::DataFlowNode;
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{OperatorId, RuntimeId, ZFError, ZFResult};
+use crate::types::{NodeId, RuntimeId, ZFError, ZFResult};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -91,7 +90,7 @@ impl DataFlowDescriptor {
 
     fn validate(&self) -> ZFResult<()> {
         // The clippy::type_complexity raises because of this HashMap.
-        let mut nodes: HashMap<OperatorId, (HashMap<String, String>, HashMap<String, String>)> =
+        let mut nodes: HashMap<NodeId, (HashMap<String, String>, HashMap<String, String>)> =
             HashMap::new();
 
         // Checks for duplicated operators
@@ -244,7 +243,7 @@ impl Eq for DataFlowDescriptor {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Mapping {
-    pub id: OperatorId,
+    pub id: NodeId,
     pub runtime: RuntimeId,
 }
 
@@ -313,19 +312,6 @@ impl DataFlowRecord {
         }
     }
 
-    pub fn find_node(&self, id: &str) -> Option<DataFlowNode> {
-        match self.get_operator(id) {
-            Some(o) => Some(DataFlowNode::Operator(o)),
-            None => match self.get_source(id) {
-                Some(s) => Some(DataFlowNode::Source(s)),
-                None => match self.get_sink(id) {
-                    Some(s) => Some(DataFlowNode::Sink(s)),
-                    None => self.get_connector(id).map(DataFlowNode::Connector),
-                },
-            },
-        }
-    }
-
     fn get_operator(&self, id: &str) -> Option<OperatorRecord> {
         self.operators
             .iter()
@@ -339,13 +325,6 @@ impl DataFlowRecord {
 
     fn get_sink(&self, id: &str) -> Option<SinkRecord> {
         self.sinks.iter().find(|&o| o.id.as_ref() == id).cloned()
-    }
-
-    fn get_connector(&self, id: &str) -> Option<ZFConnectorRecord> {
-        self.connectors
-            .iter()
-            .find(|&o| o.id.as_ref() == id)
-            .cloned()
     }
 
     fn add_links(&mut self, links: &[LinkDescriptor]) -> ZFResult<()> {

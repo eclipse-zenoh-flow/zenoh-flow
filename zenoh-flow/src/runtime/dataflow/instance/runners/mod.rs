@@ -17,12 +17,12 @@ pub mod operator;
 pub mod sink;
 pub mod source;
 
-use crate::runtime::graph::link::{LinkReceiver, LinkSender};
+use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
+use crate::runtime::dataflow::instance::runners::connector::{ZenohReceiver, ZenohSender};
+use crate::runtime::dataflow::instance::runners::operator::OperatorRunner;
+use crate::runtime::dataflow::instance::runners::sink::SinkRunner;
+use crate::runtime::dataflow::instance::runners::source::SourceRunner;
 use crate::runtime::message::Message;
-use crate::runtime::runners::connector::{ZenohReceiver, ZenohSender};
-use crate::runtime::runners::operator::OperatorRunner;
-use crate::runtime::runners::sink::SinkRunner;
-use crate::runtime::runners::source::SourceRunner;
 use crate::types::ZFResult;
 use crate::ZFError;
 
