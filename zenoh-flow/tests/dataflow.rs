@@ -192,7 +192,8 @@ async fn single_runtime() {
         runtime_uuid: rt_uuid,
     };
 
-    let mut dataflow = zenoh_flow::runtime::dataflow::Dataflow::new(ctx.clone(), "test".into());
+    let mut dataflow =
+        zenoh_flow::runtime::dataflow::Dataflow::new(ctx.clone(), "test".into(), None);
 
     let source = Arc::new(CountSource::new(rx));
     let sink = Arc::new(ExampleGenericSink {});

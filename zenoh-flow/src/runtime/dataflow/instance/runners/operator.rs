@@ -23,7 +23,6 @@ use futures::future;
 use libloading::Library;
 use std::collections::HashMap;
 use std::mem;
-use uhlc::HLC;
 
 #[derive(Default)]
 pub struct OperatorIO {
