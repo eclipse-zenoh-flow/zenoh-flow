@@ -327,13 +327,6 @@ impl DataFlowRecord {
         self.sinks.iter().find(|&o| o.id.as_ref() == id).cloned()
     }
 
-    // fn get_connector(&self, id: &str) -> Option<ZFConnectorRecord> {
-    //     self.connectors
-    //         .iter()
-    //         .find(|&o| o.id.as_ref() == id)
-    //         .cloned()
-    // }
-
     fn add_links(&mut self, links: &[LinkDescriptor]) -> ZFResult<()> {
         for l in links {
             let from_runtime = match self.find_node_runtime(&l.from.node) {
