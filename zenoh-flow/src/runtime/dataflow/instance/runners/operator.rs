@@ -210,11 +210,6 @@ impl OperatorRunner {
                     }
                 }
             }
-
-            // This depends on the Tokens...
-            for rx in io.inputs.values() {
-                rx.discard().await?;
-            }
         }
     }
 }
