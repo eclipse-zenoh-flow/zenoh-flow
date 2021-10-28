@@ -69,6 +69,8 @@ macro_rules! zf_spin_lock {
 #[macro_export]
 macro_rules! zf_empty_state {
     () => {
-        zenoh_flow::State::from::<zenoh_flow::EmptyState>(zenoh_flow::EmptyState {})
+        Ok(zenoh_flow::State::from::<zenoh_flow::EmptyState>(
+            zenoh_flow::EmptyState {},
+        ))
     };
 }

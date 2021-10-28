@@ -45,7 +45,7 @@ impl TryFrom<SourceRecord> for SourceLoaded {
             ))
         })?;
         let (library, source) = load_source(uri)?;
-        let state = source.initialize(&value.configuration);
+        let state = source.initialize(&value.configuration)?;
 
         Ok(Self {
             id: value.id,
@@ -78,7 +78,7 @@ impl TryFrom<OperatorRecord> for OperatorLoaded {
             ))
         })?;
         let (library, operator) = load_operator(uri)?;
-        let state = operator.initialize(&value.configuration);
+        let state = operator.initialize(&value.configuration)?;
 
         let inputs: HashMap<PortId, String> = value
             .inputs
@@ -122,7 +122,7 @@ impl TryFrom<SinkRecord> for SinkLoaded {
             ))
         })?;
         let (library, sink) = load_sink(uri)?;
-        let state = sink.initialize(&value.configuration);
+        let state = sink.initialize(&value.configuration)?;
 
         Ok(Self {
             id: value.id,
