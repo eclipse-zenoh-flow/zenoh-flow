@@ -126,7 +126,7 @@ impl OperatorRunner {
         let mut tokens: HashMap<PortId, Token> = self
             .inputs
             .keys()
-            .map(|input_id| (input_id.clone(), Token::NotReady))
+            .map(|input_id| (input_id.clone(), Token::Pending))
             .collect();
         let mut data: HashMap<PortId, DataMessage> = HashMap::with_capacity(tokens.len());
 
@@ -144,9 +144,9 @@ impl OperatorRunner {
 
             for (id, token) in tokens.iter_mut() {
                 // TODO: Input Rules — Take action into consideration, only replace when needed.
-                let old_token = mem::replace(token, Token::NotReady);
+                let old_token = mem::replace(token, Token::Pending);
                 match old_token {
-                    Token::NotReady => {
+                    Token::Pending => {
                         data.remove(id);
                         log::debug!("Removing < {} > from tokens for next iteration.", id);
                     }

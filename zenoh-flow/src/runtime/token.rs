@@ -36,7 +36,7 @@ pub struct ReadyToken {
 
 #[derive(Debug, Clone)]
 pub enum Token {
-    NotReady,
+    Pending,
     Ready(ReadyToken),
 }
 
@@ -50,7 +50,7 @@ impl Token {
 
     pub fn get_timestamp(&self) -> Option<Timestamp> {
         match self {
-            Self::NotReady => None,
+            Self::Pending => None,
             Self::Ready(token) => Some(token.data.timestamp),
         }
     }
@@ -60,7 +60,7 @@ impl Token {
     }
 
     pub fn is_not_ready(&self) -> bool {
-        matches!(self, Self::NotReady)
+        matches!(self, Self::Pending)
     }
 
     pub fn consume(&mut self) -> ZFResult<()> {
@@ -113,14 +113,14 @@ impl Token {
     pub fn action(&self) -> &TokenAction {
         match self {
             Self::Ready(ready) => &ready.action,
-            Self::NotReady => &TokenAction::Wait,
+            Self::Pending => &TokenAction::Wait,
         }
     }
 
     pub fn split(self) -> (Option<DataMessage>, TokenAction) {
         match self {
             Self::Ready(ready) => (Some(ready.data), ready.action),
-            Self::NotReady => (None, TokenAction::Wait),
+            Self::Pending => (None, TokenAction::Wait),
         }
     }
 }
@@ -128,7 +128,7 @@ impl Token {
 impl From<Arc<Message>> for Token {
     fn from(message: Arc<Message>) -> Self {
         match message.as_ref() {
-            Message::Control(_) => Token::NotReady,
+            Message::Control(_) => Token::Pending,
             Message::Data(data_message) => Token::new_ready(data_message.clone()),
         }
     }

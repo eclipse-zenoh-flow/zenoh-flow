@@ -212,7 +212,7 @@ pub fn default_input_rule(
     for token in tokens.values() {
         match token {
             Token::Ready(_) => continue,
-            Token::NotReady => return Ok(false),
+            Token::Pending => return Ok(false),
         }
     }
 
