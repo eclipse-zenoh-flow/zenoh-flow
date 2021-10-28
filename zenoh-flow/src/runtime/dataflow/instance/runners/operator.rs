@@ -140,7 +140,7 @@ impl OperatorRunner {
             // Input Rules
             crate::run_input_rules!(self.operator, tokens, links, &mut state, &mut context);
 
-            let mut max_token_timestamp = None;
+            let mut earliest_source_timestamp = None;
 
             for (id, token) in tokens.iter_mut() {
                 // TODO: Input Rules — Take action into consideration, only replace when needed.
@@ -152,7 +152,7 @@ impl OperatorRunner {
                     }
 
                     Token::Ready(ready_token) => {
-                        max_token_timestamp = match max_token_timestamp {
+                        earliest_source_timestamp = match earliest_source_timestamp {
                             None => Some(ready_token.data.timestamp),
                             Some(timestamp) => {
                                 if ready_token.data.timestamp > timestamp {
@@ -169,7 +169,7 @@ impl OperatorRunner {
             }
 
             let timestamp = {
-                match max_token_timestamp {
+                match earliest_source_timestamp {
                     Some(max_timestamp) => {
                         if let Err(error) = self
                             .runtime_context
