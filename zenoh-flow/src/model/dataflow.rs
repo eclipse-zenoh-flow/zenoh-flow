@@ -148,25 +148,46 @@ impl DataFlowDescriptor {
         }
 
         let mut inputs: HashMap<String, String> = HashMap::new();
-        let mut outputs: HashMap<String, String> = HashMap::new();
+        let mut outputs: HashMap<String, HashSet<String>> = HashMap::new();
 
-        // Checks links
+        // Checks links:
+        // - an output can be "linked" multiple times,
+        // - an input can be "linked" only once.
         for l in &self.links {
             // Checks if ports are already connected
-            let from_str = format!("{}.{}", l.from.node, l.from.output);
-            let to_str = format!("{}.{}", l.to.node, l.to.input);
-            match (inputs.get(&from_str), outputs.get(&to_str)) {
-                (None, None) => (),
-                (Some(to), _) => {
-                    return Err(ZFError::DuplicatedConnection((from_str, to.to_string())))
+            let link_output = format!("{}.{}", l.from.node, l.from.output);
+            let link_input = format!("{}.{}", l.to.node, l.to.input);
+
+            if let Some(output) = inputs.get(&link_input) {
+                return Err(ZFError::MultipleOutputsToInput(format!(
+                    "Failed to link (output) < {} > with (input) < {} >:\n\t (input) < {} > is already linked with (output) < {} >.",
+                    &link_output, &link_input, &link_input, &output
+                )));
+            }
+
+            match outputs.get_mut(&link_output) {
+                Some(output) => {
+                    if !output.insert(link_input.clone()) {
+                        log::error!(
+                            "Link declared twice: (output) < {} > -> (input) < {} >.",
+                            &link_output,
+                            &link_input
+                        );
+                        return Err(ZFError::DuplicatedLink((
+                            (l.from.node.clone(), l.from.output.clone()),
+                            (l.to.node.clone(), l.to.input.clone()),
+                        )));
+                    }
                 }
-                (None, Some(from)) => {
-                    return Err(ZFError::DuplicatedConnection((to_str, from.to_string())))
+                None => {
+                    outputs.insert(
+                        link_output.clone(),
+                        vec![link_input.clone()].into_iter().collect(),
+                    );
                 }
             };
 
-            inputs.insert(from_str.clone(), to_str.clone());
-            outputs.insert(to_str.clone(), from_str.clone());
+            inputs.insert(link_input.clone(), link_output.clone());
 
             // Checks if the output port exists.
             let out_port_type = match nodes.get(&l.from.node) {
@@ -205,7 +226,7 @@ impl DataFlowDescriptor {
         for (node_id, (node_inputs, node_outputs)) in &nodes {
             for node_input in node_inputs.keys() {
                 let to_str = format!("{}.{}", node_id, node_input);
-                if !outputs.contains_key(&to_str) {
+                if !inputs.contains_key(&to_str) {
                     return Err(ZFError::PortNotConnected((
                         node_id.clone(),
                         node_input.clone().into(),
@@ -214,7 +235,7 @@ impl DataFlowDescriptor {
             }
             for node_output in node_outputs.keys() {
                 let from_str = format!("{}.{}", node_id, node_output);
-                if !inputs.contains_key(&from_str) {
+                if !outputs.contains_key(&from_str) {
                     return Err(ZFError::PortNotConnected((
                         node_id.clone(),
                         node_output.clone().into(),

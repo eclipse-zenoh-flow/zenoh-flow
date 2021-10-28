@@ -312,7 +312,7 @@ links:
     input : Data
 "#;
 
-static DESCRIPTOR_KO_DUPLICATED_CONNECTION: &str = r#"
+static DESCRIPTOR_OK_DUPLICATED_CONNECTION: &str = r#"
 flow: SimplePipeline
 operators:
   - id : SumOperator
@@ -443,7 +443,7 @@ links:
 #[test]
 fn validate_ok() {
     let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_OK);
-    assert_eq!(r.is_ok(), true);
+    assert!(r.is_ok());
 }
 
 #[test]
@@ -484,13 +484,9 @@ fn validate_ko_duplicated_node() {
 }
 
 #[test]
-fn validate_ko_duplicated_connection() {
-    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_DUPLICATED_CONNECTION);
-    let error = Err(ZFError::DuplicatedConnection((
-        "SumOperator.Sum".into(),
-        "PrintSink.Data".into(),
-    )));
-    assert_eq!(r, error)
+fn validate_ok_duplicated_connection() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_OK_DUPLICATED_CONNECTION);
+    assert!(r.is_ok())
 }
 
 #[test]
