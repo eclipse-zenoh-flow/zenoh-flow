@@ -175,57 +175,57 @@ links:
     input : Data
 "#;
 
-// static DESCRIPTOR_KO_DUPLICATED_OUTPUT_PORT: &str = r#"
-// flow: SimplePipeline
-// operators:
-//   - id : SumOperator
-//     uri: file://./target/release/libsum_and_send.dylib
-//     inputs:
-//       - id: Number
-//         type: usize
-//     outputs:
-//       - id: Sum
-//         type: usize
-//       - id: Sum
-//         type: usize
-// sources:
-//   - id : Counter
-//     uri: file://./target/release/libcounter_source.dylib
-//     output:
-//       id: Counter
-//       type: usize
-// sinks:
-//   - id : PrintSink
-//     uri: file://./target/release/libgeneric_sink.dylib
-//     input:
-//       id: Data
-//       type: usize
-//   - id : PrintSink2
-//     uri: file://./target/release/libgeneric_sink.dylib
-//     input:
-//       id: Data
-//       type: usize
+static DESCRIPTOR_KO_DUPLICATED_OUTPUT_PORT: &str = r#"
+flow: SimplePipeline
+operators:
+  - id : SumOperator
+    uri: file://./target/release/libsum_and_send.dylib
+    inputs:
+      - id: Number
+        type: usize
+    outputs:
+      - id: Sum
+        type: usize
+      - id: Sum
+        type: usize
+sources:
+  - id : Counter
+    uri: file://./target/release/libcounter_source.dylib
+    output:
+      id: Counter
+      type: usize
+sinks:
+  - id : PrintSink
+    uri: file://./target/release/libgeneric_sink.dylib
+    input:
+      id: Data
+      type: usize
+  - id : PrintSink2
+    uri: file://./target/release/libgeneric_sink.dylib
+    input:
+      id: Data
+      type: usize
 
-// links:
-// - from:
-//     node : Counter
-//     output : Counter
-//   to:
-//     node : SumOperator
-//     input : Number
-// - from:
-//     node : SumOperator
-//     output : Sum
-//   to:
-//     node : PrintSink
-//     input : Data
-// - from:
-//     node : SumOperator
-//     output : Sum
-//   to:
-//     node : PrintSink2
-//     input : Data
-// "#;
+links:
+- from:
+    node : Counter
+    output : Counter
+  to:
+    node : SumOperator
+    input : Number
+- from:
+    node : SumOperator
+    output : Sum
+  to:
+    node : PrintSink
+    input : Data
+- from:
+    node : SumOperator
+    output : Sum
+  to:
+    node : PrintSink2
+    input : Data
+"#;
 
 static DESCRIPTOR_KO_DUPLICATED_INPUT_PORT: &str = r#"
 flow: SimplePipeline
@@ -312,55 +312,55 @@ links:
     input : Data
 "#;
 
-// static DESCRIPTOR_KO_DUPLICATED_CONNECTION: &str = r#"
-// flow: SimplePipeline
-// operators:
-//   - id : SumOperator
-//     uri: file://./target/release/libsum_and_send.dylib
-//     inputs:
-//       - id: Number
-//         type: usize
-//     outputs:
-//       - id: Sum
-//         type: usize
-// sources:
-//   - id : Counter
-//     uri: file://./target/release/libcounter_source.dylib
-//     output:
-//       id: Counter
-//       type: usize
-// sinks:
-//   - id : PrintSink
-//     uri: file://./target/release/libgeneric_sink.dylib
-//     input:
-//       id: Data
-//       type: usize
-//   - id : PrintSink2
-//     uri: file://./target/release/libgeneric_sink.dylib
-//     input:
-//       id: Data
-//       type: usize
+static DESCRIPTOR_OK_DUPLICATED_CONNECTION: &str = r#"
+flow: SimplePipeline
+operators:
+  - id : SumOperator
+    uri: file://./target/release/libsum_and_send.dylib
+    inputs:
+      - id: Number
+        type: usize
+    outputs:
+      - id: Sum
+        type: usize
+sources:
+  - id : Counter
+    uri: file://./target/release/libcounter_source.dylib
+    output:
+      id: Counter
+      type: usize
+sinks:
+  - id : PrintSink
+    uri: file://./target/release/libgeneric_sink.dylib
+    input:
+      id: Data
+      type: usize
+  - id : PrintSink2
+    uri: file://./target/release/libgeneric_sink.dylib
+    input:
+      id: Data
+      type: usize
 
-// links:
-// - from:
-//     node : Counter
-//     output : Counter
-//   to:
-//     node : SumOperator
-//     input : Number
-// - from:
-//     node : SumOperator
-//     output : Sum
-//   to:
-//     node : PrintSink
-//     input : Data
-// - from:
-//     node : SumOperator
-//     output : Sum
-//   to:
-//     node : PrintSink2
-//     input : Data
-// "#;
+links:
+- from:
+    node : Counter
+    output : Counter
+  to:
+    node : SumOperator
+    input : Number
+- from:
+    node : SumOperator
+    output : Sum
+  to:
+    node : PrintSink
+    input : Data
+- from:
+    node : SumOperator
+    output : Sum
+  to:
+    node : PrintSink2
+    input : Data
+"#;
 
 static DESCRIPTOR_KO_PORT_NOT_FOUND: &str = r#"
 flow: SimplePipeline
@@ -456,15 +456,15 @@ fn validate_ko_unconnected() {
     assert_eq!(r, error)
 }
 
-// #[test]
-// fn validate_ko_duplicated_output() {
-//     let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_DUPLICATED_OUTPUT_PORT);
-//     let error = Err(ZFError::DuplicatedOutputPort((
-//         "SumOperator".into(),
-//         "Sum".into(),
-//     )));
-//     assert_eq!(r, error)
-// }
+#[test]
+fn validate_ko_duplicated_output() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_DUPLICATED_OUTPUT_PORT);
+    let error = Err(ZFError::DuplicatedOutputPort((
+        "SumOperator".into(),
+        "Sum".into(),
+    )));
+    assert_eq!(r, error)
+}
 
 #[test]
 fn validate_ko_duplicated_input() {
@@ -483,15 +483,11 @@ fn validate_ko_duplicated_node() {
     assert_eq!(r, error)
 }
 
-// #[test]
-// fn validate_ko_duplicated_connection() {
-//     let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_DUPLICATED_CONNECTION);
-//     let error = Err(ZFError::DuplicatedConnection((
-//         "SumOperator.Sum".into(),
-//         "PrintSink.Data".into(),
-//     )));
-//     assert_eq!(r, error)
-// }
+#[test]
+fn validate_ok_duplicated_connection() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_OK_DUPLICATED_CONNECTION);
+    assert!(r.is_ok())
+}
 
 #[test]
 fn validate_ko_different_port_types() {
