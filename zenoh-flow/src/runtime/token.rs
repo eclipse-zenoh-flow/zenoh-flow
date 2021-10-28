@@ -25,9 +25,6 @@ pub enum TokenAction {
     Wait,    // Waits the Data, this is applicable only to NotReadyToken
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct NotReadyToken;
-
 #[derive(Debug, Clone)]
 pub struct ReadyToken {
     pub data: DataMessage,
