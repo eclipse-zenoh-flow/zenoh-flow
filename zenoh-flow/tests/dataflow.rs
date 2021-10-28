@@ -80,7 +80,7 @@ impl Source for CountSource {
 }
 
 impl Node for CountSource {
-    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> State {
+    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> ZFResult<State> {
         zf_empty_state!()
     }
 
@@ -111,7 +111,7 @@ impl Sink for ExampleGenericSink {
 }
 
 impl Node for ExampleGenericSink {
-    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> State {
+    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> ZFResult<State> {
         zf_empty_state!()
     }
 
@@ -166,7 +166,7 @@ impl Operator for NoOp {
 }
 
 impl Node for NoOp {
-    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> State {
+    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> ZFResult<State> {
         zf_empty_state!()
     }
 
@@ -206,7 +206,7 @@ async fn single_runtime() {
             port_id: String::from(SOURCE),
             port_type: String::from("int"),
         },
-        source.initialize(&None),
+        source.initialize(&None).unwrap(),
         source,
     );
 
@@ -216,7 +216,7 @@ async fn single_runtime() {
             port_id: String::from(SOURCE),
             port_type: String::from("int"),
         },
-        sink.initialize(&None),
+        sink.initialize(&None).unwrap(),
         sink,
     );
 
@@ -230,7 +230,7 @@ async fn single_runtime() {
             port_id: String::from(DESTINATION),
             port_type: String::from("int"),
         }],
-        operator.initialize(&None),
+        operator.initialize(&None).unwrap(),
         operator,
     );
 

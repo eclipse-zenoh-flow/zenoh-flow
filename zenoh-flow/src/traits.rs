@@ -42,7 +42,7 @@ pub trait ZFState: Debug + Send + Sync {
 }
 
 pub trait Node {
-    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> State;
+    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> ZFResult<State>;
 
     fn finalize(&self, state: &mut State) -> ZFResult<()>;
 }
