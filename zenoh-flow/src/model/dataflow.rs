@@ -159,7 +159,7 @@ impl DataFlowDescriptor {
             let link_input = format!("{}.{}", l.to.node, l.to.input);
 
             if let Some(output) = inputs.get(&link_input) {
-                return Err(ZFError::InvalidData(format!(
+                return Err(ZFError::MultipleOutputsToInput(format!(
                     "Failed to link (output) < {} > with (input) < {} >:\n\t (input) < {} > is already linked with (output) < {} >.",
                     &link_output, &link_input, &link_input, &output
                 )));
@@ -168,9 +168,14 @@ impl DataFlowDescriptor {
             match outputs.get_mut(&link_output) {
                 Some(output) => {
                     if !output.insert(link_input.clone()) {
-                        return Err(ZFError::InvalidData(format!(
+                        log::error!(
                             "Link declared twice: (output) < {} > -> (input) < {} >.",
-                            &link_output, &link_input
+                            &link_output,
+                            &link_input
+                        );
+                        return Err(ZFError::DuplicatedLink((
+                            (l.from.node.clone(), l.from.output.clone()),
+                            (l.to.node.clone(), l.to.input.clone()),
                         )));
                     }
                 }
