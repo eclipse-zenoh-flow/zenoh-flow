@@ -63,6 +63,13 @@ impl Data {
         }
     }
 
+    pub fn from_arc<Typed>(arc: Arc<Typed>) -> Self
+    where
+        Typed: ZFData + 'static,
+    {
+        Self::Typed(arc)
+    }
+
     pub fn from<Typed>(typed: Typed) -> Self
     where
         Typed: ZFData + 'static,
@@ -102,6 +109,13 @@ pub struct State {
 }
 
 impl State {
+    pub fn from_box<S>(boxed: Box<S>) -> Self
+    where
+        S: ZFState + 'static,
+    {
+        Self { state: boxed }
+    }
+
     pub fn from<S>(state: S) -> Self
     where
         S: ZFState + 'static,
