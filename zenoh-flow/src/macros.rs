@@ -74,16 +74,3 @@ macro_rules! zf_empty_state {
         ))
     };
 }
-
-#[macro_export]
-macro_rules! tri {
-    ($e:expr) => {
-        match $e {
-            Result::Ok(val) => val,
-            Result::Err(err) => return Result::Err(err),
-        }
-    };
-    ($e:expr,) => {
-        tri!($e)
-    };
-}
