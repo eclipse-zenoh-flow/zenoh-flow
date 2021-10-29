@@ -23,8 +23,9 @@ use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::zenoh_flow_derive::ZFData;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, zf_empty_state, Context, Data, Deserializable, Node,
-    NodeOutput, Operator, PortId, Sink, Source, State, ZFData, ZFError, ZFResult,
+    default_input_rule, default_output_rule, zf_empty_state, Configuration, Context, Data,
+    Deserializable, Node, NodeOutput, Operator, PortId, Sink, Source, State, ZFData, ZFError,
+    ZFResult,
 };
 
 // Data Type
@@ -80,7 +81,7 @@ impl Source for CountSource {
 }
 
 impl Node for CountSource {
-    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> ZFResult<State> {
+    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
         zf_empty_state!()
     }
 
@@ -111,7 +112,7 @@ impl Sink for ExampleGenericSink {
 }
 
 impl Node for ExampleGenericSink {
-    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> ZFResult<State> {
+    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
         zf_empty_state!()
     }
 
@@ -166,7 +167,7 @@ impl Operator for NoOp {
 }
 
 impl Node for NoOp {
-    fn initialize(&self, _configuration: &Option<HashMap<String, String>>) -> ZFResult<State> {
+    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
         zf_empty_state!()
     }
 

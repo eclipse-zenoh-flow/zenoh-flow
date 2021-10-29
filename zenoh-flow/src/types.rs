@@ -218,3 +218,5 @@ pub fn default_input_rule(
 
     Ok(true)
 }
+
+pub type Configuration = serde_json::Value;
