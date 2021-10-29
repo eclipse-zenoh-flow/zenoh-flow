@@ -13,7 +13,7 @@
 //
 
 use crate::runtime::message::DataMessage;
-use crate::{Context, Data, NodeOutput, PortId, State, Token, ZFResult};
+use crate::{Configuration, Context, Data, NodeOutput, PortId, State, Token, ZFResult};
 use async_trait::async_trait;
 use std::any::Any;
 use std::collections::HashMap;
@@ -42,7 +42,7 @@ pub trait ZFState: Debug + Send + Sync {
 }
 
 pub trait Node {
-    fn initialize(&self, configuration: &Option<HashMap<String, String>>) -> ZFResult<State>;
+    fn initialize(&self, configuration: &Option<Configuration>) -> ZFResult<State>;
 
     fn finalize(&self, state: &mut State) -> ZFResult<()>;
 }

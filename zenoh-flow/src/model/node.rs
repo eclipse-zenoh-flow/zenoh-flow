@@ -14,9 +14,8 @@
 
 use crate::model::link::PortDescriptor;
 use crate::model::period::PeriodDescriptor;
-use crate::types::{NodeId, RuntimeId};
+use crate::types::{Configuration, NodeId, RuntimeId};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 // Descriptors
 
@@ -25,7 +24,7 @@ pub struct SinkDescriptor {
     pub id: NodeId,
     pub input: PortDescriptor,
     pub uri: Option<String>,
-    pub configuration: Option<HashMap<String, String>>,
+    pub configuration: Option<Configuration>,
     pub runtime: Option<RuntimeId>, // to be removed
 }
 
@@ -41,7 +40,7 @@ pub struct SourceDescriptor {
     pub output: PortDescriptor,
     pub period: Option<PeriodDescriptor>,
     pub uri: Option<String>,
-    pub configuration: Option<HashMap<String, String>>,
+    pub configuration: Option<Configuration>,
     pub runtime: Option<RuntimeId>, // to be removed
 }
 
@@ -57,7 +56,7 @@ pub struct OperatorDescriptor {
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
-    pub configuration: Option<HashMap<String, String>>,
+    pub configuration: Option<Configuration>,
     pub runtime: Option<RuntimeId>, // to be removed
 }
 
@@ -74,7 +73,7 @@ pub struct SinkRecord {
     pub id: NodeId,
     pub input: PortDescriptor,
     pub uri: Option<String>,
-    pub configuration: Option<HashMap<String, String>>,
+    pub configuration: Option<Configuration>,
     pub runtime: RuntimeId,
 }
 
@@ -100,7 +99,7 @@ pub struct SourceRecord {
     pub output: PortDescriptor,
     pub period: Option<PeriodDescriptor>,
     pub uri: Option<String>,
-    pub configuration: Option<HashMap<String, String>>,
+    pub configuration: Option<Configuration>,
     pub runtime: RuntimeId,
 }
 
@@ -126,7 +125,7 @@ pub struct OperatorRecord {
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
-    pub configuration: Option<HashMap<String, String>>,
+    pub configuration: Option<Configuration>,
     pub runtime: RuntimeId,
 }
 
