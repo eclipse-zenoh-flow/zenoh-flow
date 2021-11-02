@@ -12,23 +12,79 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::{DataMessage, Message, ZFError, ZFResult};
+use crate::{Data, DataMessage, Message, PortId};
 use async_std::sync::Arc;
+use std::collections::HashMap;
 use uhlc::Timestamp;
+
+pub struct Tokens {
+    pub(crate) map: HashMap<PortId, Token>,
+}
+
+impl Tokens {
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            map: HashMap::with_capacity(capacity),
+        }
+    }
+
+    pub fn get_mut(&mut self, port_id: &PortId) -> Option<&mut Token> {
+        self.map.get_mut(port_id)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum TokenAction {
-    Consume, // Default, data is passed to the run and consumed from the "thing"
-    Drop,    // Data is dropped
-    KeepRun, // Data is passed to the run and kept in the "thing"
-    Keep,    // Data is kept in the "thing"
-    Wait,    // Waits the Data, this is applicable only to NotReadyToken
+    Consume,
+    Drop,
+    Keep,
 }
 
 #[derive(Debug, Clone)]
 pub struct ReadyToken {
-    pub data: DataMessage,
-    pub action: TokenAction,
+    pub(crate) data: DataMessage,
+    pub(crate) action: TokenAction,
+}
+
+impl ReadyToken {
+    /// Tell Zenoh Flow to immediately discard the data.
+    ///
+    /// The data associated to the `Token` will be immediately discarded, regardless of the result
+    /// of the `Input Rule`. Hence, even if the `Input Rule` return `True` (indicating the `Run`
+    /// method will be called), the data **will not** be transmitted.
+    pub fn set_action_drop(&mut self) {
+        self.action = TokenAction::Drop
+    }
+
+    /// Tell Zenoh Flow to use the data in the "next" run and keep it.
+    ///
+    /// The data associated to the `Token` will be transmitted to the `Run` method of the `Operator`
+    /// the next time `Run` is called, i.e. the next time the `Input Rule` returns `True`.
+    /// Once `Run` is over, the data is kept, _preventing data from being received on that link_.
+    pub fn set_action_keep(&mut self) {
+        self.action = TokenAction::Keep
+    }
+
+    /// (default) Tell Zenoh Flow to use the data in the "next" run and drop it after.
+    ///
+    /// The data associated to the `Token` will be transmitted to the `Run` method of the `Operator`
+    /// the next time `Run` is called, i.e. the next time the `Input Rule` returns `True`.
+    /// Once `Run` is over, the data is dropped, allowing for data to be received on that link.
+    pub fn set_action_consume(&mut self) {
+        self.action = TokenAction::Consume
+    }
+
+    pub fn get_action(&self) -> &TokenAction {
+        &self.action
+    }
+
+    pub fn get_data_mut(&mut self) -> &mut Data {
+        &mut self.data.data
+    }
+
+    pub fn get_timestamp(&self) -> &Timestamp {
+        &self.data.timestamp
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -45,80 +101,14 @@ impl Token {
         })
     }
 
-    pub fn get_timestamp(&self) -> Option<Timestamp> {
-        match self {
-            Self::Pending => None,
-            Self::Ready(token) => Some(token.data.timestamp),
-        }
-    }
-
-    pub fn is_ready(&self) -> bool {
-        matches!(self, Self::Ready(_))
-    }
-
-    pub fn is_not_ready(&self) -> bool {
-        matches!(self, Self::Pending)
-    }
-
-    pub fn consume(&mut self) -> ZFResult<()> {
-        match self {
-            Self::Ready(ref mut ready) => {
-                ready.action = TokenAction::Consume;
-                Ok(())
+    pub(crate) fn should_drop(&self) -> bool {
+        if let Token::Ready(token_ready) = self {
+            if let TokenAction::Drop = token_ready.action {
+                return true;
             }
-            _ => Err(ZFError::GenericError),
         }
-    }
 
-    pub fn drop(&mut self) -> ZFResult<()> {
-        match self {
-            Self::Ready(ref mut ready) => {
-                ready.action = TokenAction::Drop;
-                Ok(())
-            }
-            _ => Err(ZFError::GenericError),
-        }
-    }
-
-    pub fn keep_run(&mut self) -> ZFResult<()> {
-        match self {
-            Self::Ready(ref mut ready) => {
-                ready.action = TokenAction::KeepRun;
-                Ok(())
-            }
-            _ => Err(ZFError::GenericError),
-        }
-    }
-
-    pub fn keep(&mut self) -> ZFResult<()> {
-        match self {
-            Self::Ready(ref mut ready) => {
-                ready.action = TokenAction::Keep;
-                Ok(())
-            }
-            _ => Err(ZFError::GenericError),
-        }
-    }
-
-    pub fn data(&self) -> ZFResult<DataMessage> {
-        match self {
-            Self::Ready(ready) => Ok(ready.data.clone()),
-            _ => Err(ZFError::GenericError),
-        }
-    }
-
-    pub fn action(&self) -> &TokenAction {
-        match self {
-            Self::Ready(ready) => &ready.action,
-            Self::Pending => &TokenAction::Wait,
-        }
-    }
-
-    pub fn split(self) -> (Option<DataMessage>, TokenAction) {
-        match self {
-            Self::Ready(ready) => (Some(ready.data), ready.action),
-            Self::Pending => (None, TokenAction::Wait),
-        }
+        false
     }
 }
 

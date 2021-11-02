@@ -18,16 +18,33 @@ use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
-use crate::{Context, DataMessage, NodeId, Operator, PortId, State, Token, ZFError, ZFResult};
-use futures::future;
+use crate::{
+    Context, DataMessage, NodeId, Operator, PortId, State, Token, TokenAction, ZFError, ZFResult,
+};
+use futures::{future, Future};
 use libloading::Library;
 use std::collections::HashMap;
-use std::mem;
 
 #[derive(Default)]
 pub struct OperatorIO {
     inputs: HashMap<PortId, LinkReceiver<Message>>,
     outputs: HashMap<PortId, Vec<LinkSender<Message>>>,
+}
+
+type LinkRecvFut<'a> = std::pin::Pin<
+    Box<dyn Future<Output = Result<(Arc<str>, Arc<Message>), ZFError>> + Send + Sync + 'a>,
+>;
+
+impl OperatorIO {
+    fn poll_input(&self, node_id: &NodeId, port_id: &PortId) -> ZFResult<LinkRecvFut> {
+        let rx = self.inputs.get(port_id).ok_or_else(|| {
+            ZFError::IOError(format!(
+                "[Operator: {}] Link < {} > no longer exists.",
+                node_id, port_id
+            ))
+        })?;
+        Ok(rx.recv())
+    }
 }
 
 pub type InputsLink = HashMap<PortId, LinkReceiver<Message>>;
@@ -135,22 +152,84 @@ impl OperatorRunner {
             let io = self.io.read().await;
             let mut state = self.state.write().await;
 
-            let mut links: Vec<_> = io.inputs.values().map(|rx| rx.recv()).collect();
+            let mut links = Vec::with_capacity(tokens.len());
 
-            // Input Rules
-            crate::run_input_rules!(self.operator, tokens, links, &mut state, &mut context);
+            // Only call `recv` on links where the corresponding Token is `Pending`. If a
+            // `ReadyToken` has its action set to `Keep` then it will stay as a `ReadyToken` (i.e.
+            // it won’t be resetted later on) and we should not poll data.
+            for (port_id, token) in tokens.iter() {
+                if let Token::Pending = token {
+                    links.push(io.poll_input(&self.id, port_id)?);
+                }
+            }
+
+            'input_rule: loop {
+                if !links.is_empty() {
+                    match future::select_all(links).await {
+                        (Ok((id, message)), _index, remaining) => {
+                            match message.as_ref() {
+                                Message::Data(_) => {
+                                    tokens.insert(id, Token::from(message));
+                                }
+                                Message::Control(_) => {
+                                    return Err(ZFError::Unimplemented);
+                                }
+                            }
+
+                            links = remaining;
+                        }
+                        (Err(e), _index, _remaining) => {
+                            let err_msg =
+                                format!("[Operator: {}] Link returned an error: {:?}", self.id, e);
+                            log::error!("{}", &err_msg);
+                            return Err(ZFError::IOError(err_msg));
+                        }
+                    }
+                }
+
+                match self
+                    .operator
+                    .input_rule(&mut context, &mut state, &mut tokens)
+                {
+                    Ok(true) => {
+                        log::debug!("[Operator: {}] Input Rule returned < true >.", self.id);
+                        break 'input_rule;
+                    }
+                    Ok(false) => {
+                        log::debug!("[Operator: {}] Input Rule returned < false >.", self.id);
+                    }
+                    Err(e) => {
+                        log::error!(
+                            "[Operator: {}] Input Rule returned an error: {:?}",
+                            self.id,
+                            e
+                        );
+                        return Err(ZFError::IOError(e.to_string()));
+                    }
+                }
+
+                // Poll on the links where the action of the `Token` was set to `drop`.
+                for (port_id, token) in tokens.iter_mut() {
+                    if token.should_drop() {
+                        *token = Token::Pending;
+                        links.push(io.poll_input(&self.id, port_id)?);
+                    }
+                }
+            }
 
             let mut earliest_source_timestamp = None;
 
-            for (id, token) in tokens.iter_mut() {
-                // TODO: Input Rules — Take action into consideration, only replace when needed.
-                let old_token = mem::replace(token, Token::Pending);
-                match old_token {
+            for (port_id, token) in tokens.iter_mut() {
+                match token {
                     Token::Pending => {
-                        data.remove(id);
-                        log::debug!("Removing < {} > from tokens for next iteration.", id);
+                        log::debug!(
+                            "[Operator: {}] Removing < {} > from Data transmitted to `run`.",
+                            self.id,
+                            port_id
+                        );
+                        data.remove(port_id);
+                        continue;
                     }
-
                     Token::Ready(ready_token) => {
                         earliest_source_timestamp = match earliest_source_timestamp {
                             None => Some(ready_token.data.timestamp),
@@ -163,9 +242,24 @@ impl OperatorRunner {
                             }
                         };
 
-                        data.insert(id.clone(), ready_token.data);
+                        match ready_token.action {
+                            TokenAction::Consume => {
+                                log::debug!("[Operator: {}] Consuming < {} >.", self.id, port_id);
+                                data.insert(port_id.clone(), ready_token.data.clone());
+                                *token = Token::Pending;
+                            }
+                            TokenAction::Keep => {
+                                log::debug!("[Operator: {}] Keeping < {} >.", self.id, port_id);
+                                data.insert(port_id.clone(), ready_token.data.clone());
+                            }
+                            TokenAction::Drop => {
+                                log::debug!("[Operator: {}] Dropping < {} >.", self.id, port_id);
+                                data.remove(port_id);
+                                *token = Token::Pending;
+                            }
+                        }
                     }
-                };
+                }
             }
 
             let timestamp = {
