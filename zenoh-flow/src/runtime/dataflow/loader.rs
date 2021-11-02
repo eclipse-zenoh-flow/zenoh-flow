@@ -39,7 +39,7 @@ pub fn load_operator(path: &str) -> ZFResult<(Library, Arc<dyn Operator>)> {
     let uri = Url::parse(path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_operator(make_file_path(uri)) },
+        "file" => unsafe { load_lib_operator(make_file_path(uri)?) },
         _ => Err(ZFError::Unimplemented),
     }
 }
@@ -49,7 +49,7 @@ pub fn load_operator(path: &str) -> ZFResult<(Library, Arc<dyn Operator>)> {
 /// # Safety
 ///
 /// This function dynamically loads an external library, things can go wrong:
-/// - it will panick if the symbol `zfoperator_declaration` is not found,
+/// - it will panic if the symbol `zfoperator_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
 unsafe fn load_lib_operator(path: PathBuf) -> ZFResult<(Library, Arc<dyn Operator>)> {
     log::debug!("Operator Loading {:#?}", path);
@@ -81,7 +81,7 @@ pub fn load_source(path: &str) -> ZFResult<(Library, Arc<dyn Source>)> {
     let uri = Url::parse(path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_source(make_file_path(uri)) },
+        "file" => unsafe { load_lib_source(make_file_path(uri)?) },
         _ => Err(ZFError::Unimplemented),
     }
 }
@@ -91,7 +91,7 @@ pub fn load_source(path: &str) -> ZFResult<(Library, Arc<dyn Source>)> {
 /// # Safety
 ///
 /// This function dynamically loads an external library, things can go wrong:
-/// - it will panick if the symbol `zfsource_declaration` is not found,
+/// - it will panic if the symbol `zfsource_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
 unsafe fn load_lib_source(path: PathBuf) -> ZFResult<(Library, Arc<dyn Source>)> {
     log::debug!("Source Loading {:#?}", path);
@@ -122,7 +122,7 @@ pub fn load_sink(path: &str) -> ZFResult<(Library, Arc<dyn Sink>)> {
     let uri = Url::parse(path).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
 
     match uri.scheme() {
-        "file" => unsafe { load_lib_sink(make_file_path(uri)) },
+        "file" => unsafe { load_lib_sink(make_file_path(uri)?) },
         _ => Err(ZFError::Unimplemented),
     }
 }
@@ -132,7 +132,7 @@ pub fn load_sink(path: &str) -> ZFResult<(Library, Arc<dyn Sink>)> {
 /// # Safety
 ///
 /// This function dynamically loads an external library, things can go wrong:
-/// - it will panick if the symbol `zfsink_declaration` is not found,
+/// - it will panic if the symbol `zfsink_declaration` is not found,
 /// - be sure to *trust* the code you are loading.
 unsafe fn load_lib_sink(path: PathBuf) -> ZFResult<(Library, Arc<dyn Sink>)> {
     log::debug!("Sink Loading {:#?}", path);
@@ -149,13 +149,13 @@ unsafe fn load_lib_sink(path: PathBuf) -> ZFResult<(Library, Arc<dyn Sink>)> {
 
     Ok((library, (decl.register)()?))
 }
-
-pub fn make_file_path(uri: Url) -> PathBuf {
+fn make_file_path(uri: Url) -> ZFResult<PathBuf> {
     let mut path = PathBuf::new();
-    if let Some(host) = uri.host_str() {
-        path.push(host);
-    }
-    path.push(uri.path());
-
-    path
+    let file_path = match uri.host_str() {
+        Some(h) => format!("{}{}", h, uri.path()),
+        None => uri.path().to_string(),
+    };
+    path.push(file_path);
+    let path = std::fs::canonicalize(path)?;
+    Ok(path)
 }
