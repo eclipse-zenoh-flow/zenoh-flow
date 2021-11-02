@@ -215,7 +215,7 @@ impl OperatorRunner {
                         links.push(io.poll_input(&self.id, port_id)?);
                     }
                 }
-            }
+            } // end < 'input_rule: loop >
 
             let mut earliest_source_timestamp = None;
 
