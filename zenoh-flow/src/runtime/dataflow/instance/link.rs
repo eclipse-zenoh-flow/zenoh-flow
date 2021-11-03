@@ -74,8 +74,8 @@ impl<T> LinkSender<T> {
 
 pub fn link<T>(
     capacity: Option<usize>,
-    send_id: String,
-    recv_id: String,
+    send_id: PortId,
+    recv_id: PortId,
 ) -> (LinkSender<T>, LinkReceiver<T>) {
     let (sender, receiver) = match capacity {
         None => flume::unbounded(),
@@ -84,11 +84,11 @@ pub fn link<T>(
 
     (
         LinkSender {
-            id: send_id.into(),
+            id: send_id,
             sender,
         },
         LinkReceiver {
-            id: recv_id.into(),
+            id: recv_id,
             receiver,
         },
     )

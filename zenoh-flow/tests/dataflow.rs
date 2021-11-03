@@ -143,9 +143,10 @@ impl Operator for NoOp {
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Data>> {
         let mut results: HashMap<PortId, Data> = HashMap::new();
+        let source: PortId = SOURCE.into();
 
         let data = inputs
-            .get_mut(SOURCE)
+            .get_mut(&source)
             .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?
             .data
             .try_get::<ZFUsize>()?;
@@ -204,8 +205,8 @@ async fn single_runtime() {
         "counter-source".into(),
         None,
         PortDescriptor {
-            port_id: String::from(SOURCE),
-            port_type: String::from("int"),
+            port_id: SOURCE.into(),
+            port_type: "int".into(),
         },
         source.initialize(&None).unwrap(),
         source,
@@ -214,8 +215,8 @@ async fn single_runtime() {
     dataflow.add_static_sink(
         "generic-sink".into(),
         PortDescriptor {
-            port_id: String::from(SOURCE),
-            port_type: String::from("int"),
+            port_id: SOURCE.into(),
+            port_type: "int".into(),
         },
         sink.initialize(&None).unwrap(),
         sink,
@@ -224,12 +225,12 @@ async fn single_runtime() {
     dataflow.add_static_operator(
         "noop".into(),
         vec![PortDescriptor {
-            port_id: String::from(SOURCE),
-            port_type: String::from("int"),
+            port_id: SOURCE.into(),
+            port_type: "int".into(),
         }],
         vec![PortDescriptor {
-            port_id: String::from(DESTINATION),
-            port_type: String::from("int"),
+            port_id: DESTINATION.into(),
+            port_type: "int".into(),
         }],
         operator.initialize(&None).unwrap(),
         operator,
@@ -239,11 +240,11 @@ async fn single_runtime() {
         .add_link(
             LinkFromDescriptor {
                 node: "counter-source".into(),
-                output: String::from(SOURCE),
+                output: SOURCE.into(),
             },
             LinkToDescriptor {
                 node: "noop".into(),
-                input: String::from(SOURCE),
+                input: SOURCE.into(),
             },
             None,
             None,
@@ -255,11 +256,11 @@ async fn single_runtime() {
         .add_link(
             LinkFromDescriptor {
                 node: "noop".into(),
-                output: String::from(DESTINATION),
+                output: DESTINATION.into(),
             },
             LinkToDescriptor {
                 node: "generic-sink".into(),
-                input: String::from(SOURCE),
+                input: SOURCE.into(),
             },
             None,
             None,

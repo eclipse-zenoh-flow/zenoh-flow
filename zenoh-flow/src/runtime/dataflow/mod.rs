@@ -27,7 +27,7 @@ use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, P
 use crate::model::period::PeriodDescriptor;
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
-use crate::{FlowId, NodeId, Operator, PortId, Sink, Source, State, ZFError, ZFResult};
+use crate::{FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFError, ZFResult};
 
 pub struct Dataflow {
     pub(crate) uuid: Uuid,
@@ -148,13 +148,13 @@ impl Dataflow {
         state: State,
         operator: Arc<dyn Operator>,
     ) {
-        let inputs: HashMap<PortId, String> = inputs
+        let inputs: HashMap<PortId, PortType> = inputs
             .into_iter()
-            .map(|desc| (desc.port_id.into(), desc.port_type))
+            .map(|desc| (desc.port_id, desc.port_type))
             .collect();
-        let outputs: HashMap<_, _> = outputs
+        let outputs: HashMap<PortId, PortType> = outputs
             .into_iter()
-            .map(|desc| (desc.port_id.into(), desc.port_type))
+            .map(|desc| (desc.port_id, desc.port_type))
             .collect();
 
         self.operators.insert(
@@ -221,40 +221,31 @@ impl Dataflow {
         Err(ZFError::PortTypeNotMatching((from_type, to_type)))
     }
 
-    fn get_node_port_type(&self, node_id: &NodeId, port_id: &str) -> ZFResult<String> {
+    fn get_node_port_type(&self, node_id: &NodeId, port_id: &PortId) -> ZFResult<PortType> {
         if let Some(operator) = self.operators.get(node_id) {
             if let Some(port_type) = operator.inputs.get(port_id) {
                 return Ok(port_type.clone());
             } else if let Some(port_type) = operator.outputs.get(port_id) {
                 return Ok(port_type.clone());
             } else {
-                return Err(ZFError::PortNotFound((
-                    node_id.clone(),
-                    port_id.to_string(),
-                )));
+                return Err(ZFError::PortNotFound((node_id.clone(), port_id.clone())));
             }
         }
 
         if let Some(source) = self.sources.get(node_id) {
-            if source.output.port_id == port_id {
+            if source.output.port_id == *port_id {
                 return Ok(source.output.port_type.clone());
             }
 
-            return Err(ZFError::PortNotFound((
-                node_id.clone(),
-                port_id.to_string(),
-            )));
+            return Err(ZFError::PortNotFound((node_id.clone(), port_id.clone())));
         }
 
         if let Some(sink) = self.sinks.get(node_id) {
-            if sink.input.port_id == port_id {
+            if sink.input.port_id == *port_id {
                 return Ok(sink.input.port_type.clone());
             }
 
-            return Err(ZFError::PortNotFound((
-                node_id.clone(),
-                port_id.to_string(),
-            )));
+            return Err(ZFError::PortNotFound((node_id.clone(), port_id.clone())));
         }
 
         Err(ZFError::OperatorNotFound(node_id.clone()))

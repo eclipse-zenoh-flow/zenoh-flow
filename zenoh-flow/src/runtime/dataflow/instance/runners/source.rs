@@ -25,7 +25,7 @@ use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::types::ZFResult;
-use crate::{Context, NodeId, PortId, Source, State, ZFError};
+use crate::{Context, NodeId, Source, State, ZFError};
 
 // Do not reorder the fields in this struct.
 // Rust drops fields in a struct in the same order they are declared.
@@ -50,7 +50,7 @@ impl SourceRunner {
         source: SourceLoaded,
         io: OperatorIO,
     ) -> ZFResult<Self> {
-        let port_id: PortId = source.output.port_id.clone().into();
+        let port_id = source.output.port_id.clone();
         let (_, mut outputs) = io.take();
         let links = outputs.remove(&port_id).ok_or_else(|| {
             ZFError::MissingOutput(format!(

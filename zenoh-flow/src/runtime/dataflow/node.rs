@@ -19,7 +19,7 @@ use crate::model::link::PortDescriptor;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::period::PeriodDescriptor;
 use crate::runtime::dataflow::loader::{load_operator, load_sink, load_source};
-use crate::{NodeId, Operator, PortId, Sink, Source, State, ZFError};
+use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFError};
 use async_std::sync::{Arc, RwLock};
 use libloading::Library;
 
@@ -58,8 +58,8 @@ impl TryFrom<SourceRecord> for SourceLoaded {
 
 pub struct OperatorLoaded {
     pub(crate) id: NodeId,
-    pub(crate) inputs: HashMap<PortId, String>,
-    pub(crate) outputs: HashMap<PortId, String>,
+    pub(crate) inputs: HashMap<PortId, PortType>,
+    pub(crate) outputs: HashMap<PortId, PortType>,
     pub(crate) state: Arc<RwLock<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
@@ -78,16 +78,16 @@ impl TryFrom<OperatorRecord> for OperatorLoaded {
         let (library, operator) = load_operator(uri)?;
         let state = operator.initialize(&value.configuration)?;
 
-        let inputs: HashMap<PortId, String> = value
+        let inputs: HashMap<PortId, PortType> = value
             .inputs
             .into_iter()
-            .map(|desc| (desc.port_id.into(), desc.port_type))
+            .map(|desc| (desc.port_id, desc.port_type))
             .collect();
 
-        let outputs: HashMap<PortId, String> = value
+        let outputs: HashMap<PortId, PortType> = value
             .outputs
             .into_iter()
-            .map(|desc| (desc.port_id.into(), desc.port_type))
+            .map(|desc| (desc.port_id, desc.port_type))
             .collect();
 
         Ok(Self {

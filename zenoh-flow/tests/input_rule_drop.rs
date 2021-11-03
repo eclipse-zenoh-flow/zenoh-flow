@@ -110,9 +110,10 @@ impl Operator for DropOdd {
         _state: &mut State,
         tokens: &mut HashMap<PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
+        let source: PortId = SOURCE.into();
         let token = tokens
-            .get_mut(SOURCE)
-            .ok_or_else(|| ZFError::InvalidData(SOURCE.into()))?;
+            .get_mut(&source)
+            .ok_or_else(|| ZFError::InvalidData(SOURCE.to_string()))?;
         if let Token::Ready(ready_token) = token {
             let data = ready_token.get_data_mut();
             if data.try_get::<ZFUsize>()?.0 % 2 != 0 {
@@ -123,7 +124,7 @@ impl Operator for DropOdd {
             return Ok(true);
         }
 
-        Err(ZFError::InvalidData(SOURCE.into()))
+        Err(ZFError::InvalidData(SOURCE.to_string()))
     }
 
     fn run(
@@ -134,8 +135,9 @@ impl Operator for DropOdd {
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Data>> {
         let mut results: HashMap<PortId, Data> = HashMap::new();
 
+        let source: PortId = SOURCE.into();
         let mut data_msg = inputs
-            .remove(SOURCE)
+            .remove(&source)
             .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?;
         let data = data_msg.data.try_get::<ZFUsize>()?;
 
@@ -193,8 +195,8 @@ async fn single_runtime() {
         SOURCE.into(),
         None,
         PortDescriptor {
-            port_id: String::from(SOURCE),
-            port_type: String::from("int"),
+            port_id: SOURCE.into(),
+            port_type: "int".into(),
         },
         source.initialize(&None).unwrap(),
         source,
@@ -203,8 +205,8 @@ async fn single_runtime() {
     dataflow.add_static_sink(
         "generic-sink".into(),
         PortDescriptor {
-            port_id: String::from(DESTINATION),
-            port_type: String::from("int"),
+            port_id: DESTINATION.into(),
+            port_type: "int".into(),
         },
         sink.initialize(&None).unwrap(),
         sink,
@@ -213,12 +215,12 @@ async fn single_runtime() {
     dataflow.add_static_operator(
         "noop".into(),
         vec![PortDescriptor {
-            port_id: String::from(SOURCE),
-            port_type: String::from("int"),
+            port_id: SOURCE.into(),
+            port_type: "int".into(),
         }],
         vec![PortDescriptor {
-            port_id: String::from(DESTINATION),
-            port_type: String::from("int"),
+            port_id: DESTINATION.into(),
+            port_type: "int".into(),
         }],
         operator.initialize(&None).unwrap(),
         operator,
@@ -228,11 +230,11 @@ async fn single_runtime() {
         .add_link(
             LinkFromDescriptor {
                 node: SOURCE.into(),
-                output: String::from(SOURCE),
+                output: SOURCE.into(),
             },
             LinkToDescriptor {
                 node: "noop".into(),
-                input: String::from(SOURCE),
+                input: SOURCE.into(),
             },
             None,
             None,
@@ -244,11 +246,11 @@ async fn single_runtime() {
         .add_link(
             LinkFromDescriptor {
                 node: "noop".into(),
-                output: String::from(DESTINATION),
+                output: DESTINATION.into(),
             },
             LinkToDescriptor {
                 node: "generic-sink".into(),
-                input: String::from(DESTINATION),
+                input: DESTINATION.into(),
             },
             None,
             None,
