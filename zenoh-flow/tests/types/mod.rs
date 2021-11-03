@@ -12,9 +12,11 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use async_trait::async_trait;
+use flume::{Receiver, Sender};
 use std::convert::TryInto;
-use zenoh_flow::{Deserializable, State, ZFData, ZFError, ZFResult, ZFState};
-use zenoh_flow_derive::ZFData;
+use zenoh_flow::{Data, Deserializable, Node, Sink, Source, State, ZFData, ZFError, ZFResult};
+use zenoh_flow_derive::{ZFData, ZFState};
 
 #[derive(Debug, Clone, ZFData)]
 pub struct ZFUsize(pub usize);
@@ -36,21 +38,12 @@ impl Deserializable for ZFUsize {
     }
 }
 
-#[derive(Debug)]
+#[derive(ZFState, Debug)]
 pub struct CounterState {
     counter: usize,
 }
 
-impl ZFState for CounterState {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-}
-
+#[allow(dead_code)]
 impl CounterState {
     pub fn new_as_state() -> State {
         State::from(Self { counter: 0 })
@@ -59,5 +52,133 @@ impl CounterState {
     pub fn add_fetch(&mut self) -> usize {
         self.counter += 1;
         self.counter
+    }
+}
+
+#[derive(Debug, ZFState)]
+pub struct VecState {
+    values: Vec<usize>,
+}
+
+pub struct VecSource {
+    values: Vec<usize>,
+    unused_rx: Receiver<()>,
+    _unused_tx: Sender<()>,
+}
+
+#[allow(dead_code)]
+impl VecSource {
+    pub fn new(values: Vec<usize>) -> Self {
+        let (_unused_tx, unused_rx) = flume::bounded::<()>(1);
+        Self {
+            values,
+            unused_rx,
+            _unused_tx,
+        }
+    }
+}
+
+impl Node for VecSource {
+    fn initialize(&self, _configuration: &Option<zenoh_flow::Configuration>) -> ZFResult<State> {
+        Ok(State::from(VecState {
+            values: self.values.clone(),
+        }))
+    }
+
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Source for VecSource {
+    async fn run(&self, _context: &mut zenoh_flow::Context, state: &mut State) -> ZFResult<Data> {
+        let state = state.try_get::<VecState>()?;
+        let value = match state.values.pop() {
+            Some(value) => value,
+            None => {
+                // No more value, wait indefinitely.
+                self.unused_rx
+                    .recv_async()
+                    .await
+                    .map_err(|e| ZFError::IOError(e.to_string()))?;
+                return Err(ZFError::Disconnected);
+            }
+        };
+
+        Ok(Data::from::<ZFUsize>(ZFUsize(value)))
+    }
+}
+
+pub struct VecSink {
+    values: Vec<usize>,
+    tx: Sender<()>,
+    unused_rx: Receiver<()>,
+    _unused_tx: Sender<()>,
+}
+
+#[allow(dead_code)]
+impl VecSink {
+    pub fn new(tx: Sender<()>, values: Vec<usize>) -> Self {
+        let (_unused_tx, unused_rx) = flume::bounded::<()>(1);
+        Self {
+            values,
+            tx,
+            unused_rx,
+            _unused_tx,
+        }
+    }
+}
+
+impl Node for VecSink {
+    fn initialize(&self, _configuration: &Option<zenoh_flow::Configuration>) -> ZFResult<State> {
+        Ok(State::from(VecState {
+            values: self.values.clone(),
+        }))
+    }
+
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Sink for VecSink {
+    async fn run(
+        &self,
+        _context: &mut zenoh_flow::Context,
+        state: &mut State,
+        mut input: zenoh_flow::DataMessage,
+    ) -> ZFResult<()> {
+        let data = input.data.try_get::<ZFUsize>()?;
+        let state = state.try_get::<VecState>()?;
+
+        let value = match state.values.pop() {
+            Some(value) => value,
+            None => {
+                // WARNING: the way the VecSink was imagined, it should never be called when there
+                // are no values to check.
+                //
+                // Hence, the panic.
+                panic!()
+            }
+        };
+
+        assert_eq!(value, data.0);
+
+        if state.values.is_empty() {
+            // No more value, inform via the Sender `tx` and wait indefinitely.
+            self.tx
+                .send_async(())
+                .await
+                .map_err(|e| ZFError::IOError(e.to_string()))?;
+            self.unused_rx
+                .recv_async()
+                .await
+                .map_err(|e| ZFError::IOError(e.to_string()))?;
+            return Err(ZFError::Disconnected);
+        }
+
+        Ok(())
     }
 }
