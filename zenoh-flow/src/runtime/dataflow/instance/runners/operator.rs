@@ -287,20 +287,32 @@ impl OperatorRunner {
             let run_outputs = self.operator.run(&mut context, &mut state, &mut data)?;
 
             // Output rules
-            let outputs = self
+            let mut outputs = self
                 .operator
                 .output_rule(&mut context, &mut state, run_outputs)?;
 
             // Send to Links
-            for (id, output) in outputs {
-                // getting link
-                log::debug!("id: {:?}, message: {:?}", id, output);
-                if let Some(links) = io.outputs.get(&id) {
-                    let zf_message = Arc::new(Message::from_node_output(output, timestamp));
+            for port_id in self.outputs.keys() {
+                let output = match outputs.remove(port_id) {
+                    Some(output) => output,
+                    None => continue,
+                };
 
-                    for tx in links {
-                        log::debug!("Sending on: {:?}", tx);
-                        tx.send(zf_message.clone()).await?;
+                if let Some(link_senders) = io.outputs.get(port_id) {
+                    let zf_message = Arc::new(Message::from_node_output(output, timestamp));
+                    for link_sender in link_senders {
+                        let res = link_sender.send(zf_message.clone()).await;
+
+                        // TODO: Maybe we want to process somehow the error, not simply log it.
+                        if let Err(e) = res {
+                            log::error!(
+                                "[Operator: {}] Could not send output < {} > on link < {} >: {:?}",
+                                self.id,
+                                port_id,
+                                link_sender.id,
+                                e
+                            );
+                        }
                     }
                 }
             }
