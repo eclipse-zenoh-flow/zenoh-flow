@@ -110,7 +110,7 @@ impl Operator for DropOdd {
         _state: &mut State,
         tokens: &mut HashMap<PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
-        let source: Arc<str> = SOURCE.into();
+        let source: PortId = SOURCE.into();
         let token = tokens
             .get_mut(&source)
             .ok_or_else(|| ZFError::InvalidData(SOURCE.to_string()))?;
@@ -135,7 +135,7 @@ impl Operator for DropOdd {
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Data>> {
         let mut results: HashMap<PortId, Data> = HashMap::new();
 
-        let source: Arc<str> = SOURCE.into();
+        let source: PortId = SOURCE.into();
         let mut data_msg = inputs
             .remove(&source)
             .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?;

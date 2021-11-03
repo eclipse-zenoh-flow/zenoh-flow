@@ -17,8 +17,8 @@ use zenoh_flow::runtime::dataflow::instance::link::{link, LinkReceiver, LinkSend
 
 async fn same_task_simple() {
     let size = 2;
-    let send_id: Arc<str> = "0".into();
-    let recv_id: Arc<str> = "10".into();
+    let send_id = "0".into();
+    let recv_id = "10".into();
     let (sender, receiver) = link::<u8>(Some(size), send_id, recv_id);
 
     let mut d: u8 = 0;

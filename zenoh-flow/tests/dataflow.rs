@@ -143,7 +143,7 @@ impl Operator for NoOp {
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Data>> {
         let mut results: HashMap<PortId, Data> = HashMap::new();
-        let source: Arc<str> = SOURCE.into();
+        let source: PortId = SOURCE.into();
 
         let data = inputs
             .get_mut(&source)
