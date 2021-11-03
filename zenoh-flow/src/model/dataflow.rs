@@ -20,6 +20,7 @@ use crate::model::node::{
 };
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{NodeId, RuntimeId, ZFError, ZFResult};
+use crate::{PortId, PortType};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -90,7 +91,7 @@ impl DataFlowDescriptor {
 
     fn validate(&self) -> ZFResult<()> {
         // The clippy::type_complexity raises because of this HashMap.
-        let mut nodes: HashMap<NodeId, (HashMap<String, String>, HashMap<String, String>)> =
+        let mut nodes: HashMap<NodeId, (HashMap<PortId, PortType>, HashMap<PortId, PortType>)> =
             HashMap::new();
 
         // Checks for duplicated operators
@@ -100,13 +101,13 @@ impl DataFlowDescriptor {
             }
 
             // Checks for duplicated ports
-            let mut inputs: HashMap<String, String> = HashMap::new();
-            let mut outputs: HashMap<String, String> = HashMap::new();
+            let mut inputs: HashMap<PortId, PortType> = HashMap::new();
+            let mut outputs: HashMap<PortId, PortType> = HashMap::new();
             for input in &operator.inputs {
                 if inputs.contains_key(&input.port_id) {
                     return Err(ZFError::DuplicatedInputPort((
                         operator.id.clone(),
-                        input.port_id.clone().into(),
+                        input.port_id.clone(),
                     )));
                 }
                 inputs.insert(input.port_id.clone(), input.port_type.clone());
@@ -116,7 +117,7 @@ impl DataFlowDescriptor {
                 if outputs.contains_key(&output.port_id) {
                     return Err(ZFError::DuplicatedOutputPort((
                         operator.id.clone(),
-                        output.port_id.clone().into(),
+                        output.port_id.clone(),
                     )));
                 }
                 outputs.insert(output.port_id.clone(), output.port_type.clone());
@@ -229,7 +230,7 @@ impl DataFlowDescriptor {
                 if !inputs.contains_key(&to_str) {
                     return Err(ZFError::PortNotConnected((
                         node_id.clone(),
-                        node_input.clone().into(),
+                        node_input.clone(),
                     )));
                 }
             }
@@ -238,7 +239,7 @@ impl DataFlowDescriptor {
                 if !outputs.contains_key(&from_str) {
                     return Err(ZFError::PortNotConnected((
                         node_id.clone(),
-                        node_output.clone().into(),
+                        node_output.clone(),
                     )));
                 }
             }
@@ -311,7 +312,7 @@ impl DataFlowRecord {
         }
     }
 
-    pub fn find_node_output_type(&self, id: &str, output: &str) -> Option<String> {
+    pub fn find_node_output_type(&self, id: &str, output: &str) -> Option<PortType> {
         log::trace!("find_node_output_type({:?},{:?})", id, output);
         match self.get_operator(id) {
             Some(o) => o.get_output_type(output),
@@ -322,7 +323,7 @@ impl DataFlowRecord {
         }
     }
 
-    pub fn find_node_input_type(&self, id: &str, input: &str) -> Option<String> {
+    pub fn find_node_input_type(&self, id: &str, input: &str) -> Option<PortType> {
         log::trace!("find_node_input_type({:?},{:?})", id, input);
         match self.get_operator(id) {
             Some(o) => o.get_input_type(input),

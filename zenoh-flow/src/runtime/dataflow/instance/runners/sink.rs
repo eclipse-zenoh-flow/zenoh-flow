@@ -42,7 +42,7 @@ pub struct SinkRunner {
 impl SinkRunner {
     pub fn try_new(context: RuntimeContext, sink: SinkLoaded, io: OperatorIO) -> ZFResult<Self> {
         let (mut inputs, _) = io.take();
-        let port_id: Arc<str> = sink.input.port_id.clone().into();
+        let port_id = sink.input.port_id.clone();
         let link = inputs.remove(&port_id).ok_or_else(|| {
             ZFError::MissingOutput(format!(
                 "Missing link for port < {} > for Sink: < {} >.",

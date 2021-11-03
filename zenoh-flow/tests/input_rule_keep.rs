@@ -138,8 +138,8 @@ async fn single_runtime() {
         SOURCE_1.into(),
         None,
         PortDescriptor {
-            port_id: String::from(SOURCE_1),
-            port_type: String::from("int"),
+            port_id: SOURCE_1.into(),
+            port_type: "int".into(),
         },
         source1.initialize(&None).unwrap(),
         source1,
@@ -149,8 +149,8 @@ async fn single_runtime() {
         SOURCE_2.into(),
         None,
         PortDescriptor {
-            port_id: String::from(SOURCE_2),
-            port_type: String::from("int"),
+            port_id: SOURCE_2.into(),
+            port_type: "int".into(),
         },
         source2.initialize(&None).unwrap(),
         source2,
@@ -159,8 +159,8 @@ async fn single_runtime() {
     dataflow.add_static_sink(
         SINK.into(),
         PortDescriptor {
-            port_id: String::from(SINK),
-            port_type: String::from("int"),
+            port_id: SINK.into(),
+            port_type: "int".into(),
         },
         sink.initialize(&None).unwrap(),
         sink,
@@ -170,17 +170,17 @@ async fn single_runtime() {
         OPERATOR.into(),
         vec![
             PortDescriptor {
-                port_id: String::from(SOURCE_1),
-                port_type: String::from("int"),
+                port_id: SOURCE_1.into(),
+                port_type: "int".into(),
             },
             PortDescriptor {
-                port_id: String::from(SOURCE_2),
-                port_type: String::from("int"),
+                port_id: SOURCE_2.into(),
+                port_type: "int".into(),
             },
         ],
         vec![PortDescriptor {
-            port_id: String::from(SINK),
-            port_type: String::from("int"),
+            port_id: SINK.into(),
+            port_type: "int".into(),
         }],
         operator.initialize(&None).unwrap(),
         operator,
@@ -190,11 +190,11 @@ async fn single_runtime() {
         .add_link(
             LinkFromDescriptor {
                 node: SOURCE_1.into(),
-                output: String::from(SOURCE_1),
+                output: SOURCE_1.into(),
             },
             LinkToDescriptor {
                 node: OPERATOR.into(),
-                input: String::from(SOURCE_1),
+                input: SOURCE_1.into(),
             },
             None,
             None,
@@ -206,11 +206,11 @@ async fn single_runtime() {
         .add_link(
             LinkFromDescriptor {
                 node: SOURCE_2.into(),
-                output: String::from(SOURCE_2),
+                output: SOURCE_2.into(),
             },
             LinkToDescriptor {
                 node: OPERATOR.into(),
-                input: String::from(SOURCE_2),
+                input: SOURCE_2.into(),
             },
             None,
             None,
@@ -222,11 +222,11 @@ async fn single_runtime() {
         .add_link(
             LinkFromDescriptor {
                 node: OPERATOR.into(),
-                output: String::from(SINK),
+                output: SINK.into(),
             },
             LinkToDescriptor {
                 node: SINK.into(),
-                input: String::from(SINK),
+                input: SINK.into(),
             },
             None,
             None,

@@ -15,6 +15,7 @@
 use crate::model::link::PortDescriptor;
 use crate::model::period::PeriodDescriptor;
 use crate::types::{Configuration, NodeId, RuntimeId};
+use crate::PortType;
 use serde::{Deserialize, Serialize};
 
 // Descriptors
@@ -84,8 +85,8 @@ impl std::fmt::Display for SinkRecord {
 }
 
 impl SinkRecord {
-    pub fn get_input_type(&self, id: &str) -> Option<String> {
-        if self.input.port_id == *id {
+    pub fn get_input_type(&self, id: &str) -> Option<PortType> {
+        if self.input.port_id.as_ref() == id {
             Some(self.input.port_type.clone())
         } else {
             None
@@ -110,8 +111,8 @@ impl std::fmt::Display for SourceRecord {
 }
 
 impl SourceRecord {
-    pub fn get_output_type(&self, id: &str) -> Option<String> {
-        if self.output.port_id == *id {
+    pub fn get_output_type(&self, id: &str) -> Option<PortType> {
+        if self.output.port_id.as_ref() == id {
             Some(self.output.port_type.clone())
         } else {
             None
@@ -136,14 +137,14 @@ impl std::fmt::Display for OperatorRecord {
 }
 
 impl OperatorRecord {
-    pub fn get_output_type(&self, id: &str) -> Option<String> {
+    pub fn get_output_type(&self, id: &str) -> Option<PortType> {
         self.outputs
             .iter()
             .find(|&lid| *lid.port_id == *id)
             .map(|lid| lid.port_type.clone())
     }
 
-    pub fn get_input_type(&self, id: &str) -> Option<String> {
+    pub fn get_input_type(&self, id: &str) -> Option<PortType> {
         self.inputs
             .iter()
             .find(|&lid| *lid.port_id == *id)

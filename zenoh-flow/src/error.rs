@@ -12,7 +12,7 @@
 //
 
 use crate::serde::{Deserialize, Serialize};
-use crate::{NodeId, PortId};
+use crate::{NodeId, PortId, PortType};
 use std::convert::From;
 use uuid::Uuid;
 use zrpc::zrpcresult::ZRPCError;
@@ -53,11 +53,11 @@ pub enum ZFError {
     DuplicatedNodeId(NodeId),
     DuplicatedInputPort((NodeId, PortId)),
     DuplicatedOutputPort((NodeId, PortId)),
-    DuplicatedLink(((NodeId, String), (NodeId, String))),
+    DuplicatedLink(((NodeId, PortId), (NodeId, PortId))),
     MultipleOutputsToInput(String),
-    PortTypeNotMatching((String, String)),
+    PortTypeNotMatching((PortType, PortType)),
     OperatorNotFound(NodeId),
-    PortNotFound((NodeId, String)),
+    PortNotFound((NodeId, PortId)),
     PortNotConnected((NodeId, PortId)),
 }
 

@@ -17,8 +17,8 @@ use zenoh_flow::runtime::dataflow::instance::link::{link, LinkReceiver, LinkSend
 
 async fn same_task_simple() {
     let size = 2;
-    let send_id = String::from("0");
-    let recv_id = String::from("10");
+    let send_id: Arc<str> = "0".into();
+    let recv_id: Arc<str> = "10".into();
     let (sender, receiver) = link::<u8>(Some(size), send_id, recv_id);
 
     let mut d: u8 = 0;
@@ -85,8 +85,8 @@ fn ordered_fifo_simple_async() {
 #[test]
 fn ordered_fifo_simple_two_task_async() {
     let size = 2;
-    let send_id = String::from("0");
-    let recv_id = String::from("10");
+    let send_id = "0".into();
+    let recv_id = "10".into();
     let (sender, receiver) = link::<u8>(Some(size), send_id, recv_id);
 
     let h1 = async_std::task::spawn(async move { send_task_simple(sender).await });
@@ -102,8 +102,8 @@ fn ordered_fifo_simple_two_task_async() {
 #[test]
 fn ordered_fifo_more_two_task_async() {
     let size = 20;
-    let send_id = String::from("0");
-    let recv_id = String::from("10");
+    let send_id = "0".into();
+    let recv_id = "10".into();
     let (sender, receiver) = link::<u8>(Some(size), send_id, recv_id);
 
     let h1 = async_std::task::spawn(async move { send_task_more(sender).await });

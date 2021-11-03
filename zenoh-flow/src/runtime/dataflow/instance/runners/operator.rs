@@ -19,7 +19,8 @@ use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::{
-    Context, DataMessage, NodeId, Operator, PortId, State, Token, TokenAction, ZFError, ZFResult,
+    Context, DataMessage, NodeId, Operator, PortId, PortType, State, Token, TokenAction, ZFError,
+    ZFResult,
 };
 use futures::{future, Future};
 use libloading::Library;
@@ -91,8 +92,8 @@ pub struct OperatorRunner {
     pub(crate) id: NodeId,
     pub(crate) runtime_context: RuntimeContext,
     pub(crate) io: Arc<RwLock<OperatorIO>>,
-    pub(crate) inputs: HashMap<PortId, String>,
-    pub(crate) outputs: HashMap<PortId, String>,
+    pub(crate) inputs: HashMap<PortId, PortType>,
+    pub(crate) outputs: HashMap<PortId, PortType>,
     pub(crate) state: Arc<RwLock<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
