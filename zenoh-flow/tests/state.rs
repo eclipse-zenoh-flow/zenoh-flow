@@ -36,7 +36,7 @@ fn state_wrapping_unwrapping() {
 
     assert_eq!(unwrapped_state.field1, test_state.field1);
     assert_eq!(unwrapped_state.field2, test_state.field2);
-    assert_eq!(unwrapped_state.field3, test_state.field3);
+    assert!((unwrapped_state.field3 - test_state.field3).abs() < f64::EPSILON);
 
     let boxed_state = Box::new(test_state.clone());
 
@@ -45,5 +45,5 @@ fn state_wrapping_unwrapping() {
 
     assert_eq!(unwrapped_state.field1, test_state.field1);
     assert_eq!(unwrapped_state.field2, test_state.field2);
-    assert_eq!(unwrapped_state.field3, test_state.field3);
+    assert!((unwrapped_state.field3 - test_state.field3).abs() < f64::EPSILON);
 }

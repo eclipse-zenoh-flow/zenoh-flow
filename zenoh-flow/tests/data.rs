@@ -59,7 +59,7 @@ fn data_wrapping_unwrapping() {
 
     assert_eq!(unwrapped_data.field1, test_data.field1);
     assert_eq!(unwrapped_data.field2, test_data.field2);
-    assert_eq!(unwrapped_data.field3, test_data.field3);
+    assert!((unwrapped_data.field3 - test_data.field3).abs() < f64::EPSILON);
 
     let arc_data = Arc::new(test_data.clone());
 
@@ -68,7 +68,7 @@ fn data_wrapping_unwrapping() {
 
     assert_eq!(unwrapped_data.field1, test_data.field1);
     assert_eq!(unwrapped_data.field2, test_data.field2);
-    assert_eq!(unwrapped_data.field3, test_data.field3);
+    assert!((unwrapped_data.field3 - test_data.field3).abs() < f64::EPSILON);
 
     let serialized_data = test_data.try_serialize().unwrap();
 
@@ -83,5 +83,5 @@ fn data_wrapping_unwrapping() {
 
     assert_eq!(unwrapped_data.field1, test_data.field1);
     assert_eq!(unwrapped_data.field2, test_data.field2);
-    assert_eq!(unwrapped_data.field3, test_data.field3);
+    assert!((unwrapped_data.field3 - test_data.field3).abs() < f64::EPSILON);
 }
