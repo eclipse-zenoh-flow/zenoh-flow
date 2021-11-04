@@ -104,6 +104,7 @@ impl Operator for OperatorKeep {
         _context: &mut zenoh_flow::Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
+        _deadline_miss: bool,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         default_output_rule(state, outputs)
     }
@@ -182,6 +183,7 @@ async fn single_runtime() {
             port_id: SINK.into(),
             port_type: "int".into(),
         }],
+        None,
         operator.initialize(&None).unwrap(),
         operator,
     );

@@ -14,6 +14,7 @@
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::time::Duration;
 
 use crate::model::link::PortDescriptor;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
@@ -60,6 +61,7 @@ pub struct OperatorLoaded {
     pub(crate) id: NodeId,
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
+    pub(crate) deadline: Option<Duration>,
     pub(crate) state: Arc<RwLock<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
@@ -94,6 +96,7 @@ impl TryFrom<OperatorRecord> for OperatorLoaded {
             id: value.id,
             inputs,
             outputs,
+            deadline: value.deadline,
             state: Arc::new(RwLock::new(state)),
             operator,
             library: Some(Arc::new(library)),

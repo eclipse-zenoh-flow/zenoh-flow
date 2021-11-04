@@ -15,116 +15,39 @@
 mod types;
 
 use async_std::sync::Arc;
-use async_trait::async_trait;
-use flume::{bounded, Receiver};
 use std::collections::HashMap;
-use types::{CounterState, ZFUsize};
+use std::time::Duration;
+use types::{VecSink, VecSource, ZFUsize};
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::RuntimeContext;
-use zenoh_flow::{
-    default_output_rule, zf_empty_state, Configuration, Context, Data, Node, NodeOutput, Operator,
-    PortId, Sink, Source, State, Token, ZFError, ZFResult,
-};
+use zenoh_flow::{Configuration, Data, Node, NodeOutput, Operator, PortId, State, ZFError, ZFResult, default_input_rule, default_output_rule, zf_empty_state};
 
 static SOURCE: &str = "Source";
-static DESTINATION: &str = "Counter";
-
-// SOURCE 1
-
-struct CounterSource {
-    rx: Receiver<()>,
-}
-
-unsafe impl Send for CounterSource {}
-unsafe impl Sync for CounterSource {}
-
-impl CounterSource {
-    pub fn new(rx: Receiver<()>) -> Self {
-        Self { rx }
-    }
-}
-
-#[async_trait]
-impl Source for CounterSource {
-    async fn run(&self, _context: &mut Context, state: &mut State) -> zenoh_flow::ZFResult<Data> {
-        let _ = self.rx.recv_async().await;
-        let s = state.try_get::<CounterState>()?;
-        Ok(Data::from::<ZFUsize>(ZFUsize(s.add_fetch())))
-    }
-}
-
-impl Node for CounterSource {
-    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
-        Ok(CounterState::new_as_state())
-    }
-
-    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
-        Ok(())
-    }
-}
-
-// SINK
-
-struct ExampleGenericSink;
-
-#[async_trait]
-impl Sink for ExampleGenericSink {
-    async fn run(
-        &self,
-        _context: &mut Context,
-        state: &mut State,
-        mut input: zenoh_flow::runtime::message::DataMessage,
-    ) -> zenoh_flow::ZFResult<()> {
-        let data = input.data.try_get::<ZFUsize>()?;
-        let s = state.try_get::<CounterState>()?;
-        //
-        // The entire test is performed here: we have set DropOdd to drop all values that are Odd.
-        // So every time the Sink receives data, the value received should be twice as much as its
-        // internal counter (represented here by `CounterState`).
-        //
-        assert_eq!(s.add_fetch() * 2, data.0);
-        Ok(())
-    }
-}
-
-impl Node for ExampleGenericSink {
-    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
-        Ok(CounterState::new_as_state())
-    }
-
-    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
-        Ok(())
-    }
-}
-
-// OPERATOR
+static OPERATOR: &str = "Operator";
+static SINK: &str = "Sink";
 
 #[derive(Debug)]
-struct DropOdd;
+struct OperatorDeadline;
 
-impl Operator for DropOdd {
+impl Node for OperatorDeadline {
+    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+        zf_empty_state!()
+    }
+
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+        Ok(())
+    }
+}
+
+impl Operator for OperatorDeadline {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
-        _state: &mut State,
+        state: &mut State,
         tokens: &mut HashMap<PortId, zenoh_flow::Token>,
     ) -> zenoh_flow::ZFResult<bool> {
-        let source: PortId = SOURCE.into();
-        let token = tokens
-            .get_mut(&source)
-            .ok_or_else(|| ZFError::InvalidData(SOURCE.to_string()))?;
-        if let Token::Ready(ready_token) = token {
-            let data = ready_token.get_data_mut();
-            if data.try_get::<ZFUsize>()?.0 % 2 != 0 {
-                ready_token.set_action_drop();
-                return Ok(false);
-            }
-
-            return Ok(true);
-        }
-
-        Err(ZFError::InvalidData(SOURCE.to_string()))
+        default_input_rule(state, tokens)
     }
 
     fn run(
@@ -135,15 +58,19 @@ impl Operator for DropOdd {
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Data>> {
         let mut results: HashMap<PortId, Data> = HashMap::new();
 
-        let source: PortId = SOURCE.into();
+        // Sleep for one second: the deadline miss should be triggered as it’s set to 0.5s.
+        std::thread::sleep(std::time::Duration::from_secs(1));
+
         let mut data_msg = inputs
-            .remove(&source)
+            .remove(SOURCE)
             .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?;
         let data = data_msg.data.try_get::<ZFUsize>()?;
 
-        assert_eq!(data.0 % 2, 0);
+        results.insert(
+            SINK.into(),
+            Data::from::<ZFUsize>(ZFUsize(data.0)),
+        );
 
-        results.insert(DESTINATION.into(), Data::from::<ZFUsize>(ZFUsize(data.0)));
         Ok(results)
     }
 
@@ -152,19 +79,10 @@ impl Operator for DropOdd {
         _context: &mut zenoh_flow::Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
-        _deadline_miss: bool,
+        deadline_miss: bool,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
+        assert!(deadline_miss, "Expected `deadline_miss` to be: true");
         default_output_rule(state, outputs)
-    }
-}
-
-impl Node for DropOdd {
-    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
-        zf_empty_state!()
-    }
-
-    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
-        Ok(())
     }
 }
 
@@ -172,7 +90,7 @@ impl Node for DropOdd {
 async fn single_runtime() {
     env_logger::init();
 
-    let (tx, rx) = bounded::<()>(1); // Channel used to trigger the source
+    let (tx_sink, rx_sink) = flume::bounded::<()>(1);
 
     let session =
         async_std::sync::Arc::new(zenoh::net::open(zenoh::net::config::peer()).await.unwrap());
@@ -188,9 +106,9 @@ async fn single_runtime() {
     let mut dataflow =
         zenoh_flow::runtime::dataflow::Dataflow::new(ctx.clone(), "test".into(), None);
 
-    let source = Arc::new(CounterSource::new(rx));
-    let sink = Arc::new(ExampleGenericSink {});
-    let operator = Arc::new(DropOdd {});
+    let source = Arc::new(VecSource::new(vec![1]));
+    let sink = Arc::new(VecSink::new(tx_sink, vec![1]));
+    let operator = Arc::new(OperatorDeadline {});
 
     dataflow.add_static_source(
         SOURCE.into(),
@@ -204,9 +122,9 @@ async fn single_runtime() {
     );
 
     dataflow.add_static_sink(
-        "generic-sink".into(),
+        SINK.into(),
         PortDescriptor {
-            port_id: DESTINATION.into(),
+            port_id: SINK.into(),
             port_type: "int".into(),
         },
         sink.initialize(&None).unwrap(),
@@ -214,16 +132,18 @@ async fn single_runtime() {
     );
 
     dataflow.add_static_operator(
-        "noop".into(),
+        OPERATOR.into(),
+        vec![
+            PortDescriptor {
+                port_id: SOURCE.into(),
+                port_type: "int".into(),
+            },
+        ],
         vec![PortDescriptor {
-            port_id: SOURCE.into(),
+            port_id: SINK.into(),
             port_type: "int".into(),
         }],
-        vec![PortDescriptor {
-            port_id: DESTINATION.into(),
-            port_type: "int".into(),
-        }],
-        None,
+        Some(Duration::from_millis(500)),
         operator.initialize(&None).unwrap(),
         operator,
     );
@@ -235,7 +155,7 @@ async fn single_runtime() {
                 output: SOURCE.into(),
             },
             LinkToDescriptor {
-                node: "noop".into(),
+                node: OPERATOR.into(),
                 input: SOURCE.into(),
             },
             None,
@@ -247,12 +167,12 @@ async fn single_runtime() {
     dataflow
         .add_link(
             LinkFromDescriptor {
-                node: "noop".into(),
-                output: DESTINATION.into(),
+                node: OPERATOR.into(),
+                output: SINK.into(),
             },
             LinkToDescriptor {
-                node: "generic-sink".into(),
-                input: DESTINATION.into(),
+                node: SINK.into(),
+                input: SINK.into(),
             },
             None,
             None,
@@ -270,12 +190,8 @@ async fn single_runtime() {
         managers.push(m)
     }
 
-    tx.send_async(()).await.unwrap();
-    tx.send_async(()).await.unwrap();
-    tx.send_async(()).await.unwrap();
-    tx.send_async(()).await.unwrap();
-
-    zenoh_flow::async_std::task::sleep(std::time::Duration::from_secs(1)).await;
+    // Wait for the Sink to finish asserting and then kill all nodes.
+    let _ = rx_sink.recv_async().await.unwrap();
 
     for m in managers.iter() {
         m.kill().await.unwrap()
@@ -285,7 +201,7 @@ async fn single_runtime() {
 }
 
 #[test]
-fn action_drop() {
+fn local_deadline() {
     let h1 = async_std::task::spawn(async move { single_runtime().await });
 
     async_std::task::block_on(async move { h1.await })

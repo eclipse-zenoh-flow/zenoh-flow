@@ -162,7 +162,9 @@ impl Operator for NoOp {
         _context: &mut zenoh_flow::Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
+        deadline_miss: bool,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
+        assert!(!deadline_miss, "Expected `deadline_miss` to be: false");
         default_output_rule(state, outputs)
     }
 }
@@ -232,6 +234,7 @@ async fn single_runtime() {
             port_id: DESTINATION.into(),
             port_type: "int".into(),
         }],
+        None,
         operator.initialize(&None).unwrap(),
         operator,
     );

@@ -67,6 +67,7 @@ pub trait Operator: Node + Send + Sync {
         context: &mut Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
+        deadline_miss: bool,
     ) -> ZFResult<HashMap<PortId, NodeOutput>>;
 }
 

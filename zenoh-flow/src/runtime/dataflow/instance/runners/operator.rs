@@ -27,6 +27,7 @@ use async_trait::async_trait;
 use futures::{future, Future};
 use libloading::Library;
 use std::collections::HashMap;
+use std::time::Duration;
 
 #[derive(Default)]
 pub struct OperatorIO {
@@ -96,6 +97,7 @@ pub struct OperatorRunner {
     pub(crate) io: Arc<RwLock<OperatorIO>>,
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
+    pub(crate) deadline: Option<Duration>,
     pub(crate) state: Arc<RwLock<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
@@ -117,6 +119,7 @@ impl OperatorRunner {
             state: operator.state,
             operator: operator.operator,
             library: operator.library,
+            deadline: operator.deadline,
         })
     }
 }
@@ -299,12 +302,35 @@ impl Runner for OperatorRunner {
             };
 
             // Running
+            let start_timestamp = self.runtime_context.hlc.new_timestamp();
             let run_outputs = self.operator.run(&mut context, &mut state, &mut data)?;
+            let end_timestamp = self.runtime_context.hlc.new_timestamp();
+
+            let elapsed_time = end_timestamp.get_diff_duration(&start_timestamp);
+            log::debug!(
+                "[Operator: {}] `run` executed in {} ms",
+                self.id,
+                elapsed_time.as_micros()
+            );
+
+            let mut deadline_miss = false;
+
+            if let Some(deadline) = self.deadline {
+                if elapsed_time > deadline {
+                    log::warn!(
+                        "[Operator: {}] Deadline miss detected for `run`: {} ms (expected < {} ms)",
+                        self.id,
+                        elapsed_time.as_micros(),
+                        deadline.as_micros()
+                    );
+                    deadline_miss = true;
+                }
+            }
 
             // Output rules
-            let mut outputs = self
-                .operator
-                .output_rule(&mut context, &mut state, run_outputs)?;
+            let mut outputs =
+                self.operator
+                    .output_rule(&mut context, &mut state, run_outputs, deadline_miss)?;
 
             // Send to Links
             for port_id in self.outputs.keys() {
