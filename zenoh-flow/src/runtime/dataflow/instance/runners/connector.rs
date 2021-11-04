@@ -12,14 +12,18 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::async_std::channel::{bounded, Receiver};
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::connector::ZFConnectorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
+use crate::runtime::dataflow::instance::runners::{RunAction, Runner, RunnerKind, RunnerManager};
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::{NodeId, ZFError, ZFResult};
+use async_trait::async_trait;
 use futures::prelude::*;
+use futures_lite::future::FutureExt;
 use zenoh::net::{Reliability, SubInfo, SubMode};
 
 #[derive(Clone)]
@@ -53,7 +57,52 @@ impl ZenohSender {
         })
     }
 
-    pub async fn run(&self) -> ZFResult<()> {
+    pub async fn run_stoppable(&self, stop: Receiver<()>) -> ZFResult<()> {
+        loop {
+            let run = async {
+                match self.run().await {
+                    Ok(_) => RunAction::RestartRun(None),
+                    Err(e) => RunAction::RestartRun(Some(e)),
+                }
+            };
+            let stopper = async {
+                match stop.recv().await {
+                    Ok(_) => RunAction::Stop,
+                    Err(e) => RunAction::StopError(e),
+                }
+            };
+
+            match run.race(stopper).await {
+                RunAction::RestartRun(e) => {
+                    log::error!("The run loop exited with {:?}, restarting...", e);
+                    continue;
+                }
+                RunAction::Stop => {
+                    log::trace!("Received kill command, killing runner");
+                    break Ok(());
+                }
+                RunAction::StopError(e) => {
+                    log::error!("The stopper recv got an error: {}, exiting...", e);
+                    break Err(e.into());
+                }
+            }
+        }
+    }
+}
+#[async_trait]
+impl Runner for ZenohSender {
+    fn start(&self) -> RunnerManager {
+        let (s, r) = bounded::<()>(1);
+        let cloned_self = self.clone();
+
+        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
+        RunnerManager::new(s, h, self.get_kind())
+    }
+
+    fn get_kind(&self) -> RunnerKind {
+        RunnerKind::Connector
+    }
+    async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.record.resource);
         let guard = self.link.read().await;
         while let Ok((_, message)) = (*guard).recv().await {
@@ -70,8 +119,17 @@ impl ZenohSender {
         Err(ZFError::Disconnected)
     }
 
-    pub async fn add_input(&self, input: LinkReceiver<Message>) {
+    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
         *(self.link.write().await) = input;
+        Ok(())
+    }
+
+    async fn add_output(&self, _output: LinkSender<Message>) -> ZFResult<()> {
+        Err(ZFError::SenderDoNotHaveOutputs)
+    }
+
+    async fn clean(&self) -> ZFResult<()> {
+        Ok(())
     }
 }
 
@@ -117,7 +175,54 @@ impl ZenohReceiver {
         })
     }
 
-    pub async fn run(&self) -> ZFResult<()> {
+    pub async fn run_stoppable(&self, stop: Receiver<()>) -> ZFResult<()> {
+        loop {
+            let run = async {
+                match self.run().await {
+                    Ok(_) => RunAction::RestartRun(None),
+                    Err(e) => RunAction::RestartRun(Some(e)),
+                }
+            };
+            let stopper = async {
+                match stop.recv().await {
+                    Ok(_) => RunAction::Stop,
+                    Err(e) => RunAction::StopError(e),
+                }
+            };
+
+            match run.race(stopper).await {
+                RunAction::RestartRun(e) => {
+                    log::error!("The run loop exited with {:?}, restarting...", e);
+                    continue;
+                }
+                RunAction::Stop => {
+                    log::trace!("Received kill command, killing runner");
+                    break Ok(());
+                }
+                RunAction::StopError(e) => {
+                    log::error!("The stopper recv got an error: {}, exiting...", e);
+                    break Err(e.into());
+                }
+            }
+        }
+    }
+}
+
+#[async_trait]
+impl Runner for ZenohReceiver {
+    fn start(&self) -> RunnerManager {
+        let (s, r) = bounded::<()>(1);
+        let cloned_self = self.clone();
+
+        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
+        RunnerManager::new(s, h, self.get_kind())
+    }
+
+    fn get_kind(&self) -> RunnerKind {
+        RunnerKind::Connector
+    }
+
+    async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohReceiver - {} - Started", self.record.resource);
         let guard = self.link.read().await;
         let sub_info = SubInfo {
@@ -143,7 +248,16 @@ impl ZenohReceiver {
         Err(ZFError::Disconnected)
     }
 
-    pub async fn add_output(&self, output: LinkSender<Message>) {
+    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
         (*self.link.write().await) = output;
+        Ok(())
+    }
+
+    async fn add_input(&self, _input: LinkReceiver<Message>) -> ZFResult<()> {
+        Err(ZFError::ReceiverDoNotHaveInputs)
+    }
+
+    async fn clean(&self) -> ZFResult<()> {
+        Ok(())
     }
 }

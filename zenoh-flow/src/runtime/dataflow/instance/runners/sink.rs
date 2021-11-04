@@ -12,15 +12,19 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::async_std::channel::{bounded, Receiver};
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::link::PortDescriptor;
-use crate::runtime::dataflow::instance::link::LinkReceiver;
+use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
+use crate::runtime::dataflow::instance::runners::{RunAction, Runner, RunnerKind, RunnerManager};
 use crate::runtime::dataflow::node::SinkLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::types::ZFResult;
 use crate::{Context, NodeId, Sink, State, ZFError};
+use async_trait::async_trait;
+use futures_lite::future::FutureExt;
 use libloading::Library;
 
 // Do not reorder the fields in this struct.
@@ -61,16 +65,67 @@ impl SinkRunner {
         })
     }
 
-    pub async fn add_input(&self, input: LinkReceiver<Message>) {
-        (*self.link.write().await) = input;
+    pub async fn run_stoppable(&self, stop: Receiver<()>) -> ZFResult<()> {
+        loop {
+            let run = async {
+                match self.run().await {
+                    Ok(_) => RunAction::RestartRun(None),
+                    Err(e) => RunAction::RestartRun(Some(e)),
+                }
+            };
+            let stopper = async {
+                match stop.recv().await {
+                    Ok(_) => RunAction::Stop,
+                    Err(e) => RunAction::StopError(e),
+                }
+            };
+
+            match run.race(stopper).await {
+                RunAction::RestartRun(e) => {
+                    log::error!("The run loop exited with {:?}, restarting...", e);
+                    continue;
+                }
+                RunAction::Stop => {
+                    log::trace!("Received kill command, killing runner");
+                    break Ok(());
+                }
+                RunAction::StopError(e) => {
+                    log::error!("The stopper recv got an error: {}, exiting...", e);
+                    break Err(e.into());
+                }
+            }
+        }
+    }
+}
+
+#[async_trait]
+impl Runner for SinkRunner {
+    fn start(&self) -> RunnerManager {
+        let (s, r) = bounded::<()>(1);
+        let cloned_self = self.clone();
+
+        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
+        RunnerManager::new(s, h, self.get_kind())
     }
 
-    pub async fn clean(&self) -> ZFResult<()> {
+    fn get_kind(&self) -> RunnerKind {
+        RunnerKind::Sink
+    }
+    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
+        (*self.link.write().await) = input;
+        Ok(())
+    }
+
+    async fn add_output(&self, _output: LinkSender<Message>) -> ZFResult<()> {
+        Err(ZFError::SinkDoNotHaveOutputs)
+    }
+
+    async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.write().await;
         self.sink.finalize(&mut state)
     }
 
-    pub async fn run(&self) -> ZFResult<()> {
+    async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
 
         loop {

@@ -17,21 +17,16 @@ pub mod operator;
 pub mod sink;
 pub mod source;
 
+use crate::async_std::prelude::*;
+use crate::async_std::{
+    channel::{RecvError, Sender},
+    task::JoinHandle,
+};
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
-use crate::runtime::dataflow::instance::runners::connector::{ZenohReceiver, ZenohSender};
-use crate::runtime::dataflow::instance::runners::operator::OperatorRunner;
-use crate::runtime::dataflow::instance::runners::sink::SinkRunner;
-use crate::runtime::dataflow::instance::runners::source::SourceRunner;
 use crate::runtime::message::Message;
 use crate::types::ZFResult;
 use crate::ZFError;
-
-use crate::async_std::prelude::*;
-use crate::async_std::{
-    channel::{bounded, Receiver, RecvError, Sender},
-    task::JoinHandle,
-};
-
+use async_trait::async_trait;
 use futures_lite::future::FutureExt;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -86,125 +81,18 @@ pub enum RunAction {
     StopError(RecvError),
 }
 
-#[derive(Clone)]
-pub enum Runner {
-    Operator(OperatorRunner),
-    Source(SourceRunner),
-    Sink(SinkRunner),
-    Sender(ZenohSender),
-    Receiver(ZenohReceiver),
-}
+#[async_trait]
+pub trait Runner: Send + Sync {
+    async fn run(&self) -> ZFResult<()>;
+    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()>;
 
-impl Runner {
-    pub async fn run(&self) -> ZFResult<()> {
-        match self {
-            Runner::Operator(runner) => runner.run().await,
-            Runner::Source(runner) => runner.run().await,
-            Runner::Sink(runner) => runner.run().await,
-            Runner::Sender(runner) => runner.run().await,
-            Runner::Receiver(runner) => runner.run().await,
-        }
-    }
+    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()>;
 
-    pub async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
-        log::trace!("add_input({:?})", input);
-        match self {
-            Runner::Operator(runner) => {
-                runner.add_input(input).await;
-                Ok(())
-            }
-            Runner::Source(_) => Err(ZFError::SourceDoNotHaveInputs),
-            Runner::Sink(runner) => {
-                runner.add_input(input).await;
-                Ok(())
-            }
-            Runner::Sender(runner) => {
-                runner.add_input(input).await;
-                Ok(())
-            }
-            Runner::Receiver(_) => Err(ZFError::ReceiverDoNotHaveInputs),
-        }
-    }
+    async fn clean(&self) -> ZFResult<()>;
 
-    pub async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
-        log::trace!("add_output({:?})", output);
-        match self {
-            Runner::Operator(runner) => {
-                runner.add_output(output).await;
-                Ok(())
-            }
-            Runner::Source(runner) => {
-                runner.add_output(output).await;
-                Ok(())
-            }
-            Runner::Sink(_) => Err(ZFError::SinkDoNotHaveOutputs),
-            Runner::Sender(_) => Err(ZFError::SenderDoNotHaveOutputs),
-            Runner::Receiver(runner) => {
-                runner.add_output(output).await;
-                Ok(())
-            }
-        }
-    }
+    fn start(&self) -> RunnerManager;
 
-    pub async fn clean(&self) -> ZFResult<()> {
-        match self {
-            Runner::Operator(runner) => runner.clean().await,
-            Runner::Source(runner) => runner.clean().await,
-            Runner::Sink(runner) => runner.clean().await,
-            Runner::Sender(_) => Err(ZFError::Unimplemented),
-            Runner::Receiver(_) => Err(ZFError::Unimplemented),
-        }
-    }
-
-    pub fn start(&self) -> RunnerManager {
-        let (s, r) = bounded::<()>(1);
-        let cloned_self = self.clone();
-
-        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
-        RunnerManager::new(s, h, self.get_kind())
-    }
-
-    pub async fn run_stoppable(&self, stop: Receiver<()>) -> ZFResult<()> {
-        loop {
-            let run = async {
-                match self.run().await {
-                    Ok(_) => RunAction::RestartRun(None),
-                    Err(e) => RunAction::RestartRun(Some(e)),
-                }
-            };
-            let stopper = async {
-                match stop.recv().await {
-                    Ok(_) => RunAction::Stop,
-                    Err(e) => RunAction::StopError(e),
-                }
-            };
-
-            match run.race(stopper).await {
-                RunAction::RestartRun(e) => {
-                    log::error!("The run loop exited with {:?}, restarting...", e);
-                    continue;
-                }
-                RunAction::Stop => {
-                    log::trace!("Received kill command, killing runner");
-                    break Ok(());
-                }
-                RunAction::StopError(e) => {
-                    log::error!("The stopper recv got an error: {}, exiting...", e);
-                    break Err(e.into());
-                }
-            }
-        }
-    }
-
-    pub fn get_kind(&self) -> RunnerKind {
-        match self {
-            Runner::Operator(_) => RunnerKind::Operator,
-            Runner::Source(_) => RunnerKind::Source,
-            Runner::Sink(_) => RunnerKind::Sink,
-            Runner::Sender(_) => RunnerKind::Connector,
-            Runner::Receiver(_) => RunnerKind::Connector,
-        }
-    }
+    fn get_kind(&self) -> RunnerKind;
 }
 
 #[macro_export]

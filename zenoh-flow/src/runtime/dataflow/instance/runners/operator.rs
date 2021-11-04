@@ -12,9 +12,11 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::async_std::channel::{bounded, Receiver};
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::node::OperatorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
+use crate::runtime::dataflow::instance::runners::{RunAction, Runner, RunnerKind, RunnerManager};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
@@ -22,7 +24,9 @@ use crate::{
     Context, DataMessage, NodeId, Operator, PortId, PortType, State, Token, TokenAction, ZFError,
     ZFResult,
 };
+use async_trait::async_trait;
 use futures::{future, Future};
+use futures_lite::future::FutureExt;
 use libloading::Library;
 use std::collections::HashMap;
 
@@ -118,13 +122,61 @@ impl OperatorRunner {
         })
     }
 
-    pub async fn add_input(&self, input: LinkReceiver<Message>) {
+    pub async fn run_stoppable(&self, stop: Receiver<()>) -> ZFResult<()> {
+        loop {
+            let run = async {
+                match self.run().await {
+                    Ok(_) => RunAction::RestartRun(None),
+                    Err(e) => RunAction::RestartRun(Some(e)),
+                }
+            };
+            let stopper = async {
+                match stop.recv().await {
+                    Ok(_) => RunAction::Stop,
+                    Err(e) => RunAction::StopError(e),
+                }
+            };
+
+            match run.race(stopper).await {
+                RunAction::RestartRun(e) => {
+                    log::error!("The run loop exited with {:?}, restarting...", e);
+                    continue;
+                }
+                RunAction::Stop => {
+                    log::trace!("Received kill command, killing runner");
+                    break Ok(());
+                }
+                RunAction::StopError(e) => {
+                    log::error!("The stopper recv got an error: {}, exiting...", e);
+                    break Err(e.into());
+                }
+            }
+        }
+    }
+}
+
+#[async_trait]
+impl Runner for OperatorRunner {
+    fn start(&self) -> RunnerManager {
+        let (s, r) = bounded::<()>(1);
+        let cloned_self = self.clone();
+
+        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
+        RunnerManager::new(s, h, self.get_kind())
+    }
+
+    fn get_kind(&self) -> RunnerKind {
+        RunnerKind::Operator
+    }
+
+    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
         let mut guard = self.io.write().await;
         let key = input.id();
         guard.inputs.insert(key, input);
+        Ok(())
     }
 
-    pub async fn add_output(&self, output: LinkSender<Message>) {
+    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
         let mut guard = self.io.write().await;
         let key = output.id();
         if let Some(links) = guard.outputs.get_mut(key.as_ref()) {
@@ -132,14 +184,15 @@ impl OperatorRunner {
         } else {
             guard.outputs.insert(key, vec![output]);
         }
+        Ok(())
     }
 
-    pub async fn clean(&self) -> ZFResult<()> {
+    async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.write().await;
         self.operator.finalize(&mut state)
     }
 
-    pub async fn run(&self) -> ZFResult<()> {
+    async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
         let mut tokens: HashMap<PortId, Token> = self
             .inputs
