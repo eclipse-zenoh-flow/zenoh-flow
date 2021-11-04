@@ -24,8 +24,8 @@ use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::zenoh_flow_derive::ZFData;
 use zenoh_flow::{
     default_input_rule, default_output_rule, zf_empty_state, Configuration, Context, Data,
-    Deserializable, Node, NodeOutput, Operator, PortId, Sink, Source, State, ZFData, ZFError,
-    ZFResult,
+    DeadlineMiss, Deserializable, Node, NodeOutput, Operator, PortId, Sink, Source, State, ZFData,
+    ZFError, ZFResult,
 };
 
 // Data Type
@@ -162,9 +162,12 @@ impl Operator for NoOp {
         _context: &mut zenoh_flow::Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
-        deadline_miss: bool,
+        deadline_miss: Option<DeadlineMiss>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
-        assert!(!deadline_miss, "Expected `deadline_miss` to be: false");
+        assert!(
+            deadline_miss.is_none(),
+            "Expected `deadline_miss` to be `None`."
+        );
         default_output_rule(state, outputs)
     }
 }

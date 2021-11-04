@@ -21,8 +21,8 @@ use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescript
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::{
-    default_output_rule, zf_empty_state, Configuration, Data, Node, NodeOutput, Operator, PortId,
-    State, Token, ZFError, ZFResult,
+    default_output_rule, zf_empty_state, Configuration, Data, DeadlineMiss, Node, NodeOutput,
+    Operator, PortId, State, Token, ZFError, ZFResult,
 };
 
 static SOURCE_1: &str = "Source1";
@@ -104,8 +104,12 @@ impl Operator for OperatorKeep {
         _context: &mut zenoh_flow::Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
-        _deadline_miss: bool,
+        deadline_miss: Option<DeadlineMiss>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
+        assert!(
+            deadline_miss.is_none(),
+            "Expected `deadline_miss` to be `None`."
+        );
         default_output_rule(state, outputs)
     }
 }
