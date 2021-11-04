@@ -18,16 +18,18 @@ pub mod sink;
 pub mod source;
 
 use crate::async_std::prelude::*;
+use crate::async_std::sync::Arc;
 use crate::async_std::{
     channel::{RecvError, Sender},
     task::JoinHandle,
 };
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
-use crate::types::ZFResult;
+use crate::types::{NodeId, ZFResult};
 use crate::ZFError;
 use async_trait::async_trait;
 use futures_lite::future::FutureExt;
+use std::ops::Deref;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -90,9 +92,78 @@ pub trait Runner: Send + Sync {
 
     async fn clean(&self) -> ZFResult<()>;
 
-    fn start(&self) -> RunnerManager;
-
     fn get_kind(&self) -> RunnerKind;
+
+    fn get_id(&self) -> NodeId;
+}
+
+#[derive(Clone)]
+pub struct NodeRunner {
+    inner: Arc<dyn Runner>,
+}
+
+impl NodeRunner {
+    pub fn new(inner: Arc<dyn Runner>) -> Self {
+        Self { inner }
+    }
+
+    async fn run_stoppable(&self, stop: crate::async_std::channel::Receiver<()>) -> ZFResult<()> {
+        loop {
+            let run = async {
+                match self.run().await {
+                    Ok(_) => RunAction::RestartRun(None),
+                    Err(e) => RunAction::RestartRun(Some(e)),
+                }
+            };
+            let stopper = async {
+                match stop.recv().await {
+                    Ok(_) => RunAction::Stop,
+                    Err(e) => RunAction::StopError(e),
+                }
+            };
+
+            match run.race(stopper).await {
+                RunAction::RestartRun(e) => {
+                    log::error!(
+                        "[Node: {}] The run loop exited with {:?}, restarting…",
+                        self.get_id(),
+                        e
+                    );
+                    continue;
+                }
+                RunAction::Stop => {
+                    log::trace!(
+                        "[Node: {}] Received kill command, killing runner",
+                        self.get_id()
+                    );
+                    break Ok(());
+                }
+                RunAction::StopError(e) => {
+                    log::error!(
+                        "[Node {}] The stopper recv got an error: {}, exiting...",
+                        self.get_id(),
+                        e
+                    );
+                    break Err(e.into());
+                }
+            }
+        }
+    }
+    pub fn start(&self) -> RunnerManager {
+        let (s, r) = crate::async_std::channel::bounded::<()>(1);
+        let cloned_self = self.clone();
+
+        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
+        RunnerManager::new(s, h, self.get_kind())
+    }
+}
+
+impl Deref for NodeRunner {
+    type Target = Arc<dyn Runner>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 #[macro_export]

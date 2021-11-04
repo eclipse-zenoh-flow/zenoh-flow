@@ -13,18 +13,16 @@
 //
 
 use super::operator::OperatorIO;
-use crate::async_std::channel::{bounded, Receiver};
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::link::PortDescriptor;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
-use crate::runtime::dataflow::instance::runners::{RunAction, Runner, RunnerKind, RunnerManager};
+use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::types::ZFResult;
 use crate::{Context, NodeId, Source, State, ZFError};
 use async_trait::async_trait;
-use futures_lite::future::FutureExt;
 use libloading::Library;
 use std::time::Duration;
 use uhlc::{Timestamp, NTP64};
@@ -98,50 +96,13 @@ impl SourceRunner {
 
         timestamp
     }
-
-    pub async fn run_stoppable(&self, stop: Receiver<()>) -> ZFResult<()> {
-        loop {
-            let run = async {
-                match self.run().await {
-                    Ok(_) => RunAction::RestartRun(None),
-                    Err(e) => RunAction::RestartRun(Some(e)),
-                }
-            };
-            let stopper = async {
-                match stop.recv().await {
-                    Ok(_) => RunAction::Stop,
-                    Err(e) => RunAction::StopError(e),
-                }
-            };
-
-            match run.race(stopper).await {
-                RunAction::RestartRun(e) => {
-                    log::error!("The run loop exited with {:?}, restarting...", e);
-                    continue;
-                }
-                RunAction::Stop => {
-                    log::trace!("Received kill command, killing runner");
-                    break Ok(());
-                }
-                RunAction::StopError(e) => {
-                    log::error!("The stopper recv got an error: {}, exiting...", e);
-                    break Err(e.into());
-                }
-            }
-        }
-    }
 }
 
 #[async_trait]
 impl Runner for SourceRunner {
-    fn start(&self) -> RunnerManager {
-        let (s, r) = bounded::<()>(1);
-        let cloned_self = self.clone();
-
-        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
-        RunnerManager::new(s, h, self.get_kind())
+    fn get_id(&self) -> NodeId {
+        self.id.clone()
     }
-
     fn get_kind(&self) -> RunnerKind {
         RunnerKind::Source
     }
