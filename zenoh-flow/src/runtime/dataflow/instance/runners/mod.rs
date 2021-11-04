@@ -17,22 +17,19 @@ pub mod operator;
 pub mod sink;
 pub mod source;
 
-use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
-use crate::runtime::dataflow::instance::runners::connector::{ZenohReceiver, ZenohSender};
-use crate::runtime::dataflow::instance::runners::operator::OperatorRunner;
-use crate::runtime::dataflow::instance::runners::sink::SinkRunner;
-use crate::runtime::dataflow::instance::runners::source::SourceRunner;
-use crate::runtime::message::Message;
-use crate::types::ZFResult;
-use crate::ZFError;
-
 use crate::async_std::prelude::*;
+use crate::async_std::sync::Arc;
 use crate::async_std::{
-    channel::{bounded, Receiver, RecvError, Sender},
+    channel::{RecvError, Sender},
     task::JoinHandle,
 };
-
+use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
+use crate::runtime::message::Message;
+use crate::types::{NodeId, ZFResult};
+use crate::ZFError;
+use async_trait::async_trait;
 use futures_lite::future::FutureExt;
+use std::ops::Deref;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -86,85 +83,31 @@ pub enum RunAction {
     StopError(RecvError),
 }
 
-#[derive(Clone)]
-pub enum Runner {
-    Operator(OperatorRunner),
-    Source(SourceRunner),
-    Sink(SinkRunner),
-    Sender(ZenohSender),
-    Receiver(ZenohReceiver),
+#[async_trait]
+pub trait Runner: Send + Sync {
+    async fn run(&self) -> ZFResult<()>;
+    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()>;
+
+    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()>;
+
+    async fn clean(&self) -> ZFResult<()>;
+
+    fn get_kind(&self) -> RunnerKind;
+
+    fn get_id(&self) -> NodeId;
 }
 
-impl Runner {
-    pub async fn run(&self) -> ZFResult<()> {
-        match self {
-            Runner::Operator(runner) => runner.run().await,
-            Runner::Source(runner) => runner.run().await,
-            Runner::Sink(runner) => runner.run().await,
-            Runner::Sender(runner) => runner.run().await,
-            Runner::Receiver(runner) => runner.run().await,
-        }
+#[derive(Clone)]
+pub struct NodeRunner {
+    inner: Arc<dyn Runner>,
+}
+
+impl NodeRunner {
+    pub fn new(inner: Arc<dyn Runner>) -> Self {
+        Self { inner }
     }
 
-    pub async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
-        log::trace!("add_input({:?})", input);
-        match self {
-            Runner::Operator(runner) => {
-                runner.add_input(input).await;
-                Ok(())
-            }
-            Runner::Source(_) => Err(ZFError::SourceDoNotHaveInputs),
-            Runner::Sink(runner) => {
-                runner.add_input(input).await;
-                Ok(())
-            }
-            Runner::Sender(runner) => {
-                runner.add_input(input).await;
-                Ok(())
-            }
-            Runner::Receiver(_) => Err(ZFError::ReceiverDoNotHaveInputs),
-        }
-    }
-
-    pub async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
-        log::trace!("add_output({:?})", output);
-        match self {
-            Runner::Operator(runner) => {
-                runner.add_output(output).await;
-                Ok(())
-            }
-            Runner::Source(runner) => {
-                runner.add_output(output).await;
-                Ok(())
-            }
-            Runner::Sink(_) => Err(ZFError::SinkDoNotHaveOutputs),
-            Runner::Sender(_) => Err(ZFError::SenderDoNotHaveOutputs),
-            Runner::Receiver(runner) => {
-                runner.add_output(output).await;
-                Ok(())
-            }
-        }
-    }
-
-    pub async fn clean(&self) -> ZFResult<()> {
-        match self {
-            Runner::Operator(runner) => runner.clean().await,
-            Runner::Source(runner) => runner.clean().await,
-            Runner::Sink(runner) => runner.clean().await,
-            Runner::Sender(_) => Err(ZFError::Unimplemented),
-            Runner::Receiver(_) => Err(ZFError::Unimplemented),
-        }
-    }
-
-    pub fn start(&self) -> RunnerManager {
-        let (s, r) = bounded::<()>(1);
-        let cloned_self = self.clone();
-
-        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
-        RunnerManager::new(s, h, self.get_kind())
-    }
-
-    pub async fn run_stoppable(&self, stop: Receiver<()>) -> ZFResult<()> {
+    async fn run_stoppable(&self, stop: crate::async_std::channel::Receiver<()>) -> ZFResult<()> {
         loop {
             let run = async {
                 match self.run().await {
@@ -181,29 +124,45 @@ impl Runner {
 
             match run.race(stopper).await {
                 RunAction::RestartRun(e) => {
-                    log::error!("The run loop exited with {:?}, restarting...", e);
+                    log::error!(
+                        "[Node: {}] The run loop exited with {:?}, restarting…",
+                        self.get_id(),
+                        e
+                    );
                     continue;
                 }
                 RunAction::Stop => {
-                    log::trace!("Received kill command, killing runner");
+                    log::trace!(
+                        "[Node: {}] Received kill command, killing runner",
+                        self.get_id()
+                    );
                     break Ok(());
                 }
                 RunAction::StopError(e) => {
-                    log::error!("The stopper recv got an error: {}, exiting...", e);
+                    log::error!(
+                        "[Node {}] The stopper recv got an error: {}, exiting...",
+                        self.get_id(),
+                        e
+                    );
                     break Err(e.into());
                 }
             }
         }
     }
+    pub fn start(&self) -> RunnerManager {
+        let (s, r) = crate::async_std::channel::bounded::<()>(1);
+        let cloned_self = self.clone();
 
-    pub fn get_kind(&self) -> RunnerKind {
-        match self {
-            Runner::Operator(_) => RunnerKind::Operator,
-            Runner::Source(_) => RunnerKind::Source,
-            Runner::Sink(_) => RunnerKind::Sink,
-            Runner::Sender(_) => RunnerKind::Connector,
-            Runner::Receiver(_) => RunnerKind::Connector,
-        }
+        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
+        RunnerManager::new(s, h, self.get_kind())
+    }
+}
+
+impl Deref for NodeRunner {
+    type Target = Arc<dyn Runner>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 

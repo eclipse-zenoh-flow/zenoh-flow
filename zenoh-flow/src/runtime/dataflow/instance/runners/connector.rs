@@ -16,9 +16,11 @@ use crate::async_std::sync::{Arc, RwLock};
 use crate::model::connector::ZFConnectorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
+use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::{NodeId, ZFError, ZFResult};
+use async_trait::async_trait;
 use futures::prelude::*;
 use zenoh::net::{Reliability, SubInfo, SubMode};
 
@@ -52,8 +54,16 @@ impl ZenohSender {
             link: Arc::new(RwLock::new(link)),
         })
     }
-
-    pub async fn run(&self) -> ZFResult<()> {
+}
+#[async_trait]
+impl Runner for ZenohSender {
+    fn get_id(&self) -> NodeId {
+        self.id.clone()
+    }
+    fn get_kind(&self) -> RunnerKind {
+        RunnerKind::Connector
+    }
+    async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.record.resource);
         let guard = self.link.read().await;
         while let Ok((_, message)) = (*guard).recv().await {
@@ -70,8 +80,17 @@ impl ZenohSender {
         Err(ZFError::Disconnected)
     }
 
-    pub async fn add_input(&self, input: LinkReceiver<Message>) {
+    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
         *(self.link.write().await) = input;
+        Ok(())
+    }
+
+    async fn add_output(&self, _output: LinkSender<Message>) -> ZFResult<()> {
+        Err(ZFError::SenderDoNotHaveOutputs)
+    }
+
+    async fn clean(&self) -> ZFResult<()> {
+        Ok(())
     }
 }
 
@@ -116,8 +135,18 @@ impl ZenohReceiver {
             link: Arc::new(RwLock::new(link)),
         })
     }
+}
 
-    pub async fn run(&self) -> ZFResult<()> {
+#[async_trait]
+impl Runner for ZenohReceiver {
+    fn get_id(&self) -> NodeId {
+        self.id.clone()
+    }
+    fn get_kind(&self) -> RunnerKind {
+        RunnerKind::Connector
+    }
+
+    async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohReceiver - {} - Started", self.record.resource);
         let guard = self.link.read().await;
         let sub_info = SubInfo {
@@ -143,7 +172,16 @@ impl ZenohReceiver {
         Err(ZFError::Disconnected)
     }
 
-    pub async fn add_output(&self, output: LinkSender<Message>) {
+    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
         (*self.link.write().await) = output;
+        Ok(())
+    }
+
+    async fn add_input(&self, _input: LinkReceiver<Message>) -> ZFResult<()> {
+        Err(ZFError::ReceiverDoNotHaveInputs)
+    }
+
+    async fn clean(&self) -> ZFResult<()> {
+        Ok(())
     }
 }

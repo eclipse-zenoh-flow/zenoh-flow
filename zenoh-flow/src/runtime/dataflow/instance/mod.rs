@@ -26,7 +26,7 @@ use crate::runtime::dataflow::instance::runners::connector::{ZenohReceiver, Zeno
 use crate::runtime::dataflow::instance::runners::operator::{OperatorIO, OperatorRunner};
 use crate::runtime::dataflow::instance::runners::sink::SinkRunner;
 use crate::runtime::dataflow::instance::runners::source::SourceRunner;
-use crate::runtime::dataflow::instance::runners::Runner;
+use crate::runtime::dataflow::instance::runners::{NodeRunner, RunnerKind};
 use crate::runtime::dataflow::Dataflow;
 use crate::runtime::RuntimeContext;
 use crate::{FlowId, Message, NodeId, ZFError, ZFResult};
@@ -35,7 +35,7 @@ pub struct DataflowInstance {
     pub(crate) uuid: Uuid,
     pub(crate) flow_id: FlowId,
     pub(crate) context: RuntimeContext,
-    pub(crate) runners: HashMap<NodeId, Runner>,
+    pub(crate) runners: HashMap<NodeId, NodeRunner>,
 }
 
 fn create_links(
@@ -101,7 +101,7 @@ impl DataflowInstance {
         let mut links = create_links(&node_ids, &dataflow.links)?;
 
         // The links were created, we can generate the Runners.
-        let mut runners: HashMap<NodeId, Runner> = HashMap::with_capacity(node_ids.len());
+        let mut runners: HashMap<NodeId, NodeRunner> = HashMap::with_capacity(node_ids.len());
 
         for (id, source) in dataflow.sources.into_iter() {
             let io = links.remove(&id).ok_or_else(|| {
@@ -112,7 +112,11 @@ impl DataflowInstance {
             })?;
             runners.insert(
                 id,
-                Runner::Source(SourceRunner::try_new(dataflow.context.clone(), source, io)?),
+                NodeRunner::new(Arc::new(SourceRunner::try_new(
+                    dataflow.context.clone(),
+                    source,
+                    io,
+                )?)),
             );
         }
 
@@ -125,11 +129,11 @@ impl DataflowInstance {
             })?;
             runners.insert(
                 id,
-                Runner::Operator(OperatorRunner::try_new(
+                NodeRunner::new(Arc::new(OperatorRunner::try_new(
                     dataflow.context.clone(),
                     operator,
                     io,
-                )?),
+                )?)),
             );
         }
 
@@ -139,7 +143,11 @@ impl DataflowInstance {
             })?;
             runners.insert(
                 id,
-                Runner::Sink(SinkRunner::try_new(dataflow.context.clone(), sink, io)?),
+                NodeRunner::new(Arc::new(SinkRunner::try_new(
+                    dataflow.context.clone(),
+                    sink,
+                    io,
+                )?)),
             );
         }
 
@@ -154,21 +162,21 @@ impl DataflowInstance {
                 ZFConnectorKind::Sender => {
                     runners.insert(
                         id,
-                        Runner::Sender(ZenohSender::try_new(
+                        NodeRunner::new(Arc::new(ZenohSender::try_new(
                             dataflow.context.clone(),
                             connector,
                             io,
-                        )?),
+                        )?)),
                     );
                 }
                 ZFConnectorKind::Receiver => {
                     runners.insert(
                         id,
-                        Runner::Receiver(ZenohReceiver::try_new(
+                        NodeRunner::new(Arc::new(ZenohReceiver::try_new(
                             dataflow.context.clone(),
                             connector,
                             io,
-                        )?),
+                        )?)),
                     );
                 }
             }
@@ -194,39 +202,43 @@ impl DataflowInstance {
         self.context.clone()
     }
 
-    pub fn get_runner(&self, operator_id: &NodeId) -> Option<&Runner> {
-        self.runners.get(operator_id)
+    pub fn get_runner(&self, operator_id: &NodeId) -> Option<NodeRunner> {
+        self.runners.get(operator_id).cloned()
     }
 
-    pub fn get_runners(&self) -> Vec<&Runner> {
-        self.runners.values().collect()
+    pub fn get_runners(&self) -> Vec<NodeRunner> {
+        self.runners.values().cloned().collect()
     }
 
-    pub fn get_sources(&self) -> Vec<&Runner> {
+    pub fn get_sources(&self) -> Vec<NodeRunner> {
         self.runners
             .values()
-            .filter(|runner| matches!(runner, Runner::Source(_)))
+            .filter(|runner| matches!(runner.get_kind(), RunnerKind::Source))
+            .cloned()
             .collect()
     }
 
-    pub fn get_sinks(&self) -> Vec<&Runner> {
+    pub fn get_sinks(&self) -> Vec<NodeRunner> {
         self.runners
             .values()
-            .filter(|runner| matches!(runner, Runner::Sink(_)))
+            .filter(|runner| matches!(runner.get_kind(), RunnerKind::Sink))
+            .cloned()
             .collect()
     }
 
-    pub fn get_operators(&self) -> Vec<&Runner> {
+    pub fn get_operators(&self) -> Vec<NodeRunner> {
         self.runners
             .values()
-            .filter(|runner| matches!(runner, Runner::Operator(_)))
+            .filter(|runner| matches!(runner.get_kind(), RunnerKind::Operator))
+            .cloned()
             .collect()
     }
 
-    pub fn get_connectors(&self) -> Vec<&Runner> {
+    pub fn get_connectors(&self) -> Vec<NodeRunner> {
         self.runners
             .values()
-            .filter(|runner| matches!(runner, Runner::Receiver(_) | Runner::Sender(_)))
+            .filter(|runner| matches!(runner.get_kind(), RunnerKind::Connector))
+            .cloned()
             .collect()
     }
 }

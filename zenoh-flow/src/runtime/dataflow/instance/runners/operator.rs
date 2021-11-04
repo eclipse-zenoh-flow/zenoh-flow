@@ -15,6 +15,7 @@
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::node::OperatorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
+use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
@@ -22,6 +23,7 @@ use crate::{
     Context, DataMessage, NodeId, Operator, PortId, PortType, State, Token, TokenAction, ZFError,
     ZFResult,
 };
+use async_trait::async_trait;
 use futures::{future, Future};
 use libloading::Library;
 use std::collections::HashMap;
@@ -117,14 +119,25 @@ impl OperatorRunner {
             library: operator.library,
         })
     }
+}
 
-    pub async fn add_input(&self, input: LinkReceiver<Message>) {
+#[async_trait]
+impl Runner for OperatorRunner {
+    fn get_id(&self) -> NodeId {
+        self.id.clone()
+    }
+    fn get_kind(&self) -> RunnerKind {
+        RunnerKind::Operator
+    }
+
+    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
         let mut guard = self.io.write().await;
         let key = input.id();
         guard.inputs.insert(key, input);
+        Ok(())
     }
 
-    pub async fn add_output(&self, output: LinkSender<Message>) {
+    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
         let mut guard = self.io.write().await;
         let key = output.id();
         if let Some(links) = guard.outputs.get_mut(key.as_ref()) {
@@ -132,14 +145,15 @@ impl OperatorRunner {
         } else {
             guard.outputs.insert(key, vec![output]);
         }
+        Ok(())
     }
 
-    pub async fn clean(&self) -> ZFResult<()> {
+    async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.write().await;
         self.operator.finalize(&mut state)
     }
 
-    pub async fn run(&self) -> ZFResult<()> {
+    async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
         let mut tokens: HashMap<PortId, Token> = self
             .inputs

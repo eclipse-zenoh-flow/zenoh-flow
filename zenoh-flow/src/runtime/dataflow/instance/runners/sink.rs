@@ -14,13 +14,15 @@
 
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::link::PortDescriptor;
-use crate::runtime::dataflow::instance::link::LinkReceiver;
+use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
+use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SinkLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::types::ZFResult;
 use crate::{Context, NodeId, Sink, State, ZFError};
+use async_trait::async_trait;
 use libloading::Library;
 
 // Do not reorder the fields in this struct.
@@ -60,17 +62,31 @@ impl SinkRunner {
             library: sink.library,
         })
     }
+}
 
-    pub async fn add_input(&self, input: LinkReceiver<Message>) {
+#[async_trait]
+impl Runner for SinkRunner {
+    fn get_id(&self) -> NodeId {
+        self.id.clone()
+    }
+    fn get_kind(&self) -> RunnerKind {
+        RunnerKind::Sink
+    }
+    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
         (*self.link.write().await) = input;
+        Ok(())
     }
 
-    pub async fn clean(&self) -> ZFResult<()> {
+    async fn add_output(&self, _output: LinkSender<Message>) -> ZFResult<()> {
+        Err(ZFError::SinkDoNotHaveOutputs)
+    }
+
+    async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.write().await;
         self.sink.finalize(&mut state)
     }
 
-    pub async fn run(&self) -> ZFResult<()> {
+    async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
 
         loop {

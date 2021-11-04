@@ -12,20 +12,20 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use std::time::Duration;
-
-use libloading::Library;
-use uhlc::{Timestamp, NTP64};
-
 use super::operator::OperatorIO;
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::link::PortDescriptor;
-use crate::runtime::dataflow::instance::link::LinkSender;
+use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
+use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::types::ZFResult;
 use crate::{Context, NodeId, Source, State, ZFError};
+use async_trait::async_trait;
+use libloading::Library;
+use std::time::Duration;
+use uhlc::{Timestamp, NTP64};
 
 // Do not reorder the fields in this struct.
 // Rust drops fields in a struct in the same order they are declared.
@@ -96,17 +96,31 @@ impl SourceRunner {
 
         timestamp
     }
+}
 
-    pub async fn add_output(&self, output: LinkSender<Message>) {
-        (*self.links.write().await).push(output)
+#[async_trait]
+impl Runner for SourceRunner {
+    fn get_id(&self) -> NodeId {
+        self.id.clone()
+    }
+    fn get_kind(&self) -> RunnerKind {
+        RunnerKind::Source
+    }
+    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
+        (*self.links.write().await).push(output);
+        Ok(())
     }
 
-    pub async fn clean(&self) -> ZFResult<()> {
+    async fn add_input(&self, _input: LinkReceiver<Message>) -> ZFResult<()> {
+        Err(ZFError::SourceDoNotHaveInputs)
+    }
+
+    async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.write().await;
         self.source.finalize(&mut state)
     }
 
-    pub async fn run(&self) -> ZFResult<()> {
+    async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
 
         loop {
