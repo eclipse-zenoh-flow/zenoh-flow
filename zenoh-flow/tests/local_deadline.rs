@@ -21,7 +21,10 @@ use types::{VecSink, VecSource, ZFUsize};
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::RuntimeContext;
-use zenoh_flow::{Configuration, Data, Node, NodeOutput, Operator, PortId, State, ZFError, ZFResult, default_input_rule, default_output_rule, zf_empty_state};
+use zenoh_flow::{
+    default_input_rule, default_output_rule, zf_empty_state, Configuration, Data, Node, NodeOutput,
+    Operator, PortId, State, ZFError, ZFResult,
+};
 
 static SOURCE: &str = "Source";
 static OPERATOR: &str = "Operator";
@@ -66,10 +69,7 @@ impl Operator for OperatorDeadline {
             .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?;
         let data = data_msg.data.try_get::<ZFUsize>()?;
 
-        results.insert(
-            SINK.into(),
-            Data::from::<ZFUsize>(ZFUsize(data.0)),
-        );
+        results.insert(SINK.into(), Data::from::<ZFUsize>(ZFUsize(data.0)));
 
         Ok(results)
     }
@@ -133,12 +133,10 @@ async fn single_runtime() {
 
     dataflow.add_static_operator(
         OPERATOR.into(),
-        vec![
-            PortDescriptor {
-                port_id: SOURCE.into(),
-                port_type: "int".into(),
-            },
-        ],
+        vec![PortDescriptor {
+            port_id: SOURCE.into(),
+            port_type: "int".into(),
+        }],
         vec![PortDescriptor {
             port_id: SINK.into(),
             port_type: "int".into(),
