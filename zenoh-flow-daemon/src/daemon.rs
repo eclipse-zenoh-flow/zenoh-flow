@@ -23,6 +23,7 @@ use zenoh_flow::model::{
 };
 use zenoh_flow::runtime::dataflow::instance::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
+use zenoh_flow::runtime::dataflow::loader::Loader;
 use zenoh_flow::runtime::dataflow::Dataflow;
 use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
@@ -87,10 +88,12 @@ impl Daemon {
         let session = Arc::new(zenoh::net::open(zn_properties.into()).wait()?);
         let z = Arc::new(zenoh::Zenoh::new(zenoh_properties.into()).wait()?);
         let hlc = Arc::new(HLC::default());
+        let loader = Arc::new(Loader::new(config.loader.clone()));
 
         let ctx = RuntimeContext {
             session,
             hlc,
+            loader,
             runtime_name: name.into(),
             runtime_uuid: uuid,
         };

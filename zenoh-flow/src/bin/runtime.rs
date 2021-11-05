@@ -13,11 +13,13 @@
 
 // TODO: this should become a deamon.
 
+use async_std::sync::Arc;
 use std::convert::TryFrom;
 use std::fs::{File, *};
 use std::io::Write;
 use std::path::Path;
 use structopt::StructOpt;
+use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 
 #[derive(Debug, StructOpt)]
@@ -27,6 +29,8 @@ struct Opt {
     graph_file: String,
     #[structopt(short = "o", long = "out-file", default_value = "output.dot")]
     outfile: String,
+    #[structopt(short = "l", long = "loader_config")]
+    loader_config: Option<String>,
     #[structopt(short = "r", long = "runtime")]
     runtime: String,
 }
@@ -44,13 +48,23 @@ async fn main() {
     let opt = Opt::from_args();
     let yaml_df = read_to_string(opt.graph_file).unwrap();
 
+    let loader_config = match opt.loader_config {
+        Some(config) => {
+            let yaml_conf = read_to_string(config).unwrap();
+            serde_yaml::from_str::<LoaderConfig>(&yaml_conf).unwrap()
+        }
+        None => LoaderConfig { extentions: vec![] },
+    };
+
     let session =
         async_std::sync::Arc::new(zenoh::net::open(zenoh::net::config::peer()).await.unwrap());
     let hlc = async_std::sync::Arc::new(uhlc::HLC::default());
+    let loader = Arc::new(Loader::new(loader_config));
 
     let ctx = RuntimeContext {
         session,
         hlc,
+        loader,
         runtime_name: opt.runtime.clone().into(),
         runtime_uuid: uuid::Uuid::new_v4(),
     };

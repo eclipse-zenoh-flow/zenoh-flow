@@ -21,6 +21,7 @@ use std::collections::HashMap;
 use types::{CounterState, ZFUsize};
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
+use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::{
     default_output_rule, zf_empty_state, Configuration, Context, Data, DeadlineMiss, Node,
@@ -185,6 +186,7 @@ async fn single_runtime() {
     let ctx = RuntimeContext {
         session,
         hlc,
+        loader: Arc::new(Loader::new(LoaderConfig { extentions: vec![] })),
         runtime_name: format!("test-runtime-{}", rt_uuid).into(),
         runtime_uuid: rt_uuid,
     };

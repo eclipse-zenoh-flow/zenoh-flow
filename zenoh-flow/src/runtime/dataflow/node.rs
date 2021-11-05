@@ -12,17 +12,14 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::time::Duration;
-
 use crate::model::link::PortDescriptor;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::period::PeriodDescriptor;
-use crate::runtime::dataflow::loader::{load_operator, load_sink, load_source};
-use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFError};
+use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
 use async_std::sync::{Arc, RwLock};
 use libloading::Library;
+use std::collections::HashMap;
+use std::time::Duration;
 
 pub struct SourceLoaded {
     pub(crate) id: NodeId,
@@ -33,26 +30,21 @@ pub struct SourceLoaded {
     pub(crate) library: Option<Arc<Library>>,
 }
 
-impl TryFrom<SourceRecord> for SourceLoaded {
-    type Error = ZFError;
-
-    fn try_from(value: SourceRecord) -> Result<Self, Self::Error> {
-        let uri = value.uri.as_ref().ok_or_else(|| {
-            ZFError::LoadingError(format!(
-                "Missing URI for dynamically loaded Source < {} >.",
-                value.id.clone()
-            ))
-        })?;
-        let (library, source) = load_source(uri)?;
-        let state = source.initialize(&value.configuration)?;
+impl SourceLoaded {
+    pub fn try_new(
+        record: SourceRecord,
+        lib: Option<Arc<Library>>,
+        source: Arc<dyn Source>,
+    ) -> ZFResult<Self> {
+        let state = source.initialize(&record.configuration)?;
 
         Ok(Self {
-            id: value.id,
-            output: value.output,
-            period: value.period,
+            id: record.id,
+            output: record.output,
+            period: record.period,
             state: Arc::new(RwLock::new(state)),
             source,
-            library: Some(Arc::new(library)),
+            library: lib,
         })
     }
 }
@@ -67,39 +59,34 @@ pub struct OperatorLoaded {
     pub(crate) library: Option<Arc<Library>>,
 }
 
-impl TryFrom<OperatorRecord> for OperatorLoaded {
-    type Error = ZFError;
+impl OperatorLoaded {
+    pub fn try_new(
+        record: OperatorRecord,
+        lib: Option<Arc<Library>>,
+        operator: Arc<dyn Operator>,
+    ) -> ZFResult<Self> {
+        let state = operator.initialize(&record.configuration)?;
 
-    fn try_from(value: OperatorRecord) -> Result<Self, Self::Error> {
-        let uri = value.uri.as_ref().ok_or_else(|| {
-            ZFError::LoadingError(format!(
-                "Missing URI for dynamically loaded Operator < {} >.",
-                value.id.clone()
-            ))
-        })?;
-        let (library, operator) = load_operator(uri)?;
-        let state = operator.initialize(&value.configuration)?;
-
-        let inputs: HashMap<PortId, PortType> = value
+        let inputs: HashMap<PortId, PortType> = record
             .inputs
             .into_iter()
             .map(|desc| (desc.port_id, desc.port_type))
             .collect();
 
-        let outputs: HashMap<PortId, PortType> = value
+        let outputs: HashMap<PortId, PortType> = record
             .outputs
             .into_iter()
             .map(|desc| (desc.port_id, desc.port_type))
             .collect();
 
         Ok(Self {
-            id: value.id,
+            id: record.id,
             inputs,
             outputs,
-            deadline: value.deadline,
+            deadline: record.deadline,
             state: Arc::new(RwLock::new(state)),
             operator,
-            library: Some(Arc::new(library)),
+            library: lib,
         })
     }
 }
@@ -112,25 +99,20 @@ pub struct SinkLoaded {
     pub(crate) library: Option<Arc<Library>>,
 }
 
-impl TryFrom<SinkRecord> for SinkLoaded {
-    type Error = ZFError;
-
-    fn try_from(value: SinkRecord) -> Result<Self, Self::Error> {
-        let uri = value.uri.as_ref().ok_or_else(|| {
-            ZFError::LoadingError(format!(
-                "Missing URI for dynamically loaded Sink < {} >.",
-                value.id.clone()
-            ))
-        })?;
-        let (library, sink) = load_sink(uri)?;
-        let state = sink.initialize(&value.configuration)?;
+impl SinkLoaded {
+    pub fn try_new(
+        record: SinkRecord,
+        lib: Option<Arc<Library>>,
+        sink: Arc<dyn Sink>,
+    ) -> ZFResult<Self> {
+        let state = sink.initialize(&record.configuration)?;
 
         Ok(Self {
-            id: value.id,
-            input: value.input,
+            id: record.id,
+            input: record.input,
             state: Arc::new(RwLock::new(state)),
             sink,
-            library: Some(Arc::new(library)),
+            library: lib,
         })
     }
 }
