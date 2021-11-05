@@ -363,3 +363,7 @@ impl Runner for OperatorRunner {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "./tests/operator_test.rs"]
+mod tests;

@@ -33,7 +33,7 @@ impl Tokens {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenAction {
     Consume,
     Drop,

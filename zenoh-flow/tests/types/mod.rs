@@ -113,20 +113,12 @@ impl Source for VecSource {
 pub struct VecSink {
     values: Vec<usize>,
     tx: Sender<()>,
-    unused_rx: Receiver<()>,
-    _unused_tx: Sender<()>,
 }
 
 #[allow(dead_code)]
 impl VecSink {
     pub fn new(tx: Sender<()>, values: Vec<usize>) -> Self {
-        let (_unused_tx, unused_rx) = flume::bounded::<()>(1);
-        Self {
-            values,
-            tx,
-            unused_rx,
-            _unused_tx,
-        }
+        Self { values, tx }
     }
 }
 
@@ -156,11 +148,7 @@ impl Sink for VecSink {
         let value = match state.values.pop() {
             Some(value) => value,
             None => {
-                // WARNING: the way the VecSink was imagined, it should never be called when there
-                // are no values to check.
-                //
-                // Hence, the panic.
-                panic!()
+                return Ok(());
             }
         };
 
@@ -172,11 +160,6 @@ impl Sink for VecSink {
                 .send_async(())
                 .await
                 .map_err(|e| ZFError::IOError(e.to_string()))?;
-            self.unused_rx
-                .recv_async()
-                .await
-                .map_err(|e| ZFError::IOError(e.to_string()))?;
-            return Err(ZFError::Disconnected);
         }
 
         Ok(())
