@@ -17,6 +17,7 @@ use crate::model::period::PeriodDescriptor;
 use crate::types::{Configuration, NodeId, RuntimeId};
 use crate::PortType;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 // Descriptors
 
@@ -58,6 +59,7 @@ pub struct OperatorDescriptor {
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
+    pub deadline: Option<PeriodDescriptor>,
     pub runtime: Option<RuntimeId>, // to be removed
 }
 
@@ -122,12 +124,13 @@ impl SourceRecord {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperatorRecord {
-    pub id: NodeId,
-    pub inputs: Vec<PortDescriptor>,
-    pub outputs: Vec<PortDescriptor>,
-    pub uri: Option<String>,
-    pub configuration: Option<Configuration>,
-    pub runtime: RuntimeId,
+    pub(crate) id: NodeId,
+    pub(crate) inputs: Vec<PortDescriptor>,
+    pub(crate) outputs: Vec<PortDescriptor>,
+    pub(crate) uri: Option<String>,
+    pub(crate) configuration: Option<Configuration>,
+    pub(crate) deadline: Option<Duration>,
+    pub(crate) runtime: RuntimeId,
 }
 
 impl std::fmt::Display for OperatorRecord {

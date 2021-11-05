@@ -20,13 +20,14 @@ use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::RuntimeContext;
 use crate::{
-    Context, DataMessage, NodeId, Operator, PortId, PortType, State, Token, TokenAction, ZFError,
-    ZFResult,
+    Context, DataMessage, DeadlineMiss, NodeId, Operator, PortId, PortType, State, Token,
+    TokenAction, ZFError, ZFResult,
 };
 use async_trait::async_trait;
 use futures::{future, Future};
 use libloading::Library;
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 #[derive(Default)]
 pub struct OperatorIO {
@@ -96,6 +97,7 @@ pub struct OperatorRunner {
     pub(crate) io: Arc<RwLock<OperatorIO>>,
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
+    pub(crate) deadline: Option<Duration>,
     pub(crate) state: Arc<RwLock<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
@@ -117,6 +119,7 @@ impl OperatorRunner {
             state: operator.state,
             operator: operator.operator,
             library: operator.library,
+            deadline: operator.deadline,
         })
     }
 }
@@ -299,12 +302,38 @@ impl Runner for OperatorRunner {
             };
 
             // Running
+            let start = Instant::now();
             let run_outputs = self.operator.run(&mut context, &mut state, &mut data)?;
+            let elapsed = start.elapsed();
+
+            log::debug!(
+                "[Operator: {}] `run` executed in {} ms",
+                self.id,
+                elapsed.as_micros()
+            );
+
+            let mut deadline_miss = None;
+
+            if let Some(deadline) = self.deadline {
+                if elapsed > deadline {
+                    log::warn!(
+                        "[Operator: {}] Deadline miss detected for `run`: {} ms (expected < {} ms)",
+                        self.id,
+                        elapsed.as_micros(),
+                        deadline.as_micros()
+                    );
+                    deadline_miss = Some(DeadlineMiss {
+                        start,
+                        deadline,
+                        elapsed,
+                    });
+                }
+            }
 
             // Output rules
-            let mut outputs = self
-                .operator
-                .output_rule(&mut context, &mut state, run_outputs)?;
+            let mut outputs =
+                self.operator
+                    .output_rule(&mut context, &mut state, run_outputs, deadline_miss)?;
 
             // Send to Links
             for port_id in self.outputs.keys() {

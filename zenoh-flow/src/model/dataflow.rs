@@ -510,12 +510,12 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
                 Some(m) => {
                     let or = OperatorRecord {
                         id: o.id.clone(),
-                        // name: o.name.clone(),
                         inputs: o.inputs.clone(),
                         outputs: o.outputs.clone(),
                         uri: o.uri.clone(),
                         configuration: o.configuration.clone(),
                         runtime: m,
+                        deadline: o.deadline.as_ref().map(|period| period.to_duration()),
                     };
                     dfr.operators.push(or)
                 }

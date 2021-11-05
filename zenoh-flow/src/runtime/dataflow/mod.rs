@@ -19,6 +19,7 @@ pub mod node;
 use async_std::sync::{Arc, RwLock};
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::time::Duration;
 use uuid::Uuid;
 
 use crate::model::connector::ZFConnectorRecord;
@@ -145,6 +146,7 @@ impl Dataflow {
         id: NodeId,
         inputs: Vec<PortDescriptor>,
         outputs: Vec<PortDescriptor>,
+        deadline: Option<Duration>,
         state: State,
         operator: Arc<dyn Operator>,
     ) {
@@ -163,6 +165,7 @@ impl Dataflow {
                 id,
                 inputs,
                 outputs,
+                deadline,
                 state: Arc::new(RwLock::new(state)),
                 operator,
                 library: None,

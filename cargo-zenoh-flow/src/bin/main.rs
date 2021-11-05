@@ -205,6 +205,7 @@ async fn main() {
                         uri: Some(uri.clone()),
                         configuration: None,
                         runtime: None,
+                        deadline: None,
                     };
 
                     let metadata_arch = RegistryNodeArchitecture {
