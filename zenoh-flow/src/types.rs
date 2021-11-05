@@ -16,8 +16,7 @@ use crate::async_std::sync::Arc;
 use crate::serde::{Deserialize, Serialize};
 use crate::{ControlMessage, DataMessage, Token, ZFData, ZFState};
 use std::collections::HashMap;
-use std::time::Duration;
-use uhlc::Timestamp;
+use std::time::{Duration, Instant};
 
 pub type NodeId = Arc<str>;
 pub type PortId = Arc<str>;
@@ -234,8 +233,7 @@ pub type Configuration = serde_json::Value;
 ///
 /// The `elapsed` value can be retrieved by subtracting `end` from `start`.
 pub struct DeadlineMiss {
-    pub start: Timestamp,
-    pub end: Timestamp,
+    pub start: Instant,
     pub deadline: Duration,
     pub elapsed: Duration,
 }

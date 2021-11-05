@@ -27,7 +27,7 @@ use async_trait::async_trait;
 use futures::{future, Future};
 use libloading::Library;
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[derive(Default)]
 pub struct OperatorIO {
@@ -302,11 +302,10 @@ impl Runner for OperatorRunner {
             };
 
             // Running
-            let start = self.runtime_context.hlc.new_timestamp();
+            let start = Instant::now();
             let run_outputs = self.operator.run(&mut context, &mut state, &mut data)?;
-            let end = self.runtime_context.hlc.new_timestamp();
+            let elapsed = start.elapsed();
 
-            let elapsed = end.get_diff_duration(&start);
             log::debug!(
                 "[Operator: {}] `run` executed in {} ms",
                 self.id,
@@ -325,7 +324,6 @@ impl Runner for OperatorRunner {
                     );
                     deadline_miss = Some(DeadlineMiss {
                         start,
-                        end,
                         deadline,
                         elapsed,
                     });
