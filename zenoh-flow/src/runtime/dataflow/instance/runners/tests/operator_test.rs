@@ -16,22 +16,13 @@ use std::{collections::HashMap, convert::TryInto};
 use uhlc::HLC;
 use zenoh::ZFuture;
 
-use crate::{
-    default_output_rule,
-    runtime::{
-        dataflow::instance::{
+use crate::{Configuration, Context, Data, DataMessage, DeadlineMiss, Deserializable, DowncastAny, EmptyState, Message, Node, NodeOutput, Operator, PortId, PortType, State, Token, TokenAction, ZFData, ZFError, ZFResult, default_output_rule, runtime::{RuntimeContext, dataflow::{instance::{
             link::{LinkReceiver, LinkSender},
             runners::{
                 operator::{OperatorIO, OperatorRunner},
                 NodeRunner,
             },
-        },
-        RuntimeContext,
-    },
-    Configuration, Context, Data, DataMessage, DeadlineMiss, Deserializable, DowncastAny,
-    EmptyState, Message, Node, NodeOutput, Operator, PortId, PortType, State, Token, TokenAction,
-    ZFData, ZFError, ZFResult,
-};
+        }, loader::{Loader, LoaderConfig}}}};
 
 // ZFUsize implements Data.
 #[derive(Debug, Clone)]
@@ -184,6 +175,7 @@ fn input_rule_keep() {
     let runtime_context = RuntimeContext {
         session: Arc::new(session),
         hlc: hlc.clone(),
+        loader: Arc::new(Loader::new(LoaderConfig { extensions: vec![] })),
         runtime_name: "test-runtime-input-rule-keep".into(),
         runtime_uuid: uuid,
     };
