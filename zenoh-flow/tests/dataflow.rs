@@ -196,7 +196,7 @@ async fn single_runtime() {
     let ctx = RuntimeContext {
         session,
         hlc,
-        loader: Arc::new(Loader::new(LoaderConfig { extentions: vec![] })),
+        loader: Arc::new(Loader::new(LoaderConfig { extensions: vec![] })),
         runtime_name: format!("test-runtime-{}", rt_uuid).into(),
         runtime_uuid: rt_uuid,
     };

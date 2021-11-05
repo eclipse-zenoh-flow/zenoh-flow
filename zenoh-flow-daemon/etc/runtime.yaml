@@ -4,7 +4,7 @@
     name: runtime
     path : /etc/zenoh-flow
     loader:
-      extentions: []
+      extensions: []
     zenoh :
       kind: peer
       listen: ["tcp/0.0.0.0:7447"]

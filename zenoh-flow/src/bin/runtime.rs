@@ -53,7 +53,7 @@ async fn main() {
             let yaml_conf = read_to_string(config).unwrap();
             serde_yaml::from_str::<LoaderConfig>(&yaml_conf).unwrap()
         }
-        None => LoaderConfig { extentions: vec![] },
+        None => LoaderConfig { extensions: vec![] },
     };
 
     let session =

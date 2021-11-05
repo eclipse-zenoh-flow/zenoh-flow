@@ -68,7 +68,7 @@ pub struct ExtensibleImplementation {
 // Loader Config
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoaderConfig {
-    pub extentions: Vec<ExtensibleImplementation>,
+    pub extensions: Vec<ExtensibleImplementation>,
 }
 
 pub struct Loader {
@@ -96,7 +96,7 @@ impl Loader {
         match uri.scheme() {
             "file" => {
                 let file_path = Self::make_file_path(uri)?;
-                let file_extension = Self::get_file_extention(&file_path).ok_or_else(|| {
+                let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
                     ZFError::LoadingError(format!(
                         "Missing file extension for dynamically loaded Operator < {} , {:?}>.",
                         record.id.clone(),
@@ -129,7 +129,7 @@ impl Loader {
         match uri.scheme() {
             "file" => {
                 let file_path = Self::make_file_path(uri)?;
-                let file_extension = Self::get_file_extention(&file_path).ok_or_else(|| {
+                let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
                     ZFError::LoadingError(format!(
                         "Missing file extension for dynamically loaded Source < {} , {:?}>.",
                         record.id.clone(),
@@ -162,7 +162,7 @@ impl Loader {
         match uri.scheme() {
             "file" => {
                 let file_path = Self::make_file_path(uri)?;
-                let file_extension = Self::get_file_extention(&file_path).ok_or_else(|| {
+                let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
                     ZFError::LoadingError(format!(
                         "Missing file extension for dynamically loaded Sink < {} , {:?}>.",
                         record.id.clone(),
@@ -267,7 +267,7 @@ impl Loader {
         false
     }
 
-    fn get_file_extention(file: &Path) -> Option<String> {
+    fn get_file_extension(file: &Path) -> Option<String> {
         if let Some(ext) = file.extension() {
             if let Some(ext) = ext.to_str() {
                 return Some(String::from(ext));
@@ -281,7 +281,7 @@ impl Loader {
         mut record: OperatorRecord,
         file_path: PathBuf,
     ) -> ZFResult<OperatorLoaded> {
-        let file_extension = Self::get_file_extention(&file_path).ok_or_else(|| {
+        let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
             ZFError::LoadingError(format!(
                 "Missing file extension for dynamically loaded Operator < {} , {:?}>.",
                 record.id.clone(),
@@ -291,20 +291,17 @@ impl Loader {
 
         match self
             .config
-            .extentions
+            .extensions
             .iter()
             .find(|e| e.file_extension == file_extension)
         {
             Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.operator_lib)?;
-                let mut new_config: serde_json::map::Map<String, Configuration> =
-                    serde_json::map::Map::new();
-                new_config.insert(e.config_lib_key.clone(), file_path.to_str().unwrap().into());
-
-                if let Some(config) = record.configuration {
-                    new_config.insert(String::from("configuration"), config);
-                }
-                record.configuration = Some(new_config.into());
+                record.configuration = Some(Self::generate_wrapper_config(
+                    record.configuration,
+                    e.config_lib_key.clone(),
+                    &file_path,
+                )?);
 
                 let (lib, op) = unsafe { Self::load_lib_operator(wrapper_file_path) }?;
                 Ok(OperatorLoaded::try_new(record, Some(Arc::new(lib)), op)?)
@@ -318,7 +315,7 @@ impl Loader {
         mut record: SourceRecord,
         file_path: PathBuf,
     ) -> ZFResult<SourceLoaded> {
-        let file_extension = Self::get_file_extention(&file_path).ok_or_else(|| {
+        let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
             ZFError::LoadingError(format!(
                 "Missing file extension for dynamically loaded Operator < {} , {:?}>.",
                 record.id.clone(),
@@ -328,20 +325,17 @@ impl Loader {
 
         match self
             .config
-            .extentions
+            .extensions
             .iter()
             .find(|e| e.file_extension == file_extension)
         {
             Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.source_lib)?;
-                let mut new_config: serde_json::map::Map<String, Configuration> =
-                    serde_json::map::Map::new();
-                new_config.insert(e.config_lib_key.clone(), file_path.to_str().unwrap().into());
-
-                if let Some(config) = record.configuration {
-                    new_config.insert(String::from("configuration"), config);
-                }
-                record.configuration = Some(new_config.into());
+                record.configuration = Some(Self::generate_wrapper_config(
+                    record.configuration,
+                    e.config_lib_key.clone(),
+                    &file_path,
+                )?);
 
                 let (lib, op) = unsafe { Self::load_lib_source(wrapper_file_path) }?;
                 Ok(SourceLoaded::try_new(record, Some(Arc::new(lib)), op)?)
@@ -355,7 +349,7 @@ impl Loader {
         mut record: SinkRecord,
         file_path: PathBuf,
     ) -> ZFResult<SinkLoaded> {
-        let file_extension = Self::get_file_extention(&file_path).ok_or_else(|| {
+        let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
             ZFError::LoadingError(format!(
                 "Missing file extension for dynamically loaded Operator < {} , {:?}>.",
                 record.id.clone(),
@@ -365,25 +359,45 @@ impl Loader {
 
         match self
             .config
-            .extentions
+            .extensions
             .iter()
             .find(|e| e.file_extension == file_extension)
         {
             Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.sink_lib)?;
-                let mut new_config: serde_json::map::Map<String, Configuration> =
-                    serde_json::map::Map::new();
-                new_config.insert(e.config_lib_key.clone(), file_path.to_str().unwrap().into());
-
-                if let Some(config) = record.configuration {
-                    new_config.insert(String::from("configuration"), config);
-                }
-                record.configuration = Some(new_config.into());
+                record.configuration = Some(Self::generate_wrapper_config(
+                    record.configuration,
+                    e.config_lib_key.clone(),
+                    &file_path,
+                )?);
 
                 let (lib, op) = unsafe { Self::load_lib_sink(wrapper_file_path) }?;
                 Ok(SinkLoaded::try_new(record, Some(Arc::new(lib)), op)?)
             }
             _ => Err(ZFError::Unimplemented),
         }
+    }
+
+    fn generate_wrapper_config(
+        configuration: Option<Configuration>,
+        config_key: String,
+        file_path: &Path,
+    ) -> ZFResult<Configuration> {
+        let mut new_config: serde_json::map::Map<String, Configuration> =
+            serde_json::map::Map::new();
+        new_config.insert(
+            config_key,
+            file_path
+                .to_str()
+                .ok_or_else(|| {
+                    ZFError::LoadingError(format!("Unable parse file path < {:?} >.", file_path,))
+                })?
+                .into(),
+        );
+
+        if let Some(config) = configuration {
+            new_config.insert(String::from("configuration"), config);
+        }
+        Ok(new_config.into())
     }
 }
