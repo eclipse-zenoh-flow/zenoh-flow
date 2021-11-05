@@ -20,6 +20,7 @@ use std::time::Duration;
 use types::{VecSink, VecSource, ZFUsize};
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
+use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::{
     default_input_rule, default_output_rule, zf_empty_state, Configuration, Data, DeadlineMiss,
@@ -102,6 +103,7 @@ async fn single_runtime() {
     let ctx = RuntimeContext {
         session,
         hlc,
+        loader: Arc::new(Loader::new(LoaderConfig { extensions: vec![] })),
         runtime_name: format!("test-runtime-{}", rt_uuid).into(),
         runtime_uuid: rt_uuid,
     };

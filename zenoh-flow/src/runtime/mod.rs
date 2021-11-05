@@ -25,6 +25,7 @@ use crate::{
 };
 use uuid::Uuid;
 
+use crate::runtime::dataflow::loader::Loader;
 use crate::RuntimeId;
 use crate::{
     model::dataflow::{DataFlowDescriptor, Mapping},
@@ -42,6 +43,8 @@ use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 // use async_std::prelude::FutureExt;
 use uhlc::HLC;
 use zenoh::net::Session;
+
+use self::dataflow::loader::LoaderConfig;
 pub mod dataflow;
 pub mod message;
 pub mod resources;
@@ -50,6 +53,7 @@ pub mod token;
 #[derive(Clone)]
 pub struct RuntimeContext {
     pub session: Arc<Session>,
+    pub loader: Arc<Loader>,
     pub hlc: Arc<HLC>,
     pub runtime_name: RuntimeId,
     pub runtime_uuid: Uuid,
@@ -172,6 +176,7 @@ pub struct RuntimeConfig {
     pub name: Option<String>,
     pub uuid: Option<Uuid>,
     pub zenoh: ZenohConfig,
+    pub loader: LoaderConfig,
 }
 
 /// The interface the Runtime expose to a client

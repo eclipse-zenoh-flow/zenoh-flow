@@ -20,6 +20,7 @@ use std::convert::TryInto;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
+use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::zenoh_flow_derive::ZFData;
 use zenoh_flow::{
@@ -195,6 +196,7 @@ async fn single_runtime() {
     let ctx = RuntimeContext {
         session,
         hlc,
+        loader: Arc::new(Loader::new(LoaderConfig { extensions: vec![] })),
         runtime_name: format!("test-runtime-{}", rt_uuid).into(),
         runtime_uuid: rt_uuid,
     };

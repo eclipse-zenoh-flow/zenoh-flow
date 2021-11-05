@@ -18,7 +18,6 @@ pub mod node;
 
 use async_std::sync::{Arc, RwLock};
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -72,7 +71,7 @@ impl Dataflow {
             .sources
             .into_iter()
             .filter(|source| source.runtime == context.runtime_name)
-            .map(SourceLoaded::try_from)
+            .map(|r| context.loader.load_source(r))
             .collect();
         let sources: HashMap<_, _> = res_sources?
             .into_iter()
@@ -83,7 +82,7 @@ impl Dataflow {
             .operators
             .into_iter()
             .filter(|operator| operator.runtime == context.runtime_name)
-            .map(OperatorLoaded::try_from)
+            .map(|r| context.loader.load_operator(r))
             .collect();
         let operators: HashMap<_, _> = res_operators?
             .into_iter()
@@ -94,7 +93,7 @@ impl Dataflow {
             .sinks
             .into_iter()
             .filter(|sink| sink.runtime == context.runtime_name)
-            .map(SinkLoaded::try_from)
+            .map(|r| context.loader.load_sink(r))
             .collect();
         let sinks: HashMap<_, _> = res_sinks?
             .into_iter()

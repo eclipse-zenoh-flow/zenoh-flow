@@ -19,12 +19,15 @@ use zenoh::ZFuture;
 use crate::{
     default_output_rule,
     runtime::{
-        dataflow::instance::{
-            link::{LinkReceiver, LinkSender},
-            runners::{
-                operator::{OperatorIO, OperatorRunner},
-                NodeRunner,
+        dataflow::{
+            instance::{
+                link::{LinkReceiver, LinkSender},
+                runners::{
+                    operator::{OperatorIO, OperatorRunner},
+                    NodeRunner,
+                },
             },
+            loader::{Loader, LoaderConfig},
         },
         RuntimeContext,
     },
@@ -184,6 +187,7 @@ fn input_rule_keep() {
     let runtime_context = RuntimeContext {
         session: Arc::new(session),
         hlc: hlc.clone(),
+        loader: Arc::new(Loader::new(LoaderConfig { extensions: vec![] })),
         runtime_name: "test-runtime-input-rule-keep".into(),
         runtime_uuid: uuid,
     };
