@@ -232,6 +232,7 @@ pub type Configuration = serde_json::Value;
 /// - `deadline`: the `std::time::Duration` of the deadline.
 ///
 /// The `elapsed` value can be retrieved by subtracting `end` from `start`.
+#[derive(Clone)]
 pub struct DeadlineMiss {
     pub start: Instant,
     pub deadline: Duration,

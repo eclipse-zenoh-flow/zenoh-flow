@@ -17,6 +17,7 @@ use async_std::sync::Arc;
 use std::collections::HashMap;
 use uhlc::Timestamp;
 
+#[derive(Clone)]
 pub struct Tokens {
     pub(crate) map: HashMap<PortId, Token>,
 }
