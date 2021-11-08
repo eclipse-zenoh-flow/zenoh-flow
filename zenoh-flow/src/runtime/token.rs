@@ -40,6 +40,16 @@ pub enum TokenAction {
     Keep,
 }
 
+impl std::fmt::Display for TokenAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Consume => write!(f, "Consume"),
+            Self::Keep => write!(f, "Keep"),
+            Self::Drop => write!(f, "Drop"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ReadyToken {
     pub(crate) data: DataMessage,
