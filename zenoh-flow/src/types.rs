@@ -238,3 +238,37 @@ pub struct DeadlineMiss {
     pub deadline: Duration,
     pub elapsed: Duration,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum DurationUnit {
+    #[serde(alias = "s")]
+    #[serde(alias = "second")]
+    #[serde(alias = "seconds")]
+    Second,
+    #[serde(alias = "ms")]
+    #[serde(alias = "millisecond")]
+    #[serde(alias = "milliseconds")]
+    Millisecond,
+    #[serde(alias = "us")]
+    #[serde(alias = "µs")]
+    #[serde(alias = "microsecond")]
+    #[serde(alias = "microseconds")]
+    Microsecond,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DurationDescriptor {
+    #[serde(alias = "duration")]
+    pub(crate) length: u64,
+    pub(crate) unit: DurationUnit,
+}
+
+impl DurationDescriptor {
+    pub fn to_duration(&self) -> Duration {
+        match self.unit {
+            DurationUnit::Second => Duration::from_secs(self.length),
+            DurationUnit::Millisecond => Duration::from_millis(self.length),
+            DurationUnit::Microsecond => Duration::from_micros(self.length),
+        }
+    }
+}

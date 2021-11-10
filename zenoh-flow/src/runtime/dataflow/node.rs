@@ -14,7 +14,6 @@
 
 use crate::model::link::PortDescriptor;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::model::period::PeriodDescriptor;
 use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
 use async_std::sync::{Arc, Mutex};
 use libloading::Library;
@@ -24,7 +23,7 @@ use std::time::Duration;
 pub struct SourceLoaded {
     pub(crate) id: NodeId,
     pub(crate) output: PortDescriptor,
-    pub(crate) period: Option<PeriodDescriptor>,
+    pub(crate) period: Option<Duration>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) library: Option<Arc<Library>>,
@@ -41,8 +40,8 @@ impl SourceLoaded {
         Ok(Self {
             id: record.id,
             output: record.output,
-            period: record.period,
             state: Arc::new(Mutex::new(state)),
+            period: record.period.map(|dur_desc| dur_desc.to_duration()),
             source,
             library: lib,
         })

@@ -16,13 +16,11 @@ pub mod connector;
 pub mod dataflow;
 pub mod link;
 pub mod node;
-pub mod period;
 
 use crate::model::link::PortDescriptor;
-use crate::model::period::PeriodDescriptor;
 use crate::serde::{Deserialize, Serialize};
-use crate::NodeId;
 use crate::ZFError;
+use crate::{DurationDescriptor, NodeId};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -72,7 +70,7 @@ pub struct RegistryNode {
     pub tags: Vec<RegistryNodeTag>,
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
-    pub period: Option<PeriodDescriptor>,
+    pub period: Option<DurationDescriptor>,
 }
 
 impl RegistryNode {

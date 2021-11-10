@@ -73,7 +73,7 @@ impl SourceRunner {
         Ok(Self {
             id: source.id,
             context,
-            period: source.period.map(|period| period.to_duration()),
+            period: source.period,
             state: source.state,
             output: source.output,
             links: Arc::new(Mutex::new(links)),

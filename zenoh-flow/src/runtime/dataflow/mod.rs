@@ -25,10 +25,11 @@ use crate::model::connector::ZFConnectorRecord;
 use crate::model::dataflow::record::DataFlowRecord;
 use crate::model::dataflow::validator::DataflowValidator;
 use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
-use crate::model::period::PeriodDescriptor;
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
-use crate::{FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
+use crate::{
+    DurationDescriptor, FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult,
+};
 
 pub struct Dataflow {
     pub(crate) uuid: Uuid,
@@ -126,7 +127,7 @@ impl Dataflow {
     pub fn try_add_static_source(
         &mut self,
         id: NodeId,
-        period: Option<PeriodDescriptor>,
+        period: Option<DurationDescriptor>,
         output: PortDescriptor,
         state: State,
         source: Arc<dyn Source>,
@@ -138,8 +139,8 @@ impl Dataflow {
             SourceLoaded {
                 id,
                 output,
-                period,
                 state: Arc::new(Mutex::new(state)),
+                period: period.map(|dur_desc| dur_desc.to_duration()),
                 source,
                 library: None,
             },
