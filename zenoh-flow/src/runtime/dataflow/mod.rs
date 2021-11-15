@@ -250,6 +250,6 @@ impl Dataflow {
             return Err(ZFError::PortNotFound((node_id.clone(), port_id.clone())));
         }
 
-        Err(ZFError::OperatorNotFound(node_id.clone()))
+        Err(ZFError::NodeNotFound(node_id.clone()))
     }
 }

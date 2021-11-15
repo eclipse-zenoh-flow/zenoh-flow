@@ -54,9 +54,9 @@ pub enum ZFError {
     DuplicatedInputPort((NodeId, PortId)),
     DuplicatedOutputPort((NodeId, PortId)),
     DuplicatedLink(((NodeId, PortId), (NodeId, PortId))),
-    MultipleOutputsToInput(String),
+    MultipleOutputsToInput((NodeId, PortId)),
     PortTypeNotMatching((PortType, PortType)),
-    OperatorNotFound(NodeId),
+    NodeNotFound(NodeId),
     PortNotFound((NodeId, PortId)),
     PortNotConnected((NodeId, PortId)),
 }

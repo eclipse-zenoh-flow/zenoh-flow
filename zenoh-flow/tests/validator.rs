@@ -512,7 +512,7 @@ fn validate_ko_port_not_found() {
 #[test]
 fn validate_ko_node_not_found() {
     let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_NODE_NOT_FOUND);
-    let error = Err(ZFError::OperatorNotFound("SumOperator_typo".into()));
+    let error = Err(ZFError::NodeNotFound("SumOperator_typo".into()));
     assert_eq!(r, error)
 }
 

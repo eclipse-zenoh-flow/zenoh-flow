@@ -11,8 +11,6 @@
 // Contributors:
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
-#![allow(clippy::type_complexity)]
-
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::model::node::{
@@ -21,9 +19,11 @@ use crate::model::node::{
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{NodeId, RuntimeId, ZFError, ZFResult};
 use crate::{PortId, PortType};
+use petgraph::Graph;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -90,160 +90,175 @@ impl DataFlowDescriptor {
     }
 
     fn validate(&self) -> ZFResult<()> {
-        // The clippy::type_complexity raises because of this HashMap.
-        let mut nodes: HashMap<NodeId, (HashMap<PortId, PortType>, HashMap<PortId, PortType>)> =
-            HashMap::new();
+        let mut graph = Graph::<NodeId, Arc<str>>::new();
+        let mut map_node_id_to_graph_idx = HashMap::new();
 
-        // Checks for duplicated operators
-        for operator in &self.operators {
-            if nodes.contains_key(&operator.id) {
-                return Err(ZFError::DuplicatedNodeId(operator.id.clone()));
-            }
+        let mut incoming = HashSet::new();
+        let mut outgoing = HashSet::new();
+        let mut graph_check = Graph::<(NodeId, PortId), PortType>::new();
+        let mut map_id_to_graph_check_idx = HashMap::new();
+        let mut map_id_to_type = HashMap::new();
 
-            // Checks for duplicated ports
-            let mut inputs: HashMap<PortId, PortType> = HashMap::new();
-            let mut outputs: HashMap<PortId, PortType> = HashMap::new();
-            for input in &operator.inputs {
-                if inputs.contains_key(&input.port_id) {
-                    return Err(ZFError::DuplicatedInputPort((
-                        operator.id.clone(),
-                        input.port_id.clone(),
-                    )));
-                }
-                inputs.insert(input.port_id.clone(), input.port_type.clone());
-            }
+        self.sources.iter().try_for_each(|source| {
+            let idx = graph_check.add_node((source.id.clone(), source.output.port_id.clone()));
+            outgoing.insert(idx);
 
-            for output in &operator.outputs {
-                if outputs.contains_key(&output.port_id) {
-                    return Err(ZFError::DuplicatedOutputPort((
-                        operator.id.clone(),
-                        output.port_id.clone(),
-                    )));
-                }
-                outputs.insert(output.port_id.clone(), output.port_type.clone());
-            }
-            nodes.insert(operator.id.clone(), (inputs, outputs));
-        }
-
-        // Checks for duplicated sinks.
-        for sink in &self.sinks {
-            if nodes.contains_key(&sink.id) {
-                return Err(ZFError::DuplicatedNodeId(sink.id.clone()));
-            }
-            let mut inputs = HashMap::new();
-            inputs.insert(sink.input.port_id.clone(), sink.input.port_type.clone());
-            nodes.insert(sink.id.clone(), (inputs, HashMap::new()));
-        }
-
-        // Checks for duplicated sources.
-        for source in &self.sources {
-            if nodes.contains_key(&source.id) {
-                return Err(ZFError::DuplicatedNodeId(source.id.clone()));
-            }
-            let mut outputs = HashMap::new();
-            outputs.insert(
-                source.output.port_id.clone(),
+            map_id_to_type.insert(
+                (source.id.clone(), source.output.port_id.clone()),
                 source.output.port_type.clone(),
             );
-            nodes.insert(source.id.clone(), (HashMap::new(), outputs));
-        }
 
-        let mut inputs: HashMap<String, String> = HashMap::new();
-        let mut outputs: HashMap<String, HashSet<String>> = HashMap::new();
+            match map_node_id_to_graph_idx
+                .insert(source.id.clone(), graph.add_node(source.id.clone()))
+            {
+                Some(_) => Err(ZFError::DuplicatedNodeId(source.id.clone())),
+                None => Ok(()),
+            }?;
 
-        // Checks links:
-        // - an output can be "linked" multiple times,
-        // - an input can be "linked" only once.
-        for l in &self.links {
-            // Checks if ports are already connected
-            let link_output = format!("{}.{}", l.from.node, l.from.output);
-            let link_input = format!("{}.{}", l.to.node, l.to.input);
-
-            if let Some(output) = inputs.get(&link_input) {
-                return Err(ZFError::MultipleOutputsToInput(format!(
-                    "Failed to link (output) < {} > with (input) < {} >:\n\t (input) < {} > is already linked with (output) < {} >.",
-                    &link_output, &link_input, &link_input, &output
-                )));
+            match map_id_to_graph_check_idx
+                .insert((source.id.clone(), source.output.port_id.clone()), idx)
+            {
+                Some(_) => Err(ZFError::GenericError),
+                None => Ok(()),
             }
+        })?;
 
-            match outputs.get_mut(&link_output) {
-                Some(output) => {
-                    if !output.insert(link_input.clone()) {
-                        log::error!(
-                            "Link declared twice: (output) < {} > -> (input) < {} >.",
-                            &link_output,
-                            &link_input
-                        );
-                        return Err(ZFError::DuplicatedLink((
-                            (l.from.node.clone(), l.from.output.clone()),
-                            (l.to.node.clone(), l.to.input.clone()),
-                        )));
-                    }
-                }
-                None => {
-                    outputs.insert(
-                        link_output.clone(),
-                        vec![link_input.clone()].into_iter().collect(),
-                    );
-                }
-            };
+        self.operators.iter().try_for_each(|operator| {
+            operator.inputs.iter().try_for_each(|input| {
+                let idx = graph_check.add_node((operator.id.clone(), input.port_id.clone()));
+                incoming.insert(idx);
 
-            inputs.insert(link_input.clone(), link_output.clone());
+                map_id_to_type.insert(
+                    (operator.id.clone(), input.port_id.clone()),
+                    input.port_type.clone(),
+                );
 
-            // Checks if the output port exists.
-            let out_port_type = match nodes.get(&l.from.node) {
-                Some((_, node_outputs)) => match node_outputs.get(&l.from.output) {
-                    Some(out_type) => Ok(out_type),
-                    None => Err(ZFError::PortNotFound((
-                        l.from.node.clone(),
-                        l.from.output.clone(),
+                match map_id_to_graph_check_idx
+                    .insert((operator.id.clone(), input.port_id.clone()), idx)
+                {
+                    Some(_) => Err(ZFError::DuplicatedInputPort((
+                        operator.id.clone(),
+                        input.port_id.clone(),
                     ))),
-                },
-                None => Err(ZFError::OperatorNotFound(l.from.node.clone())),
+                    None => Ok(()),
+                }
+            })?;
+
+            operator.outputs.iter().try_for_each(|output| {
+                let idx = graph_check.add_node((operator.id.clone(), output.port_id.clone()));
+                outgoing.insert(idx);
+                map_id_to_type.insert(
+                    (operator.id.clone(), output.port_id.clone()),
+                    output.port_type.clone(),
+                );
+                match map_id_to_graph_check_idx
+                    .insert((operator.id.clone(), output.port_id.clone()), idx)
+                {
+                    Some(_) => Err(ZFError::DuplicatedOutputPort((
+                        operator.id.clone(),
+                        output.port_id.clone(),
+                    ))),
+                    None => Ok(()),
+                }
+            })?;
+
+            match map_node_id_to_graph_idx
+                .insert(operator.id.clone(), graph.add_node(operator.id.clone()))
+            {
+                Some(_) => Err(ZFError::DuplicatedNodeId(operator.id.clone())),
+                None => Ok(()),
+            }
+        })?;
+
+        self.sinks.iter().try_for_each(|sink| {
+            let idx = graph_check.add_node((sink.id.clone(), sink.input.port_id.clone()));
+            incoming.insert(idx);
+            map_id_to_type.insert(
+                (sink.id.clone(), sink.input.port_id.clone()),
+                sink.input.port_type.clone(),
+            );
+            match map_id_to_graph_check_idx
+                .insert((sink.id.clone(), sink.input.port_id.clone()), idx)
+            {
+                Some(_) => Err(ZFError::DuplicatedInputPort((
+                    sink.id.clone(),
+                    sink.input.port_id.clone(),
+                ))),
+                None => Ok(()),
             }?;
 
-            // Checks if the input port exists.
-            let in_port_type = match nodes.get(&l.to.node) {
-                Some((node_inputs, _)) => match node_inputs.get(&l.to.input) {
-                    Some(in_type) => Ok(in_type),
-                    None => Err(ZFError::PortNotFound((
-                        l.to.node.clone(),
-                        l.to.input.clone(),
-                    ))),
-                },
-                None => Err(ZFError::OperatorNotFound(l.to.node.clone())),
-            }?;
+            match map_node_id_to_graph_idx.insert(sink.id.clone(), graph.add_node(sink.id.clone()))
+            {
+                Some(_) => Err(ZFError::DuplicatedNodeId(sink.id.clone())),
+                None => Ok(()),
+            }
+        })?;
 
-            // Checks if the output type and input type matches.
-            if in_port_type != out_port_type {
+        self.links.iter().try_for_each::<_, ZFResult<()>>(|link| {
+            // Graph
+            let from_idx = map_node_id_to_graph_idx
+                .get(&link.from.node)
+                .ok_or_else(|| ZFError::NodeNotFound(link.from.node.clone()))?;
+            let to_idx = map_node_id_to_graph_idx
+                .get(&link.to.node)
+                .ok_or_else(|| ZFError::NodeNotFound(link.to.node.clone()))?;
+
+            graph.add_edge(
+                *from_idx,
+                *to_idx,
+                format!("{} -> {}", link.from.output, link.to.input).into(),
+            );
+
+            // Graph check
+            let from_id = (link.from.node.clone(), link.from.output.clone());
+            let to_id = (link.to.node.clone(), link.to.input.clone());
+
+            let from_type = map_id_to_type
+                .get(&from_id)
+                .ok_or_else(|| ZFError::PortNotFound(from_id.clone()))?;
+            let to_type = map_id_to_type
+                .get(&to_id)
+                .ok_or_else(|| ZFError::PortNotFound(to_id.clone()))?;
+            if from_type != to_type {
                 return Err(ZFError::PortTypeNotMatching((
-                    out_port_type.clone(),
-                    in_port_type.clone(),
+                    from_type.clone(),
+                    to_type.clone(),
                 )));
             }
-        }
 
-        // Checks for non connected ports
-        for (node_id, (node_inputs, node_outputs)) in &nodes {
-            for node_input in node_inputs.keys() {
-                let to_str = format!("{}.{}", node_id, node_input);
-                if !inputs.contains_key(&to_str) {
-                    return Err(ZFError::PortNotConnected((
-                        node_id.clone(),
-                        node_input.clone(),
-                    )));
-                }
+            let from_idx = map_id_to_graph_check_idx.get(&from_id).unwrap();
+            let to_idx = map_id_to_graph_check_idx.get(&to_id).unwrap();
+
+            graph_check.add_edge(*from_idx, *to_idx, from_type.clone());
+            Ok(())
+        })?;
+
+        incoming.iter().try_for_each(|idx| {
+            match graph_check
+                .edges_directed(*idx, petgraph::EdgeDirection::Incoming)
+                .count()
+            {
+                0 => Err(ZFError::PortNotConnected(
+                    graph_check.node_weight(*idx).unwrap().clone(),
+                )),
+                1 => Ok(()),
+                _ => Err(ZFError::MultipleOutputsToInput(
+                    graph_check.node_weight(*idx).unwrap().clone(),
+                )),
             }
-            for node_output in node_outputs.keys() {
-                let from_str = format!("{}.{}", node_id, node_output);
-                if !outputs.contains_key(&from_str) {
-                    return Err(ZFError::PortNotConnected((
-                        node_id.clone(),
-                        node_output.clone(),
-                    )));
-                }
+        })?;
+
+        outgoing.iter().try_for_each(|idx| {
+            match graph_check
+                .edges_directed(*idx, petgraph::EdgeDirection::Outgoing)
+                .count()
+            {
+                0 => Err(ZFError::PortNotConnected(
+                    graph_check.node_weight(*idx).unwrap().clone(),
+                )),
+                _ => Ok(()),
             }
-        }
+        })?;
 
         Ok(())
     }
