@@ -16,11 +16,9 @@ use uhlc::HLC;
 use uuid::Uuid;
 use zenoh::ZFuture;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
-use zenoh_flow::model::dataflow::DataFlowDescriptor;
-use zenoh_flow::model::{
-    dataflow::DataFlowRecord,
-    node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
-};
+use zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor;
+use zenoh_flow::model::dataflow::record::DataFlowRecord;
+use zenoh_flow::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use zenoh_flow::runtime::dataflow::instance::runners::{RunnerKind, RunnerManager};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::Loader;

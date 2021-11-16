@@ -11,7 +11,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use zenoh_flow::{model::dataflow::DataFlowDescriptor, ZFError};
+use zenoh_flow::{model::dataflow::descriptor::DataFlowDescriptor, ZFError};
 
 static DESCRIPTOR_OK: &str = r#"
 flow: SimplePipeline
@@ -459,7 +459,7 @@ fn validate_ko_unconnected() {
 #[test]
 fn validate_ko_duplicated_output() {
     let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_DUPLICATED_OUTPUT_PORT);
-    let error = Err(ZFError::DuplicatedOutputPort((
+    let error = Err(ZFError::DuplicatedPort((
         "SumOperator".into(),
         "Sum".into(),
     )));
@@ -469,7 +469,7 @@ fn validate_ko_duplicated_output() {
 #[test]
 fn validate_ko_duplicated_input() {
     let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_DUPLICATED_INPUT_PORT);
-    let error = Err(ZFError::DuplicatedInputPort((
+    let error = Err(ZFError::DuplicatedPort((
         "SumOperator".into(),
         "Number".into(),
     )));
@@ -512,7 +512,7 @@ fn validate_ko_port_not_found() {
 #[test]
 fn validate_ko_node_not_found() {
     let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_NODE_NOT_FOUND);
-    let error = Err(ZFError::OperatorNotFound("SumOperator_typo".into()));
+    let error = Err(ZFError::NodeNotFound("SumOperator_typo".into()));
     assert_eq!(r, error)
 }
 

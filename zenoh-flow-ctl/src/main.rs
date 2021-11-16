@@ -116,8 +116,10 @@ async fn main() {
                     descriptor_path
                 );
                 let yaml_df = read_to_string(descriptor_path).unwrap();
-                let df =
-                    zenoh_flow::model::dataflow::DataFlowDescriptor::from_yaml(&yaml_df).unwrap();
+                let df = zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor::from_yaml(
+                    &yaml_df,
+                )
+                .unwrap();
 
                 let record = client.instantiate(df).await.unwrap().unwrap();
                 log::debug!("Instantiated: {:?}", record);
