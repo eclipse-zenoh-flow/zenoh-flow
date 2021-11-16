@@ -12,6 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use std::collections::HashMap;
+
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::link::PortDescriptor;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
@@ -19,9 +21,9 @@ use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SinkLoaded;
 use crate::runtime::message::Message;
-use crate::runtime::RuntimeContext;
+use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
-use crate::{Context, NodeId, Sink, State, ZFError};
+use crate::{Context, NodeId, PortId, PortType, Sink, State, ZFError};
 use async_trait::async_trait;
 use libloading::Library;
 
@@ -33,7 +35,7 @@ use libloading::Library;
 #[derive(Clone)]
 pub struct SinkRunner {
     pub(crate) id: NodeId,
-    pub(crate) runtime_context: RuntimeContext,
+    pub(crate) context: InstanceContext,
     pub(crate) input: PortDescriptor,
     pub(crate) link: Arc<RwLock<LinkReceiver<Message>>>,
     pub(crate) state: Arc<RwLock<State>>,
@@ -42,7 +44,7 @@ pub struct SinkRunner {
 }
 
 impl SinkRunner {
-    pub fn try_new(context: RuntimeContext, sink: SinkLoaded, io: OperatorIO) -> ZFResult<Self> {
+    pub fn try_new(context: InstanceContext, sink: SinkLoaded, io: OperatorIO) -> ZFResult<Self> {
         let (mut inputs, _) = io.take();
         let port_id = sink.input.port_id.clone();
         let link = inputs.remove(&port_id).ok_or_else(|| {
@@ -54,7 +56,7 @@ impl SinkRunner {
 
         Ok(Self {
             id: sink.id,
-            runtime_context: context,
+            context,
             input: sink.input,
             link: Arc::new(RwLock::new(link)),
             state: sink.state,
@@ -84,6 +86,16 @@ impl Runner for SinkRunner {
     async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.write().await;
         self.sink.finalize(&mut state)
+    }
+
+    fn get_inputs(&self) -> HashMap<PortId, PortType> {
+        let mut inputs = HashMap::with_capacity(1);
+        inputs.insert(self.input.port_id.clone(), self.input.port_type.clone());
+        inputs
+    }
+
+    fn get_outputs(&self) -> HashMap<PortId, PortType> {
+        HashMap::with_capacity(0)
     }
 
     async fn run(&self) -> ZFResult<()> {

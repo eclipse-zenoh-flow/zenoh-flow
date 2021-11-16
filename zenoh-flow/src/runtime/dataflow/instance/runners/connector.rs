@@ -12,14 +12,16 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use std::collections::HashMap;
+
 use crate::async_std::sync::{Arc, RwLock};
 use crate::model::connector::ZFConnectorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::message::Message;
-use crate::runtime::RuntimeContext;
-use crate::{NodeId, ZFError, ZFResult};
+use crate::runtime::InstanceContext;
+use crate::{NodeId, PortId, PortType, ZFError, ZFResult};
 use async_trait::async_trait;
 use futures::prelude::*;
 use zenoh::net::{Reliability, SubInfo, SubMode};
@@ -27,14 +29,14 @@ use zenoh::net::{Reliability, SubInfo, SubMode};
 #[derive(Clone)]
 pub struct ZenohSender {
     pub(crate) id: NodeId,
-    pub(crate) runtime_context: RuntimeContext,
+    pub(crate) context: InstanceContext,
     pub(crate) record: ZFConnectorRecord,
     pub(crate) link: Arc<RwLock<LinkReceiver<Message>>>,
 }
 
 impl ZenohSender {
     pub fn try_new(
-        context: RuntimeContext,
+        context: InstanceContext,
         record: ZFConnectorRecord,
         io: OperatorIO,
     ) -> ZFResult<Self> {
@@ -49,7 +51,7 @@ impl ZenohSender {
 
         Ok(Self {
             id: record.id.clone(),
-            runtime_context: context,
+            context,
             record,
             link: Arc::new(RwLock::new(link)),
         })
@@ -71,13 +73,27 @@ impl Runner for ZenohSender {
 
             let serialized = message.serialize_bincode()?;
             log::debug!("ZenohSender - {}=>{:?} ", self.record.resource, serialized);
-            self.runtime_context
+            self.context
+                .runtime
                 .session
                 .write(&self.record.resource.clone().into(), serialized.into())
                 .await?;
         }
 
         Err(ZFError::Disconnected)
+    }
+
+    fn get_outputs(&self) -> HashMap<PortId, PortType> {
+        let mut outputs = HashMap::with_capacity(1);
+        outputs.insert(
+            self.record.link_id.port_id.clone(),
+            self.record.link_id.port_type.clone(),
+        );
+        outputs
+    }
+
+    fn get_inputs(&self) -> HashMap<PortId, PortType> {
+        HashMap::with_capacity(0)
     }
 
     async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
@@ -97,14 +113,14 @@ impl Runner for ZenohSender {
 #[derive(Clone)]
 pub struct ZenohReceiver {
     pub(crate) id: NodeId,
-    pub(crate) runtime_context: RuntimeContext,
+    pub(crate) context: InstanceContext,
     pub(crate) record: ZFConnectorRecord,
     pub(crate) link: Arc<RwLock<LinkSender<Message>>>,
 }
 
 impl ZenohReceiver {
     pub fn try_new(
-        context: RuntimeContext,
+        context: InstanceContext,
         record: ZFConnectorRecord,
         io: OperatorIO,
     ) -> ZFResult<Self> {
@@ -130,7 +146,7 @@ impl ZenohReceiver {
 
         Ok(Self {
             id: record.id.clone(),
-            runtime_context: context,
+            context,
             record,
             link: Arc::new(RwLock::new(link)),
         })
@@ -156,7 +172,8 @@ impl Runner for ZenohReceiver {
         };
 
         let mut subscriber = self
-            .runtime_context
+            .context
+            .runtime
             .session
             .declare_subscriber(&self.record.resource.clone().into(), &sub_info)
             .await?;
@@ -172,6 +189,18 @@ impl Runner for ZenohReceiver {
         Err(ZFError::Disconnected)
     }
 
+    fn get_inputs(&self) -> HashMap<PortId, PortType> {
+        let mut inputs = HashMap::with_capacity(1);
+        inputs.insert(
+            self.record.link_id.port_id.clone(),
+            self.record.link_id.port_type.clone(),
+        );
+        inputs
+    }
+
+    fn get_outputs(&self) -> HashMap<PortId, PortType> {
+        HashMap::with_capacity(0)
+    }
     async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
         (*self.link.write().await) = output;
         Ok(())

@@ -13,27 +13,34 @@
 //
 
 pub mod connector;
+pub mod logging;
 pub mod operator;
 pub mod sink;
 pub mod source;
 
+use self::logging::ZenohLogger;
 use crate::async_std::prelude::*;
 use crate::async_std::sync::Arc;
 use crate::async_std::{
     channel::{RecvError, Sender},
     task::JoinHandle,
 };
+
+use crate::runtime::dataflow::instance::link;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
+
 use crate::runtime::message::Message;
+use crate::runtime::InstanceContext;
 use crate::types::{NodeId, ZFResult};
-use crate::ZFError;
+use crate::{PortId, PortType, ZFError};
 use async_trait::async_trait;
 use futures_lite::future::FutureExt;
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RunnerKind {
     Source,
     Operator,
@@ -44,19 +51,81 @@ pub enum RunnerKind {
 pub struct RunnerManager {
     stopper: Sender<()>,
     handler: JoinHandle<ZFResult<()>>,
-    kind: RunnerKind,
+    runner: Arc<dyn Runner>,
+    ctx: InstanceContext,
+    logger: Option<ZenohLogger>,
+    logger_stopper: Option<Sender<()>>,
 }
 
 impl RunnerManager {
-    pub fn new(stopper: Sender<()>, handler: JoinHandle<ZFResult<()>>, kind: RunnerKind) -> Self {
-        Self {
+    pub async fn try_new(
+        stopper: Sender<()>,
+        handler: JoinHandle<ZFResult<()>>,
+        runner: Arc<dyn Runner>,
+        ctx: InstanceContext,
+    ) -> ZFResult<Self> {
+        if runner.get_kind() == RunnerKind::Source {
+            let node_id = runner.get_id();
+            let mut outputs: Vec<(PortId, PortType)> = runner
+                .get_outputs()
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            let (output_id, _output_type) = outputs
+                .pop()
+                .ok_or_else(|| ZFError::OperatorNotFound(node_id.clone()))?;
+
+            // creating zenoh resource name
+            let z_resource_name = format!(
+                "/zf/record/{}/{}/{}/{}",
+                &ctx.flow_id, &ctx.instance_id, node_id, output_id
+            );
+
+            let recorder_id: NodeId = format!(
+                "logger-{}-{}-{}-{}",
+                ctx.flow_id, ctx.instance_id, node_id, output_id
+            )
+            .into();
+
+            let (tx, rx) = link::<Message>(None, output_id.clone(), output_id.clone());
+
+            let logger = ZenohLogger::try_new(
+                recorder_id,
+                ctx.clone(),
+                z_resource_name,
+                node_id,
+                output_id,
+                rx,
+            )?;
+
+            runner.add_output(tx).await?;
+
+            let logger_stopper = logger.start();
+
+            return Ok(Self {
+                stopper,
+                handler,
+                runner,
+                ctx,
+                logger: Some(logger),
+                logger_stopper: Some(logger_stopper),
+            });
+        }
+
+        Ok(Self {
             stopper,
             handler,
-            kind,
-        }
+            runner,
+            ctx,
+            logger: None,
+            logger_stopper: None,
+        })
     }
 
     pub async fn kill(&self) -> ZFResult<()> {
+        if let Some(ls) = &self.logger_stopper {
+            ls.send(()).await?
+        }
         Ok(self.stopper.send(()).await?)
     }
 
@@ -64,8 +133,30 @@ impl RunnerManager {
         &self.handler
     }
 
-    pub fn get_kind(&self) -> &RunnerKind {
-        &self.kind
+    pub async fn start_recoding(&self) -> ZFResult<()> {
+        match &self.logger {
+            Some(logger) => logger.start_recording().await,
+            _ => Ok(()),
+        }
+    }
+
+    pub async fn stop_recording(&self) -> ZFResult<()> {
+        match &self.logger {
+            Some(logger) => logger.stop_recording().await,
+            _ => Ok(()),
+        }
+    }
+
+    pub fn get_context(&self) -> &InstanceContext {
+        &self.ctx
+    }
+}
+
+impl Deref for RunnerManager {
+    type Target = Arc<dyn Runner>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.runner
     }
 }
 
@@ -95,16 +186,21 @@ pub trait Runner: Send + Sync {
     fn get_kind(&self) -> RunnerKind;
 
     fn get_id(&self) -> NodeId;
+
+    fn get_inputs(&self) -> HashMap<PortId, PortType>;
+
+    fn get_outputs(&self) -> HashMap<PortId, PortType>;
 }
 
 #[derive(Clone)]
 pub struct NodeRunner {
     inner: Arc<dyn Runner>,
+    ctx: InstanceContext,
 }
 
 impl NodeRunner {
-    pub fn new(inner: Arc<dyn Runner>) -> Self {
-        Self { inner }
+    pub fn new(inner: Arc<dyn Runner>, ctx: InstanceContext) -> Self {
+        Self { inner, ctx }
     }
 
     async fn run_stoppable(&self, stop: crate::async_std::channel::Receiver<()>) -> ZFResult<()> {
@@ -149,12 +245,12 @@ impl NodeRunner {
             }
         }
     }
-    pub fn start(&self) -> RunnerManager {
+    pub async fn start(&self) -> ZFResult<RunnerManager> {
         let (s, r) = crate::async_std::channel::bounded::<()>(1);
         let cloned_self = self.clone();
 
         let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
-        RunnerManager::new(s, h, self.get_kind())
+        RunnerManager::try_new(s, h, self.inner.clone(), self.ctx.clone()).await
     }
 }
 

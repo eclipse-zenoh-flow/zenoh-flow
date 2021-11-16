@@ -14,9 +14,18 @@
 
 #![allow(clippy::manual_async_fn)]
 
-use crate::model::dataflow::descriptor::{DataFlowDescriptor, Mapping};
-use crate::model::dataflow::record::DataFlowRecord;
-use crate::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
+use std::sync::Arc;
+
+use crate::{
+    model::{
+        dataflow::DataFlowRecord,
+        node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
+    },
+    serde::{Deserialize, Serialize},
+    FlowId,
+};
+use uuid::Uuid;
+
 use crate::runtime::dataflow::loader::Loader;
 use crate::runtime::message::ControlMessage;
 use crate::{RuntimeId, ZFResult};
@@ -46,6 +55,13 @@ pub struct RuntimeContext {
     pub hlc: Arc<HLC>,
     pub runtime_name: RuntimeId,
     pub runtime_uuid: Uuid,
+}
+
+#[derive(Clone)]
+pub struct InstanceContext {
+    pub flow_id: FlowId,
+    pub instance_id: Uuid,
+    pub runtime: RuntimeContext,
 }
 
 pub async fn map_to_infrastructure(

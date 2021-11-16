@@ -18,7 +18,7 @@ use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::message::Message;
-use crate::runtime::RuntimeContext;
+use crate::runtime::InstanceContext;
 use crate::{
     Context, DataMessage, DeadlineMiss, NodeId, Operator, PortId, PortType, State, Token,
     TokenAction, ZFError, ZFResult,
@@ -93,7 +93,7 @@ impl OperatorIO {
 #[derive(Clone)]
 pub struct OperatorRunner {
     pub(crate) id: NodeId,
-    pub(crate) runtime_context: RuntimeContext,
+    pub(crate) context: InstanceContext,
     pub(crate) io: Arc<RwLock<OperatorIO>>,
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
@@ -105,14 +105,14 @@ pub struct OperatorRunner {
 
 impl OperatorRunner {
     pub fn try_new(
-        context: RuntimeContext,
+        context: InstanceContext,
         operator: OperatorLoaded,
         operator_io: OperatorIO,
     ) -> ZFResult<Self> {
         // TODO Check that all ports are used.
         Ok(Self {
             id: operator.id,
-            runtime_context: context,
+            context,
             io: Arc::new(RwLock::new(operator_io)),
             inputs: operator.inputs,
             outputs: operator.outputs,
@@ -149,6 +149,14 @@ impl Runner for OperatorRunner {
             guard.outputs.insert(key, vec![output]);
         }
         Ok(())
+    }
+
+    fn get_inputs(&self) -> HashMap<PortId, PortType> {
+        self.inputs.clone()
+    }
+
+    fn get_outputs(&self) -> HashMap<PortId, PortType> {
+        self.outputs.clone()
     }
 
     async fn clean(&self) -> ZFResult<()> {
@@ -284,7 +292,8 @@ impl Runner for OperatorRunner {
                 match earliest_source_timestamp {
                     Some(max_timestamp) => {
                         if let Err(error) = self
-                            .runtime_context
+                            .context
+                            .runtime
                             .hlc
                             .update_with_timestamp(&max_timestamp)
                         {
@@ -297,7 +306,7 @@ impl Runner for OperatorRunner {
 
                         max_timestamp
                     }
-                    None => self.runtime_context.hlc.new_timestamp(),
+                    None => self.context.runtime.hlc.new_timestamp(),
                 }
             };
 

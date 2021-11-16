@@ -18,7 +18,9 @@ use std::convert::TryFrom;
 use std::fs::{File, *};
 use std::io::Write;
 use std::path::Path;
+use std::time::Duration;
 use structopt::StructOpt;
+use zenoh_flow::runtime::dataflow::instance::runners::RunnerKind;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 
@@ -99,26 +101,43 @@ async fn main() {
 
     let mut sinks = instance.get_sinks();
     for runner in sinks.drain(..) {
-        let m = runner.start();
+        let m = runner.start().await.unwrap();
         managers.push(m);
     }
 
     let mut operators = instance.get_operators();
     for runner in operators.drain(..) {
-        let m = runner.start();
+        let m = runner.start().await.unwrap();
         managers.push(m);
     }
 
     let mut connectors = instance.get_connectors();
     for runner in connectors.drain(..) {
-        let m = runner.start();
+        let m = runner.start().await.unwrap();
         managers.push(m);
     }
 
     let mut sources = instance.get_sources();
     for runner in sources.drain(..) {
-        let m = runner.start();
+        let m = runner.start().await.unwrap();
         managers.push(m);
+    }
+
+    // Start recording for sources
+    for m in &managers {
+        if m.get_kind() == RunnerKind::Source {
+            m.start_recoding().await.unwrap()
+        }
+    }
+
+    // Sleep 10 seconds
+    async_std::task::sleep(Duration::from_secs(10)).await;
+
+    // stop recording for sources
+    for m in &managers {
+        if m.get_kind() == RunnerKind::Source {
+            m.stop_recording().await.unwrap()
+        }
     }
 
     let () = std::future::pending().await;

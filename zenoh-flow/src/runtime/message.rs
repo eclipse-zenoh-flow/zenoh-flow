@@ -14,11 +14,12 @@
 
 extern crate serde;
 
-use crate::{Data, NodeOutput, ZFData, ZFError, ZFResult};
+use crate::{Data, FlowId, NodeId, NodeOutput, PortId, ZFData, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use uhlc::Timestamp;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
@@ -47,10 +48,21 @@ impl DataMessage {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RecordingMetadata {
+    pub(crate) timestamp: Timestamp,
+    pub(crate) port_id: PortId,
+    pub(crate) node_id: NodeId,
+    pub(crate) flow_id: FlowId,
+    pub(crate) instance_id: Uuid,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ControlMessage {
     ReadyToMigrate,
     ChangeMode(u8, u128),
     Watermark,
+    RecordingStart(RecordingMetadata),
+    RecordingStop(Timestamp),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

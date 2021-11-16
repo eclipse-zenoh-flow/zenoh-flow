@@ -19,11 +19,12 @@ use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::message::Message;
-use crate::runtime::RuntimeContext;
+use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
-use crate::{Context, NodeId, Source, State, ZFError};
+use crate::{Context, NodeId, PortId, PortType, Source, State, ZFError};
 use async_trait::async_trait;
 use libloading::Library;
+use std::collections::HashMap;
 use std::time::Duration;
 use uhlc::{Timestamp, NTP64};
 
@@ -35,7 +36,7 @@ use uhlc::{Timestamp, NTP64};
 #[derive(Clone)]
 pub struct SourceRunner {
     pub(crate) id: NodeId,
-    pub(crate) runtime_context: RuntimeContext,
+    pub(crate) context: InstanceContext,
     pub(crate) period: Option<Duration>,
     pub(crate) output: PortDescriptor,
     pub(crate) links: Arc<RwLock<Vec<LinkSender<Message>>>>,
@@ -46,7 +47,7 @@ pub struct SourceRunner {
 
 impl SourceRunner {
     pub fn try_new(
-        context: RuntimeContext,
+        context: InstanceContext,
         source: SourceLoaded,
         io: OperatorIO,
     ) -> ZFResult<Self> {
@@ -61,7 +62,7 @@ impl SourceRunner {
 
         Ok(Self {
             id: source.id,
-            runtime_context: context,
+            context,
             period: source.period.map(|period| period.to_duration()),
             state: source.state,
             output: source.output,
@@ -72,7 +73,7 @@ impl SourceRunner {
     }
 
     fn new_maybe_periodic_timestamp(&self) -> Timestamp {
-        let mut timestamp = self.runtime_context.hlc.new_timestamp();
+        let mut timestamp = self.context.runtime.hlc.new_timestamp();
         log::debug!("Timestamp generated: {:?}", timestamp);
 
         if let Some(period) = &self.period {
@@ -118,6 +119,16 @@ impl Runner for SourceRunner {
     async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.write().await;
         self.source.finalize(&mut state)
+    }
+
+    fn get_outputs(&self) -> HashMap<PortId, PortType> {
+        let mut outputs = HashMap::with_capacity(1);
+        outputs.insert(self.output.port_id.clone(), self.output.port_type.clone());
+        outputs
+    }
+
+    fn get_inputs(&self) -> HashMap<PortId, PortType> {
+        HashMap::with_capacity(0)
     }
 
     async fn run(&self) -> ZFResult<()> {

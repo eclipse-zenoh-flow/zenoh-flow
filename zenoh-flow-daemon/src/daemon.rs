@@ -425,21 +425,21 @@ impl Runtime for Daemon {
             Some(mut instance) => {
                 let mut sinks = instance.0.get_sinks();
                 for runner in sinks.drain(..) {
-                    let m = runner.start();
+                    let m = runner.start().await?;
                     instance.1.push(m);
                     rt_status.running_sinks += 1;
                 }
 
                 let mut operators = instance.0.get_operators();
                 for runner in operators.drain(..) {
-                    let m = runner.start();
+                    let m = runner.start().await?;
                     instance.1.push(m);
                     rt_status.running_operators += 1;
                 }
 
                 let mut connectors = instance.0.get_connectors();
                 for runner in connectors.drain(..) {
-                    let m = runner.start();
+                    let m = runner.start().await?;
                     instance.1.push(m);
                     rt_status.running_connectors += 1;
                 }
@@ -467,7 +467,7 @@ impl Runtime for Daemon {
             Some(mut instance) => {
                 let mut sources = instance.0.get_sources();
                 for runner in sources.drain(..) {
-                    let m = runner.start();
+                    let m = runner.start().await?;
                     instance.1.push(m);
                     rt_status.running_sources += 1;
                 }

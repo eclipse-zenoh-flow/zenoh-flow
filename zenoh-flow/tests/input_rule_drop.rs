@@ -272,7 +272,7 @@ async fn single_runtime() {
 
     let runners = instance.get_runners();
     for runner in &runners {
-        let m = runner.start();
+        let m = runner.start().await.unwrap();
         managers.push(m)
     }
 

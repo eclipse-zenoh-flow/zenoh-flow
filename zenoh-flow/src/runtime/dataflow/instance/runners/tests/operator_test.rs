@@ -29,7 +29,7 @@ use crate::{
             },
             loader::{Loader, LoaderConfig},
         },
-        RuntimeContext,
+        InstanceContext, RuntimeContext,
     },
     Configuration, Context, Data, DataMessage, DeadlineMiss, Deserializable, DowncastAny,
     EmptyState, Message, Node, NodeOutput, Operator, PortId, PortType, State, Token, TokenAction,
@@ -191,6 +191,11 @@ fn input_rule_keep() {
         runtime_name: "test-runtime-input-rule-keep".into(),
         runtime_uuid: uuid,
     };
+    let instance_context = InstanceContext {
+        flow_id: "test-input-rule-keep-flow".into(),
+        instance_id: uuid::Uuid::new_v4(),
+        runtime: runtime_context,
+    };
 
     // Creating inputs.
     let input_1: PortId = "INPUT-1".into();
@@ -250,7 +255,7 @@ fn input_rule_keep() {
 
     let operator_runner = OperatorRunner {
         id: "test".into(),
-        runtime_context,
+        context: instance_context.clone(),
         io: Arc::new(RwLock::new(operator_io)),
         inputs,
         outputs,
@@ -260,10 +265,11 @@ fn input_rule_keep() {
         library: None,
     };
 
-    let runner = NodeRunner::new(Arc::new(operator_runner));
-    let runner_manager = runner.start();
+    let runner = NodeRunner::new(Arc::new(operator_runner), instance_context);
 
     async_std::task::block_on(async {
+        let runner_manager = runner.start().await.unwrap();
+
         send_usize(&hlc, &sender_input_2, 2).await; // IR: false -> (Pending, 2 (consume))
         send_usize(&hlc, &sender_input_2, 4).await; // -- IR are not triggered, value is queued
         send_usize(&hlc, &sender_input_1, 1).await; // IR: true -> (1 (keep), 2 (consume))
