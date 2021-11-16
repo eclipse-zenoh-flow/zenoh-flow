@@ -109,7 +109,6 @@ impl Runner for SourceRunner {
     }
     async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
         (*self.links.lock().await).push(output);
-        println!("Added output");
         Ok(())
     }
 
