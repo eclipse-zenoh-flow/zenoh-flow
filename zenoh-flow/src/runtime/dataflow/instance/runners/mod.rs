@@ -15,6 +15,7 @@
 pub mod connector;
 pub mod logging;
 pub mod operator;
+pub mod replay;
 pub mod sink;
 pub mod source;
 
@@ -133,17 +134,17 @@ impl RunnerManager {
         &self.handler
     }
 
-    pub async fn start_recoding(&self) -> ZFResult<()> {
+    pub async fn start_recording(&self) -> ZFResult<String> {
         match &self.logger {
             Some(logger) => logger.start_recording().await,
-            _ => Ok(()),
+            _ => Ok(String::from("")),
         }
     }
 
-    pub async fn stop_recording(&self) -> ZFResult<()> {
+    pub async fn stop_recording(&self) -> ZFResult<String> {
         match &self.logger {
             Some(logger) => logger.stop_recording().await,
-            _ => Ok(()),
+            _ => Ok(String::from("")),
         }
     }
 

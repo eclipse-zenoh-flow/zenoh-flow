@@ -109,7 +109,7 @@ impl ZenohLogger {
         s
     }
 
-    pub async fn start_recording(&self) -> ZFResult<()> {
+    pub async fn start_recording(&self) -> ZFResult<String> {
         let mut guard = self.is_recording.lock().await;
 
         let ts_recoding_start = self.context.runtime.hlc.new_timestamp();
@@ -139,13 +139,13 @@ impl ZenohLogger {
         self.context
             .runtime
             .session
-            .write(&resource_name.into(), serialized.into())
+            .write(&resource_name.clone().into(), serialized.into())
             .await?;
         *guard = true;
-        Ok(())
+        Ok(resource_name)
     }
 
-    pub async fn stop_recording(&self) -> ZFResult<()> {
+    pub async fn stop_recording(&self) -> ZFResult<String> {
         let mut guard = self.is_recording.lock().await;
         let mut resource_name_guard = self.current_recording_resource.lock().await;
 
@@ -165,12 +165,12 @@ impl ZenohLogger {
         self.context
             .runtime
             .session
-            .write(&resource_name.into(), serialized.into())
+            .write(&resource_name.clone().into(), serialized.into())
             .await?;
 
         *guard = false;
         *resource_name_guard = None;
-        Ok(())
+        Ok(resource_name)
     }
 
     fn get_id(&self) -> NodeId {

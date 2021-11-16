@@ -20,7 +20,6 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 use structopt::StructOpt;
-use zenoh_flow::runtime::dataflow::instance::runners::RunnerKind;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 
@@ -94,50 +93,42 @@ async fn main() {
     let dataflow = zenoh_flow::runtime::dataflow::Dataflow::try_new(ctx.clone(), dfr).unwrap();
 
     // instantiating
-    let instance =
+    let mut instance =
         zenoh_flow::runtime::dataflow::instance::DataflowInstance::try_instantiate(dataflow)
             .unwrap();
-    let mut managers = vec![];
 
     let mut sinks = instance.get_sinks();
-    for runner in sinks.drain(..) {
-        let m = runner.start().await.unwrap();
-        managers.push(m);
+    for id in sinks.drain(..) {
+        instance.start_node(&id).await.unwrap()
     }
 
     let mut operators = instance.get_operators();
-    for runner in operators.drain(..) {
-        let m = runner.start().await.unwrap();
-        managers.push(m);
+    for id in operators.drain(..) {
+        instance.start_node(&id).await.unwrap()
     }
 
     let mut connectors = instance.get_connectors();
-    for runner in connectors.drain(..) {
-        let m = runner.start().await.unwrap();
-        managers.push(m);
+    for id in connectors.drain(..) {
+        instance.start_node(&id).await.unwrap()
     }
 
-    let mut sources = instance.get_sources();
-    for runner in sources.drain(..) {
-        let m = runner.start().await.unwrap();
-        managers.push(m);
+    let sources = instance.get_sources();
+    for id in &sources {
+        instance.start_node(id).await.unwrap()
     }
 
     // Start recording for sources
-    for m in &managers {
-        if m.get_kind() == RunnerKind::Source {
-            m.start_recoding().await.unwrap()
-        }
+    for id in &sources {
+        instance.start_recording(id).await.unwrap();
     }
 
     // Sleep 10 seconds
     async_std::task::sleep(Duration::from_secs(10)).await;
 
     // stop recording for sources
-    for m in &managers {
-        if m.get_kind() == RunnerKind::Source {
-            m.stop_recording().await.unwrap()
-        }
+    for id in &sources {
+        let resource = instance.stop_recording(id).await.unwrap();
+        println!("Recording available on: {:?}", resource);
     }
 
     let () = std::future::pending().await;

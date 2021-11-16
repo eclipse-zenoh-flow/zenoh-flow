@@ -15,10 +15,6 @@
 pub mod link;
 pub mod runners;
 
-use async_std::sync::Arc;
-use std::collections::HashMap;
-use uuid::Uuid;
-
 use crate::model::connector::ZFConnectorKind;
 use crate::model::link::LinkDescriptor;
 use crate::runtime::dataflow::instance::link::link;
@@ -30,10 +26,16 @@ use crate::runtime::dataflow::instance::runners::{NodeRunner, RunnerKind};
 use crate::runtime::dataflow::Dataflow;
 use crate::runtime::InstanceContext;
 use crate::{Message, NodeId, ZFError, ZFResult};
+use async_std::sync::Arc;
+use std::collections::HashMap;
+use uuid::Uuid;
+
+use self::runners::RunnerManager;
 
 pub struct DataflowInstance {
     pub(crate) context: InstanceContext,
     pub(crate) runners: HashMap<NodeId, NodeRunner>,
+    pub(crate) managers: HashMap<NodeId, RunnerManager>,
 }
 
 fn create_links(
@@ -106,6 +108,7 @@ impl DataflowInstance {
 
         // The links were created, we can generate the Runners.
         let mut runners: HashMap<NodeId, NodeRunner> = HashMap::with_capacity(node_ids.len());
+        let managers: HashMap<NodeId, RunnerManager> = HashMap::with_capacity(node_ids.len());
 
         for (id, source) in dataflow.sources.into_iter() {
             let io = links.remove(&id).ok_or_else(|| {
@@ -181,7 +184,11 @@ impl DataflowInstance {
             }
         }
 
-        Ok(Self { context, runners })
+        Ok(Self {
+            context,
+            runners,
+            managers,
+        })
     }
 
     pub fn get_uuid(&self) -> Uuid {
@@ -196,125 +203,97 @@ impl DataflowInstance {
         self.context.clone()
     }
 
-    pub fn get_runner(&self, operator_id: &NodeId) -> Option<NodeRunner> {
-        self.runners.get(operator_id).cloned()
-    }
-
-    pub fn get_runners(&self) -> Vec<NodeRunner> {
-        self.runners.values().cloned().collect()
-    }
-
-    pub fn get_sources(&self) -> Vec<NodeRunner> {
+    pub fn get_sources(&self) -> Vec<NodeId> {
         self.runners
             .values()
             .filter(|runner| matches!(runner.get_kind(), RunnerKind::Source))
-            .cloned()
+            .map(|runner| runner.get_id())
             .collect()
     }
 
-    pub fn get_sinks(&self) -> Vec<NodeRunner> {
+    pub fn get_sinks(&self) -> Vec<NodeId> {
         self.runners
             .values()
             .filter(|runner| matches!(runner.get_kind(), RunnerKind::Sink))
-            .cloned()
+            .map(|runner| runner.get_id())
             .collect()
     }
 
-    pub fn get_operators(&self) -> Vec<NodeRunner> {
+    pub fn get_operators(&self) -> Vec<NodeId> {
         self.runners
             .values()
             .filter(|runner| matches!(runner.get_kind(), RunnerKind::Operator))
-            .cloned()
+            .map(|runner| runner.get_id())
             .collect()
     }
 
-    pub fn get_connectors(&self) -> Vec<NodeRunner> {
+    pub fn get_connectors(&self) -> Vec<NodeId> {
         self.runners
             .values()
             .filter(|runner| matches!(runner.get_kind(), RunnerKind::Connector))
-            .cloned()
+            .map(|runner| runner.get_id())
             .collect()
     }
 
-    // async fn add_recorder(&mut self, node_id: &NodeId) -> ZFResult<NodeId> {
-    //     match self.runners.get(node_id) {
-    //         Some(node_runner) => {
-    //             match node_runner.get_kind() {
-    //                 RunnerKind::Source => {
-    //                     // Here we have to create the links, the recorder and connect them
-    //                     let mut inputs: Vec<(PortId, PortType)> = node_runner
-    //                         .get_inputs()
-    //                         .iter()
-    //                         .map(|(k, v)| (k.clone(), v.clone()))
-    //                         .collect();
-    //                     let (input_id, input_type) = inputs
-    //                         .pop()
-    //                         .ok_or_else(|| ZFError::OperatorNotFound(node_id.clone()))?;
+    pub fn get_nodes(&self) -> Vec<NodeId> {
+        self.runners
+            .values()
+            .map(|runner| runner.get_id())
+            .collect()
+    }
 
-    //                     // creating zenoh resource name
-    //                     let z_resource_name = format!(
-    //                         "/zf/record/{}/{}/{}/{}",
-    //                         &self.flow_id, &self.uuid, node_id, input_id
-    //                     );
+    pub async fn start_sources(&mut self) -> ZFResult<()> {
+        Err(ZFError::Unimplemented)
+    }
 
-    //                     let recorder_id: NodeId = format!(
-    //                         "recorder-{}-{}-{}-{}",
-    //                         self.flow_id, self.uuid, node_id, input_id
-    //                     )
-    //                     .into();
+    pub async fn start_nodes(&mut self) -> ZFResult<()> {
+        Err(ZFError::Unimplemented)
+    }
 
-    //                     let record = ZFConnectorRecord {
-    //                         kind: ZFConnectorKind::Receiver,
-    //                         id: recorder_id.clone(),
-    //                         resource: z_resource_name.clone(),
-    //                         link_id: PortDescriptor {
-    //                             port_id: input_id.clone(),
-    //                             port_type: input_type.clone(),
-    //                         },
-    //                         runtime: self.context.runtime_name.clone(),
-    //                     };
+    pub async fn stop_sources(&mut self) -> ZFResult<()> {
+        Err(ZFError::Unimplemented)
+    }
 
-    //                     let (tx, rx) = link::<Message>(None, input_id.clone(), input_id.clone());
+    pub async fn stop_nodes(&mut self) -> ZFResult<()> {
+        Err(ZFError::Unimplemented)
+    }
 
-    //                     let mut record_inputs = HashMap::with_capacity(1);
-    //                     record_inputs.insert(input_id.clone(), rx);
+    pub async fn start_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
+        let runner = self
+            .runners
+            .get(node_id)
+            .ok_or_else(|| ZFError::OperatorNotFound(node_id.clone()))?;
+        let manager = runner.start().await?;
+        self.managers.insert(node_id.clone(), manager);
+        Ok(())
+    }
 
-    //                     let io = OperatorIO::from_inputs_outputs(
-    //                         record_inputs,
-    //                         HashMap::with_capacity(0),
-    //                     );
+    pub async fn stop_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
+        let manager = self
+            .managers
+            .remove(node_id)
+            .ok_or_else(|| ZFError::OperatorNotFound(node_id.clone()))?;
+        manager.kill().await?;
+        Ok(manager.await?)
+    }
 
-    //                     let recorder = NodeRunner::new(Arc::new(ZenohLogger::try_new(
-    //                         self.context.clone(),
-    //                         record,
-    //                         io,
-    //                     )?));
+    pub async fn start_recording(&self, node_id: &NodeId) -> ZFResult<String> {
+        let manager = self
+            .managers
+            .get(node_id)
+            .ok_or_else(|| ZFError::OperatorNotFound(node_id.clone()))?;
+        manager.start_recording().await
+    }
 
-    //                     node_runner.add_output(tx).await?;
+    pub async fn stop_recording(&self, node_id: &NodeId) -> ZFResult<String> {
+        let manager = self
+            .managers
+            .get(node_id)
+            .ok_or_else(|| ZFError::OperatorNotFound(node_id.clone()))?;
+        manager.stop_recording().await
+    }
 
-    //                     self.runners.insert(recorder_id.clone(), recorder);
-
-    //                     Ok(recorder_id)
-    //                 }
-    //                 _ => Err(ZFError::OperatorNotFound(node_id.clone())),
-    //             }
-    //         }
-    //         None => Err(ZFError::OperatorNotFound(node_id.clone())),
-    //     }
-    // }
-
-    // pub async fn start_recording(&mut self, node_id: &NodeId) -> ZFResult<RunnerManager> {
-    //     let recorder_id = self.add_recorder(node_id).await?;
-
-    //     let recorder_runner = self
-    //         .runners
-    //         .get(&recorder_id)
-    //         .ok_or_else(|| ZFError::OperatorNotFound(recorder_id.clone()))?;
-    //     Ok(recorder_runner.start())
-    // }
-
-    // pub async fn stop_recording(&self, node_id: &NodeId) -> ZFResult<()> {
-    //     let recorder_runner = self.runners.get(node_id).ok_or_else(|| ZFError::OperatorNotFound(node_id.clone()))?;
-    //     Ok(recorder_runner.kill())
-    // }
+    pub async fn replay(&self, _source_id: &NodeId, _resource: String) -> ZFResult<()> {
+        Err(ZFError::Unimplemented)
+    }
 }
