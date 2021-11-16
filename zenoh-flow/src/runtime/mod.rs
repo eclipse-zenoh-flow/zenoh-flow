@@ -14,26 +14,15 @@
 
 #![allow(clippy::manual_async_fn)]
 
-use std::sync::Arc;
-
-use crate::{
-    model::{
-        dataflow::DataFlowRecord,
-        node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
-    },
-    serde::{Deserialize, Serialize},
-};
-use uuid::Uuid;
-
+use crate::model::dataflow::descriptor::{DataFlowDescriptor, Mapping};
+use crate::model::dataflow::record::DataFlowRecord;
+use crate::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use crate::runtime::dataflow::loader::Loader;
-use crate::RuntimeId;
-use crate::{
-    model::dataflow::{DataFlowDescriptor, Mapping},
-    ZFResult,
-};
-
 use crate::runtime::message::ControlMessage;
-
+use crate::{RuntimeId, ZFResult};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use uuid::Uuid;
 use znrpc_macros::znservice;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 

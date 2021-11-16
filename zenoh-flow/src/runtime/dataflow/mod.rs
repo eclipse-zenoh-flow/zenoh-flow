@@ -22,7 +22,7 @@ use std::time::Duration;
 use uuid::Uuid;
 
 use crate::model::connector::ZFConnectorRecord;
-use crate::model::dataflow::DataFlowRecord;
+use crate::model::dataflow::record::DataFlowRecord;
 use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::model::period::PeriodDescriptor;
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};

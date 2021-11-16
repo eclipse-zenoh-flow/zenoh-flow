@@ -51,8 +51,7 @@ pub enum ZFError {
     SenderDoNotHaveOutputs,
     // Validation Error
     DuplicatedNodeId(NodeId),
-    DuplicatedInputPort((NodeId, PortId)),
-    DuplicatedOutputPort((NodeId, PortId)),
+    DuplicatedPort((NodeId, PortId)),
     DuplicatedLink(((NodeId, PortId), (NodeId, PortId))),
     MultipleOutputsToInput((NodeId, PortId)),
     PortTypeNotMatching((PortType, PortType)),

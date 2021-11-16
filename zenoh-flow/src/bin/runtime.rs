@@ -35,7 +35,10 @@ struct Opt {
     runtime: String,
 }
 
-fn _write_record_to_file(record: zenoh_flow::model::dataflow::DataFlowRecord, filename: &str) {
+fn _write_record_to_file(
+    record: zenoh_flow::model::dataflow::record::DataFlowRecord,
+    filename: &str,
+) {
     let path = Path::new(filename);
     let mut write_file = File::create(path).unwrap();
     write!(write_file, "{}", record.to_yaml().unwrap()).unwrap();
@@ -70,7 +73,8 @@ async fn main() {
     };
 
     // loading the descriptor
-    let df = zenoh_flow::model::dataflow::DataFlowDescriptor::from_yaml(&yaml_df).unwrap();
+    let df =
+        zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor::from_yaml(&yaml_df).unwrap();
 
     // mapping to infrastructure
     let mapped = zenoh_flow::runtime::map_to_infrastructure(df, &opt.runtime)
@@ -79,7 +83,8 @@ async fn main() {
 
     // creating record
     let dfr =
-        zenoh_flow::model::dataflow::DataFlowRecord::try_from((mapped, uuid::Uuid::nil())).unwrap();
+        zenoh_flow::model::dataflow::record::DataFlowRecord::try_from((mapped, uuid::Uuid::nil()))
+            .unwrap();
 
     _write_record_to_file(dfr.clone(), "computed-record.yaml");
 

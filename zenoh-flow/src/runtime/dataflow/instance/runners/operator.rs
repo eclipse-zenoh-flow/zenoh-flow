@@ -64,7 +64,7 @@ impl OperatorIO {
 
     pub fn try_add_input(&mut self, rx: LinkReceiver<Message>) -> ZFResult<()> {
         if self.inputs.contains_key(&rx.id()) {
-            return Err(ZFError::DuplicatedInputPort((rx.id(), rx.id())));
+            return Err(ZFError::DuplicatedPort((rx.id(), rx.id())));
         }
 
         self.inputs.insert(rx.id(), rx);

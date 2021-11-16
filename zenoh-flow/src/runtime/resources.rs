@@ -23,7 +23,7 @@ extern crate serde_cbor;
 #[cfg(feature = "data_json")]
 extern crate serde_json;
 
-use crate::model::dataflow::DataFlowRecord;
+use crate::model::dataflow::record::DataFlowRecord;
 use crate::model::RegistryNode;
 use crate::runtime::{RuntimeConfig, RuntimeInfo, RuntimeStatus};
 use crate::serde::{de::DeserializeOwned, Serialize};
