@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 
-use crate::async_std::sync::{Arc, RwLock};
+use crate::async_std::sync::{Arc, Mutex};
 use crate::model::connector::ZFConnectorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
@@ -31,7 +31,7 @@ pub struct ZenohSender {
     pub(crate) id: NodeId,
     pub(crate) context: InstanceContext,
     pub(crate) record: ZFConnectorRecord,
-    pub(crate) link: Arc<RwLock<LinkReceiver<Message>>>,
+    pub(crate) link: Arc<Mutex<LinkReceiver<Message>>>,
 }
 
 impl ZenohSender {
@@ -53,7 +53,7 @@ impl ZenohSender {
             id: record.id.clone(),
             context,
             record,
-            link: Arc::new(RwLock::new(link)),
+            link: Arc::new(Mutex::new(link)),
         })
     }
 }
@@ -67,7 +67,7 @@ impl Runner for ZenohSender {
     }
     async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.record.resource);
-        let guard = self.link.read().await;
+        let guard = self.link.lock().await;
         while let Ok((_, message)) = (*guard).recv().await {
             log::debug!("ZenohSender IN <= {:?} ", message);
 
@@ -97,7 +97,7 @@ impl Runner for ZenohSender {
     }
 
     async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
-        *(self.link.write().await) = input;
+        *(self.link.lock().await) = input;
         Ok(())
     }
 
@@ -115,7 +115,7 @@ pub struct ZenohReceiver {
     pub(crate) id: NodeId,
     pub(crate) context: InstanceContext,
     pub(crate) record: ZFConnectorRecord,
-    pub(crate) link: Arc<RwLock<LinkSender<Message>>>,
+    pub(crate) link: Arc<Mutex<LinkSender<Message>>>,
 }
 
 impl ZenohReceiver {
@@ -148,7 +148,7 @@ impl ZenohReceiver {
             id: record.id.clone(),
             context,
             record,
-            link: Arc::new(RwLock::new(link)),
+            link: Arc::new(Mutex::new(link)),
         })
     }
 }
@@ -164,7 +164,7 @@ impl Runner for ZenohReceiver {
 
     async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohReceiver - {} - Started", self.record.resource);
-        let guard = self.link.read().await;
+        let guard = self.link.lock().await;
         let sub_info = SubInfo {
             reliability: Reliability::Reliable,
             mode: SubMode::Push,
@@ -202,7 +202,7 @@ impl Runner for ZenohReceiver {
         HashMap::with_capacity(0)
     }
     async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
-        (*self.link.write().await) = output;
+        (*self.link.lock().await) = output;
         Ok(())
     }
 
