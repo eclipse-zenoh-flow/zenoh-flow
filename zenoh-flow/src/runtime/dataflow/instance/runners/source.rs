@@ -13,7 +13,7 @@
 //
 
 use super::operator::OperatorIO;
-use crate::async_std::sync::{Arc, RwLock};
+use crate::async_std::sync::{Arc, Mutex};
 use crate::model::link::PortDescriptor;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
@@ -39,8 +39,8 @@ pub struct SourceRunner {
     pub(crate) context: InstanceContext,
     pub(crate) period: Option<Duration>,
     pub(crate) output: PortDescriptor,
-    pub(crate) links: Arc<RwLock<Vec<LinkSender<Message>>>>,
-    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) links: Arc<Mutex<Vec<LinkSender<Message>>>>,
+    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -66,7 +66,7 @@ impl SourceRunner {
             period: source.period.map(|period| period.to_duration()),
             state: source.state,
             output: source.output,
-            links: Arc::new(RwLock::new(links)),
+            links: Arc::new(Mutex::new(links)),
             source: source.source,
             library: source.library,
         })
@@ -108,7 +108,8 @@ impl Runner for SourceRunner {
         RunnerKind::Source
     }
     async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
-        (*self.links.write().await).push(output);
+        (*self.links.lock().await).push(output);
+        println!("Added output");
         Ok(())
     }
 
@@ -117,7 +118,7 @@ impl Runner for SourceRunner {
     }
 
     async fn clean(&self) -> ZFResult<()> {
-        let mut state = self.state.write().await;
+        let mut state = self.state.lock().await;
         self.source.finalize(&mut state)
     }
 
@@ -136,8 +137,8 @@ impl Runner for SourceRunner {
 
         loop {
             // Guards are taken at the beginning of each iteration to allow interleaving.
-            let links = self.links.read().await;
-            let mut state = self.state.write().await;
+            let links = self.links.lock().await;
+            let mut state = self.state.lock().await;
 
             // Running
             let output = self.source.run(&mut context, &mut state).await?;

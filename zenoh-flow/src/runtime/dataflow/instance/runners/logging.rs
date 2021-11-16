@@ -183,6 +183,7 @@ impl ZenohLogger {
             let recording = self.is_recording.lock().await;
 
             if !(*recording) {
+                log::debug!("ZenohLogger Dropping!");
                 continue;
             }
 

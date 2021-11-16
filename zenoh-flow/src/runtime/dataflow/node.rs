@@ -16,7 +16,7 @@ use crate::model::link::PortDescriptor;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::period::PeriodDescriptor;
 use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
-use async_std::sync::{Arc, RwLock};
+use async_std::sync::{Arc, Mutex};
 use libloading::Library;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -25,7 +25,7 @@ pub struct SourceLoaded {
     pub(crate) id: NodeId,
     pub(crate) output: PortDescriptor,
     pub(crate) period: Option<PeriodDescriptor>,
-    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -42,7 +42,7 @@ impl SourceLoaded {
             id: record.id,
             output: record.output,
             period: record.period,
-            state: Arc::new(RwLock::new(state)),
+            state: Arc::new(Mutex::new(state)),
             source,
             library: lib,
         })
@@ -54,7 +54,7 @@ pub struct OperatorLoaded {
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
     pub(crate) deadline: Option<Duration>,
-    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -84,7 +84,7 @@ impl OperatorLoaded {
             inputs,
             outputs,
             deadline: record.deadline,
-            state: Arc::new(RwLock::new(state)),
+            state: Arc::new(Mutex::new(state)),
             operator,
             library: lib,
         })
@@ -94,7 +94,7 @@ impl OperatorLoaded {
 pub struct SinkLoaded {
     pub(crate) id: NodeId,
     pub(crate) input: PortDescriptor,
-    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -110,7 +110,7 @@ impl SinkLoaded {
         Ok(Self {
             id: record.id,
             input: record.input,
-            state: Arc::new(RwLock::new(state)),
+            state: Arc::new(Mutex::new(state)),
             sink,
             library: lib,
         })

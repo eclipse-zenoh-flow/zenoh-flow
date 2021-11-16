@@ -279,13 +279,11 @@ async fn single_runtime() {
     let instance = DataflowInstance::try_instantiate(dataflow).unwrap();
 
     let mut managers = vec![];
-
     let runners = instance.get_runners();
     for runner in &runners {
         let m = runner.start().await.unwrap();
         managers.push(m)
     }
-
     tx.send_async(()).await.unwrap();
 
     zenoh_flow::async_std::task::sleep(std::time::Duration::from_secs(1)).await;

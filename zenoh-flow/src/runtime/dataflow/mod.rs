@@ -16,7 +16,7 @@ pub mod instance;
 pub mod loader;
 pub mod node;
 
-use async_std::sync::{Arc, RwLock};
+use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::time::Duration;
 use uuid::Uuid;
@@ -133,7 +133,7 @@ impl Dataflow {
                 id,
                 output,
                 period,
-                state: Arc::new(RwLock::new(state)),
+                state: Arc::new(Mutex::new(state)),
                 source,
                 library: None,
             },
@@ -165,7 +165,7 @@ impl Dataflow {
                 inputs,
                 outputs,
                 deadline,
-                state: Arc::new(RwLock::new(state)),
+                state: Arc::new(Mutex::new(state)),
                 operator,
                 library: None,
             },
@@ -184,7 +184,7 @@ impl Dataflow {
             SinkLoaded {
                 id,
                 input,
-                state: Arc::new(RwLock::new(state)),
+                state: Arc::new(Mutex::new(state)),
                 sink,
                 library: None,
             },

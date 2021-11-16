@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::async_std::sync::{Arc, RwLock};
+use crate::async_std::sync::{Arc, Mutex};
 use crate::model::node::OperatorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
@@ -94,11 +94,11 @@ impl OperatorIO {
 pub struct OperatorRunner {
     pub(crate) id: NodeId,
     pub(crate) context: InstanceContext,
-    pub(crate) io: Arc<RwLock<OperatorIO>>,
+    pub(crate) io: Arc<Mutex<OperatorIO>>,
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
     pub(crate) deadline: Option<Duration>,
-    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -113,7 +113,7 @@ impl OperatorRunner {
         Ok(Self {
             id: operator.id,
             context,
-            io: Arc::new(RwLock::new(operator_io)),
+            io: Arc::new(Mutex::new(operator_io)),
             inputs: operator.inputs,
             outputs: operator.outputs,
             state: operator.state,
@@ -134,14 +134,14 @@ impl Runner for OperatorRunner {
     }
 
     async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
-        let mut guard = self.io.write().await;
+        let mut guard = self.io.lock().await;
         let key = input.id();
         guard.inputs.insert(key, input);
         Ok(())
     }
 
     async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
-        let mut guard = self.io.write().await;
+        let mut guard = self.io.lock().await;
         let key = output.id();
         if let Some(links) = guard.outputs.get_mut(key.as_ref()) {
             links.push(output);
@@ -160,7 +160,7 @@ impl Runner for OperatorRunner {
     }
 
     async fn clean(&self) -> ZFResult<()> {
-        let mut state = self.state.write().await;
+        let mut state = self.state.lock().await;
         self.operator.finalize(&mut state)
     }
 
@@ -175,8 +175,8 @@ impl Runner for OperatorRunner {
 
         loop {
             // Guards are taken at the beginning of each iteration to allow interleaving.
-            let io = self.io.read().await;
-            let mut state = self.state.write().await;
+            let io = self.io.lock().await;
+            let mut state = self.state.lock().await;
 
             let mut links = Vec::with_capacity(tokens.len());
 

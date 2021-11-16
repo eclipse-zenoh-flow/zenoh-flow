@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 
-use crate::async_std::sync::{Arc, RwLock};
+use crate::async_std::sync::{Arc, Mutex};
 use crate::model::link::PortDescriptor;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
@@ -37,8 +37,8 @@ pub struct SinkRunner {
     pub(crate) id: NodeId,
     pub(crate) context: InstanceContext,
     pub(crate) input: PortDescriptor,
-    pub(crate) link: Arc<RwLock<LinkReceiver<Message>>>,
-    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) link: Arc<Mutex<LinkReceiver<Message>>>,
+    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -58,7 +58,7 @@ impl SinkRunner {
             id: sink.id,
             context,
             input: sink.input,
-            link: Arc::new(RwLock::new(link)),
+            link: Arc::new(Mutex::new(link)),
             state: sink.state,
             sink: sink.sink,
             library: sink.library,
@@ -75,7 +75,7 @@ impl Runner for SinkRunner {
         RunnerKind::Sink
     }
     async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
-        (*self.link.write().await) = input;
+        (*self.link.lock().await) = input;
         Ok(())
     }
 
@@ -84,7 +84,7 @@ impl Runner for SinkRunner {
     }
 
     async fn clean(&self) -> ZFResult<()> {
-        let mut state = self.state.write().await;
+        let mut state = self.state.lock().await;
         self.sink.finalize(&mut state)
     }
 
@@ -103,8 +103,8 @@ impl Runner for SinkRunner {
 
         loop {
             // Guards are taken at the beginning of each iteration to allow interleaving.
-            let link = self.link.read().await;
-            let mut state = self.state.write().await;
+            let link = self.link.lock().await;
+            let mut state = self.state.lock().await;
 
             // FEAT. With the introduction of deadline, a DeadlineMissToken could be sent.
             let (_, message) = link.recv().await?;

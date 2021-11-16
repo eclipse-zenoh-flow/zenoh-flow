@@ -11,7 +11,7 @@
 // Contributors:
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
-use async_std::sync::{Arc, RwLock};
+use async_std::sync::{Arc, Mutex};
 use std::{collections::HashMap, convert::TryInto};
 use uhlc::HLC;
 use zenoh::ZFuture;
@@ -256,11 +256,11 @@ fn input_rule_keep() {
     let operator_runner = OperatorRunner {
         id: "test".into(),
         context: instance_context.clone(),
-        io: Arc::new(RwLock::new(operator_io)),
+        io: Arc::new(Mutex::new(operator_io)),
         inputs,
         outputs,
         deadline: None,
-        state: Arc::new(RwLock::new(operator.initialize(&None).unwrap())),
+        state: Arc::new(Mutex::new(operator.initialize(&None).unwrap())),
         operator: Arc::new(operator),
         library: None,
     };
