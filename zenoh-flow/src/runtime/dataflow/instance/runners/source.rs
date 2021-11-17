@@ -131,6 +131,16 @@ impl Runner for SourceRunner {
         HashMap::with_capacity(0)
     }
 
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+        let mut outputs = HashMap::with_capacity(1);
+        outputs.insert(self.output.port_id.clone(), self.links.lock().await.clone());
+        outputs
+    }
+
+    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+        HashMap::with_capacity(0)
+    }
+
     async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
 

@@ -106,6 +106,17 @@ impl Runner for ZenohReplay {
     fn get_inputs(&self) -> HashMap<PortId, PortType> {
         HashMap::with_capacity(0)
     }
+
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+        let mut outputs = HashMap::with_capacity(1);
+        outputs.insert(self.port_id.clone(), self.links.lock().await.clone());
+        outputs
+    }
+
+    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+        HashMap::with_capacity(0)
+    }
+
     async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohReplay - {} - Started", self.resource_name);
         let query_target = QueryTarget {
@@ -113,31 +124,43 @@ impl Runner for ZenohReplay {
             target: Target::default(),
         };
 
-        let mut replies = self
+        let replies = self
             .context
             .runtime
             .session
             .query(
                 &self.resource_name.clone().into(),
-                "",
+                "?(starttime=0)",
                 query_target,
-                QueryConsolidation::default(),
+                QueryConsolidation::none(),
             )
             .await?;
 
         // Placeholder
         let mut last_ts = self.context.runtime.hlc.new_timestamp();
 
-        while let Some(msg) = replies.next().await {
-            log::debug!("ZenohReplay - {}<={:?} ", self.resource_name, msg);
-            let de: Message = bincode::deserialize(&msg.data.payload.contiguous())
-                .map_err(|_| ZFError::DeseralizationError)?;
+        // Here we need to get all the data and then order it.
+        let data = replies.collect::<Vec<Reply>>().await;
+        let mut zf_data: Vec<Message> = data
+            .iter()
+            .filter_map(|msg| bincode::deserialize::<Message>(&msg.data.payload.contiguous()).ok())
+            .collect();
+        zf_data.sort();
+        log::debug!("ZenohReplay - Total samples {} ", zf_data.len());
+
+        for de in zf_data {
+            log::debug!("ZenohReplay - {}<={:?} ", self.resource_name, de);
+            // let de: Message = bincode::deserialize(&msg.data.payload.contiguous())
+            //     .map_err(|_| ZFError::DeseralizationError)?;
             match &de {
                 Message::Control(ref ctrl_msg) => match &ctrl_msg {
                     ControlMessage::RecordingStart(ref ts) => {
+                        log::debug!("ZenohReplay - Recording start {:?} ", ts);
                         last_ts = ts.timestamp;
                     }
-                    ControlMessage::RecordingStop(_) => return Ok(()),
+                    ControlMessage::RecordingStop(ref rs) => {
+                        log::debug!("ZenohReplay - Recording Stop {:?} ", rs);
+                    }
                     _ => {
                         self.send_data(de).await?;
                     }
@@ -157,6 +180,6 @@ impl Runner for ZenohReplay {
             }
         }
 
-        Err(ZFError::Disconnected)
+        Ok(())
     }
 }

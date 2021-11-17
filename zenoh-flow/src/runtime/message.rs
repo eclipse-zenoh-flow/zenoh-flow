@@ -17,8 +17,8 @@ extern crate serde;
 use crate::{Data, FlowId, NodeId, NodeOutput, PortId, ZFData, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
-use uhlc::Timestamp;
+use std::{cmp::Ordering, fmt::Debug};
+use uhlc::{Timestamp, NTP64};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -110,4 +110,36 @@ impl Message {
             },
         }
     }
+
+    pub fn get_timestamp(&self) -> Timestamp {
+        match self {
+            Self::Control(ref ctrl) => match ctrl {
+                ControlMessage::RecordingStart(ref rs) => rs.timestamp,
+                ControlMessage::RecordingStop(ref ts) => *ts,
+                _ => Timestamp::new(NTP64(u64::MAX), Uuid::nil().into()),
+            },
+            Self::Data(data) => data.timestamp,
+        }
+    }
 }
+
+// Manual Ord implementation for message ordering when replay
+impl Ord for Message {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.get_timestamp().cmp(&other.get_timestamp())
+    }
+}
+
+impl PartialOrd for Message {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Message {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_timestamp() == other.get_timestamp()
+    }
+}
+
+impl Eq for Message {}

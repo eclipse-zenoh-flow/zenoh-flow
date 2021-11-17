@@ -188,6 +188,10 @@ pub trait Runner: Send + Sync {
     fn get_inputs(&self) -> HashMap<PortId, PortType>;
 
     fn get_outputs(&self) -> HashMap<PortId, PortType>;
+
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>>;
+
+    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>>;
 }
 
 #[derive(Clone)]
@@ -205,7 +209,7 @@ impl NodeRunner {
         loop {
             async fn run(runner: &NodeRunner) -> RunAction {
                 match runner.run().await {
-                    Ok(_) => RunAction::RestartRun(None),
+                    Ok(_) => RunAction::Stop,
                     Err(e) => RunAction::RestartRun(Some(e)),
                 }
             }

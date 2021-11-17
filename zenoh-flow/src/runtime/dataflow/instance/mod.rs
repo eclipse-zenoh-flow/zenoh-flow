@@ -20,12 +20,13 @@ use crate::model::link::LinkDescriptor;
 use crate::runtime::dataflow::instance::link::link;
 use crate::runtime::dataflow::instance::runners::connector::{ZenohReceiver, ZenohSender};
 use crate::runtime::dataflow::instance::runners::operator::{OperatorIO, OperatorRunner};
+use crate::runtime::dataflow::instance::runners::replay::ZenohReplay;
 use crate::runtime::dataflow::instance::runners::sink::SinkRunner;
 use crate::runtime::dataflow::instance::runners::source::SourceRunner;
 use crate::runtime::dataflow::instance::runners::{NodeRunner, RunnerKind};
 use crate::runtime::dataflow::Dataflow;
 use crate::runtime::InstanceContext;
-use crate::{Message, NodeId, ZFError, ZFResult};
+use crate::{Message, NodeId, PortId, PortType, ZFError, ZFResult};
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -294,7 +295,60 @@ impl DataflowInstance {
         manager.stop_recording().await
     }
 
-    pub async fn replay(&self, _source_id: &NodeId, _resource: String) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+    pub async fn replay(&mut self, source_id: &NodeId, resource: String) -> ZFResult<NodeId> {
+        self.stop_node(source_id).await?;
+        let runner = self
+            .runners
+            .get(source_id)
+            .ok_or_else(|| ZFError::NodeNotFound(source_id.clone()))?;
+
+        let mut outputs: Vec<(PortId, PortType)> = runner
+            .get_outputs()
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        let (output_id, _output_type) = outputs
+            .pop()
+            .ok_or_else(|| ZFError::NodeNotFound(source_id.clone()))?;
+
+        let replay_id: NodeId = format!(
+            "replay-{}-{}-{}-{}",
+            self.context.flow_id, self.context.instance_id, source_id, output_id
+        )
+        .into();
+
+        let mut output_links = vec![];
+        let source_links = runner.get_outputs_links().await;
+
+        for (_, links) in source_links {
+            for l in links {
+                if !l.is_disconnected() {
+                    output_links.push(l)
+                }
+            }
+        }
+
+        let replay_node = ZenohReplay::try_new(
+            replay_id.clone(),
+            self.context.clone(),
+            source_id.clone(),
+            output_id,
+            _output_type,
+            output_links,
+            resource,
+        )?;
+
+        let replay_runner = NodeRunner::new(Arc::new(replay_node), self.context.clone());
+        let replay_manager = replay_runner.start().await?;
+
+        self.runners.insert(replay_id.clone(), replay_runner);
+        self.managers.insert(replay_id.clone(), replay_manager);
+        Ok(replay_id)
+    }
+
+    pub async fn stop_replay(&mut self, replay_id: &NodeId) -> ZFResult<()> {
+        self.stop_node(replay_id).await?;
+        self.runners.remove(replay_id);
+        Ok(())
     }
 }

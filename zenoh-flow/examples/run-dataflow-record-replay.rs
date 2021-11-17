@@ -117,19 +117,33 @@ async fn main() {
         instance.start_node(id).await.unwrap()
     }
 
-    // Start recording for sources
-    for id in &sources {
-        instance.start_recording(id).await.unwrap();
-    }
+    let recording_source = sources.get(0).unwrap();
+
+    // Start recording a source
+    instance.start_recording(recording_source).await.unwrap();
+
+    // Sleep 5 seconds, records 5 seconds
+    async_std::task::sleep(Duration::from_secs(4)).await;
+
+    // stop recording a source
+
+    let resource = instance.stop_recording(recording_source).await.unwrap();
+    println!("############ Recording available on: {:?}", resource);
+
+    async_std::task::sleep(Duration::from_secs(1)).await;
+
+    //Now replaying the source
+    println!("############ Start replay from: {:?}", resource);
+    let replay_id = instance
+        .replay(recording_source, resource.clone())
+        .await
+        .unwrap();
 
     // Sleep 10 seconds
-    async_std::task::sleep(Duration::from_secs(10)).await;
+    async_std::task::sleep(Duration::from_secs(4)).await;
 
-    // stop recording for sources
-    for id in &sources {
-        let resource = instance.stop_recording(id).await.unwrap();
-        println!("Recording available on: {:?}", resource);
-    }
+    instance.stop_replay(&replay_id).await.unwrap();
+    println!("############ Done replay from: {:?}", resource);
 
     let () = std::future::pending().await;
 }

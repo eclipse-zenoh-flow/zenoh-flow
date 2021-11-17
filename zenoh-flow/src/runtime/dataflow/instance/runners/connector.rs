@@ -105,6 +105,19 @@ impl Runner for ZenohSender {
         Err(ZFError::SenderDoNotHaveOutputs)
     }
 
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+        HashMap::with_capacity(0)
+    }
+
+    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+        let mut inputs = HashMap::with_capacity(1);
+        inputs.insert(
+            self.record.link_id.port_id.clone(),
+            self.link.lock().await.clone(),
+        );
+        inputs
+    }
+
     async fn clean(&self) -> ZFResult<()> {
         Ok(())
     }
@@ -190,16 +203,16 @@ impl Runner for ZenohReceiver {
     }
 
     fn get_inputs(&self) -> HashMap<PortId, PortType> {
+        HashMap::with_capacity(0)
+    }
+
+    fn get_outputs(&self) -> HashMap<PortId, PortType> {
         let mut inputs = HashMap::with_capacity(1);
         inputs.insert(
             self.record.link_id.port_id.clone(),
             self.record.link_id.port_type.clone(),
         );
         inputs
-    }
-
-    fn get_outputs(&self) -> HashMap<PortId, PortType> {
-        HashMap::with_capacity(0)
     }
     async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
         (*self.link.lock().await) = output;
@@ -208,6 +221,19 @@ impl Runner for ZenohReceiver {
 
     async fn add_input(&self, _input: LinkReceiver<Message>) -> ZFResult<()> {
         Err(ZFError::ReceiverDoNotHaveInputs)
+    }
+
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+        let mut outputs = HashMap::with_capacity(1);
+        outputs.insert(
+            self.record.link_id.port_id.clone(),
+            vec![self.link.lock().await.clone()],
+        );
+        outputs
+    }
+
+    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+        HashMap::with_capacity(0)
     }
 
     async fn clean(&self) -> ZFResult<()> {

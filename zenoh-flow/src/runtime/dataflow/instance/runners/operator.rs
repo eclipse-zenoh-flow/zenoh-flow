@@ -83,6 +83,14 @@ impl OperatorIO {
     pub fn take(self) -> (InputsLink, OutputsLinks) {
         (self.inputs, self.outputs)
     }
+
+    pub fn get_inputs(&self) -> InputsLink {
+        self.inputs.clone()
+    }
+
+    pub fn get_outputs(&self) -> OutputsLinks {
+        self.outputs.clone()
+    }
 }
 
 // Do not reorder the fields in this struct.
@@ -157,6 +165,14 @@ impl Runner for OperatorRunner {
 
     fn get_outputs(&self) -> HashMap<PortId, PortType> {
         self.outputs.clone()
+    }
+
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+        self.io.lock().await.get_outputs()
+    }
+
+    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+        self.io.lock().await.get_inputs()
     }
 
     async fn clean(&self) -> ZFResult<()> {

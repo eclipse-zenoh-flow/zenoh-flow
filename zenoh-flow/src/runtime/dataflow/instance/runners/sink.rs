@@ -98,6 +98,16 @@ impl Runner for SinkRunner {
         HashMap::with_capacity(0)
     }
 
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+        HashMap::with_capacity(0)
+    }
+
+    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+        let mut inputs = HashMap::with_capacity(1);
+        inputs.insert(self.input.port_id.clone(), self.link.lock().await.clone());
+        inputs
+    }
+
     async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
 
