@@ -193,7 +193,15 @@ async fn single_runtime() {
     // Wait for the Sink to finish asserting and then kill all nodes.
     let _ = rx_sink.recv_async().await.unwrap();
 
-    for id in &ids {
+    for id in &instance.get_sources() {
+        instance.stop_node(id).await.unwrap()
+    }
+
+    for id in &instance.get_operators() {
+        instance.stop_node(id).await.unwrap()
+    }
+
+    for id in &instance.get_sinks() {
         instance.stop_node(id).await.unwrap()
     }
 }

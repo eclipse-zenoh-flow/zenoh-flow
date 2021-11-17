@@ -12,19 +12,14 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use super::RunAction;
 use crate::async_std::sync::{Arc, Mutex};
-
 use crate::runtime::dataflow::instance::link::LinkReceiver;
-
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::{ControlMessage, NodeId, PortId, RecordingMetadata, ZFError, ZFResult};
-
 use futures_lite::FutureExt;
-
-use super::RunAction;
-
-pub struct LoggerManager {}
+use zenoh_util::sync::Signal;
 
 #[derive(Clone)]
 pub struct ZenohLogger {
@@ -59,54 +54,53 @@ impl ZenohLogger {
         })
     }
 
-    async fn run_stoppable(&self, stop: crate::async_std::channel::Receiver<()>) -> ZFResult<()> {
+    fn run_stoppable(&self, signal: Signal) -> ZFResult<()> {
         loop {
-            let run = async {
-                match self.run().await {
+            async fn run(runner: &ZenohLogger) -> RunAction {
+                match runner.run().await {
                     Ok(_) => RunAction::RestartRun(None),
                     Err(e) => RunAction::RestartRun(Some(e)),
                 }
-            };
-            let stopper = async {
-                match stop.recv().await {
-                    Ok(_) => RunAction::Stop,
-                    Err(e) => RunAction::StopError(e),
-                }
-            };
+            }
 
-            match run.race(stopper).await {
-                RunAction::RestartRun(e) => {
-                    log::error!(
-                        "[Node: {}] The run loop exited with {:?}, restarting…",
-                        self.get_id(),
-                        e
-                    );
-                    continue;
+            async fn stop(signal: Signal) -> RunAction {
+                signal.wait().await;
+                RunAction::Stop
+            }
+
+            let cloned_signal = signal.clone();
+            let result = async_std::task::block_on(async move {
+                match stop(cloned_signal).race(run(self)).await {
+                    RunAction::RestartRun(e) => {
+                        log::error!(
+                            "[Node: {}] The run loop exited with {:?}, restarting…",
+                            self.get_id(),
+                            e
+                        );
+                        Err(e)
+                    }
+                    RunAction::Stop => {
+                        log::trace!(
+                            "[Node: {}] Received kill command, killing runner",
+                            self.get_id()
+                        );
+                        Ok(())
+                    }
                 }
-                RunAction::Stop => {
-                    log::trace!(
-                        "[Node: {}] Received kill command, killing runner",
-                        self.get_id()
-                    );
-                    break Ok(());
-                }
-                RunAction::StopError(e) => {
-                    log::error!(
-                        "[Node {}] The stopper recv got an error: {}, exiting...",
-                        self.get_id(),
-                        e
-                    );
-                    break Err(e.into());
-                }
+            });
+
+            if result.is_ok() {
+                return Ok(());
             }
         }
     }
-    pub fn start(&self) -> crate::async_std::channel::Sender<()> {
-        let (s, r) = crate::async_std::channel::bounded::<()>(1);
+    pub fn start(&self) -> Signal {
+        let signal = Signal::new();
         let cloned_self = self.clone();
+        let cloned_signal = signal.clone();
 
-        let _h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
-        s
+        let _h = async_std::task::spawn_blocking(move || cloned_self.run_stoppable(cloned_signal));
+        signal
     }
 
     pub async fn start_recording(&self) -> ZFResult<String> {
@@ -202,6 +196,6 @@ impl ZenohLogger {
                 .await?;
         }
 
-        Err(ZFError::Disconnected)
+        Ok(())
     }
 }

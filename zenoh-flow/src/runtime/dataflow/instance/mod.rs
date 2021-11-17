@@ -262,7 +262,7 @@ impl DataflowInstance {
         let runner = self
             .runners
             .get(node_id)
-            .ok_or_else(|| ZFError::OperatorNotFound(node_id.clone()))?;
+            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
         let manager = runner.start().await?;
         self.managers.insert(node_id.clone(), manager);
         Ok(())
@@ -272,16 +272,17 @@ impl DataflowInstance {
         let manager = self
             .managers
             .remove(node_id)
-            .ok_or_else(|| ZFError::OperatorNotFound(node_id.clone()))?;
+            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
         manager.kill().await?;
         Ok(manager.await?)
+        // Ok(())
     }
 
     pub async fn start_recording(&self, node_id: &NodeId) -> ZFResult<String> {
         let manager = self
             .managers
             .get(node_id)
-            .ok_or_else(|| ZFError::OperatorNotFound(node_id.clone()))?;
+            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
         manager.start_recording().await
     }
 
@@ -289,7 +290,7 @@ impl DataflowInstance {
         let manager = self
             .managers
             .get(node_id)
-            .ok_or_else(|| ZFError::OperatorNotFound(node_id.clone()))?;
+            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
         manager.stop_recording().await
     }
 

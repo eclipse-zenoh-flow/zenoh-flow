@@ -286,7 +286,15 @@ async fn single_runtime() {
 
     zenoh_flow::async_std::task::sleep(std::time::Duration::from_secs(1)).await;
 
-    for id in &ids {
+    for id in &instance.get_sources() {
+        instance.stop_node(id).await.unwrap()
+    }
+
+    for id in &instance.get_operators() {
+        instance.stop_node(id).await.unwrap()
+    }
+
+    for id in &instance.get_sinks() {
         instance.stop_node(id).await.unwrap()
     }
 }

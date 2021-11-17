@@ -13,34 +13,25 @@
 //
 
 #![allow(clippy::manual_async_fn)]
-
-use std::sync::Arc;
-
+use crate::model::dataflow::descriptor::{DataFlowDescriptor, Mapping};
 use crate::{
     model::{
-        dataflow::DataFlowRecord,
+        dataflow::record::DataFlowRecord,
         node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
     },
     serde::{Deserialize, Serialize},
     FlowId,
 };
+use async_std::sync::Arc;
 use uuid::Uuid;
 
 use crate::runtime::dataflow::loader::Loader;
 use crate::runtime::message::ControlMessage;
 use crate::{RuntimeId, ZFResult};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use uuid::Uuid;
-use znrpc_macros::znservice;
-use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
-
-// zrpc required modules
-// use std::convert::TryFrom;
-// use futures::prelude::*;
-// use async_std::prelude::FutureExt;
 use uhlc::HLC;
 use zenoh::net::Session;
+use znrpc_macros::znservice;
+use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 
 use self::dataflow::loader::LoaderConfig;
 pub mod dataflow;
