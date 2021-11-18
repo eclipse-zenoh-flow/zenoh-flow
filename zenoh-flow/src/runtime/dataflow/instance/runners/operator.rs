@@ -175,6 +175,18 @@ impl Runner for OperatorRunner {
         self.io.lock().await.get_inputs()
     }
 
+    async fn start_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unimplemented)
+    }
+
+    async fn stop_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unimplemented)
+    }
+
+    async fn is_recording(&self) -> bool {
+        false
+    }
+
     async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.lock().await;
         self.operator.finalize(&mut state)

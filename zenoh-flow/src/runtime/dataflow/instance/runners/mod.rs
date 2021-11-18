@@ -13,18 +13,15 @@
 //
 
 pub mod connector;
-pub mod logging;
 pub mod operator;
 pub mod replay;
 pub mod sink;
 pub mod source;
 
-use self::logging::ZenohLogger;
 use crate::async_std::prelude::*;
 use crate::async_std::sync::Arc;
 use crate::async_std::task::JoinHandle;
 
-use crate::runtime::dataflow::instance::link;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
@@ -51,78 +48,26 @@ pub struct RunnerManager {
     handler: JoinHandle<ZFResult<()>>,
     runner: Arc<dyn Runner>,
     ctx: InstanceContext,
-    logger: Option<ZenohLogger>,
-    logger_stopper: Option<Signal>,
 }
 
 impl RunnerManager {
-    pub async fn try_new(
+    pub fn new(
         stopper: Signal,
         handler: JoinHandle<ZFResult<()>>,
         runner: Arc<dyn Runner>,
         ctx: InstanceContext,
     ) -> ZFResult<Self> {
-        if runner.get_kind() == RunnerKind::Source {
-            let node_id = runner.get_id();
-            let mut outputs: Vec<(PortId, PortType)> = runner
-                .get_outputs()
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
-            let (output_id, _output_type) = outputs
-                .pop()
-                .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-
-            // creating zenoh resource name
-            let z_resource_name = format!(
-                "/zf/record/{}/{}/{}/{}",
-                &ctx.flow_id, &ctx.instance_id, node_id, output_id
-            );
-
-            let recorder_id: NodeId = format!(
-                "logger-{}-{}-{}-{}",
-                ctx.flow_id, ctx.instance_id, node_id, output_id
-            )
-            .into();
-
-            let (tx, rx) = link::<Message>(None, output_id.clone(), output_id.clone());
-
-            let logger = ZenohLogger::try_new(
-                recorder_id,
-                ctx.clone(),
-                z_resource_name,
-                node_id,
-                output_id,
-                rx,
-            )?;
-
-            runner.add_output(tx).await?;
-
-            let logger_stopper = logger.start();
-
-            return Ok(Self {
-                stopper,
-                handler,
-                runner,
-                ctx,
-                logger: Some(logger),
-                logger_stopper: Some(logger_stopper),
-            });
-        }
-
         Ok(Self {
             stopper,
             handler,
             runner,
             ctx,
-            logger: None,
-            logger_stopper: None,
         })
     }
 
     pub async fn kill(&self) -> ZFResult<()> {
-        if let Some(ls) = &self.logger_stopper {
-            ls.trigger()
+        if self.runner.is_recording().await {
+            self.runner.stop_recording().await?;
         }
         self.stopper.trigger();
         Ok(())
@@ -133,17 +78,11 @@ impl RunnerManager {
     }
 
     pub async fn start_recording(&self) -> ZFResult<String> {
-        match &self.logger {
-            Some(logger) => logger.start_recording().await,
-            _ => Ok(String::from("")),
-        }
+        self.runner.start_recording().await
     }
 
     pub async fn stop_recording(&self) -> ZFResult<String> {
-        match &self.logger {
-            Some(logger) => logger.stop_recording().await,
-            _ => Ok(String::from("")),
-        }
+        self.runner.stop_recording().await
     }
 
     pub fn get_context(&self) -> &InstanceContext {
@@ -192,6 +131,11 @@ pub trait Runner: Send + Sync {
     async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>>;
 
     async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>>;
+
+    async fn start_recording(&self) -> ZFResult<String>;
+    async fn stop_recording(&self) -> ZFResult<String>;
+
+    async fn is_recording(&self) -> bool;
 }
 
 #[derive(Clone)]
@@ -251,7 +195,7 @@ impl NodeRunner {
 
         let h = async_std::task::spawn_blocking(move || cloned_self.run_stoppable(cloned_signal));
 
-        RunnerManager::try_new(signal, h, self.inner.clone(), self.ctx.clone()).await
+        RunnerManager::new(signal, h, self.inner.clone(), self.ctx.clone())
     }
 }
 

@@ -117,6 +117,18 @@ impl Runner for ZenohReplay {
         HashMap::with_capacity(0)
     }
 
+    async fn start_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unimplemented)
+    }
+
+    async fn stop_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unimplemented)
+    }
+
+    async fn is_recording(&self) -> bool {
+        false
+    }
+
     async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohReplay - {} - Started", self.resource_name);
         let query_target = QueryTarget {

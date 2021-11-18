@@ -21,7 +21,9 @@ use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
-use crate::{Context, NodeId, PortId, PortType, Source, State, ZFError};
+use crate::{
+    Context, ControlMessage, NodeId, PortId, PortType, RecordingMetadata, Source, State, ZFError,
+};
 use async_trait::async_trait;
 use libloading::Library;
 use std::collections::HashMap;
@@ -41,6 +43,9 @@ pub struct SourceRunner {
     pub(crate) output: PortDescriptor,
     pub(crate) links: Arc<Mutex<Vec<LinkSender<Message>>>>,
     pub(crate) state: Arc<Mutex<State>>,
+    pub(crate) base_resource_name: String,
+    pub(crate) current_recording_resource: Arc<Mutex<Option<String>>>,
+    pub(crate) is_recording: Arc<Mutex<bool>>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -60,6 +65,11 @@ impl SourceRunner {
             ))
         })?;
 
+        let base_resource_name = format!(
+            "/zf/record/{}/{}/{}/{}",
+            &context.flow_id, &context.instance_id, source.id, port_id
+        );
+
         Ok(Self {
             id: source.id,
             context,
@@ -69,6 +79,9 @@ impl SourceRunner {
             links: Arc::new(Mutex::new(links)),
             source: source.source,
             library: source.library,
+            base_resource_name,
+            is_recording: Arc::new(Mutex::new(false)),
+            current_recording_resource: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -96,6 +109,32 @@ impl SourceRunner {
         }
 
         timestamp
+    }
+
+    async fn record(&self, message: Arc<Message>) -> ZFResult<()> {
+        log::debug!("ZenohLogger IN <= {:?} ", message);
+        let recording = self.is_recording.lock().await;
+
+        if !(*recording) {
+            log::debug!("ZenohLogger Dropping!");
+            return Ok(());
+        }
+
+        let resource_name_guard = self.current_recording_resource.lock().await;
+        let resource_name = resource_name_guard
+            .as_ref()
+            .ok_or(ZFError::Unimplemented)?
+            .clone();
+
+        let serialized = message.serialize_bincode()?;
+        log::debug!("ZenohLogger - {} => {:?} ", resource_name, serialized);
+        self.context
+            .runtime
+            .session
+            .write(&resource_name.clone().into(), serialized.into())
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -141,6 +180,74 @@ impl Runner for SourceRunner {
         HashMap::with_capacity(0)
     }
 
+    async fn start_recording(&self) -> ZFResult<String> {
+        let mut guard = self.is_recording.lock().await;
+
+        let ts_recoding_start = self.context.runtime.hlc.new_timestamp();
+        let resource_name = format!(
+            "{}/{}",
+            self.base_resource_name,
+            ts_recoding_start.get_time().to_string()
+        );
+
+        *(self.current_recording_resource.lock().await) = Some(resource_name.clone());
+
+        let recording_metadata = RecordingMetadata {
+            timestamp: ts_recoding_start,
+            port_id: self.output.port_id.clone(),
+            node_id: self.id.clone(),
+            flow_id: self.context.flow_id.clone(),
+            instance_id: self.context.instance_id,
+        };
+
+        let message = Message::Control(ControlMessage::RecordingStart(recording_metadata));
+        let serialized = message.serialize_bincode()?;
+        log::debug!(
+            "ZenohLogger - {} - Started recoding at {:?}",
+            resource_name,
+            ts_recoding_start
+        );
+        self.context
+            .runtime
+            .session
+            .write(&resource_name.clone().into(), serialized.into())
+            .await?;
+        *guard = true;
+        Ok(resource_name)
+    }
+
+    async fn stop_recording(&self) -> ZFResult<String> {
+        let mut guard = self.is_recording.lock().await;
+        let mut resource_name_guard = self.current_recording_resource.lock().await;
+
+        let resource_name = resource_name_guard
+            .as_ref()
+            .ok_or(ZFError::Unimplemented)?
+            .clone();
+
+        let ts_recoding_stop = self.context.runtime.hlc.new_timestamp();
+        let message = Message::Control(ControlMessage::RecordingStop(ts_recoding_stop));
+        let serialized = message.serialize_bincode()?;
+        log::debug!(
+            "ZenohLogger - {} - Stop recoding at {:?}",
+            resource_name,
+            ts_recoding_stop
+        );
+        self.context
+            .runtime
+            .session
+            .write(&resource_name.clone().into(), serialized.into())
+            .await?;
+
+        *guard = false;
+        *resource_name_guard = None;
+        Ok(resource_name)
+    }
+
+    async fn is_recording(&self) -> bool {
+        *self.is_recording.lock().await
+    }
+
     async fn run(&self) -> ZFResult<()> {
         let mut context = Context::default();
 
@@ -162,6 +269,7 @@ impl Runner for SourceRunner {
                 log::debug!("\tSending on: {:?}", link);
                 link.send(zf_message.clone()).await?;
             }
+            self.record(zf_message).await?;
         }
     }
 }

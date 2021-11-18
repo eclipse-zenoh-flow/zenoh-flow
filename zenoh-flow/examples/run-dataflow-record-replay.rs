@@ -123,7 +123,7 @@ async fn main() {
     instance.start_recording(recording_source).await.unwrap();
 
     // Sleep 5 seconds, records 5 seconds
-    async_std::task::sleep(Duration::from_secs(4)).await;
+    async_std::task::sleep(Duration::from_secs(5)).await;
 
     // stop recording a source
 
@@ -139,11 +139,16 @@ async fn main() {
         .await
         .unwrap();
 
-    // Sleep 10 seconds
-    async_std::task::sleep(Duration::from_secs(4)).await;
+    // Sleep 5 seconds
+    async_std::task::sleep(Duration::from_secs(5)).await;
 
     instance.stop_replay(&replay_id).await.unwrap();
     println!("############ Done replay from: {:?}", resource);
+
+    // Sleep 5 seconds
+    async_std::task::sleep(Duration::from_secs(5)).await;
+    println!("############ Restaring source {:?}", recording_source);
+    instance.start_node(recording_source).await.unwrap();
 
     let () = std::future::pending().await;
 }

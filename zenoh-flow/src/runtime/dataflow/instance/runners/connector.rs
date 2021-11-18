@@ -118,6 +118,18 @@ impl Runner for ZenohSender {
         inputs
     }
 
+    async fn start_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unimplemented)
+    }
+
+    async fn stop_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unimplemented)
+    }
+
+    async fn is_recording(&self) -> bool {
+        false
+    }
+
     async fn clean(&self) -> ZFResult<()> {
         Ok(())
     }
@@ -238,5 +250,17 @@ impl Runner for ZenohReceiver {
 
     async fn clean(&self) -> ZFResult<()> {
         Ok(())
+    }
+
+    async fn start_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unimplemented)
+    }
+
+    async fn stop_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unimplemented)
+    }
+
+    async fn is_recording(&self) -> bool {
+        false
     }
 }
