@@ -48,6 +48,10 @@ impl<T: std::marker::Send + std::marker::Sync> LinkReceiver<T> {
     pub fn id(&self) -> PortId {
         self.id.clone()
     }
+
+    pub fn is_disconnected(&self) -> bool {
+        self.receiver.is_disconnected()
+    }
 }
 
 impl<T> LinkSender<T> {
@@ -69,6 +73,10 @@ impl<T> LinkSender<T> {
 
     pub fn id(&self) -> PortId {
         self.id.clone()
+    }
+
+    pub fn is_disconnected(&self) -> bool {
+        self.sender.is_disconnected()
     }
 }
 

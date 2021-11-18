@@ -12,13 +12,13 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::async_std::sync::{Arc, RwLock};
+use crate::async_std::sync::{Arc, Mutex};
 use crate::model::node::OperatorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::message::Message;
-use crate::runtime::RuntimeContext;
+use crate::runtime::InstanceContext;
 use crate::{
     Context, DataMessage, DeadlineMiss, NodeId, Operator, PortId, PortType, State, Token,
     TokenAction, ZFError, ZFResult,
@@ -83,6 +83,14 @@ impl OperatorIO {
     pub fn take(self) -> (InputsLink, OutputsLinks) {
         (self.inputs, self.outputs)
     }
+
+    pub fn get_inputs(&self) -> InputsLink {
+        self.inputs.clone()
+    }
+
+    pub fn get_outputs(&self) -> OutputsLinks {
+        self.outputs.clone()
+    }
 }
 
 // Do not reorder the fields in this struct.
@@ -93,27 +101,27 @@ impl OperatorIO {
 #[derive(Clone)]
 pub struct OperatorRunner {
     pub(crate) id: NodeId,
-    pub(crate) runtime_context: RuntimeContext,
-    pub(crate) io: Arc<RwLock<OperatorIO>>,
+    pub(crate) context: InstanceContext,
+    pub(crate) io: Arc<Mutex<OperatorIO>>,
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
     pub(crate) deadline: Option<Duration>,
-    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
 }
 
 impl OperatorRunner {
     pub fn try_new(
-        context: RuntimeContext,
+        context: InstanceContext,
         operator: OperatorLoaded,
         operator_io: OperatorIO,
     ) -> ZFResult<Self> {
         // TODO Check that all ports are used.
         Ok(Self {
             id: operator.id,
-            runtime_context: context,
-            io: Arc::new(RwLock::new(operator_io)),
+            context,
+            io: Arc::new(Mutex::new(operator_io)),
             inputs: operator.inputs,
             outputs: operator.outputs,
             state: operator.state,
@@ -134,14 +142,14 @@ impl Runner for OperatorRunner {
     }
 
     async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
-        let mut guard = self.io.write().await;
+        let mut guard = self.io.lock().await;
         let key = input.id();
         guard.inputs.insert(key, input);
         Ok(())
     }
 
     async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
-        let mut guard = self.io.write().await;
+        let mut guard = self.io.lock().await;
         let key = output.id();
         if let Some(links) = guard.outputs.get_mut(key.as_ref()) {
             links.push(output);
@@ -151,8 +159,40 @@ impl Runner for OperatorRunner {
         Ok(())
     }
 
+    fn get_inputs(&self) -> HashMap<PortId, PortType> {
+        self.inputs.clone()
+    }
+
+    fn get_outputs(&self) -> HashMap<PortId, PortType> {
+        self.outputs.clone()
+    }
+
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+        self.io.lock().await.get_outputs()
+    }
+
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+        let inputs = HashMap::new();
+        let mut io_guard = self.io.lock().await;
+        let current_inputs = io_guard.get_inputs();
+        io_guard.inputs = inputs;
+        current_inputs
+    }
+
+    async fn start_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unsupported)
+    }
+
+    async fn stop_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unsupported)
+    }
+
+    async fn is_recording(&self) -> bool {
+        false
+    }
+
     async fn clean(&self) -> ZFResult<()> {
-        let mut state = self.state.write().await;
+        let mut state = self.state.lock().await;
         self.operator.finalize(&mut state)
     }
 
@@ -167,8 +207,8 @@ impl Runner for OperatorRunner {
 
         loop {
             // Guards are taken at the beginning of each iteration to allow interleaving.
-            let io = self.io.read().await;
-            let mut state = self.state.write().await;
+            let io = self.io.lock().await;
+            let mut state = self.state.lock().await;
 
             let mut links = Vec::with_capacity(tokens.len());
 
@@ -284,7 +324,8 @@ impl Runner for OperatorRunner {
                 match earliest_source_timestamp {
                     Some(max_timestamp) => {
                         if let Err(error) = self
-                            .runtime_context
+                            .context
+                            .runtime
                             .hlc
                             .update_with_timestamp(&max_timestamp)
                         {
@@ -297,7 +338,7 @@ impl Runner for OperatorRunner {
 
                         max_timestamp
                     }
-                    None => self.runtime_context.hlc.new_timestamp(),
+                    None => self.context.runtime.hlc.new_timestamp(),
                 }
             };
 

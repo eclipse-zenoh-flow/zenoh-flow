@@ -276,25 +276,27 @@ async fn single_runtime() {
         )
         .unwrap();
 
-    let instance = DataflowInstance::try_instantiate(dataflow).unwrap();
+    let mut instance = DataflowInstance::try_instantiate(dataflow).unwrap();
 
-    let mut managers = vec![];
-
-    let runners = instance.get_runners();
-    for runner in &runners {
-        let m = runner.start();
-        managers.push(m)
+    let ids = instance.get_nodes();
+    for id in &ids {
+        instance.start_node(id).await.unwrap();
     }
-
     tx.send_async(()).await.unwrap();
 
     zenoh_flow::async_std::task::sleep(std::time::Duration::from_secs(1)).await;
 
-    for m in managers.iter() {
-        m.kill().await.unwrap()
+    for id in &instance.get_sources() {
+        instance.stop_node(id).await.unwrap()
     }
 
-    futures::future::join_all(managers).await;
+    for id in &instance.get_operators() {
+        instance.stop_node(id).await.unwrap()
+    }
+
+    for id in &instance.get_sinks() {
+        instance.stop_node(id).await.unwrap()
+    }
 }
 
 #[test]

@@ -17,9 +17,10 @@ use uuid::Uuid;
 use zenoh::ZFuture;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor;
-use zenoh_flow::model::dataflow::record::DataFlowRecord;
-use zenoh_flow::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
-use zenoh_flow::runtime::dataflow::instance::runners::{RunnerKind, RunnerManager};
+use zenoh_flow::model::{
+    dataflow::record::DataFlowRecord,
+    node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
+};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::Loader;
 use zenoh_flow::runtime::dataflow::Dataflow;
@@ -33,7 +34,7 @@ use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
 pub struct RTState {
-    pub graphs: HashMap<Uuid, (DataflowInstance, Vec<RunnerManager>)>,
+    pub graphs: HashMap<Uuid, DataflowInstance>,
     pub config: RuntimeConfig,
 }
 
@@ -367,7 +368,7 @@ impl Runtime for Daemon {
         let mut instance = DataflowInstance::try_instantiate(dataflow)?;
 
         let mut self_state = self.state.lock().await;
-        self_state.graphs.insert(dfr.uuid, (instance, vec![]));
+        self_state.graphs.insert(dfr.uuid, instance);
         drop(self_state);
         self.store
             .add_runtime_flow(&self.ctx.runtime_uuid, &dfr)
@@ -388,7 +389,7 @@ impl Runtime for Daemon {
         let data = _state.graphs.remove(&record_id);
 
         match data {
-            Some((dfg, _)) => {
+            Some(dfg) => {
                 let record = self
                     .store
                     .get_runtime_flow_by_instance(&self.ctx.runtime_uuid, &record_id)
@@ -423,25 +424,19 @@ impl Runtime for Daemon {
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
-                let mut sinks = instance.0.get_sinks();
-                for runner in sinks.drain(..) {
-                    let m = runner.start();
-                    instance.1.push(m);
-                    rt_status.running_sinks += 1;
+                let mut sinks = instance.get_sinks();
+                for id in sinks.drain(..) {
+                    instance.start_node(&id).await?
                 }
 
-                let mut operators = instance.0.get_operators();
-                for runner in operators.drain(..) {
-                    let m = runner.start();
-                    instance.1.push(m);
-                    rt_status.running_operators += 1;
+                let mut operators = instance.get_operators();
+                for id in operators.drain(..) {
+                    instance.start_node(&id).await?
                 }
 
-                let mut connectors = instance.0.get_connectors();
-                for runner in connectors.drain(..) {
-                    let m = runner.start();
-                    instance.1.push(m);
-                    rt_status.running_connectors += 1;
+                let mut connectors = instance.get_connectors();
+                for id in connectors.drain(..) {
+                    instance.start_node(&id).await?
                 }
 
                 self.store
@@ -465,11 +460,9 @@ impl Runtime for Daemon {
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
-                let mut sources = instance.0.get_sources();
-                for runner in sources.drain(..) {
-                    let m = runner.start();
-                    instance.1.push(m);
-                    rt_status.running_sources += 1;
+                let mut sources = instance.get_sources();
+                for id in sources.drain(..) {
+                    instance.start_node(&id).await.unwrap()
                 }
 
                 rt_status.running_flows += 1;
@@ -498,42 +491,22 @@ impl Runtime for Daemon {
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
-                let mut to_be_removed = vec![];
-
-                for (i, m) in instance.1.iter().enumerate() {
-                    match m.get_kind() {
-                        RunnerKind::Source => continue,
-                        RunnerKind::Sink => {
-                            m.kill().await?;
-                            to_be_removed.push(i);
-                            rt_status.running_sinks -= 1;
-                        }
-                        RunnerKind::Operator => {
-                            m.kill().await?;
-                            to_be_removed.push(i);
-                            rt_status.running_operators -= 1;
-                        }
-                        RunnerKind::Connector => {
-                            m.kill().await?;
-                            to_be_removed.push(i);
-                            rt_status.running_connectors -= 1;
-                        }
-                    }
-                }
-                to_be_removed.reverse();
-                for i in to_be_removed.iter() {
-                    let manager = instance.1.remove(*i);
-                    futures::join!(manager);
+                let mut sinks = instance.get_sinks();
+                for id in sinks.drain(..) {
+                    instance.stop_node(&id).await?;
+                    rt_status.running_sinks -= 1;
                 }
 
-                let mut sinks = instance.0.get_sinks();
-                for runner in sinks.drain(..) {
-                    runner.clean().await?;
+                let mut operators = instance.get_operators();
+                for id in operators.drain(..) {
+                    instance.stop_node(&id).await?;
+                    rt_status.running_operators -= 1;
                 }
 
-                let mut operators = instance.0.get_operators();
-                for runner in operators.drain(..) {
-                    runner.clean().await?;
+                let mut connectors = instance.get_connectors();
+                for id in connectors.drain(..) {
+                    instance.stop_node(&id).await?;
+                    rt_status.running_connectors -= 1;
                 }
 
                 self.store
@@ -556,32 +529,13 @@ impl Runtime for Daemon {
 
         match _state.graphs.get_mut(&record_id) {
             Some(mut instance) => {
-                //let (graph, mut managers) = d;
-                let mut to_be_removed = vec![];
-
-                for (i, m) in instance.1.iter().enumerate() {
-                    match m.get_kind() {
-                        RunnerKind::Source => {
-                            m.kill().await?;
-                            to_be_removed.push(i);
-                            rt_status.running_sources -= 1;
-                        }
-                        _ => continue,
-                    }
-                }
-                to_be_removed.reverse();
-
-                for i in to_be_removed.iter() {
-                    let manager = instance.1.remove(*i);
-                    futures::join!(manager);
+                let mut sources = instance.get_sources();
+                for id in sources.drain(..) {
+                    instance.stop_node(&id).await?;
+                    rt_status.running_sources -= 1;
                 }
 
                 rt_status.running_flows -= 1;
-
-                let mut sources = instance.0.get_sources();
-                for runner in sources.drain(..) {
-                    runner.clean().await?;
-                }
 
                 self.store
                     .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)

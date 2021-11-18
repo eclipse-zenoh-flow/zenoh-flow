@@ -14,11 +14,12 @@
 
 extern crate serde;
 
-use crate::{Data, NodeOutput, ZFData, ZFError, ZFResult};
+use crate::{Data, FlowId, NodeId, NodeOutput, PortId, ZFData, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{cmp::Ordering, fmt::Debug};
 use uhlc::Timestamp;
+use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
@@ -47,10 +48,22 @@ impl DataMessage {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RecordingMetadata {
+    pub(crate) timestamp: Timestamp,
+    pub(crate) port_id: PortId,
+    pub(crate) node_id: NodeId,
+    pub(crate) flow_id: FlowId,
+    pub(crate) instance_id: Uuid,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ControlMessage {
-    ReadyToMigrate,
-    ChangeMode(u8, u128),
-    Watermark,
+    // These messages are not yet defined, those are some ideas
+    // ReadyToMigrate,
+    // ChangeMode(u8, u128),
+    // Watermark,
+    RecordingStart(RecordingMetadata),
+    RecordingStop(Timestamp),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -98,4 +111,37 @@ impl Message {
             },
         }
     }
+
+    pub fn get_timestamp(&self) -> Timestamp {
+        match self {
+            Self::Control(ref ctrl) => match ctrl {
+                ControlMessage::RecordingStart(ref rs) => rs.timestamp,
+                ControlMessage::RecordingStop(ref ts) => *ts,
+                // Commented because Control messages are not yet defined.
+                // _ => Timestamp::new(NTP64(u64::MAX), Uuid::nil().into()),
+            },
+            Self::Data(data) => data.timestamp,
+        }
+    }
 }
+
+// Manual Ord implementation for message ordering when replay
+impl Ord for Message {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.get_timestamp().cmp(&other.get_timestamp())
+    }
+}
+
+impl PartialOrd for Message {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Message {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_timestamp() == other.get_timestamp()
+    }
+}
+
+impl Eq for Message {}

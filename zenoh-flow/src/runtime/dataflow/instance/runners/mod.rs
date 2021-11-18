@@ -14,26 +14,28 @@
 
 pub mod connector;
 pub mod operator;
+pub mod replay;
 pub mod sink;
 pub mod source;
 
 use crate::async_std::prelude::*;
 use crate::async_std::sync::Arc;
-use crate::async_std::{
-    channel::{RecvError, Sender},
-    task::JoinHandle,
-};
+use crate::async_std::task::JoinHandle;
+
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
+use crate::runtime::InstanceContext;
 use crate::types::{NodeId, ZFResult};
-use crate::ZFError;
+use crate::{PortId, PortType, ZFError};
 use async_trait::async_trait;
 use futures_lite::future::FutureExt;
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use zenoh_util::sync::Signal;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RunnerKind {
     Source,
     Operator,
@@ -42,30 +44,57 @@ pub enum RunnerKind {
 }
 
 pub struct RunnerManager {
-    stopper: Sender<()>,
+    stopper: Signal,
     handler: JoinHandle<ZFResult<()>>,
-    kind: RunnerKind,
+    runner: Arc<dyn Runner>,
+    ctx: InstanceContext,
 }
 
 impl RunnerManager {
-    pub fn new(stopper: Sender<()>, handler: JoinHandle<ZFResult<()>>, kind: RunnerKind) -> Self {
+    pub fn new(
+        stopper: Signal,
+        handler: JoinHandle<ZFResult<()>>,
+        runner: Arc<dyn Runner>,
+        ctx: InstanceContext,
+    ) -> Self {
         Self {
             stopper,
             handler,
-            kind,
+            runner,
+            ctx,
         }
     }
 
     pub async fn kill(&self) -> ZFResult<()> {
-        Ok(self.stopper.send(()).await?)
+        if self.runner.is_recording().await {
+            self.runner.stop_recording().await?;
+        }
+        self.stopper.trigger();
+        Ok(())
     }
 
     pub fn get_handler(&self) -> &JoinHandle<ZFResult<()>> {
         &self.handler
     }
 
-    pub fn get_kind(&self) -> &RunnerKind {
-        &self.kind
+    pub async fn start_recording(&self) -> ZFResult<String> {
+        self.runner.start_recording().await
+    }
+
+    pub async fn stop_recording(&self) -> ZFResult<String> {
+        self.runner.stop_recording().await
+    }
+
+    pub fn get_context(&self) -> &InstanceContext {
+        &self.ctx
+    }
+}
+
+impl Deref for RunnerManager {
+    type Target = Arc<dyn Runner>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.runner
     }
 }
 
@@ -80,7 +109,6 @@ impl Future for RunnerManager {
 pub enum RunAction {
     RestartRun(Option<ZFError>),
     Stop,
-    StopError(RecvError),
 }
 
 #[async_trait]
@@ -95,66 +123,74 @@ pub trait Runner: Send + Sync {
     fn get_kind(&self) -> RunnerKind;
 
     fn get_id(&self) -> NodeId;
+
+    fn get_inputs(&self) -> HashMap<PortId, PortType>;
+
+    fn get_outputs(&self) -> HashMap<PortId, PortType>;
+
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>>;
+
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>>;
+
+    async fn start_recording(&self) -> ZFResult<String>;
+    async fn stop_recording(&self) -> ZFResult<String>;
+
+    async fn is_recording(&self) -> bool;
 }
 
 #[derive(Clone)]
 pub struct NodeRunner {
     inner: Arc<dyn Runner>,
+    ctx: InstanceContext,
 }
 
 impl NodeRunner {
-    pub fn new(inner: Arc<dyn Runner>) -> Self {
-        Self { inner }
+    pub fn new(inner: Arc<dyn Runner>, ctx: InstanceContext) -> Self {
+        Self { inner, ctx }
     }
 
-    async fn run_stoppable(&self, stop: crate::async_std::channel::Receiver<()>) -> ZFResult<()> {
-        loop {
-            let run = async {
-                match self.run().await {
-                    Ok(_) => RunAction::RestartRun(None),
-                    Err(e) => RunAction::RestartRun(Some(e)),
-                }
-            };
-            let stopper = async {
-                match stop.recv().await {
-                    Ok(_) => RunAction::Stop,
-                    Err(e) => RunAction::StopError(e),
-                }
-            };
-
-            match run.race(stopper).await {
-                RunAction::RestartRun(e) => {
-                    log::error!(
-                        "[Node: {}] The run loop exited with {:?}, restarting…",
-                        self.get_id(),
-                        e
-                    );
-                    continue;
-                }
-                RunAction::Stop => {
-                    log::trace!(
-                        "[Node: {}] Received kill command, killing runner",
-                        self.get_id()
-                    );
-                    break Ok(());
-                }
-                RunAction::StopError(e) => {
-                    log::error!(
-                        "[Node {}] The stopper recv got an error: {}, exiting...",
-                        self.get_id(),
-                        e
-                    );
-                    break Err(e.into());
-                }
+    fn run_stoppable(&self, signal: Signal) -> ZFResult<()> {
+        async fn run(runner: &NodeRunner) -> RunAction {
+            match runner.run().await {
+                Ok(_) => RunAction::Stop,
+                Err(e) => RunAction::RestartRun(Some(e)),
             }
         }
+
+        async fn stop(signal: Signal) -> RunAction {
+            signal.wait().await;
+            RunAction::Stop
+        }
+        async_std::task::block_on(async move {
+            loop {
+                let cloned_signal = signal.clone();
+                match stop(cloned_signal).race(run(self)).await {
+                    RunAction::RestartRun(e) => {
+                        log::error!(
+                            "[Node: {}] The run loop exited with {:?}, restarting…",
+                            self.get_id(),
+                            e
+                        );
+                    }
+                    RunAction::Stop => {
+                        log::trace!(
+                            "[Node: {}] Received kill command, killing runner",
+                            self.get_id()
+                        );
+                        return Ok(());
+                    }
+                }
+            }
+        })
     }
     pub fn start(&self) -> RunnerManager {
-        let (s, r) = crate::async_std::channel::bounded::<()>(1);
+        let signal = Signal::new();
         let cloned_self = self.clone();
+        let cloned_signal = signal.clone();
 
-        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(r).await });
-        RunnerManager::new(s, h, self.get_kind())
+        let h = async_std::task::spawn_blocking(move || cloned_self.run_stoppable(cloned_signal));
+
+        RunnerManager::new(signal, h, self.inner.clone(), self.ctx.clone())
     }
 }
 

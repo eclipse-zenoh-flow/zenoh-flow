@@ -13,25 +13,25 @@
 //
 
 #![allow(clippy::manual_async_fn)]
-
 use crate::model::dataflow::descriptor::{DataFlowDescriptor, Mapping};
-use crate::model::dataflow::record::DataFlowRecord;
-use crate::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
+use crate::{
+    model::{
+        dataflow::record::DataFlowRecord,
+        node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
+    },
+    serde::{Deserialize, Serialize},
+    FlowId,
+};
+use async_std::sync::Arc;
+use uuid::Uuid;
+
 use crate::runtime::dataflow::loader::Loader;
 use crate::runtime::message::ControlMessage;
 use crate::{RuntimeId, ZFResult};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use uuid::Uuid;
-use znrpc_macros::znservice;
-use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
-
-// zrpc required modules
-// use std::convert::TryFrom;
-// use futures::prelude::*;
-// use async_std::prelude::FutureExt;
 use uhlc::HLC;
 use zenoh::net::Session;
+use znrpc_macros::znservice;
+use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 
 use self::dataflow::loader::LoaderConfig;
 pub mod dataflow;
@@ -46,6 +46,13 @@ pub struct RuntimeContext {
     pub hlc: Arc<HLC>,
     pub runtime_name: RuntimeId,
     pub runtime_uuid: Uuid,
+}
+
+#[derive(Clone)]
+pub struct InstanceContext {
+    pub flow_id: FlowId,
+    pub instance_id: Uuid,
+    pub runtime: RuntimeContext,
 }
 
 pub async fn map_to_infrastructure(

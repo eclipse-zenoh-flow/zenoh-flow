@@ -12,16 +12,18 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::async_std::sync::{Arc, RwLock};
+use std::collections::HashMap;
+
+use crate::async_std::sync::{Arc, Mutex};
 use crate::model::link::PortDescriptor;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SinkLoaded;
 use crate::runtime::message::Message;
-use crate::runtime::RuntimeContext;
+use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
-use crate::{Context, NodeId, Sink, State, ZFError};
+use crate::{Context, NodeId, PortId, PortType, Sink, State, ZFError};
 use async_trait::async_trait;
 use libloading::Library;
 
@@ -33,16 +35,16 @@ use libloading::Library;
 #[derive(Clone)]
 pub struct SinkRunner {
     pub(crate) id: NodeId,
-    pub(crate) runtime_context: RuntimeContext,
+    pub(crate) context: InstanceContext,
     pub(crate) input: PortDescriptor,
-    pub(crate) link: Arc<RwLock<LinkReceiver<Message>>>,
-    pub(crate) state: Arc<RwLock<State>>,
+    pub(crate) link: Arc<Mutex<Option<LinkReceiver<Message>>>>,
+    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) library: Option<Arc<Library>>,
 }
 
 impl SinkRunner {
-    pub fn try_new(context: RuntimeContext, sink: SinkLoaded, io: OperatorIO) -> ZFResult<Self> {
+    pub fn try_new(context: InstanceContext, sink: SinkLoaded, io: OperatorIO) -> ZFResult<Self> {
         let (mut inputs, _) = io.take();
         let port_id = sink.input.port_id.clone();
         let link = inputs.remove(&port_id).ok_or_else(|| {
@@ -54,9 +56,9 @@ impl SinkRunner {
 
         Ok(Self {
             id: sink.id,
-            runtime_context: context,
+            context,
             input: sink.input,
-            link: Arc::new(RwLock::new(link)),
+            link: Arc::new(Mutex::new(Some(link))),
             state: sink.state,
             sink: sink.sink,
             library: sink.library,
@@ -73,7 +75,7 @@ impl Runner for SinkRunner {
         RunnerKind::Sink
     }
     async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
-        (*self.link.write().await) = input;
+        (*self.link.lock().await) = Some(input);
         Ok(())
     }
 
@@ -82,8 +84,45 @@ impl Runner for SinkRunner {
     }
 
     async fn clean(&self) -> ZFResult<()> {
-        let mut state = self.state.write().await;
+        let mut state = self.state.lock().await;
         self.sink.finalize(&mut state)
+    }
+
+    fn get_inputs(&self) -> HashMap<PortId, PortType> {
+        let mut inputs = HashMap::with_capacity(1);
+        inputs.insert(self.input.port_id.clone(), self.input.port_type.clone());
+        inputs
+    }
+
+    fn get_outputs(&self) -> HashMap<PortId, PortType> {
+        HashMap::with_capacity(0)
+    }
+
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+        HashMap::with_capacity(0)
+    }
+
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+        let mut link_guard = self.link.lock().await;
+        if let Some(link) = &*link_guard {
+            let mut inputs = HashMap::with_capacity(1);
+            inputs.insert(self.input.port_id.clone(), link.clone());
+            *link_guard = None;
+            return inputs;
+        }
+        HashMap::with_capacity(0)
+    }
+
+    async fn start_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unsupported)
+    }
+
+    async fn stop_recording(&self) -> ZFResult<String> {
+        Err(ZFError::Unsupported)
+    }
+
+    async fn is_recording(&self) -> bool {
+        false
     }
 
     async fn run(&self) -> ZFResult<()> {
@@ -91,17 +130,18 @@ impl Runner for SinkRunner {
 
         loop {
             // Guards are taken at the beginning of each iteration to allow interleaving.
-            let link = self.link.read().await;
-            let mut state = self.state.write().await;
+            if let Some(link) = &*self.link.lock().await {
+                let mut state = self.state.lock().await;
 
-            // FEAT. With the introduction of deadline, a DeadlineMissToken could be sent.
-            let (_, message) = link.recv().await?;
-            let input = match message.as_ref() {
-                Message::Data(d) => d.clone(),
-                Message::Control(_) => return Err(ZFError::Unimplemented),
-            };
+                // FEAT. With the introduction of deadline, a DeadlineMissToken could be sent.
+                let (_, message) = link.recv().await?;
+                let input = match message.as_ref() {
+                    Message::Data(d) => d.clone(),
+                    Message::Control(_) => return Err(ZFError::Unimplemented),
+                };
 
-            self.sink.run(&mut context, &mut state, input).await?;
+                self.sink.run(&mut context, &mut state, input).await?;
+            }
         }
     }
 }
