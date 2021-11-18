@@ -118,11 +118,11 @@ impl Runner for ZenohReplay {
     }
 
     async fn start_recording(&self) -> ZFResult<String> {
-        Err(ZFError::Unimplemented)
+        Err(ZFError::Unsupported)
     }
 
     async fn stop_recording(&self) -> ZFResult<String> {
-        Err(ZFError::Unimplemented)
+        Err(ZFError::Unsupported)
     }
 
     async fn is_recording(&self) -> bool {
