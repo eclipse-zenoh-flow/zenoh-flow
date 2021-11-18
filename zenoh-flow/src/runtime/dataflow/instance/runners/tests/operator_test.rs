@@ -268,7 +268,7 @@ fn input_rule_keep() {
     let runner = NodeRunner::new(Arc::new(operator_runner), instance_context);
 
     async_std::task::block_on(async {
-        let runner_manager = runner.start().await.unwrap();
+        let runner_manager = runner.start();
 
         send_usize(&hlc, &sender_input_2, 2).await; // IR: false -> (Pending, 2 (consume))
         send_usize(&hlc, &sender_input_2, 4).await; // -- IR are not triggered, value is queued

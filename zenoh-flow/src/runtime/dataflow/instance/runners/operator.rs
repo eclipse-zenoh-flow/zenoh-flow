@@ -171,8 +171,12 @@ impl Runner for OperatorRunner {
         self.io.lock().await.get_outputs()
     }
 
-    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
-        self.io.lock().await.get_inputs()
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+        let inputs = HashMap::new();
+        let mut io_guard = self.io.lock().await;
+        let current_inputs = io_guard.get_inputs();
+        io_guard.inputs = inputs;
+        current_inputs
     }
 
     async fn start_recording(&self) -> ZFResult<String> {

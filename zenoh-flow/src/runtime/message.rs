@@ -18,7 +18,7 @@ use crate::{Data, FlowId, NodeId, NodeOutput, PortId, ZFData, ZFError, ZFResult}
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, fmt::Debug};
-use uhlc::{Timestamp, NTP64};
+use uhlc::Timestamp;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -58,9 +58,10 @@ pub struct RecordingMetadata {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ControlMessage {
-    ReadyToMigrate,
-    ChangeMode(u8, u128),
-    Watermark,
+    // These messages are not yet defined, those are some ideas
+    // ReadyToMigrate,
+    // ChangeMode(u8, u128),
+    // Watermark,
     RecordingStart(RecordingMetadata),
     RecordingStop(Timestamp),
 }
@@ -116,7 +117,8 @@ impl Message {
             Self::Control(ref ctrl) => match ctrl {
                 ControlMessage::RecordingStart(ref rs) => rs.timestamp,
                 ControlMessage::RecordingStop(ref ts) => *ts,
-                _ => Timestamp::new(NTP64(u64::MAX), Uuid::nil().into()),
+                // Commented because Control messages are not yet defined.
+                // _ => Timestamp::new(NTP64(u64::MAX), Uuid::nil().into()),
             },
             Self::Data(data) => data.timestamp,
         }

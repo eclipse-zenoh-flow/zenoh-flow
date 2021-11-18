@@ -109,7 +109,7 @@ impl Runner for ZenohSender {
         HashMap::with_capacity(0)
     }
 
-    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
         let mut inputs = HashMap::with_capacity(1);
         inputs.insert(
             self.record.link_id.port_id.clone(),
@@ -244,7 +244,7 @@ impl Runner for ZenohReceiver {
         outputs
     }
 
-    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
         HashMap::with_capacity(0)
     }
 

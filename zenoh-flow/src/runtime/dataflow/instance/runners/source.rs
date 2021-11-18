@@ -176,72 +176,77 @@ impl Runner for SourceRunner {
         outputs
     }
 
-    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
         HashMap::with_capacity(0)
     }
 
     async fn start_recording(&self) -> ZFResult<String> {
-        let mut guard = self.is_recording.lock().await;
+        let mut is_recording_guard = self.is_recording.lock().await;
+        if !(*is_recording_guard) {
+            let ts_recoding_start = self.context.runtime.hlc.new_timestamp();
+            let resource_name = format!(
+                "{}/{}",
+                self.base_resource_name,
+                ts_recoding_start.get_time().to_string()
+            );
 
-        let ts_recoding_start = self.context.runtime.hlc.new_timestamp();
-        let resource_name = format!(
-            "{}/{}",
-            self.base_resource_name,
-            ts_recoding_start.get_time().to_string()
-        );
+            *(self.current_recording_resource.lock().await) = Some(resource_name.clone());
 
-        *(self.current_recording_resource.lock().await) = Some(resource_name.clone());
+            let recording_metadata = RecordingMetadata {
+                timestamp: ts_recoding_start,
+                port_id: self.output.port_id.clone(),
+                node_id: self.id.clone(),
+                flow_id: self.context.flow_id.clone(),
+                instance_id: self.context.instance_id,
+            };
 
-        let recording_metadata = RecordingMetadata {
-            timestamp: ts_recoding_start,
-            port_id: self.output.port_id.clone(),
-            node_id: self.id.clone(),
-            flow_id: self.context.flow_id.clone(),
-            instance_id: self.context.instance_id,
-        };
-
-        let message = Message::Control(ControlMessage::RecordingStart(recording_metadata));
-        let serialized = message.serialize_bincode()?;
-        log::debug!(
-            "ZenohLogger - {} - Started recoding at {:?}",
-            resource_name,
-            ts_recoding_start
-        );
-        self.context
-            .runtime
-            .session
-            .write(&resource_name.clone().into(), serialized.into())
-            .await?;
-        *guard = true;
-        Ok(resource_name)
+            let message = Message::Control(ControlMessage::RecordingStart(recording_metadata));
+            let serialized = message.serialize_bincode()?;
+            log::debug!(
+                "ZenohLogger - {} - Started recoding at {:?}",
+                resource_name,
+                ts_recoding_start
+            );
+            self.context
+                .runtime
+                .session
+                .write(&resource_name.clone().into(), serialized.into())
+                .await?;
+            *is_recording_guard = true;
+            return Ok(resource_name);
+        }
+        return Err(ZFError::AlreadyRecording);
     }
 
     async fn stop_recording(&self) -> ZFResult<String> {
-        let mut guard = self.is_recording.lock().await;
-        let mut resource_name_guard = self.current_recording_resource.lock().await;
+        let mut is_recording_guard = self.is_recording.lock().await;
+        if *is_recording_guard {
+            let mut resource_name_guard = self.current_recording_resource.lock().await;
 
-        let resource_name = resource_name_guard
-            .as_ref()
-            .ok_or(ZFError::Unimplemented)?
-            .clone();
+            let resource_name = resource_name_guard
+                .as_ref()
+                .ok_or(ZFError::Unimplemented)?
+                .clone();
 
-        let ts_recoding_stop = self.context.runtime.hlc.new_timestamp();
-        let message = Message::Control(ControlMessage::RecordingStop(ts_recoding_stop));
-        let serialized = message.serialize_bincode()?;
-        log::debug!(
-            "ZenohLogger - {} - Stop recoding at {:?}",
-            resource_name,
-            ts_recoding_stop
-        );
-        self.context
-            .runtime
-            .session
-            .write(&resource_name.clone().into(), serialized.into())
-            .await?;
+            let ts_recoding_stop = self.context.runtime.hlc.new_timestamp();
+            let message = Message::Control(ControlMessage::RecordingStop(ts_recoding_stop));
+            let serialized = message.serialize_bincode()?;
+            log::debug!(
+                "ZenohLogger - {} - Stop recoding at {:?}",
+                resource_name,
+                ts_recoding_stop
+            );
+            self.context
+                .runtime
+                .session
+                .write(&resource_name.clone().into(), serialized.into())
+                .await?;
 
-        *guard = false;
-        *resource_name_guard = None;
-        Ok(resource_name)
+            *is_recording_guard = false;
+            *resource_name_guard = None;
+            return Ok(resource_name);
+        }
+        return Err(ZFError::NotRecoding);
     }
 
     async fn is_recording(&self) -> bool {

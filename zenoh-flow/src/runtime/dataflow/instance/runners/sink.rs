@@ -102,7 +102,7 @@ impl Runner for SinkRunner {
         HashMap::with_capacity(0)
     }
 
-    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
         let mut inputs = HashMap::with_capacity(1);
         inputs.insert(self.input.port_id.clone(), self.link.lock().await.clone());
         inputs

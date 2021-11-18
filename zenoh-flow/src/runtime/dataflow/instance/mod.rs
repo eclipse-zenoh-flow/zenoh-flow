@@ -109,7 +109,6 @@ impl DataflowInstance {
 
         // The links were created, we can generate the Runners.
         let mut runners: HashMap<NodeId, NodeRunner> = HashMap::with_capacity(node_ids.len());
-        let managers: HashMap<NodeId, RunnerManager> = HashMap::with_capacity(node_ids.len());
 
         for (id, source) in dataflow.sources.into_iter() {
             let io = links.remove(&id).ok_or_else(|| {
@@ -188,7 +187,7 @@ impl DataflowInstance {
         Ok(Self {
             context,
             runners,
-            managers,
+            managers: HashMap::with_capacity(node_ids.len()),
         })
     }
 
@@ -264,7 +263,7 @@ impl DataflowInstance {
             .runners
             .get(node_id)
             .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-        let manager = runner.start().await?;
+        let manager = runner.start();
         self.managers.insert(node_id.clone(), manager);
         Ok(())
     }
@@ -276,7 +275,6 @@ impl DataflowInstance {
             .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
         manager.kill().await?;
         Ok(manager.await?)
-        // Ok(())
     }
 
     pub async fn start_recording(&self, node_id: &NodeId) -> ZFResult<String> {
@@ -295,7 +293,7 @@ impl DataflowInstance {
         manager.stop_recording().await
     }
 
-    pub async fn replay(&mut self, source_id: &NodeId, resource: String) -> ZFResult<NodeId> {
+    pub async fn start_replay(&mut self, source_id: &NodeId, resource: String) -> ZFResult<NodeId> {
         self.stop_node(source_id).await?;
         let runner = self
             .runners
@@ -317,16 +315,11 @@ impl DataflowInstance {
         )
         .into();
 
-        let mut output_links = vec![];
-        let source_links = runner.get_outputs_links().await;
-
-        for (_, links) in source_links {
-            for l in links {
-                if !l.is_disconnected() {
-                    output_links.push(l)
-                }
-            }
-        }
+        let output_links = runner
+            .get_outputs_links()
+            .await
+            .remove(&output_id)
+            .ok_or_else(|| ZFError::PortNotFound((source_id.clone(), output_id.clone())))?;
 
         let replay_node = ZenohReplay::try_new(
             replay_id.clone(),
@@ -339,7 +332,7 @@ impl DataflowInstance {
         )?;
 
         let replay_runner = NodeRunner::new(Arc::new(replay_node), self.context.clone());
-        let replay_manager = replay_runner.start().await?;
+        let replay_manager = replay_runner.start();
 
         self.runners.insert(replay_id.clone(), replay_runner);
         self.managers.insert(replay_id.clone(), replay_manager);

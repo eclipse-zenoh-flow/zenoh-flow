@@ -113,7 +113,7 @@ impl Runner for ZenohReplay {
         outputs
     }
 
-    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
         HashMap::with_capacity(0)
     }
 
@@ -162,8 +162,6 @@ impl Runner for ZenohReplay {
 
         for de in zf_data {
             log::debug!("ZenohReplay - {}<={:?} ", self.resource_name, de);
-            // let de: Message = bincode::deserialize(&msg.data.payload.contiguous())
-            //     .map_err(|_| ZFError::DeseralizationError)?;
             match &de {
                 Message::Control(ref ctrl_msg) => match &ctrl_msg {
                     ControlMessage::RecordingStart(ref ts) => {
@@ -172,10 +170,10 @@ impl Runner for ZenohReplay {
                     }
                     ControlMessage::RecordingStop(ref rs) => {
                         log::debug!("ZenohReplay - Recording Stop {:?} ", rs);
-                    }
-                    _ => {
-                        self.send_data(de).await?;
-                    }
+                    } // Commented because Control messages are not yet defined.
+                      // _ => {
+                      //     self.send_data(de).await?;
+                      // }
                 },
                 Message::Data(ref data_msg) => {
                     let data_ts = data_msg.timestamp;

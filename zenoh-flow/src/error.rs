@@ -25,6 +25,7 @@ pub enum ZFError {
     MissingState,
     InvalidState,
     Unimplemented,
+    Unsupported,
     Empty,
     MissingConfiguration,
     VersionMismatch,
@@ -58,6 +59,8 @@ pub enum ZFError {
     NodeNotFound(NodeId),
     PortNotFound((NodeId, PortId)),
     PortNotConnected((NodeId, PortId)),
+    NotRecoding,
+    AlreadyRecording,
 }
 
 impl From<ZRPCError> for ZFError {

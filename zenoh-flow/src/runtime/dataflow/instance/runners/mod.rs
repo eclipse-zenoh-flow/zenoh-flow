@@ -56,13 +56,13 @@ impl RunnerManager {
         handler: JoinHandle<ZFResult<()>>,
         runner: Arc<dyn Runner>,
         ctx: InstanceContext,
-    ) -> ZFResult<Self> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             stopper,
             handler,
             runner,
             ctx,
-        })
+        }
     }
 
     pub async fn kill(&self) -> ZFResult<()> {
@@ -130,7 +130,7 @@ pub trait Runner: Send + Sync {
 
     async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>>;
 
-    async fn get_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>>;
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>>;
 
     async fn start_recording(&self) -> ZFResult<String>;
     async fn stop_recording(&self) -> ZFResult<String>;
@@ -150,20 +150,20 @@ impl NodeRunner {
     }
 
     fn run_stoppable(&self, signal: Signal) -> ZFResult<()> {
-        loop {
-            async fn run(runner: &NodeRunner) -> RunAction {
-                match runner.run().await {
-                    Ok(_) => RunAction::Stop,
-                    Err(e) => RunAction::RestartRun(Some(e)),
-                }
+        async fn run(runner: &NodeRunner) -> RunAction {
+            match runner.run().await {
+                Ok(_) => RunAction::Stop,
+                Err(e) => RunAction::RestartRun(Some(e)),
             }
+        }
 
-            async fn stop(signal: Signal) -> RunAction {
-                signal.wait().await;
-                RunAction::Stop
-            }
-            let cloned_signal = signal.clone();
-            let result = async_std::task::block_on(async move {
+        async fn stop(signal: Signal) -> RunAction {
+            signal.wait().await;
+            RunAction::Stop
+        }
+        async_std::task::block_on(async move {
+            loop {
+                let cloned_signal = signal.clone();
                 match stop(cloned_signal).race(run(self)).await {
                     RunAction::RestartRun(e) => {
                         log::error!(
@@ -171,24 +171,19 @@ impl NodeRunner {
                             self.get_id(),
                             e
                         );
-                        Err(e)
                     }
                     RunAction::Stop => {
                         log::trace!(
                             "[Node: {}] Received kill command, killing runner",
                             self.get_id()
                         );
-                        Ok(())
+                        return Ok(());
                     }
                 }
-            });
-
-            if result.is_ok() {
-                return Ok(());
             }
-        }
+        })
     }
-    pub async fn start(&self) -> ZFResult<RunnerManager> {
+    pub fn start(&self) -> RunnerManager {
         let signal = Signal::new();
         let cloned_self = self.clone();
         let cloned_signal = signal.clone();
