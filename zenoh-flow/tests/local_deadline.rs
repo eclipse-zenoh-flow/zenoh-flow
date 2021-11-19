@@ -115,44 +115,50 @@ async fn single_runtime() {
     let sink = Arc::new(VecSink::new(tx_sink, vec![1]));
     let operator = Arc::new(OperatorDeadline {});
 
-    dataflow.add_static_source(
-        SOURCE.into(),
-        None,
-        PortDescriptor {
-            port_id: SOURCE.into(),
-            port_type: "int".into(),
-        },
-        source.initialize(&None).unwrap(),
-        source,
-    );
-
-    dataflow.add_static_sink(
-        SINK.into(),
-        PortDescriptor {
-            port_id: SINK.into(),
-            port_type: "int".into(),
-        },
-        sink.initialize(&None).unwrap(),
-        sink,
-    );
-
-    dataflow.add_static_operator(
-        OPERATOR.into(),
-        vec![PortDescriptor {
-            port_id: SOURCE.into(),
-            port_type: "int".into(),
-        }],
-        vec![PortDescriptor {
-            port_id: SINK.into(),
-            port_type: "int".into(),
-        }],
-        Some(Duration::from_millis(500)),
-        operator.initialize(&None).unwrap(),
-        operator,
-    );
+    dataflow
+        .try_add_static_source(
+            SOURCE.into(),
+            None,
+            PortDescriptor {
+                port_id: SOURCE.into(),
+                port_type: "int".into(),
+            },
+            source.initialize(&None).unwrap(),
+            source,
+        )
+        .unwrap();
 
     dataflow
-        .add_link(
+        .try_add_static_sink(
+            SINK.into(),
+            PortDescriptor {
+                port_id: SINK.into(),
+                port_type: "int".into(),
+            },
+            sink.initialize(&None).unwrap(),
+            sink,
+        )
+        .unwrap();
+
+    dataflow
+        .try_add_static_operator(
+            OPERATOR.into(),
+            vec![PortDescriptor {
+                port_id: SOURCE.into(),
+                port_type: "int".into(),
+            }],
+            vec![PortDescriptor {
+                port_id: SINK.into(),
+                port_type: "int".into(),
+            }],
+            Some(Duration::from_millis(500)),
+            operator.initialize(&None).unwrap(),
+            operator,
+        )
+        .unwrap();
+
+    dataflow
+        .try_add_link(
             LinkFromDescriptor {
                 node: SOURCE.into(),
                 output: SOURCE.into(),
@@ -168,7 +174,7 @@ async fn single_runtime() {
         .unwrap();
 
     dataflow
-        .add_link(
+        .try_add_link(
             LinkFromDescriptor {
                 node: OPERATOR.into(),
                 output: SINK.into(),

@@ -208,44 +208,50 @@ async fn single_runtime() {
     let sink = Arc::new(ExampleGenericSink {});
     let operator = Arc::new(NoOp {});
 
-    dataflow.add_static_source(
-        "counter-source".into(),
-        None,
-        PortDescriptor {
-            port_id: SOURCE.into(),
-            port_type: "int".into(),
-        },
-        source.initialize(&None).unwrap(),
-        source,
-    );
-
-    dataflow.add_static_sink(
-        "generic-sink".into(),
-        PortDescriptor {
-            port_id: SOURCE.into(),
-            port_type: "int".into(),
-        },
-        sink.initialize(&None).unwrap(),
-        sink,
-    );
-
-    dataflow.add_static_operator(
-        "noop".into(),
-        vec![PortDescriptor {
-            port_id: SOURCE.into(),
-            port_type: "int".into(),
-        }],
-        vec![PortDescriptor {
-            port_id: DESTINATION.into(),
-            port_type: "int".into(),
-        }],
-        None,
-        operator.initialize(&None).unwrap(),
-        operator,
-    );
+    dataflow
+        .try_add_static_source(
+            "counter-source".into(),
+            None,
+            PortDescriptor {
+                port_id: SOURCE.into(),
+                port_type: "int".into(),
+            },
+            source.initialize(&None).unwrap(),
+            source,
+        )
+        .unwrap();
 
     dataflow
-        .add_link(
+        .try_add_static_sink(
+            "generic-sink".into(),
+            PortDescriptor {
+                port_id: SOURCE.into(),
+                port_type: "int".into(),
+            },
+            sink.initialize(&None).unwrap(),
+            sink,
+        )
+        .unwrap();
+
+    dataflow
+        .try_add_static_operator(
+            "noop".into(),
+            vec![PortDescriptor {
+                port_id: SOURCE.into(),
+                port_type: "int".into(),
+            }],
+            vec![PortDescriptor {
+                port_id: DESTINATION.into(),
+                port_type: "int".into(),
+            }],
+            None,
+            operator.initialize(&None).unwrap(),
+            operator,
+        )
+        .unwrap();
+
+    dataflow
+        .try_add_link(
             LinkFromDescriptor {
                 node: "counter-source".into(),
                 output: SOURCE.into(),
@@ -261,7 +267,7 @@ async fn single_runtime() {
         .unwrap();
 
     dataflow
-        .add_link(
+        .try_add_link(
             LinkFromDescriptor {
                 node: "noop".into(),
                 output: DESTINATION.into(),
