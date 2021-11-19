@@ -23,11 +23,12 @@ use uuid::Uuid;
 
 use crate::model::connector::ZFConnectorRecord;
 use crate::model::dataflow::record::DataFlowRecord;
+use crate::model::dataflow::validator::DataflowValidator;
 use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::model::period::PeriodDescriptor;
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
-use crate::{FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFError, ZFResult};
+use crate::{FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
 
 pub struct Dataflow {
     pub(crate) uuid: Uuid,
@@ -38,6 +39,7 @@ pub struct Dataflow {
     pub(crate) sinks: HashMap<NodeId, SinkLoaded>,
     pub(crate) connectors: HashMap<NodeId, ZFConnectorRecord>,
     pub(crate) links: Vec<LinkDescriptor>,
+    validator: DataflowValidator,
 }
 
 impl Dataflow {
@@ -63,6 +65,7 @@ impl Dataflow {
             sinks: HashMap::default(),
             connectors: HashMap::default(),
             links: Vec::default(),
+            validator: DataflowValidator::new(),
         }
     }
 
@@ -116,17 +119,20 @@ impl Dataflow {
             sinks,
             connectors,
             links: record.links,
+            validator: DataflowValidator::new(),
         })
     }
 
-    pub fn add_static_source(
+    pub fn try_add_static_source(
         &mut self,
         id: NodeId,
         period: Option<PeriodDescriptor>,
         output: PortDescriptor,
         state: State,
         source: Arc<dyn Source>,
-    ) {
+    ) -> ZFResult<()> {
+        self.validator.try_add_source(id.clone(), output.clone())?;
+
         self.sources.insert(
             id.clone(),
             SourceLoaded {
@@ -138,9 +144,11 @@ impl Dataflow {
                 library: None,
             },
         );
+
+        Ok(())
     }
 
-    pub fn add_static_operator(
+    pub fn try_add_static_operator(
         &mut self,
         id: NodeId,
         inputs: Vec<PortDescriptor>,
@@ -148,7 +156,10 @@ impl Dataflow {
         deadline: Option<Duration>,
         state: State,
         operator: Arc<dyn Operator>,
-    ) {
+    ) -> ZFResult<()> {
+        self.validator
+            .try_add_operator(id.clone(), &inputs, &outputs)?;
+
         let inputs: HashMap<PortId, PortType> = inputs
             .into_iter()
             .map(|desc| (desc.port_id, desc.port_type))
@@ -170,15 +181,19 @@ impl Dataflow {
                 library: None,
             },
         );
+
+        Ok(())
     }
 
-    pub fn add_static_sink(
+    pub fn try_add_static_sink(
         &mut self,
         id: NodeId,
         input: PortDescriptor,
         state: State,
         sink: Arc<dyn Sink>,
-    ) {
+    ) -> ZFResult<()> {
+        self.validator.try_add_sink(id.clone(), input.clone())?;
+
         self.sinks.insert(
             id.clone(),
             SinkLoaded {
@@ -189,6 +204,8 @@ impl Dataflow {
                 library: None,
             },
         );
+
+        Ok(())
     }
 
     /// Add a link, connecting two nodes.
@@ -198,7 +215,7 @@ impl Dataflow {
     /// This function will return error if the nodes that are to be linked where not previously
     /// added to the Dataflow **or** if the types of the ports (declared in the nodes) are not
     /// identical.
-    pub fn add_link(
+    pub fn try_add_link(
         &mut self,
         from: LinkFromDescriptor,
         to: LinkToDescriptor,
@@ -206,50 +223,16 @@ impl Dataflow {
         queueing_policy: Option<String>,
         priority: Option<usize>,
     ) -> ZFResult<()> {
-        let from_type = self.get_node_port_type(&from.node, &from.output)?;
-        let to_type = self.get_node_port_type(&to.node, &to.input)?;
+        self.validator.try_add_link(&from, &to)?;
 
-        if from_type == to_type {
-            self.links.push(LinkDescriptor {
-                from,
-                to,
-                size,
-                queueing_policy,
-                priority,
-            });
-            return Ok(());
-        }
+        self.links.push(LinkDescriptor {
+            from,
+            to,
+            size,
+            queueing_policy,
+            priority,
+        });
 
-        Err(ZFError::PortTypeNotMatching((from_type, to_type)))
-    }
-
-    fn get_node_port_type(&self, node_id: &NodeId, port_id: &PortId) -> ZFResult<PortType> {
-        if let Some(operator) = self.operators.get(node_id) {
-            if let Some(port_type) = operator.inputs.get(port_id) {
-                return Ok(port_type.clone());
-            } else if let Some(port_type) = operator.outputs.get(port_id) {
-                return Ok(port_type.clone());
-            } else {
-                return Err(ZFError::PortNotFound((node_id.clone(), port_id.clone())));
-            }
-        }
-
-        if let Some(source) = self.sources.get(node_id) {
-            if source.output.port_id == *port_id {
-                return Ok(source.output.port_type.clone());
-            }
-
-            return Err(ZFError::PortNotFound((node_id.clone(), port_id.clone())));
-        }
-
-        if let Some(sink) = self.sinks.get(node_id) {
-            if sink.input.port_id == *port_id {
-                return Ok(sink.input.port_type.clone());
-            }
-
-            return Err(ZFError::PortNotFound((node_id.clone(), port_id.clone())));
-        }
-
-        Err(ZFError::NodeNotFound(node_id.clone()))
+        Ok(())
     }
 }

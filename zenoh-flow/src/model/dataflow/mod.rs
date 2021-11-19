@@ -14,3 +14,4 @@
 
 pub mod descriptor;
 pub mod record;
+pub mod validator;
