@@ -14,6 +14,7 @@
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::dataflow::descriptor::DataFlowDescriptor;
+use crate::model::deadline::DeadlineRecord;
 use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::serde::{Deserialize, Serialize};
@@ -32,6 +33,7 @@ pub struct DataFlowRecord {
     pub sources: Vec<SourceRecord>,
     pub connectors: Vec<ZFConnectorRecord>,
     pub links: Vec<LinkDescriptor>,
+    pub deadlines: Option<Vec<DeadlineRecord>>,
 }
 
 impl DataFlowRecord {
@@ -249,6 +251,12 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
 
     fn try_from(d: (DataFlowDescriptor, Uuid)) -> Result<Self, Self::Error> {
         let (d, id) = d;
+
+        let deadlines = d
+            .deadlines
+            .clone()
+            .map(|deadlines_desc| deadlines_desc.into_iter().map(|desc| desc.into()).collect());
+
         let mut dfr = DataFlowRecord {
             uuid: id,
             flow: d.flow.clone(),
@@ -257,6 +265,7 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
             sources: Vec::new(),
             connectors: Vec::new(),
             links: Vec::new(),
+            deadlines,
         };
 
         for o in &d.operators {

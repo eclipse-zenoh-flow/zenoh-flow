@@ -527,3 +527,374 @@ fn validate_ko_invalid_json() {
     let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_INVALID_JSON);
     assert!(matches!(r, Err(ZFError::ParsingError(_))))
 }
+
+// Visual representation of the dataflow:
+//
+//          out   in           out1     in
+// ┌────────┐      ┌───────────┐        ┌───────┐
+// │ Source ├─────►│ Operator1 ├───────►│ Sink1 │
+// └────────┘      └───────┬───┘        └───────┘
+//                     out2│
+//                         │            ┌───────────┐          ┌───────┐
+//                         └───────────►│ Operator2 ├─────────►│ Sink2 │
+//                                      └───────────┘          └───────┘
+//                                    in            out        in
+//
+// (drawing made with: https://asciiflow.com/)
+static DESCRIPTOR_KO_DEADLINE_NO_PATH: &str = r#"
+flow: DeadlineNoPath
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out
+    type: usize
+
+operators:
+- id : Operator1
+  uri: file://./operator1.dylib
+  inputs:
+    - id: in
+      type: usize
+  outputs:
+    - id: out1
+      type: usize
+    - id: out2
+      type: usize
+- id : Operator2
+  uri: file://./operator1.dylib
+  inputs:
+    - id: in
+      type: usize
+  outputs:
+    - id: out
+      type: usize
+sinks:
+  - id : Sink1
+    uri: file://./sink1.dylib
+    input:
+      id: in
+      type: usize
+  - id : Sink2
+    uri: file://./sink2.dylib
+    input:
+      id: in
+      type: usize
+
+links:
+- from:
+    node : Source
+    output : out
+  to:
+    node : Operator1
+    input : in
+- from:
+    node : Operator1
+    output : out1
+  to:
+    node : Sink1
+    input : in
+- from:
+    node : Operator1
+    output : out2
+  to:
+    node : Operator2
+    input : in
+- from:
+    node : Operator2
+    output : out
+  to:
+    node : Sink2
+    input : in
+
+deadlines:
+- from:
+    node: Operator1
+    output: out1
+  to:
+    node: Sink2
+    input: in
+  duration:
+    length: 500
+    unit: ms
+"#;
+
+#[test]
+fn validate_ko_deadline_no_path() {
+    // There is no path between Operator1.out1 and Sink2.in.
+    //
+    // There is, however, a path between Operator1.out2 and Sink2.in.
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_DEADLINE_NO_PATH);
+    assert_eq!(
+        r,
+        Err(ZFError::NoPathBetweenNodes((
+            ("Operator1".into(), "out1".into()),
+            ("Sink2".into(), "in".into())
+        )))
+    )
+}
+
+// Visual representation of the dataflow:
+//
+//          out   in           out1     in
+// ┌────────┐      ┌───────────┐        ┌───────┐
+// │ Source ├─────►│ Operator1 ├───────►│ Sink1 │
+// └────────┘      └───────┬───┘        └───────┘
+//                     out2│
+//                         │            ┌───────────┐          ┌───────┐
+//                         └───────────►│ Operator2 ├─────────►│ Sink2 │
+//                                      └───────────┘          └───────┘
+//                                    in            out        in
+//
+// (drawing made with: https://asciiflow.com/)
+static DESCRIPTOR_OK_DEADLINE: &str = r#"
+flow: DeadlineNoPath
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out
+    type: usize
+
+operators:
+- id : Operator1
+  uri: file://./operator1.dylib
+  inputs:
+    - id: in
+      type: usize
+  outputs:
+    - id: out1
+      type: usize
+    - id: out2
+      type: usize
+- id : Operator2
+  uri: file://./operator1.dylib
+  inputs:
+    - id: in
+      type: usize
+  outputs:
+    - id: out
+      type: usize
+sinks:
+  - id : Sink1
+    uri: file://./sink1.dylib
+    input:
+      id: in
+      type: usize
+  - id : Sink2
+    uri: file://./sink2.dylib
+    input:
+      id: in
+      type: usize
+
+links:
+- from:
+    node : Source
+    output : out
+  to:
+    node : Operator1
+    input : in
+- from:
+    node : Operator1
+    output : out1
+  to:
+    node : Sink1
+    input : in
+- from:
+    node : Operator1
+    output : out2
+  to:
+    node : Operator2
+    input : in
+- from:
+    node : Operator2
+    output : out
+  to:
+    node : Sink2
+    input : in
+
+deadlines:
+- from:
+    node: Operator1
+    output: out2
+  to:
+    node: Sink2
+    input: in
+  duration:
+    length: 500
+    unit: ms
+- from:
+    node: Source
+    output: out
+  to:
+    node: Sink2
+    input: in
+  duration:
+    length: 1000
+    unit: ms
+"#;
+
+#[test]
+fn validate_ok_deadline() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_OK_DEADLINE);
+    assert!(r.is_ok())
+}
+
+// Visual representation of the dataflow:
+//
+//          out   in         out      in
+// ┌────────┐      ┌──────────┐        ┌──────┐
+// │ Source ├─────►│ Operator ├───────►│ Sink │
+// └────────┘      └──────────┘        └──────┘
+//
+// (drawing made with: https://asciiflow.com/)
+static DESCRIPTOR_KO_SELF_DEADLINE: &str = r#"
+flow: DeadlineNoPath
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out
+    type: usize
+
+operators:
+- id : Operator
+  uri: file://./operator.dylib
+  inputs:
+    - id: in
+      type: usize
+  outputs:
+    - id: out
+      type: usize
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in
+      type: usize
+
+links:
+- from:
+    node : Source
+    output : out
+  to:
+    node : Operator
+    input : in
+- from:
+    node : Operator
+    output : out
+  to:
+    node : Sink
+    input : in
+
+deadlines:
+- from:
+    node: Operator
+    output: out
+  to:
+    node: Operator
+    input: in
+  duration:
+    length: 500
+    unit: ms
+"#;
+
+#[test]
+fn validate_ko_self_deadline() {
+    // There is no path between Operator1.out1 and Sink2.in.
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_SELF_DEADLINE);
+    assert_eq!(
+        r,
+        Err(ZFError::NoPathBetweenNodes((
+            ("Operator".into(), "out".into()),
+            ("Operator".into(), "in".into())
+        )))
+    )
+}
+
+// Visual representation of the dataflow:
+//
+//          out   in         out      in           out      in
+// ┌────────┐      ┌───────────┐        ┌───────────┐        ┌──────┐
+// │ Source ├─────►│ Operator1 ├───────►│ Operator2 ├───────►│ Sink │
+// └────────┘      └───────────┘        └───────────┘        └──────┘
+//
+// (drawing made with: https://asciiflow.com/)
+static DESCRIPTOR_KO_REVERSE_DEADLINE: &str = r#"
+flow: DeadlineNoPath
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out
+    type: usize
+
+operators:
+- id : Operator1
+  uri: file://./operator1.dylib
+  inputs:
+    - id: in
+      type: usize
+  outputs:
+    - id: out
+      type: usize
+- id : Operator2
+  uri: file://./operator2.dylib
+  inputs:
+    - id: in
+      type: usize
+  outputs:
+    - id: out
+      type: usize
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in
+      type: usize
+
+links:
+- from:
+    node : Source
+    output : out
+  to:
+    node : Operator1
+    input : in
+- from:
+    node : Operator1
+    output : out
+  to:
+    node : Operator2
+    input : in
+- from:
+    node : Operator2
+    output : out
+  to:
+    node : Sink
+    input : in
+
+deadlines:
+- from:
+    node: Operator2
+    output: out
+  to:
+    node: Operator1
+    input: in
+  duration:
+    length: 500
+    unit: ms
+"#;
+
+#[test]
+fn validate_ko_reverse_deadline() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_REVERSE_DEADLINE);
+    assert_eq!(
+        r,
+        Err(ZFError::NoPathBetweenNodes((
+            ("Operator2".into(), "out".into()),
+            ("Operator1".into(), "in".into())
+        )))
+    )
+}
