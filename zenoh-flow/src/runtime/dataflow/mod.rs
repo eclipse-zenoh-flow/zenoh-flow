@@ -164,7 +164,7 @@ impl Dataflow {
         id: NodeId,
         inputs: Vec<PortDescriptor>,
         outputs: Vec<PortDescriptor>,
-        deadline: Option<Duration>,
+        local_deadline: Option<Duration>,
         state: State,
         operator: Arc<dyn Operator>,
     ) -> ZFResult<()> {
@@ -186,7 +186,7 @@ impl Dataflow {
                 id,
                 inputs,
                 outputs,
-                deadline,
+                local_deadline,
                 state: Arc::new(Mutex::new(state)),
                 operator,
                 library: None,

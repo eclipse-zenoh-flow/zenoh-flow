@@ -105,7 +105,7 @@ pub struct OperatorRunner {
     pub(crate) io: Arc<Mutex<OperatorIO>>,
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
-    pub(crate) deadline: Option<Duration>,
+    pub(crate) local_deadline: Option<Duration>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
@@ -127,7 +127,7 @@ impl OperatorRunner {
             state: operator.state,
             operator: operator.operator,
             library: operator.library,
-            deadline: operator.deadline,
+            local_deadline: operator.local_deadline,
         })
     }
 }
@@ -355,7 +355,7 @@ impl Runner for OperatorRunner {
 
             let mut deadline_miss = None;
 
-            if let Some(deadline) = self.deadline {
+            if let Some(deadline) = self.local_deadline {
                 if elapsed > deadline {
                     log::warn!(
                         "[Operator: {}] Deadline miss detected for `run`: {} ms (expected < {} ms)",

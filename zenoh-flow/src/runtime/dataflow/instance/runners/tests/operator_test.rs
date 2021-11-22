@@ -259,7 +259,7 @@ fn input_rule_keep() {
         io: Arc::new(Mutex::new(operator_io)),
         inputs,
         outputs,
-        deadline: None,
+        local_deadline: None,
         state: Arc::new(Mutex::new(operator.initialize(&None).unwrap())),
         operator: Arc::new(operator),
         library: None,
