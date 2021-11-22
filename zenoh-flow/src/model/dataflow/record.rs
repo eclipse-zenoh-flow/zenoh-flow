@@ -33,7 +33,7 @@ pub struct DataFlowRecord {
     pub sources: Vec<SourceRecord>,
     pub connectors: Vec<ZFConnectorRecord>,
     pub links: Vec<LinkDescriptor>,
-    pub deadlines: Option<Vec<DeadlineRecord>>,
+    pub end_to_end_deadlines: Option<Vec<DeadlineRecord>>,
 }
 
 impl DataFlowRecord {
@@ -265,7 +265,7 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
             sources: Vec::new(),
             connectors: Vec::new(),
             links: Vec::new(),
-            deadlines,
+            end_to_end_deadlines: deadlines,
         };
 
         for o in &d.operators {
