@@ -12,6 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+use crate::model::deadline::DeadlineRecord;
 use crate::model::link::PortDescriptor;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
@@ -27,6 +28,7 @@ pub struct SourceLoaded {
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) library: Option<Arc<Library>>,
+    pub(crate) end_to_end_deadlines: Option<Vec<DeadlineRecord>>,
 }
 
 impl SourceLoaded {
@@ -44,6 +46,7 @@ impl SourceLoaded {
             period: record.period.map(|dur_desc| dur_desc.to_duration()),
             source,
             library: lib,
+            end_to_end_deadlines: None,
         })
     }
 }
@@ -56,6 +59,7 @@ pub struct OperatorLoaded {
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
+    pub(crate) end_to_end_deadlines: Option<Vec<DeadlineRecord>>,
 }
 
 impl OperatorLoaded {
@@ -86,6 +90,7 @@ impl OperatorLoaded {
             state: Arc::new(Mutex::new(state)),
             operator,
             library: lib,
+            end_to_end_deadlines: None,
         })
     }
 }
@@ -96,6 +101,7 @@ pub struct SinkLoaded {
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) library: Option<Arc<Library>>,
+    pub(crate) end_to_end_deadlines: Option<Vec<DeadlineRecord>>,
 }
 
 impl SinkLoaded {
@@ -112,6 +118,7 @@ impl SinkLoaded {
             state: Arc::new(Mutex::new(state)),
             sink,
             library: lib,
+            end_to_end_deadlines: None,
         })
     }
 }
