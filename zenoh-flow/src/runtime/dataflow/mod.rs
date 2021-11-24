@@ -24,7 +24,7 @@ use uuid::Uuid;
 use crate::model::connector::ZFConnectorRecord;
 use crate::model::dataflow::record::DataFlowRecord;
 use crate::model::dataflow::validator::DataflowValidator;
-use crate::model::deadline::DeadlineRecord;
+use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
@@ -152,7 +152,7 @@ impl Dataflow {
                 period: period.map(|dur_desc| dur_desc.to_duration()),
                 source,
                 library: None,
-                end_to_end_deadlines: None,
+                end_to_end_deadlines: vec![],
             },
         );
 
@@ -190,7 +190,7 @@ impl Dataflow {
                 state: Arc::new(Mutex::new(state)),
                 operator,
                 library: None,
-                end_to_end_deadlines: None,
+                end_to_end_deadlines: vec![],
             },
         );
 
@@ -214,7 +214,7 @@ impl Dataflow {
                 state: Arc::new(Mutex::new(state)),
                 sink,
                 library: None,
-                end_to_end_deadlines: None,
+                end_to_end_deadlines: vec![],
             },
         );
 
@@ -256,41 +256,29 @@ impl Dataflow {
         duration: Duration,
     ) -> ZFResult<()> {
         self.validator.validate_deadline(&from, &to)?;
-        let deadline = DeadlineRecord { from, to, duration };
+        let deadline = E2EDeadlineRecord { from, to, duration };
         self.add_end_to_end_deadline(deadline);
 
         Ok(())
     }
 
-    fn add_end_to_end_deadline(&mut self, deadline: DeadlineRecord) {
+    fn add_end_to_end_deadline(&mut self, deadline: E2EDeadlineRecord) {
         // Look for the "from" node in either Sources and Operators.
         if let Some(source) = self.sources.get_mut(&deadline.from.node) {
-            match source.end_to_end_deadlines {
-                Some(ref mut deadlines) => deadlines.push(deadline.clone()),
-                None => source.end_to_end_deadlines = Some(vec![deadline.clone()]),
-            }
+            source.end_to_end_deadlines.push(deadline.clone());
         }
 
         if let Some(operator) = self.operators.get_mut(&deadline.from.node) {
-            match operator.end_to_end_deadlines {
-                Some(ref mut deadlines) => deadlines.push(deadline.clone()),
-                None => operator.end_to_end_deadlines = Some(vec![deadline.clone()]),
-            }
+            operator.end_to_end_deadlines.push(deadline.clone());
         }
 
         // Look for the "to" node in either Operators and Sinks.
         if let Some(operator) = self.operators.get_mut(&deadline.to.node) {
-            match operator.end_to_end_deadlines {
-                Some(ref mut deadlines) => deadlines.push(deadline.clone()),
-                None => operator.end_to_end_deadlines = Some(vec![deadline.clone()]),
-            }
+            operator.end_to_end_deadlines.push(deadline.clone());
         }
 
         if let Some(sink) = self.sinks.get_mut(&deadline.to.node) {
-            match sink.end_to_end_deadlines {
-                Some(ref mut deadlines) => deadlines.push(deadline),
-                None => sink.end_to_end_deadlines = Some(vec![deadline]),
-            }
+            sink.end_to_end_deadlines.push(deadline);
         }
     }
 }

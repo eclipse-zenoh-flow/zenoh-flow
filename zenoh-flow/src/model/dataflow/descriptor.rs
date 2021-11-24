@@ -13,7 +13,7 @@
 //
 
 use crate::model::dataflow::validator::DataflowValidator;
-use crate::model::deadline::DeadlineDescriptor;
+use crate::model::deadline::E2EDeadlineDescriptor;
 use crate::model::link::LinkDescriptor;
 use crate::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use crate::serde::{Deserialize, Serialize};
@@ -36,7 +36,7 @@ pub struct DataFlowDescriptor {
     pub sinks: Vec<SinkDescriptor>,
     pub links: Vec<LinkDescriptor>,
     pub mapping: Option<Vec<Mapping>>,
-    pub deadlines: Option<Vec<DeadlineDescriptor>>,
+    pub deadlines: Option<Vec<E2EDeadlineDescriptor>>,
 }
 
 impl DataFlowDescriptor {

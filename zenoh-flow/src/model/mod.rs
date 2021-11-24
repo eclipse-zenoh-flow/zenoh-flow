@@ -14,9 +14,9 @@
 
 pub mod connector;
 pub mod dataflow;
+pub mod deadline;
 pub mod link;
 pub mod node;
-pub mod deadline;
 
 use crate::model::link::PortDescriptor;
 use crate::serde::{Deserialize, Serialize};

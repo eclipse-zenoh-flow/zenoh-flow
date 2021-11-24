@@ -14,7 +14,7 @@
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::dataflow::descriptor::DataFlowDescriptor;
-use crate::model::deadline::DeadlineRecord;
+use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::serde::{Deserialize, Serialize};
@@ -33,7 +33,7 @@ pub struct DataFlowRecord {
     pub sources: Vec<SourceRecord>,
     pub connectors: Vec<ZFConnectorRecord>,
     pub links: Vec<LinkDescriptor>,
-    pub end_to_end_deadlines: Option<Vec<DeadlineRecord>>,
+    pub end_to_end_deadlines: Option<Vec<E2EDeadlineRecord>>,
 }
 
 impl DataFlowRecord {

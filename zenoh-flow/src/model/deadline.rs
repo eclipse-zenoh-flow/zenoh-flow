@@ -18,21 +18,21 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeadlineDescriptor {
+pub struct E2EDeadlineDescriptor {
     pub(crate) from: LinkFromDescriptor,
     pub(crate) to: LinkToDescriptor,
     pub(crate) duration: DurationDescriptor,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeadlineRecord {
+pub struct E2EDeadlineRecord {
     pub(crate) from: LinkFromDescriptor,
     pub(crate) to: LinkToDescriptor,
     pub(crate) duration: Duration,
 }
 
-impl From<DeadlineDescriptor> for DeadlineRecord {
-    fn from(desc: DeadlineDescriptor) -> Self {
+impl From<E2EDeadlineDescriptor> for E2EDeadlineRecord {
+    fn from(desc: E2EDeadlineDescriptor) -> Self {
         Self {
             from: desc.from,
             to: desc.to,
