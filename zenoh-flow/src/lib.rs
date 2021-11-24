@@ -24,6 +24,7 @@ pub use ::typetag;
 
 pub mod model;
 pub mod runtime;
+pub use runtime::deadline::LocalDeadlineMiss;
 pub use runtime::message::*;
 pub use runtime::token::*;
 pub mod types;

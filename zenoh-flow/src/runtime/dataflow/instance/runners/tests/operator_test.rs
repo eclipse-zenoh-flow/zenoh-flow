@@ -31,9 +31,9 @@ use crate::{
         },
         InstanceContext, RuntimeContext,
     },
-    Configuration, Context, Data, DataMessage, DeadlineMiss, Deserializable, DowncastAny,
-    EmptyState, Message, Node, NodeOutput, Operator, PortId, PortType, State, Token, TokenAction,
-    ZFData, ZFError, ZFResult,
+    Configuration, Context, Data, DataMessage, Deserializable, DowncastAny, EmptyState,
+    LocalDeadlineMiss, Message, Node, NodeOutput, Operator, PortId, PortType, State, Token,
+    TokenAction, ZFData, ZFError, ZFResult,
 };
 
 // ZFUsize implements Data.
@@ -148,7 +148,7 @@ impl Operator for TestOperator {
         _context: &mut Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
-        deadline_miss: Option<DeadlineMiss>,
+        deadline_miss: Option<LocalDeadlineMiss>,
     ) -> ZFResult<HashMap<PortId, NodeOutput>> {
         assert!(
             deadline_miss.is_none(),

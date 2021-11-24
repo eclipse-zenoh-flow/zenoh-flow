@@ -20,7 +20,7 @@ use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::{
-    Context, DataMessage, DeadlineMiss, NodeId, Operator, PortId, PortType, State, Token,
+    Context, DataMessage, LocalDeadlineMiss, NodeId, Operator, PortId, PortType, State, Token,
     TokenAction, ZFError, ZFResult,
 };
 use async_trait::async_trait;
@@ -363,7 +363,7 @@ impl Runner for OperatorRunner {
                         elapsed.as_micros(),
                         deadline.as_micros()
                     );
-                    deadline_miss = Some(DeadlineMiss {
+                    deadline_miss = Some(LocalDeadlineMiss {
                         start,
                         deadline,
                         elapsed,

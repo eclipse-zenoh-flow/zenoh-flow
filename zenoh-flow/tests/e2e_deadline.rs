@@ -23,7 +23,7 @@ use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, zf_empty_state, Configuration, Data, DeadlineMiss,
+    default_input_rule, default_output_rule, zf_empty_state, Configuration, Data, LocalDeadlineMiss,
     Node, NodeOutput, Operator, PortId, State, ZFError, ZFResult,
 };
 
@@ -80,7 +80,7 @@ impl Operator for OperatorE2EDeadline {
         _context: &mut zenoh_flow::Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
-        deadline_miss: Option<DeadlineMiss>,
+        deadline_miss: Option<LocalDeadlineMiss>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         assert!(
             deadline_miss.is_none(),
