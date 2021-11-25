@@ -21,7 +21,32 @@ pub mod node;
 use crate::model::link::PortDescriptor;
 use crate::serde::{Deserialize, Serialize};
 use crate::ZFError;
-use crate::{DurationDescriptor, NodeId};
+use crate::{DurationDescriptor, NodeId, PortId};
+use std::fmt;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FromDescriptor {
+    pub node: NodeId,
+    pub output: PortId,
+}
+
+impl fmt::Display for FromDescriptor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("{}.{}", self.node, self.output))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ToDescriptor {
+    pub node: NodeId,
+    pub input: PortId,
+}
+
+impl fmt::Display for ToDescriptor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("{}.{}", self.node, self.input))
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

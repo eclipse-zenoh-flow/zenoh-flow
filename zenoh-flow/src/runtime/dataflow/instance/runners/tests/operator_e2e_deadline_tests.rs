@@ -13,7 +13,7 @@
 //
 
 use crate::model::deadline::E2EDeadlineRecord;
-use crate::model::link::{LinkFromDescriptor, LinkToDescriptor};
+use crate::model::{FromDescriptor, ToDescriptor};
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::{OperatorIO, OperatorRunner};
 use crate::runtime::dataflow::instance::runners::NodeRunner;
@@ -220,11 +220,11 @@ fn e2e_deadline() {
     };
     let operator_id: NodeId = "TestOperatorDeadlineViolated".into();
     let operator_deadline = E2EDeadlineRecord {
-        from: LinkFromDescriptor {
+        from: FromDescriptor {
             node: operator_id.clone(),
             output: output.clone(),
         },
-        to: LinkToDescriptor {
+        to: ToDescriptor {
             node: "future-not-violated".into(),
             input: input.clone(),
         },
@@ -258,11 +258,11 @@ fn e2e_deadline() {
             // is not supposed to check it as it’s not the "to" node.
             let deadline_violated_to_propagate = E2EDeadline {
                 duration: Duration::from_millis(100),
-                from: LinkFromDescriptor {
+                from: FromDescriptor {
                     node: "past".into(),
                     output: output.clone(),
                 },
-                to: LinkToDescriptor {
+                to: ToDescriptor {
                     node: "future".into(),
                     input: input.clone(),
                 },
@@ -282,11 +282,11 @@ fn e2e_deadline() {
                 vec![
                     E2EDeadline {
                         duration: Duration::from_millis(100),
-                        from: LinkFromDescriptor {
+                        from: FromDescriptor {
                             node: "past".into(),
                             output: output.clone(),
                         },
-                        to: LinkToDescriptor {
+                        to: ToDescriptor {
                             node: operator_id.clone(),
                             input: input.clone(),
                         },

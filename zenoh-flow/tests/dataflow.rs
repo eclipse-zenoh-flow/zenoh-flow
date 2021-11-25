@@ -18,15 +18,16 @@ use flume::{bounded, Receiver};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
+use zenoh_flow::model::link::PortDescriptor;
+use zenoh_flow::model::{FromDescriptor, ToDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::zenoh_flow_derive::ZFData;
 use zenoh_flow::{
     default_input_rule, default_output_rule, zf_empty_state, Configuration, Context, Data,
-    LocalDeadlineMiss, Deserializable, Node, NodeOutput, Operator, PortId, Sink, Source, State, ZFData,
-    ZFError, ZFResult,
+    Deserializable, LocalDeadlineMiss, Node, NodeOutput, Operator, PortId, Sink, Source, State,
+    ZFData, ZFError, ZFResult,
 };
 
 // Data Type
@@ -252,11 +253,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: "counter-source".into(),
                 output: SOURCE.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: "noop".into(),
                 input: SOURCE.into(),
             },
@@ -268,11 +269,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: "noop".into(),
                 output: DESTINATION.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: "generic-sink".into(),
                 input: SOURCE.into(),
             },

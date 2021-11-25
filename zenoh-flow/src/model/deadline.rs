@@ -12,7 +12,7 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::model::link::{LinkFromDescriptor, LinkToDescriptor};
+use crate::model::{FromDescriptor, ToDescriptor};
 use crate::runtime::deadline::E2EDeadline;
 use crate::DurationDescriptor;
 use serde::{Deserialize, Serialize};
@@ -20,15 +20,15 @@ use std::time::Duration;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct E2EDeadlineDescriptor {
-    pub(crate) from: LinkFromDescriptor,
-    pub(crate) to: LinkToDescriptor,
+    pub(crate) from: FromDescriptor,
+    pub(crate) to: ToDescriptor,
     pub(crate) duration: DurationDescriptor,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct E2EDeadlineRecord {
-    pub(crate) from: LinkFromDescriptor,
-    pub(crate) to: LinkToDescriptor,
+    pub(crate) from: FromDescriptor,
+    pub(crate) to: ToDescriptor,
     pub(crate) duration: Duration,
 }
 

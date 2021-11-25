@@ -25,7 +25,8 @@ use crate::model::connector::ZFConnectorRecord;
 use crate::model::dataflow::record::DataFlowRecord;
 use crate::model::dataflow::validator::DataflowValidator;
 use crate::model::deadline::E2EDeadlineRecord;
-use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
+use crate::model::link::{LinkDescriptor, PortDescriptor};
+use crate::model::{FromDescriptor, ToDescriptor};
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
 use crate::{
@@ -230,8 +231,8 @@ impl Dataflow {
     /// identical.
     pub fn try_add_link(
         &mut self,
-        from: LinkFromDescriptor,
-        to: LinkToDescriptor,
+        from: FromDescriptor,
+        to: ToDescriptor,
         size: Option<usize>,
         queueing_policy: Option<String>,
         priority: Option<usize>,
@@ -251,8 +252,8 @@ impl Dataflow {
 
     pub fn try_add_deadline(
         &mut self,
-        from: LinkFromDescriptor,
-        to: LinkToDescriptor,
+        from: FromDescriptor,
+        to: ToDescriptor,
         duration: Duration,
     ) -> ZFResult<()> {
         self.validator.validate_deadline(&from, &to)?;

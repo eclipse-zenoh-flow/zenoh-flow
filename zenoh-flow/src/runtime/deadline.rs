@@ -13,7 +13,7 @@
 //
 
 use crate::model::deadline::E2EDeadlineRecord;
-use crate::model::link::{LinkFromDescriptor, LinkToDescriptor};
+use crate::model::{FromDescriptor, ToDescriptor};
 use crate::NodeId;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
@@ -34,8 +34,8 @@ pub struct LocalDeadlineMiss {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct E2EDeadlineMiss {
     pub duration: Duration,
-    pub from: LinkFromDescriptor,
-    pub to: LinkToDescriptor,
+    pub from: FromDescriptor,
+    pub to: ToDescriptor,
     pub start: Timestamp,
     pub end: Timestamp,
 }
@@ -56,8 +56,8 @@ impl E2EDeadlineMiss {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct E2EDeadline {
     pub duration: Duration,
-    pub from: LinkFromDescriptor,
-    pub to: LinkToDescriptor,
+    pub from: FromDescriptor,
+    pub to: ToDescriptor,
     pub start: Timestamp,
 }
 

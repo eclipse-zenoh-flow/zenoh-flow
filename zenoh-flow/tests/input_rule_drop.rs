@@ -19,7 +19,8 @@ use async_trait::async_trait;
 use flume::{bounded, Receiver};
 use std::collections::HashMap;
 use types::{CounterState, ZFUsize};
-use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
+use zenoh_flow::model::link::PortDescriptor;
+use zenoh_flow::model::{FromDescriptor, ToDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
@@ -242,11 +243,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: SOURCE.into(),
                 output: SOURCE.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: "noop".into(),
                 input: SOURCE.into(),
             },
@@ -258,11 +259,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: "noop".into(),
                 output: DESTINATION.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: "generic-sink".into(),
                 input: DESTINATION.into(),
             },

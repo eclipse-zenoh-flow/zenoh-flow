@@ -18,13 +18,14 @@ use async_std::sync::Arc;
 use std::collections::HashMap;
 use std::time::Duration;
 use types::{VecSink, VecSource, ZFUsize};
-use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
+use zenoh_flow::model::link::PortDescriptor;
+use zenoh_flow::model::{FromDescriptor, ToDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, zf_empty_state, Configuration, Data, LocalDeadlineMiss,
-    Node, NodeOutput, Operator, PortId, State, ZFError, ZFResult,
+    default_input_rule, default_output_rule, zf_empty_state, Configuration, Data,
+    LocalDeadlineMiss, Node, NodeOutput, Operator, PortId, State, ZFError, ZFResult,
 };
 
 static SOURCE: &str = "Source";
@@ -159,11 +160,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: SOURCE.into(),
                 output: SOURCE.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: OPERATOR.into(),
                 input: SOURCE.into(),
             },
@@ -175,11 +176,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: OPERATOR.into(),
                 output: SINK.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: SINK.into(),
                 input: SINK.into(),
             },
@@ -192,11 +193,11 @@ async fn single_runtime() {
     // A deadline starting at SINK and going to OPERATOR is impossible and should return an error.
     assert!(dataflow
         .try_add_deadline(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: SINK.into(),
                 output: SINK.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: OPERATOR.into(),
                 input: SOURCE.into(),
             },
@@ -207,11 +208,11 @@ async fn single_runtime() {
     // Correct end to end deadline between SOURCE and SINK.
     assert!(dataflow
         .try_add_deadline(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: SOURCE.into(),
                 output: SOURCE.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: SINK.into(),
                 input: SINK.into(),
             },
