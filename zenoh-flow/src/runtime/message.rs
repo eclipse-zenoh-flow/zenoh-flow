@@ -21,28 +21,45 @@ use std::{cmp::Ordering, fmt::Debug};
 use uhlc::Timestamp;
 use uuid::Uuid;
 
+use crate::runtime::deadline::E2EDeadline;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
     pub data: Data,
     pub timestamp: Timestamp,
+    pub end_to_end_deadlines: Vec<E2EDeadline>,
 }
 
 impl DataMessage {
-    pub fn new(data: Data, timestamp: Timestamp) -> Self {
-        Self { data, timestamp }
-    }
-
-    pub fn new_serialized(data: Arc<Vec<u8>>, timestamp: Timestamp) -> Self {
+    pub fn new(data: Data, timestamp: Timestamp, end_to_end_deadlines: Vec<E2EDeadline>) -> Self {
         Self {
-            data: Data::Bytes(data),
+            data,
             timestamp,
+            end_to_end_deadlines,
         }
     }
 
-    pub fn new_deserialized(data: Arc<dyn ZFData>, timestamp: Timestamp) -> Self {
+    pub fn new_serialized(
+        data: Arc<Vec<u8>>,
+        timestamp: Timestamp,
+        end_to_end_deadlines: Vec<E2EDeadline>,
+    ) -> Self {
+        Self {
+            data: Data::Bytes(data),
+            timestamp,
+            end_to_end_deadlines,
+        }
+    }
+
+    pub fn new_deserialized(
+        data: Arc<dyn ZFData>,
+        timestamp: Timestamp,
+        end_to_end_deadlines: Vec<E2EDeadline>,
+    ) -> Self {
         Self {
             data: Data::Typed(data),
             timestamp,
+            end_to_end_deadlines,
         }
     }
 }
@@ -73,20 +90,44 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn from_node_output(output: NodeOutput, timestamp: Timestamp) -> Self {
+    pub fn from_node_output(
+        output: NodeOutput,
+        timestamp: Timestamp,
+        end_to_end_deadlines: Vec<E2EDeadline>,
+    ) -> Self {
         match output {
             NodeOutput::Control(c) => Self::Control(c),
             NodeOutput::Data(d) => match d {
-                Data::Typed(d) => Self::Data(DataMessage::new_deserialized(d, timestamp)),
-                Data::Bytes(sd) => Self::Data(DataMessage::new_serialized(sd, timestamp)),
+                Data::Typed(d) => Self::Data(DataMessage::new_deserialized(
+                    d,
+                    timestamp,
+                    end_to_end_deadlines,
+                )),
+                Data::Bytes(sd) => Self::Data(DataMessage::new_serialized(
+                    sd,
+                    timestamp,
+                    end_to_end_deadlines,
+                )),
             },
         }
     }
 
-    pub fn from_serdedata(output: Data, timestamp: Timestamp) -> Self {
+    pub fn from_serdedata(
+        output: Data,
+        timestamp: Timestamp,
+        end_to_end_deadlines: Vec<E2EDeadline>,
+    ) -> Self {
         match output {
-            Data::Typed(data) => Self::Data(DataMessage::new_deserialized(data, timestamp)),
-            Data::Bytes(data) => Self::Data(DataMessage::new_serialized(data, timestamp)),
+            Data::Typed(data) => Self::Data(DataMessage::new_deserialized(
+                data,
+                timestamp,
+                end_to_end_deadlines,
+            )),
+            Data::Bytes(data) => Self::Data(DataMessage::new_serialized(
+                data,
+                timestamp,
+                end_to_end_deadlines,
+            )),
         }
     }
 
@@ -104,6 +145,7 @@ impl Message {
                     let serialized_message = Message::Data(DataMessage::new_serialized(
                         serialized_data,
                         data_message.timestamp,
+                        vec![],
                     ));
 
                     bincode::serialize(&serialized_message).map_err(|_| ZFError::SerializationError)

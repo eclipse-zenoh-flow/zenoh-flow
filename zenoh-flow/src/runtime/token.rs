@@ -12,8 +12,8 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::{Data, DataMessage, Message, PortId};
-use async_std::sync::Arc;
+use crate::runtime::deadline::E2EDeadlineMiss;
+use crate::{Data, DataMessage, PortId};
 use std::collections::HashMap;
 use uhlc::Timestamp;
 
@@ -55,6 +55,7 @@ impl std::fmt::Display for TokenAction {
 pub struct ReadyToken {
     pub(crate) data: DataMessage,
     pub(crate) action: TokenAction,
+    pub deadlines_miss: Vec<E2EDeadlineMiss>,
 }
 
 impl ReadyToken {
@@ -105,10 +106,11 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn new_ready(data: DataMessage) -> Self {
+    pub fn new(data: DataMessage, deadlines_miss: Vec<E2EDeadlineMiss>) -> Self {
         Self::Ready(ReadyToken {
             data,
             action: TokenAction::Consume,
+            deadlines_miss,
         })
     }
 
@@ -120,14 +122,5 @@ impl Token {
         }
 
         false
-    }
-}
-
-impl From<Arc<Message>> for Token {
-    fn from(message: Arc<Message>) -> Self {
-        match message.as_ref() {
-            Message::Control(_) => Token::Pending,
-            Message::Data(data_message) => Token::new_ready(data_message.clone()),
-        }
     }
 }

@@ -13,6 +13,7 @@
 //
 
 use crate::model::link::{LinkFromDescriptor, LinkToDescriptor};
+use crate::runtime::deadline::E2EDeadline;
 use crate::DurationDescriptor;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -38,5 +39,11 @@ impl From<E2EDeadlineDescriptor> for E2EDeadlineRecord {
             to: desc.to,
             duration: desc.duration.to_duration(),
         }
+    }
+}
+
+impl PartialEq<E2EDeadline> for E2EDeadlineRecord {
+    fn eq(&self, other: &E2EDeadline) -> bool {
+        self.from == other.from && self.to == other.to && self.duration == other.duration
     }
 }

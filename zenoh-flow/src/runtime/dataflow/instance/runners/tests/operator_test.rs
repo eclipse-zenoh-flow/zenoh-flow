@@ -163,6 +163,7 @@ async fn send_usize(hlc: &Arc<HLC>, sender: &LinkSender<Message>, number: usize)
         .send(Arc::new(Message::Data(DataMessage::new(
             Data::from::<ZFUsize>(ZFUsize(number)),
             hlc.new_timestamp(),
+            vec![],
         ))))
         .await
         .unwrap();
@@ -179,8 +180,6 @@ async fn recv_usize(receiver: &LinkReceiver<Message>) -> usize {
 
 #[test]
 fn input_rule_keep() {
-    env_logger::init();
-
     let session = zenoh::net::open(zenoh::net::config::peer()).wait().unwrap();
     let hlc = Arc::new(uhlc::HLC::default());
     let uuid = uuid::Uuid::new_v4();
@@ -263,6 +262,7 @@ fn input_rule_keep() {
         state: Arc::new(Mutex::new(operator.initialize(&None).unwrap())),
         operator: Arc::new(operator),
         library: None,
+        end_to_end_deadlines: vec![],
     };
 
     let runner = NodeRunner::new(Arc::new(operator_runner), instance_context);

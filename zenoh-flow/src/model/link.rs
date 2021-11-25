@@ -45,7 +45,7 @@ impl std::fmt::Display for PortDescriptor {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LinkFromDescriptor {
     pub node: NodeId,
     pub output: PortId,
@@ -57,7 +57,7 @@ impl fmt::Display for LinkFromDescriptor {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct LinkToDescriptor {
     pub node: NodeId,
     pub input: PortId,

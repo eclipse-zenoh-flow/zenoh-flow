@@ -13,10 +13,12 @@
 //
 
 use crate::async_std::sync::{Arc, Mutex};
+use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::node::OperatorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
+use crate::runtime::deadline::E2EDeadline;
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::{
@@ -106,6 +108,7 @@ pub struct OperatorRunner {
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
     pub(crate) local_deadline: Option<Duration>,
+    pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
@@ -128,6 +131,7 @@ impl OperatorRunner {
             operator: operator.operator,
             library: operator.library,
             local_deadline: operator.local_deadline,
+            end_to_end_deadlines: operator.end_to_end_deadlines,
         })
     }
 }
@@ -226,9 +230,43 @@ impl Runner for OperatorRunner {
                     match future::select_all(links).await {
                         (Ok((id, message)), _index, remaining) => {
                             match message.as_ref() {
-                                Message::Data(_) => {
-                                    tokens.insert(id, Token::from(message));
+                                // Whenever we receive data we have to check for the end to end
+                                // deadlines.
+                                Message::Data(data_message) => {
+                                    // In order to check for these deadlines we first have to update
+                                    // the HLC. There is indeed a possibility that the timestamp
+                                    // associated with the data is "ahead" of the hlc on this
+                                    // runtime — which would cause problems when computing the time
+                                    // difference.
+                                    if let Err(error) = self
+                                        .context
+                                        .runtime
+                                        .hlc
+                                        .update_with_timestamp(&data_message.timestamp)
+                                    {
+                                        log::error!(
+                                            "[HLC] Could not update HLC with timestamp {:?}: {:?}",
+                                            data_message.timestamp,
+                                            error
+                                        );
+                                    }
+                                    let now = self.context.runtime.hlc.new_timestamp();
+                                    let mut deadlines_miss = vec![];
+                                    data_message
+                                        .end_to_end_deadlines
+                                        .iter()
+                                        .for_each(|deadline| {
+                                            if let Some(miss) = deadline.check(&self.id, &now) {
+                                                deadlines_miss.push(miss)
+                                            }
+                                        });
+
+                                    tokens.insert(
+                                        id,
+                                        Token::new(data_message.clone(), deadlines_miss),
+                                    );
                                 }
+
                                 Message::Control(_) => {
                                     return Err(ZFError::Unimplemented);
                                 }
@@ -276,6 +314,7 @@ impl Runner for OperatorRunner {
             } // end < 'input_rule: loop >
 
             let mut earliest_source_timestamp = None;
+            let mut e2e_deadlines_to_propagate: Vec<E2EDeadline> = vec![];
 
             for (port_id, token) in tokens.iter_mut() {
                 match token {
@@ -300,14 +339,33 @@ impl Runner for OperatorRunner {
                             }
                         };
 
+                        // TODO: Refactor this code to:
+                        // 1) Avoid considering the source_timestamp of a token that is dropped.
+                        // 2) Avoid code duplication.
                         match ready_token.action {
                             TokenAction::Consume => {
                                 log::debug!("[Operator: {}] Consuming < {} >.", self.id, port_id);
+                                e2e_deadlines_to_propagate.extend(
+                                    ready_token
+                                        .data
+                                        .end_to_end_deadlines
+                                        .iter()
+                                        .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
+                                        .cloned(),
+                                );
                                 data.insert(port_id.clone(), ready_token.data.clone());
                                 *token = Token::Pending;
                             }
                             TokenAction::Keep => {
                                 log::debug!("[Operator: {}] Keeping < {} >.", self.id, port_id);
+                                e2e_deadlines_to_propagate.extend(
+                                    ready_token
+                                        .data
+                                        .end_to_end_deadlines
+                                        .iter()
+                                        .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
+                                        .cloned(),
+                                );
                                 data.insert(port_id.clone(), ready_token.data.clone());
                             }
                             TokenAction::Drop => {
@@ -322,22 +380,7 @@ impl Runner for OperatorRunner {
 
             let timestamp = {
                 match earliest_source_timestamp {
-                    Some(max_timestamp) => {
-                        if let Err(error) = self
-                            .context
-                            .runtime
-                            .hlc
-                            .update_with_timestamp(&max_timestamp)
-                        {
-                            log::warn!(
-                                "[HLC] Could not update HLC with timestamp {:?}: {:?}",
-                                max_timestamp,
-                                error
-                            );
-                        }
-
-                        max_timestamp
-                    }
+                    Some(max_timestamp) => max_timestamp,
                     None => self.context.runtime.hlc.new_timestamp(),
                 }
             };
@@ -376,6 +419,15 @@ impl Runner for OperatorRunner {
                 self.operator
                     .output_rule(&mut context, &mut state, run_outputs, deadline_miss)?;
 
+            // E2EDeadlines management: add deadlines that start at that operator.
+            let now = self.context.runtime.hlc.new_timestamp();
+            e2e_deadlines_to_propagate.extend(
+                self.end_to_end_deadlines
+                    .iter()
+                    .filter(|e2e_deadline| e2e_deadline.from.node == self.id)
+                    .map(|e2e_deadline| E2EDeadline::new(e2e_deadline.clone(), now)),
+            );
+
             // Send to Links
             for port_id in self.outputs.keys() {
                 let output = match outputs.remove(port_id) {
@@ -384,7 +436,11 @@ impl Runner for OperatorRunner {
                 };
 
                 if let Some(link_senders) = io.outputs.get(port_id) {
-                    let zf_message = Arc::new(Message::from_node_output(output, timestamp));
+                    let zf_message = Arc::new(Message::from_node_output(
+                        output,
+                        timestamp,
+                        e2e_deadlines_to_propagate.clone(),
+                    ));
                     for link_sender in link_senders {
                         let res = link_sender.send(zf_message.clone()).await;
 
@@ -408,3 +464,7 @@ impl Runner for OperatorRunner {
 #[cfg(test)]
 #[path = "./tests/operator_test.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "./tests/operator_e2e_deadline_tests.rs"]
+mod e2e_deadline_tests;
