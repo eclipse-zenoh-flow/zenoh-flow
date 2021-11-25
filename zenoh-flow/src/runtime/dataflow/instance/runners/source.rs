@@ -14,10 +14,12 @@
 
 use super::operator::OperatorIO;
 use crate::async_std::sync::{Arc, Mutex};
+use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::PortDescriptor;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SourceLoaded;
+use crate::runtime::deadline::E2EDeadline;
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
@@ -43,6 +45,7 @@ pub struct SourceRunner {
     pub(crate) output: PortDescriptor,
     pub(crate) links: Arc<Mutex<Vec<LinkSender<Message>>>>,
     pub(crate) state: Arc<Mutex<State>>,
+    pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
     pub(crate) base_resource_name: String,
     pub(crate) current_recording_resource: Arc<Mutex<Option<String>>>,
     pub(crate) is_recording: Arc<Mutex<bool>>,
@@ -77,6 +80,7 @@ impl SourceRunner {
             state: source.state,
             output: source.output,
             links: Arc::new(Mutex::new(links)),
+            end_to_end_deadlines: source.end_to_end_deadlines,
             source: source.source,
             library: source.library,
             base_resource_name,
@@ -266,10 +270,16 @@ impl Runner for SourceRunner {
 
             let timestamp = self.new_maybe_periodic_timestamp();
 
+            let e2e_deadlines = self
+                .end_to_end_deadlines
+                .iter()
+                .map(|deadline| E2EDeadline::new(deadline.clone(), timestamp))
+                .collect();
+
             // Send to Links
             log::debug!("Sending on {:?} data: {:?}", self.output.port_id, output);
 
-            let zf_message = Arc::new(Message::from_serdedata(output, timestamp, vec![]));
+            let zf_message = Arc::new(Message::from_serdedata(output, timestamp, e2e_deadlines));
             for link in links.iter() {
                 log::debug!("\tSending on: {:?}", link);
                 link.send(zf_message.clone()).await?;
@@ -278,3 +288,7 @@ impl Runner for SourceRunner {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "./tests/source_e2e_deadline_tests.rs"]
+mod e2e_deadline_tests;
