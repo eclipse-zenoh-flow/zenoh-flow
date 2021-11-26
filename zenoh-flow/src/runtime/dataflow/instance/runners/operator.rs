@@ -230,10 +230,8 @@ impl Runner for OperatorRunner {
                     match future::select_all(links).await {
                         (Ok((id, message)), _index, remaining) => {
                             match message.as_ref() {
-                                // Whenever we receive data we have to check for the end to end
-                                // deadlines.
                                 Message::Data(data_message) => {
-                                    // In order to check for these deadlines we first have to update
+                                    // In order to check for E2EDeadlines we first have to update
                                     // the HLC. There is indeed a possibility that the timestamp
                                     // associated with the data is "ahead" of the hlc on this
                                     // runtime — which would cause problems when computing the time
@@ -245,25 +243,16 @@ impl Runner for OperatorRunner {
                                         .update_with_timestamp(&data_message.timestamp)
                                     {
                                         log::error!(
-                                            "[HLC] Could not update HLC with timestamp {:?}: {:?}",
+                                            "[Operator: {}][HLC] Could not update HLC with timestamp {:?}: {:?}",
+                                            self.id,
                                             data_message.timestamp,
                                             error
                                         );
                                     }
-                                    let now = self.context.runtime.hlc.new_timestamp();
-                                    let mut missed_e2e_deadlines = vec![];
-                                    data_message
-                                        .end_to_end_deadlines
-                                        .iter()
-                                        .for_each(|deadline| {
-                                            if let Some(miss) = deadline.check(&self.id, &now) {
-                                                missed_e2e_deadlines.push(miss)
-                                            }
-                                        });
 
-                                    // We have to clone because the end to end deadlines are
-                                    // specific to each Operator. Suppose we have the following
-                                    // dataflow:
+                                    // We clone the `data_message` because the end to end deadlines
+                                    // are specific to each Operator. Suppose we have the following
+                                    // dataflow, running on **the same daemon**:
                                     //
                                     //              ┌───┐
                                     //         ┌───►│ 2 │
@@ -275,14 +264,24 @@ impl Runner for OperatorRunner {
                                     //         └───►│ 3 │
                                     //              └───┘
                                     //
-                                    // All 3 Operators are running on the same daemon (or "runtime",
-                                    // however you prefer to call it). If we do not clone the
-                                    // `data_message`, the missed E2E deadlines on 2 would be
-                                    // accessible on 3 — as they share an `Arc`.
+                                    // Operators 2 and 3 receive the same output from Operator 1.
                                     //
-                                    // We do not want that behavior, hence we have to clone.
+                                    // They will thus both receive an `Arc`. I.e. they both share a
+                                    // pointer on the **same** message. Operator 2 cannot add
+                                    // information about an end-to-end deadline that applies only on
+                                    // itself as Operator 3 would have access to it — which, in the
+                                    // end, would be very incorrect (and confusing).
                                     let mut data_msg = data_message.clone();
-                                    data_msg.missed_end_to_end_deadlines = missed_e2e_deadlines;
+
+                                    let now = self.context.runtime.hlc.new_timestamp();
+                                    data_message
+                                        .end_to_end_deadlines
+                                        .iter()
+                                        .for_each(|deadline| {
+                                            if let Some(miss) = deadline.check(&self.id, &now) {
+                                                data_msg.missed_end_to_end_deadlines.push(miss)
+                                            }
+                                        });
 
                                     tokens.insert(id, Token::from(data_msg));
                                 }
@@ -294,6 +293,7 @@ impl Runner for OperatorRunner {
 
                             links = remaining;
                         }
+
                         (Err(e), _index, _remaining) => {
                             let err_msg =
                                 format!("[Operator: {}] Link returned an error: {:?}", self.id, e);
