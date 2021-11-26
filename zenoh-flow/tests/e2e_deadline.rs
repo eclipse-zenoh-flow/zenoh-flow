@@ -69,7 +69,7 @@ impl Operator for OperatorE2EDeadline {
         let mut data_msg = inputs
             .remove(SOURCE)
             .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?;
-        let data = data_msg.data.try_get::<ZFUsize>()?;
+        let data = data_msg.get_mut_data().try_get::<ZFUsize>()?;
 
         results.insert(SINK.into(), Data::from::<ZFUsize>(ZFUsize(data.0)));
 

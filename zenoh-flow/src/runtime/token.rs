@@ -55,7 +55,6 @@ impl std::fmt::Display for TokenAction {
 pub struct ReadyToken {
     pub(crate) data: DataMessage,
     pub(crate) action: TokenAction,
-    pub deadlines_miss: Vec<E2EDeadlineMiss>,
 }
 
 impl ReadyToken {
@@ -97,6 +96,10 @@ impl ReadyToken {
     pub fn get_timestamp(&self) -> &Timestamp {
         &self.data.timestamp
     }
+
+    pub fn get_missed_end_to_end_deadlines(&self) -> &[E2EDeadlineMiss] {
+        &self.data.missed_end_to_end_deadlines
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -106,14 +109,6 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn new(data: DataMessage, deadlines_miss: Vec<E2EDeadlineMiss>) -> Self {
-        Self::Ready(ReadyToken {
-            data,
-            action: TokenAction::Consume,
-            deadlines_miss,
-        })
-    }
-
     pub(crate) fn should_drop(&self) -> bool {
         if let Token::Ready(token_ready) = self {
             if let TokenAction::Drop = token_ready.action {
@@ -122,5 +117,14 @@ impl Token {
         }
 
         false
+    }
+}
+
+impl From<DataMessage> for Token {
+    fn from(data_message: DataMessage) -> Self {
+        Self::Ready(ReadyToken {
+            data: data_message,
+            action: TokenAction::Consume,
+        })
     }
 }

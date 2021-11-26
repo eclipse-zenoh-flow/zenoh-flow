@@ -23,11 +23,14 @@ use uuid::Uuid;
 
 use crate::runtime::deadline::E2EDeadline;
 
+use super::deadline::E2EDeadlineMiss;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
-    pub data: Data,
-    pub timestamp: Timestamp,
-    pub end_to_end_deadlines: Vec<E2EDeadline>,
+    pub(crate) data: Data,
+    pub(crate) timestamp: Timestamp,
+    pub(crate) end_to_end_deadlines: Vec<E2EDeadline>,
+    pub(crate) missed_end_to_end_deadlines: Vec<E2EDeadlineMiss>,
 }
 
 impl DataMessage {
@@ -36,7 +39,12 @@ impl DataMessage {
             data,
             timestamp,
             end_to_end_deadlines,
+            missed_end_to_end_deadlines: vec![],
         }
+    }
+
+    pub fn get_mut_data(&mut self) -> &mut Data {
+        &mut self.data
     }
 
     pub fn new_serialized(
@@ -48,6 +56,7 @@ impl DataMessage {
             data: Data::Bytes(data),
             timestamp,
             end_to_end_deadlines,
+            missed_end_to_end_deadlines: vec![],
         }
     }
 
@@ -60,6 +69,7 @@ impl DataMessage {
             data: Data::Typed(data),
             timestamp,
             end_to_end_deadlines,
+            missed_end_to_end_deadlines: vec![],
         }
     }
 }

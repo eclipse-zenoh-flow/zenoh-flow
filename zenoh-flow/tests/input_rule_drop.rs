@@ -78,7 +78,7 @@ impl Sink for ExampleGenericSink {
         state: &mut State,
         mut input: zenoh_flow::runtime::message::DataMessage,
     ) -> zenoh_flow::ZFResult<()> {
-        let data = input.data.try_get::<ZFUsize>()?;
+        let data = input.get_mut_data().try_get::<ZFUsize>()?;
         let s = state.try_get::<CounterState>()?;
         //
         // The entire test is performed here: we have set DropOdd to drop all values that are Odd.
@@ -141,7 +141,7 @@ impl Operator for DropOdd {
         let mut data_msg = inputs
             .remove(&source)
             .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?;
-        let data = data_msg.data.try_get::<ZFUsize>()?;
+        let data = data_msg.get_mut_data().try_get::<ZFUsize>()?;
 
         assert_eq!(data.0 % 2, 0);
 

@@ -251,20 +251,40 @@ impl Runner for OperatorRunner {
                                         );
                                     }
                                     let now = self.context.runtime.hlc.new_timestamp();
-                                    let mut deadlines_miss = vec![];
+                                    let mut missed_e2e_deadlines = vec![];
                                     data_message
                                         .end_to_end_deadlines
                                         .iter()
                                         .for_each(|deadline| {
                                             if let Some(miss) = deadline.check(&self.id, &now) {
-                                                deadlines_miss.push(miss)
+                                                missed_e2e_deadlines.push(miss)
                                             }
                                         });
 
-                                    tokens.insert(
-                                        id,
-                                        Token::new(data_message.clone(), deadlines_miss),
-                                    );
+                                    // We have to clone because the end to end deadlines are
+                                    // specific to each Operator. Suppose we have the following
+                                    // dataflow:
+                                    //
+                                    //              ┌───┐
+                                    //         ┌───►│ 2 │
+                                    //         │    └───┘
+                                    //       ┌─┴─┐
+                                    //       │ 1 │
+                                    //       └─┬─┘
+                                    //         │    ┌───┐
+                                    //         └───►│ 3 │
+                                    //              └───┘
+                                    //
+                                    // All 3 Operators are running on the same daemon (or "runtime",
+                                    // however you prefer to call it). If we do not clone the
+                                    // `data_message`, the missed E2E deadlines on 2 would be
+                                    // accessible on 3 — as they share an `Arc`.
+                                    //
+                                    // We do not want that behavior, hence we have to clone.
+                                    let mut data_msg = data_message.clone();
+                                    data_msg.missed_end_to_end_deadlines = missed_e2e_deadlines;
+
+                                    tokens.insert(id, Token::from(data_msg));
                                 }
 
                                 Message::Control(_) => {

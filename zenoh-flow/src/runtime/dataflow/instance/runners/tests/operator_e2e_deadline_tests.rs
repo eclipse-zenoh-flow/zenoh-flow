@@ -117,7 +117,7 @@ impl Operator for TestOperatorDeadlineViolated {
         match token {
             Token::Pending => panic!("Unexpected `Pending` token"),
             Token::Ready(ready_token) => {
-                assert_eq!(ready_token.deadlines_miss.len(), 1);
+                assert_eq!(ready_token.get_missed_end_to_end_deadlines().len(), 1);
             }
         }
 
