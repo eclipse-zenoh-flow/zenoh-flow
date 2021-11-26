@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 
 use crate::async_std::sync::{Arc, Mutex};
+use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::PortDescriptor;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
@@ -41,6 +42,7 @@ pub struct SinkRunner {
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) library: Option<Arc<Library>>,
+    pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
 }
 
 impl SinkRunner {
@@ -62,6 +64,7 @@ impl SinkRunner {
             state: sink.state,
             sink: sink.sink,
             library: sink.library,
+            end_to_end_deadlines: sink.end_to_end_deadlines,
         })
     }
 }
@@ -133,10 +136,37 @@ impl Runner for SinkRunner {
             if let Some(link) = &*self.link.lock().await {
                 let mut state = self.state.lock().await;
 
-                // FEAT. With the introduction of deadline, a DeadlineMissToken could be sent.
                 let (_, message) = link.recv().await?;
                 let input = match message.as_ref() {
-                    Message::Data(d) => d.clone(),
+                    Message::Data(data_message) => {
+                        if let Err(error) = self
+                            .context
+                            .runtime
+                            .hlc
+                            .update_with_timestamp(&data_message.timestamp)
+                        {
+                            log::error!(
+                                "[Sink: {}][HLC] Could not update HLC with timestamp {:?}: {:?}",
+                                self.id,
+                                data_message.timestamp,
+                                error
+                            );
+                        }
+                        let now = self.context.runtime.hlc.new_timestamp();
+                        let mut input = data_message.clone();
+
+                        data_message
+                            .end_to_end_deadlines
+                            .iter()
+                            .for_each(|e2e_deadline| {
+                                if let Some(miss) = e2e_deadline.check(&self.id, &now) {
+                                    input.missed_end_to_end_deadlines.push(miss);
+                                }
+                            });
+
+                        input
+                    }
+
                     Message::Control(_) => return Err(ZFError::Unimplemented),
                 };
 
@@ -145,3 +175,7 @@ impl Runner for SinkRunner {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "./tests/sink_e2e_deadline_tests.rs"]
+mod e2e_deadline_tests;
