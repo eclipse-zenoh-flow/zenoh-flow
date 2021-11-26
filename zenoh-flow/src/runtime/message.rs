@@ -47,6 +47,10 @@ impl DataMessage {
         &mut self.data
     }
 
+    pub fn get_missed_end_to_end_deadlines(&self) -> &[E2EDeadlineMiss] {
+        self.missed_end_to_end_deadlines.as_slice()
+    }
+
     pub fn new_serialized(
         data: Arc<Vec<u8>>,
         timestamp: Timestamp,

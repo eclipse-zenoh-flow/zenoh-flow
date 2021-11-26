@@ -15,17 +15,19 @@
 mod types;
 
 use async_std::sync::Arc;
+use async_trait::async_trait;
+use flume::Sender;
 use std::collections::HashMap;
 use std::time::Duration;
-use types::{VecSink, VecSource, ZFUsize};
+use types::{VecSource, ZFUsize};
 use zenoh_flow::model::link::PortDescriptor;
 use zenoh_flow::model::{FromDescriptor, ToDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, zf_empty_state, Configuration, Data,
-    LocalDeadlineMiss, Node, NodeOutput, Operator, PortId, State, ZFError, ZFResult,
+    default_input_rule, default_output_rule, zf_empty_state, Configuration, Data, EmptyState,
+    LocalDeadlineMiss, Node, NodeOutput, Operator, PortId, Sink, State, ZFError, ZFResult,
 };
 
 static SOURCE: &str = "Source";
@@ -91,6 +93,48 @@ impl Operator for OperatorE2EDeadline {
     }
 }
 
+pub struct E2EDeadlineSink {
+    tx: Sender<()>,
+}
+
+impl E2EDeadlineSink {
+    pub fn new(tx: Sender<()>) -> Self {
+        Self { tx }
+    }
+}
+
+impl Node for E2EDeadlineSink {
+    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+        Ok(State::from::<EmptyState>(EmptyState {}))
+    }
+
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Sink for E2EDeadlineSink {
+    async fn run(
+        &self,
+        _context: &mut zenoh_flow::Context,
+        _state: &mut State,
+        input: zenoh_flow::DataMessage,
+    ) -> ZFResult<()> {
+        let missed_e2e_deadlines = input.get_missed_end_to_end_deadlines();
+        assert_eq!(missed_e2e_deadlines.len(), 1);
+        assert_eq!(missed_e2e_deadlines[0].from.node, SOURCE.into());
+        assert_eq!(missed_e2e_deadlines[0].to.node, SINK.into());
+
+        self.tx
+            .send_async(())
+            .await
+            .map_err(|e| ZFError::IOError(e.to_string()))?;
+
+        Ok(())
+    }
+}
+
 // Run dataflow in single runtime
 async fn single_runtime() {
     env_logger::init();
@@ -113,7 +157,7 @@ async fn single_runtime() {
         zenoh_flow::runtime::dataflow::Dataflow::new(ctx.clone(), "test".into(), None);
 
     let source = Arc::new(VecSource::new(vec![1]));
-    let sink = Arc::new(VecSink::new(tx_sink, vec![1]));
+    let sink = Arc::new(E2EDeadlineSink::new(tx_sink));
     let operator = Arc::new(OperatorE2EDeadline {});
 
     dataflow
