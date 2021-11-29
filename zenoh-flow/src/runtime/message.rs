@@ -56,6 +56,10 @@ impl DataMessage {
         &mut self.data
     }
 
+    pub fn get_timestamp(&self) -> &Timestamp {
+        &self.timestamp
+    }
+
     pub fn get_missed_end_to_end_deadlines(&self) -> &[E2EDeadlineMiss] {
         self.missed_end_to_end_deadlines.as_slice()
     }
