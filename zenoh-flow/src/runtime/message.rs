@@ -43,7 +43,16 @@ impl DataMessage {
         }
     }
 
-    pub fn get_mut_data(&mut self) -> &mut Data {
+    /// Returns a mutable reference over the Data representation (i.e. `Bytes` or `Typed`).
+    ///
+    /// This method should be called in conjonction with `try_get::<Typed>()` in order to get a
+    /// reference of the desired type. For instance:
+    ///
+    /// `let zf_usise: &ZFUsize = data_message.get_inner_data().try_get::<ZFUsize>()?;`
+    ///
+    /// Note that the prerequisite for the above code to work is that `ZFUsize` implements the
+    /// traits: `ZFData` and `Deserializable`.
+    pub fn get_inner_data(&mut self) -> &mut Data {
         &mut self.data
     }
 
