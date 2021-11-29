@@ -21,28 +21,68 @@ use std::{cmp::Ordering, fmt::Debug};
 use uhlc::Timestamp;
 use uuid::Uuid;
 
+use crate::runtime::deadline::E2EDeadline;
+
+use super::deadline::E2EDeadlineMiss;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
-    pub data: Data,
-    pub timestamp: Timestamp,
+    pub(crate) data: Data,
+    pub(crate) timestamp: Timestamp,
+    pub(crate) end_to_end_deadlines: Vec<E2EDeadline>,
+    pub(crate) missed_end_to_end_deadlines: Vec<E2EDeadlineMiss>,
 }
 
 impl DataMessage {
-    pub fn new(data: Data, timestamp: Timestamp) -> Self {
-        Self { data, timestamp }
-    }
-
-    pub fn new_serialized(data: Arc<Vec<u8>>, timestamp: Timestamp) -> Self {
+    pub fn new(data: Data, timestamp: Timestamp, end_to_end_deadlines: Vec<E2EDeadline>) -> Self {
         Self {
-            data: Data::Bytes(data),
+            data,
             timestamp,
+            end_to_end_deadlines,
+            missed_end_to_end_deadlines: vec![],
         }
     }
 
-    pub fn new_deserialized(data: Arc<dyn ZFData>, timestamp: Timestamp) -> Self {
+    /// Returns a mutable reference over the Data representation (i.e. `Bytes` or `Typed`).
+    ///
+    /// This method should be called in conjonction with `try_get::<Typed>()` in order to get a
+    /// reference of the desired type. For instance:
+    ///
+    /// `let zf_usise: &ZFUsize = data_message.get_inner_data().try_get::<ZFUsize>()?;`
+    ///
+    /// Note that the prerequisite for the above code to work is that `ZFUsize` implements the
+    /// traits: `ZFData` and `Deserializable`.
+    pub fn get_inner_data(&mut self) -> &mut Data {
+        &mut self.data
+    }
+
+    pub fn get_missed_end_to_end_deadlines(&self) -> &[E2EDeadlineMiss] {
+        self.missed_end_to_end_deadlines.as_slice()
+    }
+
+    pub fn new_serialized(
+        data: Arc<Vec<u8>>,
+        timestamp: Timestamp,
+        end_to_end_deadlines: Vec<E2EDeadline>,
+    ) -> Self {
+        Self {
+            data: Data::Bytes(data),
+            timestamp,
+            end_to_end_deadlines,
+            missed_end_to_end_deadlines: vec![],
+        }
+    }
+
+    pub fn new_deserialized(
+        data: Arc<dyn ZFData>,
+        timestamp: Timestamp,
+        end_to_end_deadlines: Vec<E2EDeadline>,
+    ) -> Self {
         Self {
             data: Data::Typed(data),
             timestamp,
+            end_to_end_deadlines,
+            missed_end_to_end_deadlines: vec![],
         }
     }
 }
@@ -73,20 +113,44 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn from_node_output(output: NodeOutput, timestamp: Timestamp) -> Self {
+    pub fn from_node_output(
+        output: NodeOutput,
+        timestamp: Timestamp,
+        end_to_end_deadlines: Vec<E2EDeadline>,
+    ) -> Self {
         match output {
             NodeOutput::Control(c) => Self::Control(c),
             NodeOutput::Data(d) => match d {
-                Data::Typed(d) => Self::Data(DataMessage::new_deserialized(d, timestamp)),
-                Data::Bytes(sd) => Self::Data(DataMessage::new_serialized(sd, timestamp)),
+                Data::Typed(d) => Self::Data(DataMessage::new_deserialized(
+                    d,
+                    timestamp,
+                    end_to_end_deadlines,
+                )),
+                Data::Bytes(sd) => Self::Data(DataMessage::new_serialized(
+                    sd,
+                    timestamp,
+                    end_to_end_deadlines,
+                )),
             },
         }
     }
 
-    pub fn from_serdedata(output: Data, timestamp: Timestamp) -> Self {
+    pub fn from_serdedata(
+        output: Data,
+        timestamp: Timestamp,
+        end_to_end_deadlines: Vec<E2EDeadline>,
+    ) -> Self {
         match output {
-            Data::Typed(data) => Self::Data(DataMessage::new_deserialized(data, timestamp)),
-            Data::Bytes(data) => Self::Data(DataMessage::new_serialized(data, timestamp)),
+            Data::Typed(data) => Self::Data(DataMessage::new_deserialized(
+                data,
+                timestamp,
+                end_to_end_deadlines,
+            )),
+            Data::Bytes(data) => Self::Data(DataMessage::new_serialized(
+                data,
+                timestamp,
+                end_to_end_deadlines,
+            )),
         }
     }
 
@@ -104,6 +168,7 @@ impl Message {
                     let serialized_message = Message::Data(DataMessage::new_serialized(
                         serialized_data,
                         data_message.timestamp,
+                        vec![],
                     ));
 
                     bincode::serialize(&serialized_message).map_err(|_| ZFError::SerializationError)

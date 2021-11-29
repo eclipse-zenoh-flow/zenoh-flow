@@ -19,12 +19,13 @@ use async_trait::async_trait;
 use flume::{bounded, Receiver};
 use std::collections::HashMap;
 use types::{CounterState, ZFUsize};
-use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
+use zenoh_flow::model::link::PortDescriptor;
+use zenoh_flow::model::{FromDescriptor, ToDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::{
-    default_output_rule, zf_empty_state, Configuration, Context, Data, DeadlineMiss, Node,
+    default_output_rule, zf_empty_state, Configuration, Context, Data, LocalDeadlineMiss, Node,
     NodeOutput, Operator, PortId, Sink, Source, State, Token, ZFError, ZFResult,
 };
 
@@ -77,7 +78,7 @@ impl Sink for ExampleGenericSink {
         state: &mut State,
         mut input: zenoh_flow::runtime::message::DataMessage,
     ) -> zenoh_flow::ZFResult<()> {
-        let data = input.data.try_get::<ZFUsize>()?;
+        let data = input.get_inner_data().try_get::<ZFUsize>()?;
         let s = state.try_get::<CounterState>()?;
         //
         // The entire test is performed here: we have set DropOdd to drop all values that are Odd.
@@ -140,7 +141,7 @@ impl Operator for DropOdd {
         let mut data_msg = inputs
             .remove(&source)
             .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?;
-        let data = data_msg.data.try_get::<ZFUsize>()?;
+        let data = data_msg.get_inner_data().try_get::<ZFUsize>()?;
 
         assert_eq!(data.0 % 2, 0);
 
@@ -153,7 +154,7 @@ impl Operator for DropOdd {
         _context: &mut zenoh_flow::Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
-        deadline_miss: Option<DeadlineMiss>,
+        deadline_miss: Option<LocalDeadlineMiss>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         assert!(
             deadline_miss.is_none(),
@@ -242,11 +243,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: SOURCE.into(),
                 output: SOURCE.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: "noop".into(),
                 input: SOURCE.into(),
             },
@@ -258,11 +259,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: "noop".into(),
                 output: DESTINATION.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: "generic-sink".into(),
                 input: DESTINATION.into(),
             },

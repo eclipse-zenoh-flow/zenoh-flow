@@ -13,9 +13,8 @@
 //
 
 use crate::model::link::PortDescriptor;
-use crate::model::period::PeriodDescriptor;
 use crate::types::{Configuration, NodeId, RuntimeId};
-use crate::PortType;
+use crate::{DurationDescriptor, PortType};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -40,7 +39,7 @@ impl std::fmt::Display for SinkDescriptor {
 pub struct SourceDescriptor {
     pub id: NodeId,
     pub output: PortDescriptor,
-    pub period: Option<PeriodDescriptor>,
+    pub period: Option<DurationDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
     pub runtime: Option<RuntimeId>, // to be removed
@@ -59,7 +58,7 @@ pub struct OperatorDescriptor {
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
-    pub deadline: Option<PeriodDescriptor>,
+    pub deadline: Option<DurationDescriptor>,
     pub runtime: Option<RuntimeId>, // to be removed
 }
 
@@ -100,7 +99,7 @@ impl SinkRecord {
 pub struct SourceRecord {
     pub id: NodeId,
     pub output: PortDescriptor,
-    pub period: Option<PeriodDescriptor>,
+    pub period: Option<DurationDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
     pub runtime: RuntimeId,

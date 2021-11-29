@@ -142,7 +142,7 @@ impl Sink for VecSink {
         state: &mut State,
         mut input: zenoh_flow::DataMessage,
     ) -> ZFResult<()> {
-        let data = input.data.try_get::<ZFUsize>()?;
+        let data = input.get_inner_data().try_get::<ZFUsize>()?;
         let state = state.try_get::<VecState>()?;
 
         let value = match state.values.pop() {

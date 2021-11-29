@@ -13,6 +13,7 @@
 //
 
 use crate::model::dataflow::validator::DataflowValidator;
+use crate::model::deadline::E2EDeadlineDescriptor;
 use crate::model::link::LinkDescriptor;
 use crate::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use crate::serde::{Deserialize, Serialize};
@@ -35,6 +36,7 @@ pub struct DataFlowDescriptor {
     pub sinks: Vec<SinkDescriptor>,
     pub links: Vec<LinkDescriptor>,
     pub mapping: Option<Vec<Mapping>>,
+    pub deadlines: Option<Vec<E2EDeadlineDescriptor>>,
 }
 
 impl DataFlowDescriptor {
@@ -99,7 +101,14 @@ impl DataFlowDescriptor {
     // - connected ports are declared with the same type.
     fn validate(&self) -> ZFResult<()> {
         let validator = DataflowValidator::try_from(self)?;
-        validator.validate_ports()
+        validator.validate_ports()?;
+        if let Some(deadlines) = &self.deadlines {
+            deadlines.iter().try_for_each(|deadline| {
+                validator.validate_deadline(&deadline.from, &deadline.to)
+            })?
+        }
+
+        Ok(())
     }
 }
 

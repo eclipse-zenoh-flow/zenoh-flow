@@ -12,14 +12,14 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
-use crate::{NodeId, PortId, PortType};
+use crate::model::{FromDescriptor, ToDescriptor};
+use crate::{PortId, PortType};
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LinkDescriptor {
-    pub from: LinkFromDescriptor,
-    pub to: LinkToDescriptor,
+    pub from: FromDescriptor,
+    pub to: ToDescriptor,
     pub size: Option<usize>,
     pub queueing_policy: Option<String>,
     pub priority: Option<usize>,
@@ -42,29 +42,5 @@ pub struct PortDescriptor {
 impl std::fmt::Display for PortDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}:{}", self.port_id, self.port_type)
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LinkFromDescriptor {
-    pub node: NodeId,
-    pub output: PortId,
-}
-
-impl fmt::Display for LinkFromDescriptor {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("{}.{}", self.node, self.output))
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct LinkToDescriptor {
-    pub node: NodeId,
-    pub input: PortId,
-}
-
-impl fmt::Display for LinkToDescriptor {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("{}.{}", self.node, self.input))
     }
 }

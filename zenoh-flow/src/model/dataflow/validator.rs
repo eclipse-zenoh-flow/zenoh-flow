@@ -13,10 +13,11 @@
 //
 
 use crate::model::dataflow::descriptor::DataFlowDescriptor;
-use crate::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
+use crate::model::link::PortDescriptor;
+use crate::model::{FromDescriptor, ToDescriptor};
 use crate::types::{NodeId, ZFError, ZFResult};
 use crate::{PortId, PortType};
-use petgraph::graph::NodeIndex;
+use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::Graph;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
@@ -70,7 +71,7 @@ use std::convert::TryFrom;
 /// - its `node_id` in `graph_checker`,
 /// - its `(node_id, input.port_id)` in `node_checker`.
 pub(crate) struct DataflowValidator {
-    graph_checker: Graph<NodeId, (PortId, PortId)>,
+    graph_checker: Graph<NodeId, (PortId, PortId, EdgeIndex)>,
     node_checker: Graph<PortUniqueId, PortType>,
     input_indexes: HashSet<NodeIndex>,
     output_indexes: HashSet<NodeIndex>,
@@ -216,8 +217,8 @@ impl DataflowValidator {
 
     pub(crate) fn try_add_link(
         &mut self,
-        from: &LinkFromDescriptor,
-        to: &LinkToDescriptor,
+        from: &FromDescriptor,
+        to: &ToDescriptor,
     ) -> ZFResult<()> {
         let from_graph_checker_idx = self
             .map_id_to_graph_checker_idx
@@ -254,11 +255,14 @@ impl DataflowValidator {
             )));
         }
 
-        self.graph_checker.add_edge(
+        let edge_idx = self.graph_checker.add_edge(
             *from_graph_checker_idx,
             *to_graph_checker_idx,
-            (from.output.clone(), to.input.clone()),
+            (from.output.clone(), to.input.clone(), EdgeIndex::default()),
         );
+        // NOTE: We can "safely" unwrap as we just added that edge to the graph.
+        let mut edge_weight = self.graph_checker.edge_weight_mut(edge_idx).unwrap();
+        edge_weight.2 = edge_idx;
 
         let from_node_checker_idx = self.map_id_to_node_checker_idx.get(&from_id).unwrap();
         let to_node_checker_idx = self.map_id_to_node_checker_idx.get(&to_id).unwrap();
@@ -318,5 +322,88 @@ impl DataflowValidator {
                 _ => Ok(()),
             }
         })
+    }
+
+    /// Validate that the deadline can be enforced.
+    ///
+    /// In particular, we check that there is a path between the "from.output" and "to.input" nodes.
+    /// we cannot just check that there is a path between "from" and "to" as we have to take
+    /// into consideration the ports the user provided
+    ///
+    /// To perform that check we:
+    /// 1) Isolate the incoming edge (singular!) that ends at the "to" node,
+    /// 2) Get the index, in `graph_checker`, of the node that is at the origin of edge that we
+    ///    isolated in step 1). This node is the node *before* the "to" node.
+    ///
+    /// 3) Isolate the outgoing edges that start at the "from" node.
+    /// 4) For all the nodes that are at the end of all the edges isolated in step 3) (i.e. all
+    ///    nodes that are *after* the "from" node for the provided port) check that there is a path
+    ///    connecting them. If there is a path then the deadline is valid.
+    ///
+    /// NOTE: . Hence the extra steps.
+    pub(crate) fn validate_deadline(
+        &self,
+        from: &FromDescriptor,
+        to: &ToDescriptor,
+    ) -> ZFResult<()> {
+        let to_idx = self
+            .map_id_to_graph_checker_idx
+            .get(&to.node)
+            .ok_or_else(|| ZFError::NodeNotFound(to.node.clone()))?;
+        let all_to_edges = self
+            .graph_checker
+            .edges_directed(*to_idx, petgraph::Incoming);
+        let to_edges: Vec<_> = all_to_edges
+            .filter(|edge| {
+                let (_, input_port, _) = edge.weight();
+                *input_port == to.input
+            })
+            .collect();
+
+        // By construction, there should only be one "incoming edge".
+        assert!(to_edges.len() == 1);
+        let (_, _, edge_idx) = to_edges[0].weight();
+        let (to_prev_idx, _) = self.graph_checker.edge_endpoints(*edge_idx).unwrap();
+
+        let from_idx = self
+            .map_id_to_graph_checker_idx
+            .get(&from.node)
+            .ok_or_else(|| ZFError::NodeNotFound(from.node.clone()))?;
+        let all_from_edges = self
+            .graph_checker
+            .edges_directed(*from_idx, petgraph::Outgoing);
+        let from_edges: Vec<_> = all_from_edges
+            .filter(|edge| {
+                let (output_port, _, _) = edge.weight();
+                *output_port == from.output
+            })
+            .collect();
+
+        let mut has_path = false;
+
+        // `for` instead of `for_each` to be able to break early.
+        for edge in from_edges.iter() {
+            let (_, _, edge_idx) = edge.weight();
+            let (_, from_next_idx) = self.graph_checker.edge_endpoints(*edge_idx).unwrap();
+
+            if petgraph::algo::has_path_connecting(
+                &self.graph_checker,
+                from_next_idx,
+                to_prev_idx,
+                None,
+            ) {
+                has_path = true;
+                break;
+            }
+        }
+
+        if has_path {
+            Ok(())
+        } else {
+            Err(ZFError::NoPathBetweenNodes((
+                (from.node.clone(), from.output.clone()),
+                (to.node.clone(), to.input.clone()),
+            )))
+        }
     }
 }

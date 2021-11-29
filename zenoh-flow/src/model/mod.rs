@@ -14,15 +14,39 @@
 
 pub mod connector;
 pub mod dataflow;
+pub mod deadline;
 pub mod link;
 pub mod node;
-pub mod period;
 
 use crate::model::link::PortDescriptor;
-use crate::model::period::PeriodDescriptor;
 use crate::serde::{Deserialize, Serialize};
-use crate::NodeId;
 use crate::ZFError;
+use crate::{DurationDescriptor, NodeId, PortId};
+use std::fmt;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FromDescriptor {
+    pub node: NodeId,
+    pub output: PortId,
+}
+
+impl fmt::Display for FromDescriptor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("{}.{}", self.node, self.output))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct ToDescriptor {
+    pub node: NodeId,
+    pub input: PortId,
+}
+
+impl fmt::Display for ToDescriptor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("{}.{}", self.node, self.input))
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -72,7 +96,7 @@ pub struct RegistryNode {
     pub tags: Vec<RegistryNodeTag>,
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
-    pub period: Option<PeriodDescriptor>,
+    pub period: Option<DurationDescriptor>,
 }
 
 impl RegistryNode {

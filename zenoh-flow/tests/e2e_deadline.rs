@@ -12,123 +12,42 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+mod types;
+
 use async_std::sync::Arc;
 use async_trait::async_trait;
-use flume::{bounded, Receiver};
+use flume::Sender;
 use std::collections::HashMap;
-use std::convert::TryInto;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
+use types::{VecSource, ZFUsize};
 use zenoh_flow::model::link::PortDescriptor;
 use zenoh_flow::model::{FromDescriptor, ToDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
-use zenoh_flow::zenoh_flow_derive::ZFData;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, zf_empty_state, Configuration, Context, Data,
-    Deserializable, LocalDeadlineMiss, Node, NodeOutput, Operator, PortId, Sink, Source, State,
-    ZFData, ZFError, ZFResult,
+    default_input_rule, default_output_rule, zf_empty_state, Configuration, Data, EmptyState,
+    LocalDeadlineMiss, Node, NodeOutput, Operator, PortId, Sink, State, ZFError, ZFResult,
 };
 
-// Data Type
-
-#[derive(Debug, Clone, ZFData)]
-pub struct ZFUsize(pub usize);
-
-impl ZFData for ZFUsize {
-    fn try_serialize(&self) -> ZFResult<Vec<u8>> {
-        Ok(self.0.to_ne_bytes().to_vec())
-    }
-}
-
-impl Deserializable for ZFUsize {
-    fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
-    where
-        Self: Sized,
-    {
-        let value =
-            usize::from_ne_bytes(bytes.try_into().map_err(|_| ZFError::DeseralizationError)?);
-        Ok(ZFUsize(value))
-    }
-}
-
-static SOURCE: &str = "Counter";
-static DESTINATION: &str = "Counter";
-
-static COUNTER: AtomicUsize = AtomicUsize::new(0);
-
-// SOURCE
-
-struct CountSource {
-    rx: Receiver<()>,
-}
-
-unsafe impl Send for CountSource {}
-unsafe impl Sync for CountSource {}
-
-impl CountSource {
-    pub fn new(rx: Receiver<()>) -> Self {
-        CountSource { rx }
-    }
-}
-
-#[async_trait]
-impl Source for CountSource {
-    async fn run(&self, _context: &mut Context, _state: &mut State) -> zenoh_flow::ZFResult<Data> {
-        let _ = self.rx.recv_async().await;
-        COUNTER.fetch_add(1, Ordering::AcqRel);
-        let d = ZFUsize(COUNTER.load(Ordering::Relaxed));
-        Ok(Data::from::<ZFUsize>(d))
-    }
-}
-
-impl Node for CountSource {
-    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
-        zf_empty_state!()
-    }
-
-    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
-        Ok(())
-    }
-}
-
-// SINK
-
-struct ExampleGenericSink;
-
-#[async_trait]
-impl Sink for ExampleGenericSink {
-    async fn run(
-        &self,
-        _context: &mut Context,
-        _state: &mut State,
-        mut input: zenoh_flow::runtime::message::DataMessage,
-    ) -> zenoh_flow::ZFResult<()> {
-        let data = input.get_inner_data().try_get::<ZFUsize>()?;
-
-        assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
-
-        println!("Example Generic Sink Received: {:?}", input);
-        Ok(())
-    }
-}
-
-impl Node for ExampleGenericSink {
-    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
-        zf_empty_state!()
-    }
-
-    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
-        Ok(())
-    }
-}
-
-// OPERATOR
+static SOURCE: &str = "Source";
+static OPERATOR: &str = "Operator";
+static SINK: &str = "Sink";
 
 #[derive(Debug)]
-struct NoOp;
+struct OperatorE2EDeadline;
 
-impl Operator for NoOp {
+impl Node for OperatorE2EDeadline {
+    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+        zf_empty_state!()
+    }
+
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+        Ok(())
+    }
+}
+
+impl Operator for OperatorE2EDeadline {
     fn input_rule(
         &self,
         _context: &mut zenoh_flow::Context,
@@ -145,17 +64,17 @@ impl Operator for NoOp {
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Data>> {
         let mut results: HashMap<PortId, Data> = HashMap::new();
-        let source: PortId = SOURCE.into();
 
-        let data = inputs
-            .get_mut(&source)
-            .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?
-            .get_inner_data()
-            .try_get::<ZFUsize>()?;
+        // Sleep for one second: the deadline miss should be triggered as it’s set to 0.5s.
+        std::thread::sleep(std::time::Duration::from_secs(1));
 
-        assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
+        let mut data_msg = inputs
+            .remove(SOURCE)
+            .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?;
+        let data = data_msg.get_inner_data().try_get::<ZFUsize>()?;
 
-        results.insert(DESTINATION.into(), Data::from::<ZFUsize>(data.clone()));
+        results.insert(SINK.into(), Data::from::<ZFUsize>(ZFUsize(data.0)));
+
         Ok(results)
     }
 
@@ -168,18 +87,50 @@ impl Operator for NoOp {
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         assert!(
             deadline_miss.is_none(),
-            "Expected `deadline_miss` to be `None`."
+            "Expected `deadline_miss` to be `None`"
         );
         default_output_rule(state, outputs)
     }
 }
 
-impl Node for NoOp {
+pub struct E2EDeadlineSink {
+    tx: Sender<()>,
+}
+
+impl E2EDeadlineSink {
+    pub fn new(tx: Sender<()>) -> Self {
+        Self { tx }
+    }
+}
+
+impl Node for E2EDeadlineSink {
     fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
-        zf_empty_state!()
+        Ok(State::from::<EmptyState>(EmptyState {}))
     }
 
     fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl Sink for E2EDeadlineSink {
+    async fn run(
+        &self,
+        _context: &mut zenoh_flow::Context,
+        _state: &mut State,
+        input: zenoh_flow::DataMessage,
+    ) -> ZFResult<()> {
+        let missed_e2e_deadlines = input.get_missed_end_to_end_deadlines();
+        assert_eq!(missed_e2e_deadlines.len(), 1);
+        assert_eq!(missed_e2e_deadlines[0].from.node, SOURCE.into());
+        assert_eq!(missed_e2e_deadlines[0].to.node, SINK.into());
+
+        self.tx
+            .send_async(())
+            .await
+            .map_err(|e| ZFError::IOError(e.to_string()))?;
+
         Ok(())
     }
 }
@@ -188,7 +139,7 @@ impl Node for NoOp {
 async fn single_runtime() {
     env_logger::init();
 
-    let (tx, rx) = bounded::<()>(1); // Channel used to trigger source
+    let (tx_sink, rx_sink) = flume::bounded::<()>(1);
 
     let session =
         async_std::sync::Arc::new(zenoh::net::open(zenoh::net::config::peer()).await.unwrap());
@@ -205,13 +156,13 @@ async fn single_runtime() {
     let mut dataflow =
         zenoh_flow::runtime::dataflow::Dataflow::new(ctx.clone(), "test".into(), None);
 
-    let source = Arc::new(CountSource::new(rx));
-    let sink = Arc::new(ExampleGenericSink {});
-    let operator = Arc::new(NoOp {});
+    let source = Arc::new(VecSource::new(vec![1]));
+    let sink = Arc::new(E2EDeadlineSink::new(tx_sink));
+    let operator = Arc::new(OperatorE2EDeadline {});
 
     dataflow
         .try_add_static_source(
-            "counter-source".into(),
+            SOURCE.into(),
             None,
             PortDescriptor {
                 port_id: SOURCE.into(),
@@ -224,9 +175,9 @@ async fn single_runtime() {
 
     dataflow
         .try_add_static_sink(
-            "generic-sink".into(),
+            SINK.into(),
             PortDescriptor {
-                port_id: SOURCE.into(),
+                port_id: SINK.into(),
                 port_type: "int".into(),
             },
             sink.initialize(&None).unwrap(),
@@ -236,13 +187,13 @@ async fn single_runtime() {
 
     dataflow
         .try_add_static_operator(
-            "noop".into(),
+            OPERATOR.into(),
             vec![PortDescriptor {
                 port_id: SOURCE.into(),
                 port_type: "int".into(),
             }],
             vec![PortDescriptor {
-                port_id: DESTINATION.into(),
+                port_id: SINK.into(),
                 port_type: "int".into(),
             }],
             None,
@@ -254,11 +205,11 @@ async fn single_runtime() {
     dataflow
         .try_add_link(
             FromDescriptor {
-                node: "counter-source".into(),
+                node: SOURCE.into(),
                 output: SOURCE.into(),
             },
             ToDescriptor {
-                node: "noop".into(),
+                node: OPERATOR.into(),
                 input: SOURCE.into(),
             },
             None,
@@ -270,12 +221,12 @@ async fn single_runtime() {
     dataflow
         .try_add_link(
             FromDescriptor {
-                node: "noop".into(),
-                output: DESTINATION.into(),
+                node: OPERATOR.into(),
+                output: SINK.into(),
             },
             ToDescriptor {
-                node: "generic-sink".into(),
-                input: SOURCE.into(),
+                node: SINK.into(),
+                input: SINK.into(),
             },
             None,
             None,
@@ -283,15 +234,45 @@ async fn single_runtime() {
         )
         .unwrap();
 
+    // A deadline starting at SINK and going to OPERATOR is impossible and should return an error.
+    assert!(dataflow
+        .try_add_deadline(
+            FromDescriptor {
+                node: SINK.into(),
+                output: SINK.into(),
+            },
+            ToDescriptor {
+                node: OPERATOR.into(),
+                input: SOURCE.into(),
+            },
+            Duration::from_millis(500),
+        )
+        .is_err());
+
+    // Correct end to end deadline between SOURCE and SINK.
+    assert!(dataflow
+        .try_add_deadline(
+            FromDescriptor {
+                node: SOURCE.into(),
+                output: SOURCE.into(),
+            },
+            ToDescriptor {
+                node: SINK.into(),
+                input: SINK.into(),
+            },
+            Duration::from_millis(500),
+        )
+        .is_ok());
+
     let mut instance = DataflowInstance::try_instantiate(dataflow).unwrap();
 
     let ids = instance.get_nodes();
     for id in &ids {
         instance.start_node(id).await.unwrap();
     }
-    tx.send_async(()).await.unwrap();
 
-    zenoh_flow::async_std::task::sleep(std::time::Duration::from_secs(1)).await;
+    // Wait for the Sink to finish asserting and then kill all nodes.
+    let _ = rx_sink.recv_async().await.unwrap();
 
     for id in &instance.get_sources() {
         instance.stop_node(id).await.unwrap()
@@ -307,7 +288,7 @@ async fn single_runtime() {
 }
 
 #[test]
-fn run_single_runtime() {
+fn e2e_deadline() {
     let h1 = async_std::task::spawn(async move { single_runtime().await });
 
     async_std::task::block_on(async move { h1.await })

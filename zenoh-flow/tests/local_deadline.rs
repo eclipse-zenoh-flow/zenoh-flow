@@ -18,13 +18,14 @@ use async_std::sync::Arc;
 use std::collections::HashMap;
 use std::time::Duration;
 use types::{VecSink, VecSource, ZFUsize};
-use zenoh_flow::model::link::{LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
+use zenoh_flow::model::link::PortDescriptor;
+use zenoh_flow::model::{FromDescriptor, ToDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::{
-    default_input_rule, default_output_rule, zf_empty_state, Configuration, Data, DeadlineMiss,
-    Node, NodeOutput, Operator, PortId, State, ZFError, ZFResult,
+    default_input_rule, default_output_rule, zf_empty_state, Configuration, Data,
+    LocalDeadlineMiss, Node, NodeOutput, Operator, PortId, State, ZFError, ZFResult,
 };
 
 static SOURCE: &str = "Source";
@@ -68,7 +69,7 @@ impl Operator for OperatorDeadline {
         let mut data_msg = inputs
             .remove(SOURCE)
             .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?;
-        let data = data_msg.data.try_get::<ZFUsize>()?;
+        let data = data_msg.get_inner_data().try_get::<ZFUsize>()?;
 
         results.insert(SINK.into(), Data::from::<ZFUsize>(ZFUsize(data.0)));
 
@@ -80,7 +81,7 @@ impl Operator for OperatorDeadline {
         _context: &mut zenoh_flow::Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
-        deadline_miss: Option<DeadlineMiss>,
+        deadline_miss: Option<LocalDeadlineMiss>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
         assert!(
             deadline_miss.is_some(),
@@ -159,11 +160,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: SOURCE.into(),
                 output: SOURCE.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: OPERATOR.into(),
                 input: SOURCE.into(),
             },
@@ -175,11 +176,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            LinkFromDescriptor {
+            FromDescriptor {
                 node: OPERATOR.into(),
                 output: SINK.into(),
             },
-            LinkToDescriptor {
+            ToDescriptor {
                 node: SINK.into(),
                 input: SINK.into(),
             },

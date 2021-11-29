@@ -61,6 +61,7 @@ pub enum ZFError {
     PortNotConnected((NodeId, PortId)),
     NotRecoding,
     AlreadyRecording,
+    NoPathBetweenNodes(((NodeId, PortId), (NodeId, PortId))),
 }
 
 impl From<ZRPCError> for ZFError {

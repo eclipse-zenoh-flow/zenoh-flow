@@ -14,8 +14,10 @@
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::dataflow::descriptor::DataFlowDescriptor;
-use crate::model::link::{LinkDescriptor, LinkFromDescriptor, LinkToDescriptor, PortDescriptor};
+use crate::model::deadline::E2EDeadlineRecord;
+use crate::model::link::{LinkDescriptor, PortDescriptor};
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
+use crate::model::{FromDescriptor, ToDescriptor};
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{RuntimeId, ZFError, ZFResult};
 use crate::PortType;
@@ -32,6 +34,7 @@ pub struct DataFlowRecord {
     pub sources: Vec<SourceRecord>,
     pub connectors: Vec<ZFConnectorRecord>,
     pub links: Vec<LinkDescriptor>,
+    pub end_to_end_deadlines: Option<Vec<E2EDeadlineRecord>>,
 }
 
 impl DataFlowRecord {
@@ -191,7 +194,7 @@ impl DataFlowRecord {
                     // creating link between node and sender
                     let link_sender = LinkDescriptor {
                         from: l.from.clone(),
-                        to: LinkToDescriptor {
+                        to: ToDescriptor {
                             node: sender_id.into(),
                             input: l.from.output.clone(),
                         },
@@ -224,7 +227,7 @@ impl DataFlowRecord {
 
                 // Creating link between receiver and node
                 let link_receiver = LinkDescriptor {
-                    from: LinkFromDescriptor {
+                    from: FromDescriptor {
                         node: receiver_id.into(),
                         output: l.to.input.clone(),
                     },
@@ -249,6 +252,12 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
 
     fn try_from(d: (DataFlowDescriptor, Uuid)) -> Result<Self, Self::Error> {
         let (d, id) = d;
+
+        let deadlines = d
+            .deadlines
+            .clone()
+            .map(|deadlines_desc| deadlines_desc.into_iter().map(|desc| desc.into()).collect());
+
         let mut dfr = DataFlowRecord {
             uuid: id,
             flow: d.flow.clone(),
@@ -257,6 +266,7 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
             sources: Vec::new(),
             connectors: Vec::new(),
             links: Vec::new(),
+            end_to_end_deadlines: deadlines,
         };
 
         for o in &d.operators {

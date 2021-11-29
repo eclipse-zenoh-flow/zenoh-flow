@@ -1,0 +1,320 @@
+//
+// Copyright (c) 2017, 2021 ADLINK Technology Inc.
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+// which is available at https://www.apache.org/licenses/LICENSE-2.0.
+//
+// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+//
+// Contributors:
+//   ADLINK zenoh team, <zenoh@adlink-labs.tech>
+//
+
+use crate::model::deadline::E2EDeadlineRecord;
+use crate::model::{FromDescriptor, ToDescriptor};
+use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
+use crate::runtime::dataflow::instance::runners::operator::{OperatorIO, OperatorRunner};
+use crate::runtime::dataflow::instance::runners::NodeRunner;
+use crate::runtime::dataflow::loader::{Loader, LoaderConfig};
+use crate::runtime::deadline::E2EDeadline;
+use crate::runtime::{InstanceContext, RuntimeContext};
+use crate::{
+    default_input_rule, default_output_rule, Configuration, Context, Data, DataMessage,
+    Deserializable, DowncastAny, EmptyState, LocalDeadlineMiss, Message, Node, NodeId, NodeOutput,
+    Operator, PortId, PortType, State, Token, ZFData, ZFError, ZFResult,
+};
+use async_std::sync::{Arc, Mutex};
+use std::time::Duration;
+use std::{collections::HashMap, convert::TryInto};
+use uhlc::HLC;
+use zenoh::ZFuture;
+
+// ZFUsize implements Data.
+#[derive(Debug, Clone)]
+pub struct ZFUsize(pub usize);
+
+impl DowncastAny for ZFUsize {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+impl ZFData for ZFUsize {
+    fn try_serialize(&self) -> ZFResult<Vec<u8>> {
+        Ok(self.0.to_ne_bytes().to_vec())
+    }
+}
+
+impl Deserializable for ZFUsize {
+    fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
+    where
+        Self: Sized,
+    {
+        let value =
+            usize::from_ne_bytes(bytes.try_into().map_err(|_| ZFError::DeseralizationError)?);
+        Ok(ZFUsize(value))
+    }
+}
+
+async fn send_usize(
+    hlc: &Arc<HLC>,
+    sender: &LinkSender<Message>,
+    number: usize,
+    deadlines: Vec<E2EDeadline>,
+) {
+    sender
+        .send(Arc::new(Message::Data(DataMessage::new(
+            Data::from::<ZFUsize>(ZFUsize(number)),
+            hlc.new_timestamp(),
+            deadlines,
+        ))))
+        .await
+        .unwrap();
+}
+
+// -------------------------------------------------------------------------------------------------
+// Scenarios tested:
+//
+// 1) a deadline has be violated -> a deadline miss message is added to the ReadyToken;
+//
+// 2) two deadlines: 1 was violated, the other not, only one deadline miss message added to the
+//    ReadyToken;
+//
+// 3) deadline in the incoming message, that was violated, but it doesn’t concern the Operator =>
+//    there is no deadline miss in the ReadyToken + the deadline is propagated;
+//
+// 4) the Operator is at the "start" of an E2EDeadline, it is indeed propagated.
+// -------------------------------------------------------------------------------------------------
+struct TestOperatorDeadlineViolated {
+    input: Arc<str>,
+    output: Arc<str>,
+}
+
+impl Node for TestOperatorDeadlineViolated {
+    fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+        Ok(State::from::<EmptyState>(EmptyState {}))
+    }
+
+    fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+        Ok(())
+    }
+}
+
+impl Operator for TestOperatorDeadlineViolated {
+    fn input_rule(
+        &self,
+        _context: &mut Context,
+        state: &mut State,
+        tokens: &mut HashMap<PortId, Token>,
+    ) -> ZFResult<bool> {
+        let token = tokens.get(&self.input).unwrap();
+        match token {
+            Token::Pending => panic!("Unexpected `Pending` token"),
+            Token::Ready(ready_token) => {
+                assert_eq!(ready_token.get_missed_end_to_end_deadlines().len(), 1);
+            }
+        }
+
+        default_input_rule(state, tokens)
+    }
+
+    fn run(
+        &self,
+        _context: &mut Context,
+        _state: &mut State,
+        inputs: &mut HashMap<PortId, DataMessage>,
+    ) -> ZFResult<HashMap<PortId, Data>> {
+        let mut results: HashMap<PortId, Data> = HashMap::new();
+
+        let mut data_msg = inputs
+            .remove(&self.input)
+            .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?;
+
+        let data = data_msg.data.try_get::<ZFUsize>()?;
+
+        results.insert(self.output.clone(), Data::from::<ZFUsize>(ZFUsize(data.0)));
+        Ok(results)
+    }
+
+    fn output_rule(
+        &self,
+        _context: &mut Context,
+        state: &mut State,
+        outputs: HashMap<PortId, Data>,
+        local_deadline_miss: Option<LocalDeadlineMiss>,
+    ) -> ZFResult<HashMap<PortId, NodeOutput>> {
+        println!("output_rule");
+        assert!(
+            local_deadline_miss.is_none(),
+            "Expected `deadline_miss` to be `None`."
+        );
+        default_output_rule(state, outputs)
+    }
+}
+
+#[test]
+fn e2e_deadline() {
+    let session = zenoh::net::open(zenoh::net::config::peer()).wait().unwrap();
+    let hlc = Arc::new(uhlc::HLC::default());
+    let uuid = uuid::Uuid::new_v4();
+    let runtime_context = RuntimeContext {
+        session: Arc::new(session),
+        hlc: hlc.clone(),
+        loader: Arc::new(Loader::new(LoaderConfig { extensions: vec![] })),
+        runtime_name: "test-runtime-input-rule-keep".into(),
+        runtime_uuid: uuid,
+    };
+    let instance_context = InstanceContext {
+        flow_id: "test-input-rule-keep-flow".into(),
+        instance_id: uuid::Uuid::new_v4(),
+        runtime: runtime_context,
+    };
+
+    // Creating input.
+    let input: PortId = "INPUT".into();
+    let (tx_input, rx_input) = flume::unbounded::<Arc<Message>>();
+    let receiver_input: LinkReceiver<Message> = LinkReceiver {
+        id: input.clone(),
+        receiver: rx_input,
+    };
+    let sender_input: LinkSender<Message> = LinkSender {
+        id: input.clone(),
+        sender: tx_input,
+    };
+
+    let mut io_inputs: HashMap<PortId, LinkReceiver<Message>> = HashMap::with_capacity(1);
+    io_inputs.insert(input.clone(), receiver_input);
+    let mut inputs: HashMap<PortId, PortType> = HashMap::with_capacity(1);
+    inputs.insert(input.clone(), "usize".into());
+
+    // Creating output.
+    let output: PortId = "OUTPUT".into();
+    let (tx_output, rx_output) = flume::unbounded::<Arc<Message>>();
+    let receiver_output: LinkReceiver<Message> = LinkReceiver {
+        id: output.clone(),
+        receiver: rx_output,
+    };
+    let sender_output: LinkSender<Message> = LinkSender {
+        id: output.clone(),
+        sender: tx_output,
+    };
+    let mut io_outputs: HashMap<PortId, Vec<LinkSender<Message>>> = HashMap::with_capacity(1);
+    io_outputs.insert(output.clone(), vec![sender_output]);
+    let mut outputs: HashMap<PortId, PortType> = HashMap::with_capacity(1);
+    outputs.insert(output.clone(), "usize".into());
+
+    let operator_io = OperatorIO {
+        inputs: io_inputs,
+        outputs: io_outputs,
+    };
+
+    let operator = TestOperatorDeadlineViolated {
+        input: input.clone(),
+        output: output.clone(),
+    };
+    let operator_id: NodeId = "TestOperatorDeadlineViolated".into();
+    let operator_deadline = E2EDeadlineRecord {
+        from: FromDescriptor {
+            node: operator_id.clone(),
+            output: output.clone(),
+        },
+        to: ToDescriptor {
+            node: "future-not-violated".into(),
+            input: input.clone(),
+        },
+        duration: Duration::from_secs(5),
+    };
+
+    let operator_runner = OperatorRunner {
+        id: operator_id.clone(),
+        context: instance_context.clone(),
+        io: Arc::new(Mutex::new(operator_io)),
+        inputs,
+        outputs,
+        local_deadline: None,
+        state: Arc::new(Mutex::new(operator.initialize(&None).unwrap())),
+        operator: Arc::new(operator),
+        library: None,
+        end_to_end_deadlines: vec![operator_deadline.clone()],
+    };
+
+    let runner = NodeRunner::new(Arc::new(operator_runner), instance_context);
+
+    assert!(
+        // We use a timeout as, if an `assert` inside the Operator fails, the `task::block_on` will
+        // enter a deadlock.
+        async_std::task::block_on(async_std::future::timeout(Duration::from_secs(5), async {
+            let runner_manager = runner.start();
+
+            let start = hlc.new_timestamp();
+
+            // This deadline will be violated as we are going to sleep for 500ms. However, the Operator
+            // is not supposed to check it as it’s not the "to" node.
+            let deadline_violated_to_propagate = E2EDeadline {
+                duration: Duration::from_millis(100),
+                from: FromDescriptor {
+                    node: "past".into(),
+                    output: output.clone(),
+                },
+                to: ToDescriptor {
+                    node: "future".into(),
+                    input: input.clone(),
+                },
+                start,
+            };
+
+            // We sleep for 500 ms.
+            async_std::task::sleep(Duration::from_millis(500)).await;
+            // Then we send a deadline that ends at the Operator, started at `start` (so 500 ms before)
+            // and the duration of the deadline is 100 ms.
+            // We check in the `run` of the Operator that we indeed have a deadline miss. So the test is
+            // performed there.
+            send_usize(
+                &hlc,
+                &sender_input,
+                1,
+                vec![
+                    E2EDeadline {
+                        duration: Duration::from_millis(100),
+                        from: FromDescriptor {
+                            node: "past".into(),
+                            output: output.clone(),
+                        },
+                        to: ToDescriptor {
+                            node: operator_id.clone(),
+                            input: input.clone(),
+                        },
+                        start,
+                    },
+                    deadline_violated_to_propagate.clone(),
+                ],
+            )
+            .await;
+
+            // Finally, we check that the deadline that does not concern the Operator (although
+            // it’s violated) + the deadline that starts at the Operator are propagated.
+            let (_, message) = receiver_output.recv().await.unwrap();
+            if let Message::Data(data_message) = message.as_ref() {
+                assert_eq!(data_message.end_to_end_deadlines.len(), 2);
+                assert!(data_message
+                    .end_to_end_deadlines
+                    .contains(&deadline_violated_to_propagate));
+                assert!(data_message
+                    .end_to_end_deadlines
+                    .iter()
+                    .any(|e2e_deadline| *e2e_deadline == operator_deadline));
+            }
+
+            runner_manager.kill().await.unwrap();
+            runner_manager.await.unwrap();
+        }))
+        .is_ok(),
+        "Deadlock detected (maybe an `assert` inside the `input rule` | `run` | `output rule` failed?)"
+    );
+}

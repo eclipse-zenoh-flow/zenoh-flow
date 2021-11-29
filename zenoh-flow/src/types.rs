@@ -16,7 +16,7 @@ use crate::async_std::sync::Arc;
 use crate::serde::{Deserialize, Serialize};
 use crate::{ControlMessage, DataMessage, Token, ZFData, ZFState};
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 pub type NodeId = Arc<str>;
 pub type PortId = Arc<str>;
@@ -223,18 +223,36 @@ pub fn default_input_rule(
 
 pub type Configuration = serde_json::Value;
 
-/// A structure containing all the information regarding a missed deadline.
-///
-/// Its field are:
-/// - `start`: the `uhlc::Timestamp` at which the execution started,
-/// - `end`: the `uhlc::Timestamp` at which the execution ended,
-/// - `elapsed`: the `std::time::Duration` of the execution,
-/// - `deadline`: the `std::time::Duration` of the deadline.
-///
-/// The `elapsed` value can be retrieved by subtracting `end` from `start`.
-#[derive(Clone)]
-pub struct DeadlineMiss {
-    pub start: Instant,
-    pub deadline: Duration,
-    pub elapsed: Duration,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum DurationUnit {
+    #[serde(alias = "s")]
+    #[serde(alias = "second")]
+    #[serde(alias = "seconds")]
+    Second,
+    #[serde(alias = "ms")]
+    #[serde(alias = "millisecond")]
+    #[serde(alias = "milliseconds")]
+    Millisecond,
+    #[serde(alias = "us")]
+    #[serde(alias = "µs")]
+    #[serde(alias = "microsecond")]
+    #[serde(alias = "microseconds")]
+    Microsecond,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DurationDescriptor {
+    #[serde(alias = "duration")]
+    pub(crate) length: u64,
+    pub(crate) unit: DurationUnit,
+}
+
+impl DurationDescriptor {
+    pub fn to_duration(&self) -> Duration {
+        match self.unit {
+            DurationUnit::Second => Duration::from_secs(self.length),
+            DurationUnit::Millisecond => Duration::from_millis(self.length),
+            DurationUnit::Microsecond => Duration::from_micros(self.length),
+        }
+    }
 }
