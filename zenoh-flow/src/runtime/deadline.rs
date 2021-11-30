@@ -82,13 +82,6 @@ impl E2EDeadline {
     ///
     /// A deadline is violated if the time difference between its `self.start` and the provided
     /// timestamp `now` is strictly greater than its `self.duration`.
-    ///
-    /// # Returns
-    ///
-    /// - `None` if the deadline does not concern the provided `component_id` or if it was not
-    /// violated.
-    /// - `Some(E2EDeadlineMiss)` if the deadline concerns the provided `component_id` and was
-    /// violated.
     pub fn check(
         &self,
         node_id: &NodeId,
