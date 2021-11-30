@@ -14,7 +14,7 @@
 
 use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::{FromDescriptor, ToDescriptor};
-use crate::NodeId;
+use crate::{NodeId, PortId};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use uhlc::Timestamp;
@@ -82,24 +82,28 @@ impl E2EDeadline {
     ///
     /// A deadline is violated if the time difference between its `self.start` and the provided
     /// timestamp `now` is strictly greater than its `self.duration`.
-    ///
-    /// # Returns
-    ///
-    /// - `None` if the deadline does not concern the provided `component_id` or if it was not
-    /// violated.
-    /// - `Some(E2EDeadlineMiss)` if the deadline concerns the provided `component_id` and was
-    /// violated.
-    pub fn check(&self, node_id: &NodeId, now: &Timestamp) -> Option<E2EDeadlineMiss> {
-        if *node_id == self.to.node {
+    pub fn check(
+        &self,
+        node_id: &NodeId,
+        port_id: &PortId,
+        now: &Timestamp,
+    ) -> Option<E2EDeadlineMiss> {
+        if *node_id == self.to.node && *port_id == self.to.input {
             let diff_duration = now.get_diff_duration(&self.start);
             if diff_duration > self.duration {
                 log::warn!(
                     r#"Deadline miss detected:
-    Start: {} (s)
-    Now: {} (s)
-    Time difference: {} (us)
-    Deadline duration: {} (us)
+    From: {} . {}
+    To  : {} . {}
+      Start            : {} (s)
+      Now              : {} (s)
+      Time difference  : {} (us)
+      Deadline duration: {} (us)
 "#,
+                    self.from.node,
+                    self.from.output,
+                    self.to.node,
+                    self.to.input,
                     self.start.get_time().to_duration().as_secs_f64(),
                     now.get_time().to_duration().as_secs_f64(),
                     diff_duration.as_micros(),
