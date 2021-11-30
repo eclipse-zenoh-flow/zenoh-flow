@@ -21,9 +21,9 @@ use crate::runtime::dataflow::loader::{Loader, LoaderConfig};
 use crate::runtime::deadline::E2EDeadline;
 use crate::runtime::{InstanceContext, RuntimeContext};
 use crate::{
-    default_input_rule, default_output_rule, Configuration, Context, Data, DataMessage,
-    Deserializable, DowncastAny, EmptyState, LocalDeadlineMiss, Message, Node, NodeId, NodeOutput,
-    Operator, PortId, PortType, State, Token, ZFData, ZFError, ZFResult,
+    default_output_rule, Configuration, Context, Data, DataMessage, Deserializable, DowncastAny,
+    EmptyState, LocalDeadlineMiss, Message, Node, NodeId, NodeOutput, Operator, PortId, PortType,
+    State, Token, ZFData, ZFError, ZFResult,
 };
 use async_std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -92,7 +92,7 @@ async fn send_usize(
 // 4) the Operator is at the "start" of an E2EDeadline, it is indeed propagated.
 // -------------------------------------------------------------------------------------------------
 struct TestOperatorDeadlineViolated {
-    input: Arc<str>,
+    input1: Arc<str>,
     output: Arc<str>,
 }
 
@@ -110,18 +110,18 @@ impl Operator for TestOperatorDeadlineViolated {
     fn input_rule(
         &self,
         _context: &mut Context,
-        state: &mut State,
+        _state: &mut State,
         tokens: &mut HashMap<PortId, Token>,
     ) -> ZFResult<bool> {
-        let token = tokens.get(&self.input).unwrap();
-        match token {
+        let token_input1 = tokens.get(&self.input1).unwrap();
+        match token_input1 {
             Token::Pending => panic!("Unexpected `Pending` token"),
             Token::Ready(ready_token) => {
                 assert_eq!(ready_token.get_missed_end_to_end_deadlines().len(), 1);
             }
         }
 
-        default_input_rule(state, tokens)
+        Ok(true)
     }
 
     fn run(
@@ -133,7 +133,7 @@ impl Operator for TestOperatorDeadlineViolated {
         let mut results: HashMap<PortId, Data> = HashMap::new();
 
         let mut data_msg = inputs
-            .remove(&self.input)
+            .remove(&self.input1)
             .ok_or_else(|| ZFError::InvalidData("No data".to_string()))?;
 
         let data = data_msg.data.try_get::<ZFUsize>()?;
@@ -176,22 +176,33 @@ fn e2e_deadline() {
         runtime: runtime_context,
     };
 
-    // Creating input.
-    let input: PortId = "INPUT".into();
-    let (tx_input, rx_input) = flume::unbounded::<Arc<Message>>();
-    let receiver_input: LinkReceiver<Message> = LinkReceiver {
-        id: input.clone(),
-        receiver: rx_input,
+    // Creating inputs.
+    let input1: PortId = "INPUT-1".into();
+    let (tx_input1, rx_input1): (flume::Sender<Arc<Message>>, flume::Receiver<Arc<Message>>) =
+        flume::unbounded::<Arc<Message>>();
+    let receiver_input1: LinkReceiver<Message> = LinkReceiver {
+        id: input1.clone(),
+        receiver: rx_input1,
     };
-    let sender_input: LinkSender<Message> = LinkSender {
-        id: input.clone(),
-        sender: tx_input,
+    let sender_input1: LinkSender<Message> = LinkSender {
+        id: input1.clone(),
+        sender: tx_input1,
     };
 
-    let mut io_inputs: HashMap<PortId, LinkReceiver<Message>> = HashMap::with_capacity(1);
-    io_inputs.insert(input.clone(), receiver_input);
-    let mut inputs: HashMap<PortId, PortType> = HashMap::with_capacity(1);
-    inputs.insert(input.clone(), "usize".into());
+    let input2: PortId = "INPUT-2".into();
+    let (_tx_input2, rx_input2): (flume::Sender<Arc<Message>>, flume::Receiver<Arc<Message>>) =
+        flume::unbounded::<Arc<Message>>();
+    let receiver_input2: LinkReceiver<Message> = LinkReceiver {
+        id: input2.clone(),
+        receiver: rx_input2,
+    };
+
+    let mut io_inputs: HashMap<PortId, LinkReceiver<Message>> = HashMap::with_capacity(2);
+    io_inputs.insert(input1.clone(), receiver_input1);
+    io_inputs.insert(input2.clone(), receiver_input2);
+    let mut inputs: HashMap<PortId, PortType> = HashMap::with_capacity(2);
+    inputs.insert(input1.clone(), "usize".into());
+    inputs.insert(input2.clone(), "usize".into());
 
     // Creating output.
     let output: PortId = "OUTPUT".into();
@@ -215,7 +226,7 @@ fn e2e_deadline() {
     };
 
     let operator = TestOperatorDeadlineViolated {
-        input: input.clone(),
+        input1: input1.clone(),
         output: output.clone(),
     };
     let operator_id: NodeId = "TestOperatorDeadlineViolated".into();
@@ -226,7 +237,7 @@ fn e2e_deadline() {
         },
         to: ToDescriptor {
             node: "future-not-violated".into(),
-            input: input.clone(),
+            input: input1.clone(),
         },
         duration: Duration::from_secs(5),
     };
@@ -264,20 +275,24 @@ fn e2e_deadline() {
                 },
                 to: ToDescriptor {
                     node: "future".into(),
-                    input: input.clone(),
+                    input: input1.clone(),
                 },
                 start,
             };
 
             // We sleep for 500 ms.
             async_std::task::sleep(Duration::from_millis(500)).await;
-            // Then we send a deadline that ends at the Operator, started at `start` (so 500 ms before)
-            // and the duration of the deadline is 100 ms.
-            // We check in the `run` of the Operator that we indeed have a deadline miss. So the test is
-            // performed there.
+            // Then we send two deadlines that ends at the Operator, started at `start` (so 500 ms
+            // before) and the duration of the deadline is 100 ms.
+            //
+            // Only the deadline tied to input1 should result in a deadline miss because we sent it
+            // on "input1" — although there are two deadlines that apply on the Operator.
+            //
+            // We check in the `run` of the Operator that we indeed have a deadline miss. So the
+            // test is performed there.
             send_usize(
                 &hlc,
-                &sender_input,
+                &sender_input1,
                 1,
                 vec![
                     E2EDeadline {
@@ -288,7 +303,19 @@ fn e2e_deadline() {
                         },
                         to: ToDescriptor {
                             node: operator_id.clone(),
-                            input: input.clone(),
+                            input: input1.clone(),
+                        },
+                        start,
+                    },
+                    E2EDeadline {
+                        duration: Duration::from_millis(100),
+                        from: FromDescriptor {
+                            node: "past".into(),
+                            output: output.clone(),
+                        },
+                        to: ToDescriptor {
+                            node: operator_id.clone(),
+                            input: input2.clone(),
                         },
                         start,
                     },

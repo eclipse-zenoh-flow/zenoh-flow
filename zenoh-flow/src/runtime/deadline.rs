@@ -14,7 +14,7 @@
 
 use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::{FromDescriptor, ToDescriptor};
-use crate::NodeId;
+use crate::{NodeId, PortId};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use uhlc::Timestamp;
@@ -89,8 +89,13 @@ impl E2EDeadline {
     /// violated.
     /// - `Some(E2EDeadlineMiss)` if the deadline concerns the provided `component_id` and was
     /// violated.
-    pub fn check(&self, node_id: &NodeId, now: &Timestamp) -> Option<E2EDeadlineMiss> {
-        if *node_id == self.to.node {
+    pub fn check(
+        &self,
+        node_id: &NodeId,
+        port_id: &PortId,
+        now: &Timestamp,
+    ) -> Option<E2EDeadlineMiss> {
+        if *node_id == self.to.node && *port_id == self.to.input {
             let diff_duration = now.get_diff_duration(&self.start);
             if diff_duration > self.duration {
                 log::warn!(

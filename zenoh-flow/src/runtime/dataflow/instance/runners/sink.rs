@@ -140,7 +140,7 @@ impl Runner for SinkRunner {
             if let Some(link) = &*self.link.lock().await {
                 let mut state = self.state.lock().await;
 
-                let (_, message) = link.recv().await?;
+                let (port_id, message) = link.recv().await?;
                 let input = match message.as_ref() {
                     Message::Data(data_message) => {
                         if let Err(error) = self
@@ -163,7 +163,7 @@ impl Runner for SinkRunner {
                             .end_to_end_deadlines
                             .iter()
                             .for_each(|e2e_deadline| {
-                                if let Some(miss) = e2e_deadline.check(&self.id, &now) {
+                                if let Some(miss) = e2e_deadline.check(&self.id, &port_id, &now) {
                                     input.missed_end_to_end_deadlines.push(miss);
                                 }
                             });

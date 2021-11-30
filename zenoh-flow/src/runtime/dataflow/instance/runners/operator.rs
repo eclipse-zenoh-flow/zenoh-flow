@@ -232,7 +232,7 @@ impl Runner for OperatorRunner {
             'input_rule: loop {
                 if !links.is_empty() {
                     match future::select_all(links).await {
-                        (Ok((id, message)), _index, remaining) => {
+                        (Ok((port_id, message)), _index, remaining) => {
                             match message.as_ref() {
                                 Message::Data(data_message) => {
                                     // In order to check for E2EDeadlines we first have to update
@@ -282,12 +282,14 @@ impl Runner for OperatorRunner {
                                         .end_to_end_deadlines
                                         .iter()
                                         .for_each(|deadline| {
-                                            if let Some(miss) = deadline.check(&self.id, &now) {
+                                            if let Some(miss) =
+                                                deadline.check(&self.id, &port_id, &now)
+                                            {
                                                 data_msg.missed_end_to_end_deadlines.push(miss)
                                             }
                                         });
 
-                                    tokens.insert(id, Token::from(data_msg));
+                                    tokens.insert(port_id, Token::from(data_msg));
                                 }
 
                                 Message::Control(_) => {
