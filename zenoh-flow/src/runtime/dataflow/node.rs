@@ -17,9 +17,13 @@ use crate::model::link::PortDescriptor;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
 use async_std::sync::{Arc, Mutex};
-use libloading::Library;
 use std::collections::HashMap;
 use std::time::Duration;
+
+#[cfg(target_family = "unix")]
+use libloading::os::unix::Library;
+#[cfg(target_family = "windows")]
+use libloading::Library;
 
 pub struct SourceLoaded {
     pub(crate) id: NodeId,

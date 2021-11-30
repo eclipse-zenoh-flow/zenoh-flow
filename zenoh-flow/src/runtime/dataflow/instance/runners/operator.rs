@@ -27,9 +27,13 @@ use crate::{
 };
 use async_trait::async_trait;
 use futures::{future, Future};
-use libloading::Library;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+
+#[cfg(target_family = "unix")]
+use libloading::os::unix::Library;
+#[cfg(target_family = "windows")]
+use libloading::Library;
 
 #[derive(Default)]
 pub struct OperatorIO {

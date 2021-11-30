@@ -26,6 +26,10 @@ use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
 use crate::{Context, NodeId, PortId, PortType, Sink, State, ZFError};
 use async_trait::async_trait;
+
+#[cfg(target_family = "unix")]
+use libloading::os::unix::Library;
+#[cfg(target_family = "windows")]
 use libloading::Library;
 
 // Do not reorder the fields in this struct.

@@ -27,10 +27,14 @@ use crate::{
     Context, ControlMessage, NodeId, PortId, PortType, RecordingMetadata, Source, State, ZFError,
 };
 use async_trait::async_trait;
-use libloading::Library;
 use std::collections::HashMap;
 use std::time::Duration;
 use uhlc::{Timestamp, NTP64};
+
+#[cfg(target_family = "unix")]
+use libloading::os::unix::Library;
+#[cfg(target_family = "windows")]
+use libloading::Library;
 
 // Do not reorder the fields in this struct.
 // Rust drops fields in a struct in the same order they are declared.
