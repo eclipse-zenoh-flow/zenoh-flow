@@ -93,11 +93,17 @@ impl E2EDeadline {
             if diff_duration > self.duration {
                 log::warn!(
                     r#"Deadline miss detected:
-    Start: {} (s)
-    Now: {} (s)
-    Time difference: {} (us)
-    Deadline duration: {} (us)
+    From: {} . {}
+    To  : {} . {}
+      Start            : {} (s)
+      Now              : {} (s)
+      Time difference  : {} (us)
+      Deadline duration: {} (us)
 "#,
+                    self.from.node,
+                    self.from.output,
+                    self.to.node,
+                    self.to.input,
                     self.start.get_time().to_duration().as_secs_f64(),
                     now.get_time().to_duration().as_secs_f64(),
                     diff_duration.as_micros(),
