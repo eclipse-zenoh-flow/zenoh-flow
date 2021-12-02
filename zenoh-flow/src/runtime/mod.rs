@@ -13,6 +13,8 @@
 //
 
 #![allow(clippy::manual_async_fn)]
+use std::convert::TryFrom;
+
 use crate::model::dataflow::descriptor::{DataFlowDescriptor, Mapping};
 use crate::{
     model::{
@@ -27,9 +29,9 @@ use uuid::Uuid;
 
 use crate::runtime::dataflow::loader::Loader;
 use crate::runtime::message::ControlMessage;
-use crate::{RuntimeId, ZFResult};
+use crate::{RuntimeId, ZFError, ZFResult};
 use uhlc::HLC;
-use zenoh::net::Session;
+use zenoh::Session;
 use znrpc_macros::znservice;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 
@@ -156,6 +158,26 @@ impl std::fmt::Display for ZenohConfigKind {
         match self {
             ZenohConfigKind::Peer => write!(f, "peer"),
             ZenohConfigKind::Client => write!(f, "client"),
+        }
+    }
+}
+
+impl TryFrom<zenoh::config::whatami::WhatAmI> for ZenohConfigKind {
+    type Error = ZFError;
+    fn try_from(value: zenoh::config::whatami::WhatAmI) -> Result<Self, Self::Error> {
+        match value {
+            zenoh::config::whatami::WhatAmI::Client => Ok(Self::Client),
+            zenoh::config::whatami::WhatAmI::Peer => Ok(Self::Peer),
+            _ => Err(ZFError::MissingConfiguration),
+        }
+    }
+}
+
+impl Into<zenoh::config::whatami::WhatAmI> for ZenohConfigKind {
+    fn into(self) -> zenoh::config::whatami::WhatAmI {
+        match self {
+            Self::Peer => zenoh::config::whatami::WhatAmI::Peer,
+            Self::Client => zenoh::config::whatami::WhatAmI::Client,
         }
     }
 }

@@ -109,8 +109,8 @@ impl From<std::io::Error> for ZFError {
     }
 }
 
-impl From<zenoh_util::core::ZError> for ZFError {
-    fn from(err: zenoh_util::core::ZError) -> Self {
+impl From<zenoh_util::core::Error> for ZFError {
+    fn from(err: zenoh_util::core::Error) -> Self {
         Self::ZenohError(format!("{}", err))
     }
 }

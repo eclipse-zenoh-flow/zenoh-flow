@@ -139,7 +139,7 @@ impl SourceRunner {
         self.context
             .runtime
             .session
-            .write(&resource_name.clone().into(), serialized.into())
+            .put(&resource_name, serialized)
             .await?;
 
         Ok(())
@@ -218,7 +218,7 @@ impl Runner for SourceRunner {
             self.context
                 .runtime
                 .session
-                .write(&resource_name.clone().into(), serialized.into())
+                .put(&resource_name, serialized)
                 .await?;
             *is_recording_guard = true;
             return Ok(resource_name);
@@ -247,7 +247,7 @@ impl Runner for SourceRunner {
             self.context
                 .runtime
                 .session
-                .write(&resource_name.clone().into(), serialized.into())
+                .put(&resource_name, serialized)
                 .await?;
 
             *is_recording_guard = false;

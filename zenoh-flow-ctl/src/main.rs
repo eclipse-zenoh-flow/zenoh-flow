@@ -28,7 +28,6 @@ use std::collections::HashSet;
 use std::fs::read_to_string;
 use structopt::StructOpt;
 use uuid::Uuid;
-use zenoh::*;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::RuntimeClient;
@@ -81,26 +80,14 @@ async fn main() {
     let args = ZFCtl::from_args();
     log::debug!("Args: {:?}", args);
 
-    let znsession = Arc::new(
-        zenoh::net::open(Properties::from(String::from("mode=peer")).into())
-            .await
-            .unwrap(),
-    );
+    let zsession = Arc::new(zenoh::open(zenoh::config::Config::default()).await.unwrap());
 
-    let servers = RuntimeClient::find_servers(znsession.clone())
-        .await
-        .unwrap();
+    let servers = RuntimeClient::find_servers(zsession.clone()).await.unwrap();
     let entry_point = servers.choose(&mut rand::thread_rng()).unwrap();
     log::debug!("Selected entrypoint runtime: {:?}", entry_point);
-    let client = RuntimeClient::new(znsession, *entry_point);
+    let client = RuntimeClient::new(zsession.clone(), *entry_point);
 
-    let zsession = Arc::new(
-        zenoh::Zenoh::new(Properties::from(String::from("mode=peer")).into())
-            .await
-            .unwrap(),
-    );
-
-    let store = DataStore::new(zsession);
+    let store = DataStore::new(zsession.clone());
 
     match args {
         ZFCtl::Add(ak) => match ak {

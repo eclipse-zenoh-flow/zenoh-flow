@@ -35,6 +35,8 @@ use futures::StreamExt;
 use pin_project_lite::pin_project;
 use std::convert::TryFrom;
 use uuid::Uuid;
+use zenoh::prelude::*;
+use zenoh::query::Reply;
 
 pub static ROOT_PLUGIN_RUNTIME_PREFIX: &str = "/@/router/";
 pub static ROOT_PLUGIN_RUNTIME_SUFFIX: &str = "/plugin/zenoh-flow";
@@ -225,44 +227,49 @@ where
 //
 
 pin_project! {
-    pub struct ZFRuntimeConfigStream<'a> {
+    pub struct ZFRuntimeConfigStream {
         #[pin]
-        change_stream: zenoh::ChangeReceiver<'a>,
+        sample_stream: zenoh::subscriber::SampleReceiver,
     }
 }
 
-impl ZFRuntimeConfigStream<'_> {
+impl ZFRuntimeConfigStream {
     pub async fn close(self) -> ZFResult<()> {
-        Ok(self.change_stream.close().await?)
+        Ok(())
     }
 }
 
-impl Stream for ZFRuntimeConfigStream<'_> {
+impl Stream for ZFRuntimeConfigStream {
     type Item = crate::runtime::RuntimeConfig;
 
     #[inline(always)]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         match async_std::pin::Pin::new(self)
-            .change_stream
+            .sample_stream
             .poll_next_unpin(cx)
         {
-            Poll::Ready(Some(change)) => match change.kind {
-                zenoh::ChangeKind::Put | zenoh::ChangeKind::Patch => match change.value {
-                    Some(value) => match value {
-                        zenoh::Value::Raw(_, buf) => {
-                            match deserialize_data::<crate::runtime::RuntimeConfig>(&buf.to_vec()) {
-                                Ok(info) => Poll::Ready(Some(info)),
-                                Err(_) => Poll::Pending,
-                            }
+            Poll::Ready(Some(sample)) => match sample.kind {
+                SampleKind::Put | SampleKind::Patch => match sample.value.encoding {
+                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                        match deserialize_data::<crate::runtime::RuntimeConfig>(
+                            &sample.value.payload.to_vec(),
+                        ) {
+                            Ok(info) => Poll::Ready(Some(info)),
+                            Err(_) => Poll::Pending,
                         }
-                        _ => Poll::Pending,
-                    },
-                    None => {
-                        log::warn!("Received empty change drop it");
+                    }
+                    _ => {
+                        log::warn!(
+                            "Received sample with wrong encoding {:?}, dropping",
+                            sample.value.encoding
+                        );
                         Poll::Pending
                     }
                 },
-                zenoh::ChangeKind::Delete => Poll::Pending,
+                SampleKind::Delete => {
+                    log::warn!("Received delete sample drop it");
+                    Poll::Pending
+                }
             },
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
@@ -273,29 +280,29 @@ impl Stream for ZFRuntimeConfigStream<'_> {
 #[derive(Clone)]
 pub struct DataStore {
     //Name TBD
-    z: Arc<zenoh::Zenoh>,
+    z: Arc<zenoh::Session>,
 }
 
 impl DataStore {
-    pub fn new(z: Arc<zenoh::Zenoh>) -> Self {
+    pub fn new(z: Arc<zenoh::Session>) -> Self {
         Self { z }
     }
 
     pub async fn get_runtime_info(&self, rtid: &Uuid) -> ZFResult<RuntimeInfo> {
-        let selector = zenoh::Selector::try_from(RT_INFO_PATH!(ROOT_STANDALONE, rtid))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
 
         match data.len() {
             0 => Err(ZFError::Empty),
             1 => {
                 let kv = &data[0];
-                match &kv.value {
-                    zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<RuntimeInfo>(&buf.to_vec())?;
+                match &kv.data.value.encoding {
+                    //@FIXME This is workaround because zenoh apis are broken, it should just be &Encoding::APP_OCTET_STREAM
+                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                        let ni = deserialize_data::<RuntimeInfo>(&kv.data.value.payload.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -308,18 +315,18 @@ impl DataStore {
     }
 
     pub async fn get_all_runtime_info(&self) -> ZFResult<Vec<RuntimeInfo>> {
-        let selector = zenoh::Selector::try_from(RT_INFO_PATH!(ROOT_STANDALONE, "*"))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = RT_INFO_PATH!(ROOT_STANDALONE, "*");
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
         let mut runtimes = Vec::new();
 
         for kv in data {
-            match &kv.value {
-                zenoh::Value::Raw(_, buf) => {
-                    let ni = deserialize_data::<RuntimeInfo>(&buf.to_vec())?;
+            match &kv.data.value.encoding {
+                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                    let ni = deserialize_data::<RuntimeInfo>(&kv.data.value.payload.to_vec())?;
                     runtimes.push(ni);
                 }
                 _ => return Err(ZFError::DeseralizationError),
@@ -330,17 +337,17 @@ impl DataStore {
     }
 
     pub async fn get_runtime_info_by_name(&self, rtid: &str) -> ZFResult<RuntimeInfo> {
-        let selector = zenoh::Selector::try_from(RT_INFO_PATH!(ROOT_STANDALONE, "*"))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = RT_INFO_PATH!(ROOT_STANDALONE, "*");
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
 
         for kv in data.into_iter() {
-            match &kv.value {
-                zenoh::Value::Raw(_, buf) => {
-                    let ni = deserialize_data::<RuntimeInfo>(&buf.to_vec())?;
+            match &kv.data.value.encoding {
+                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                    let ni = deserialize_data::<RuntimeInfo>(&kv.data.value.payload.to_vec())?;
                     if ni.name.as_ref() == rtid {
                         return Ok(ni);
                     }
@@ -353,33 +360,34 @@ impl DataStore {
     }
 
     pub async fn remove_runtime_info(&self, rtid: &Uuid) -> ZFResult<()> {
-        let path = zenoh::Path::try_from(RT_INFO_PATH!(ROOT_STANDALONE, rtid))?;
-        let ws = self.z.workspace(None).await?;
-        Ok(ws.delete(&path).await?)
+        let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
+
+        Ok(self.z.delete(&path).await?)
     }
 
     pub async fn add_runtime_info(&self, rtid: &Uuid, rt_info: &RuntimeInfo) -> ZFResult<()> {
-        let path = zenoh::Path::try_from(RT_INFO_PATH!(ROOT_STANDALONE, rtid))?;
-        let ws = self.z.workspace(None).await?;
+        let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
+
         let encoded_info = serialize_data(rt_info)?;
-        Ok(ws.put(&path, encoded_info.into()).await?)
+        Ok(self.z.put(&path, encoded_info).await?)
     }
 
     pub async fn get_runtime_config(&self, rtid: &Uuid) -> ZFResult<RuntimeConfig> {
-        let selector = zenoh::Selector::try_from(RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
 
         match data.len() {
             0 => Err(ZFError::Empty),
             1 => {
                 let kv = &data[0];
-                match &kv.value {
-                    zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<RuntimeConfig>(&buf.to_vec())?;
+                match &kv.data.value.encoding {
+                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                        let ni =
+                            deserialize_data::<RuntimeConfig>(&kv.data.value.payload.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -391,13 +399,10 @@ impl DataStore {
         }
     }
 
-    pub async fn subscribe_runtime_config(
-        &self,
-        rtid: &Uuid,
-    ) -> ZFResult<ZFRuntimeConfigStream<'_>> {
-        // let selector = zenoh::Selector::try_from(RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
-        // let ws = self.z.workspace(None).await?;
-        // Ok(ws
+    pub async fn subscribe_runtime_config(&self, rtid: &Uuid) -> ZFResult<ZFRuntimeConfigStream> {
+        // let selector = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
+        //
+        // Ok(self.z
         //     .subscribe(&selector)
         //     .await
         //     .map(|change_stream| ZFRuntimeConfigStream { change_stream })?)
@@ -405,33 +410,34 @@ impl DataStore {
     }
 
     pub async fn remove_runtime_config(&self, rtid: &Uuid) -> ZFResult<()> {
-        let path = zenoh::Path::try_from(RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
-        let ws = self.z.workspace(None).await?;
-        Ok(ws.delete(&path).await?)
+        let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
+
+        Ok(self.z.delete(&path).await?)
     }
 
     pub async fn add_runtime_config(&self, rtid: &Uuid, rt_info: &RuntimeConfig) -> ZFResult<()> {
-        let path = zenoh::Path::try_from(RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
-        let ws = self.z.workspace(None).await?;
+        let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
+
         let encoded_info = serialize_data(rt_info)?;
-        Ok(ws.put(&path, encoded_info.into()).await?)
+        Ok(self.z.put(&path, encoded_info).await?)
     }
 
     pub async fn get_runtime_status(&self, rtid: &Uuid) -> ZFResult<RuntimeStatus> {
-        let selector = zenoh::Selector::try_from(RT_STATUS_PATH!(ROOT_STANDALONE, rtid))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
 
         match data.len() {
             0 => Err(ZFError::Empty),
             1 => {
                 let kv = &data[0];
-                match &kv.value {
-                    zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<RuntimeStatus>(&buf.to_vec())?;
+                match &kv.data.value.encoding {
+                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                        let ni =
+                            deserialize_data::<RuntimeStatus>(&kv.data.value.payload.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -444,16 +450,16 @@ impl DataStore {
     }
 
     pub async fn remove_runtime_status(&self, rtid: &Uuid) -> ZFResult<()> {
-        let path = zenoh::Path::try_from(RT_STATUS_PATH!(ROOT_STANDALONE, rtid))?;
-        let ws = self.z.workspace(None).await?;
-        Ok(ws.delete(&path).await?)
+        let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
+
+        Ok(self.z.delete(&path).await?)
     }
 
     pub async fn add_runtime_status(&self, rtid: &Uuid, rt_info: &RuntimeStatus) -> ZFResult<()> {
-        let path = zenoh::Path::try_from(RT_STATUS_PATH!(ROOT_STANDALONE, rtid))?;
-        let ws = self.z.workspace(None).await?;
+        let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
+
         let encoded_info = serialize_data(rt_info)?;
-        Ok(ws.put(&path, encoded_info.into()).await?)
+        Ok(self.z.put(&path, encoded_info).await?)
     }
 
     pub async fn get_runtime_flow_by_instance(
@@ -461,21 +467,21 @@ impl DataStore {
         rtid: &Uuid,
         iid: &Uuid,
     ) -> ZFResult<DataFlowRecord> {
-        let selector =
-            zenoh::Selector::try_from(RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, rtid, iid))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, rtid, iid);
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
 
         match data.len() {
             0 => Err(ZFError::Empty),
             1 => {
                 let kv = &data[0];
-                match &kv.value {
-                    zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<DataFlowRecord>(&buf.to_vec())?;
+                match &kv.data.value.encoding {
+                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                        let ni =
+                            deserialize_data::<DataFlowRecord>(&kv.data.value.payload.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -488,21 +494,21 @@ impl DataStore {
     }
 
     pub async fn get_flow_by_instance(&self, iid: &Uuid) -> ZFResult<DataFlowRecord> {
-        let selector =
-            zenoh::Selector::try_from(RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid);
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
 
         match data.len() {
             0 => Err(ZFError::Empty),
             _ => {
                 let kv = &data[0];
-                match &kv.value {
-                    zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<DataFlowRecord>(&buf.to_vec())?;
+                match &kv.data.value.encoding {
+                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                        let ni =
+                            deserialize_data::<DataFlowRecord>(&kv.data.value.payload.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -516,19 +522,18 @@ impl DataStore {
         rtid: &Uuid,
         fid: &str,
     ) -> ZFResult<Vec<DataFlowRecord>> {
-        let selector =
-            zenoh::Selector::try_from(RT_FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, rtid, fid))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = RT_FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, rtid, fid);
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
         let mut instances = Vec::new();
 
         for kv in data {
-            match &kv.value {
-                zenoh::Value::Raw(_, buf) => {
-                    let ni = deserialize_data::<DataFlowRecord>(&buf.to_vec())?;
+            match &kv.data.value.encoding {
+                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                    let ni = deserialize_data::<DataFlowRecord>(&kv.data.value.payload.to_vec())?;
                     instances.push(ni);
                 }
                 _ => return Err(ZFError::DeseralizationError),
@@ -539,18 +544,18 @@ impl DataStore {
     }
 
     pub async fn get_flow_instances(&self, fid: &str) -> ZFResult<Vec<DataFlowRecord>> {
-        let selector = zenoh::Selector::try_from(FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, fid))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, fid);
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
         let mut instances = Vec::new();
 
         for kv in data {
-            match &kv.value {
-                zenoh::Value::Raw(_, buf) => {
-                    let ni = deserialize_data::<DataFlowRecord>(&buf.to_vec())?;
+            match &kv.data.value.encoding {
+                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                    let ni = deserialize_data::<DataFlowRecord>(&kv.data.value.payload.to_vec())?;
                     instances.push(ni);
                 }
                 _ => return Err(ZFError::DeseralizationError),
@@ -561,18 +566,18 @@ impl DataStore {
     }
 
     pub async fn get_all_instances(&self) -> ZFResult<Vec<DataFlowRecord>> {
-        let selector = zenoh::Selector::try_from(FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, "*"))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, "*");
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
         let mut instances = Vec::new();
 
         for kv in data {
-            match &kv.value {
-                zenoh::Value::Raw(_, buf) => {
-                    let ni = deserialize_data::<DataFlowRecord>(&buf.to_vec())?;
+            match &kv.data.value.encoding {
+                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                    let ni = deserialize_data::<DataFlowRecord>(&kv.data.value.payload.to_vec())?;
                     instances.push(ni);
                 }
                 _ => return Err(ZFError::DeseralizationError),
@@ -583,17 +588,16 @@ impl DataStore {
     }
 
     pub async fn get_flow_instance_runtimes(&self, iid: &Uuid) -> ZFResult<Vec<Uuid>> {
-        let selector =
-            zenoh::Selector::try_from(RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid);
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
         let mut runtimes = Vec::new();
 
         for kv in data.into_iter() {
-            let path = String::from(kv.path.as_str());
+            let path = String::from(kv.data.key_expr.as_str());
             let id = path.split('/').collect::<Vec<&str>>()[3];
             runtimes.push(Uuid::parse_str(id).map_err(|_| ZFError::DeseralizationError)?);
         }
@@ -607,9 +611,9 @@ impl DataStore {
         fid: &str,
         iid: &Uuid,
     ) -> ZFResult<()> {
-        let path = zenoh::Path::try_from(RT_FLOW_PATH!(ROOT_STANDALONE, rtid, fid, iid))?;
-        let ws = self.z.workspace(None).await?;
-        Ok(ws.delete(&path).await?)
+        let path = RT_FLOW_PATH!(ROOT_STANDALONE, rtid, fid, iid);
+
+        Ok(self.z.delete(&path).await?)
     }
 
     pub async fn add_runtime_flow(
@@ -617,40 +621,40 @@ impl DataStore {
         rtid: &Uuid,
         flow_instance: &DataFlowRecord,
     ) -> ZFResult<()> {
-        let path = zenoh::Path::try_from(RT_FLOW_PATH!(
+        let path = RT_FLOW_PATH!(
             ROOT_STANDALONE,
             rtid,
             flow_instance.flow,
             flow_instance.uuid
-        ))?;
-        let ws = self.z.workspace(None).await?;
+        );
+
         let encoded_info = serialize_data(flow_instance)?;
-        Ok(ws.put(&path, encoded_info.into()).await?)
+        Ok(self.z.put(&path, encoded_info).await?)
     }
 
     // Registry Related
 
     pub async fn add_graph(&self, graph: &RegistryNode) -> ZFResult<()> {
-        let path = zenoh::Path::try_from(REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph.id))?;
-        let ws = self.z.workspace(None).await?;
+        let path = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph.id);
+
         let encoded_info = serialize_data(graph)?;
-        Ok(ws.put(&path, encoded_info.into()).await?)
+        Ok(self.z.put(&path, encoded_info).await?)
     }
 
     pub async fn get_graph(&self, graph_id: &str) -> ZFResult<RegistryNode> {
-        let selector = zenoh::Selector::try_from(REG_GRAPH_SELECTOR!(ROOT_STANDALONE, graph_id))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, graph_id);
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
         match data.len() {
             0 => Err(ZFError::Empty),
             _ => {
                 let kv = &data[0];
-                match &kv.value {
-                    zenoh::Value::Raw(_, buf) => {
-                        let ni = deserialize_data::<RegistryNode>(&buf.to_vec())?;
+                match &kv.data.value.encoding {
+                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                        let ni = deserialize_data::<RegistryNode>(&kv.data.value.payload.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -660,18 +664,18 @@ impl DataStore {
     }
 
     pub async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryNode>> {
-        let selector = zenoh::Selector::try_from(REG_GRAPH_SELECTOR!(ROOT_STANDALONE, "*"))?;
-        let ws = self.z.workspace(None).await?;
-        let mut ds = ws.get(&selector).await?;
+        let selector = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, "*");
+
+        let mut ds = self.z.get(&selector).await?;
 
         // Not sure this is needed...
-        let data = ds.collect::<Vec<zenoh::Data>>().await;
+        let data = ds.collect::<Vec<Reply>>().await;
         let mut graphs = Vec::new();
 
         for kv in data.into_iter() {
-            match &kv.value {
-                zenoh::Value::Raw(_, buf) => {
-                    let ni = deserialize_data::<RegistryNode>(&buf.to_vec())?;
+            match &kv.data.value.encoding {
+                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                    let ni = deserialize_data::<RegistryNode>(&kv.data.value.payload.to_vec())?;
                     graphs.push(ni);
                 }
                 _ => return Err(ZFError::DeseralizationError),
@@ -681,8 +685,8 @@ impl DataStore {
     }
 
     pub async fn delete_graph(&self, graph_id: &str) -> ZFResult<()> {
-        let path = zenoh::Path::try_from(REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph_id))?;
-        let ws = self.z.workspace(None).await?;
-        Ok(ws.delete(&path).await?)
+        let path = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph_id);
+
+        Ok(self.z.delete(&path).await?)
     }
 }

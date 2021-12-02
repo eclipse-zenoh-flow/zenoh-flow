@@ -24,7 +24,7 @@ use crate::runtime::InstanceContext;
 use crate::{NodeId, PortId, PortType, ZFError, ZFResult};
 use async_trait::async_trait;
 use futures::prelude::*;
-use zenoh::net::{Reliability, SubInfo, SubMode};
+// use zenoh::subscriber::{Reliability, SubInfo, SubMode};
 
 #[derive(Clone)]
 pub struct ZenohSender {
@@ -76,7 +76,7 @@ impl Runner for ZenohSender {
                 self.context
                     .runtime
                     .session
-                    .write(&self.record.resource.clone().into(), serialized.into())
+                    .put(&self.record.resource, serialized)
                     .await?;
             }
         }
@@ -192,22 +192,22 @@ impl Runner for ZenohReceiver {
     async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohReceiver - {} - Started", self.record.resource);
         if let Some(link) = &*self.link.lock().await {
-            let sub_info = SubInfo {
-                reliability: Reliability::Reliable,
-                mode: SubMode::Push,
-                period: None,
-            };
+            // let sub_info = SubInfo {
+            //     reliability: Reliability::Reliable,
+            //     mode: SubMode::Push,
+            //     period: None,
+            // };
 
             let mut subscriber = self
                 .context
                 .runtime
                 .session
-                .declare_subscriber(&self.record.resource.clone().into(), &sub_info)
+                .subscribe(&self.record.resource)
                 .await?;
 
             while let Some(msg) = subscriber.receiver().next().await {
                 log::debug!("ZenohSender - {}<={:?} ", self.record.resource, msg);
-                let de: Message = bincode::deserialize(&msg.payload.contiguous())
+                let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
                     .map_err(|_| ZFError::DeseralizationError)?;
                 log::debug!("ZenohSender - OUT =>{:?} ", de);
                 link.send(Arc::new(de)).await?;

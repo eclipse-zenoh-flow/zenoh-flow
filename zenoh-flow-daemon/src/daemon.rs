@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use uhlc::HLC;
 use uuid::Uuid;
-use zenoh::ZFuture;
+use zenoh::prelude::*;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
 use zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor;
 use zenoh_flow::model::{
@@ -46,7 +46,7 @@ pub struct Daemon {
 }
 
 impl Daemon {
-    pub fn new(z: Arc<zenoh::Zenoh>, ctx: RuntimeContext, config: RuntimeConfig) -> Self {
+    pub fn new(z: Arc<zenoh::Session>, ctx: RuntimeContext, config: RuntimeConfig) -> Self {
         let state = Arc::new(Mutex::new(RTState {
             graphs: HashMap::new(),
             config,
@@ -70,34 +70,62 @@ impl Daemon {
             None => String::from(hostname::get()?.to_str().ok_or(ZFError::GenericError)?),
         };
 
-        let zn_properties = zenoh::Properties::from(format!(
-            "mode={};peer={};listener={}",
-            &config.zenoh.kind,
-            &config.zenoh.locators.join(","),
-            &config.zenoh.listen.join(",")
-        ));
+        let mut zconfig = zenoh::config::Config::default();
 
-        let zenoh_properties = zenoh::Properties::from(format!(
-            "mode={};peer={},{}",
-            &config.zenoh.kind,
-            &config.zenoh.listen.join(","),
-            &config.zenoh.locators.join(","),
-        ));
+        zconfig
+            .set_mode(Some(config.zenoh.kind.clone().into()))
+            .map_err(|_| {
+                ZFError::ZenohError(format!(
+                    "Unable to configure Zenoh mode {:?}",
+                    config.zenoh.locators
+                ))
+            })?;
+        zconfig
+            .set_peers(
+                config
+                    .zenoh
+                    .locators
+                    .clone()
+                    .iter()
+                    .filter_map(|l| l.parse().ok())
+                    .collect(),
+            )
+            .map_err(|_| {
+                ZFError::ZenohError(format!(
+                    "Unable to configure Zenoh peers {:?}",
+                    config.zenoh.locators
+                ))
+            })?;
+        zconfig
+            .set_listeners(
+                config
+                    .zenoh
+                    .listen
+                    .clone()
+                    .iter()
+                    .filter_map(|l| l.parse().ok())
+                    .collect(),
+            )
+            .map_err(|_| {
+                ZFError::ZenohError(format!(
+                    "Unable to configure Zenoh listeners {:?}",
+                    config.zenoh.listen
+                ))
+            })?;
 
-        let session = Arc::new(zenoh::net::open(zn_properties.into()).wait()?);
-        let z = Arc::new(zenoh::Zenoh::new(zenoh_properties.into()).wait()?);
+        let session = Arc::new(zenoh::open(zconfig).wait().unwrap());
         let hlc = Arc::new(HLC::default());
         let loader = Arc::new(Loader::new(config.loader.clone()));
 
         let ctx = RuntimeContext {
-            session,
+            session: session.clone(),
             hlc,
             loader,
             runtime_name: name.into(),
             runtime_uuid: uuid,
         };
 
-        Ok(Self::new(z, ctx, config))
+        Ok(Self::new(session, ctx, config))
     }
 
     pub async fn run(&self, stop: async_std::channel::Receiver<()>) -> ZFResult<()> {
