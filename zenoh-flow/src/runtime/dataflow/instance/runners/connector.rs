@@ -24,7 +24,6 @@ use crate::runtime::InstanceContext;
 use crate::{NodeId, PortId, PortType, ZFError, ZFResult};
 use async_trait::async_trait;
 use futures::prelude::*;
-// use zenoh::subscriber::{Reliability, SubInfo, SubMode};
 
 #[derive(Clone)]
 pub struct ZenohSender {
@@ -192,12 +191,6 @@ impl Runner for ZenohReceiver {
     async fn run(&self) -> ZFResult<()> {
         log::debug!("ZenohReceiver - {} - Started", self.record.resource);
         if let Some(link) = &*self.link.lock().await {
-            // let sub_info = SubInfo {
-            //     reliability: Reliability::Reliable,
-            //     mode: SubMode::Push,
-            //     period: None,
-            // };
-
             let mut subscriber = self
                 .context
                 .runtime
