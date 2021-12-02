@@ -173,6 +173,7 @@ impl TryFrom<zenoh::config::whatami::WhatAmI> for ZenohConfigKind {
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<zenoh::config::whatami::WhatAmI> for ZenohConfigKind {
     fn into(self) -> zenoh::config::whatami::WhatAmI {
         match self {

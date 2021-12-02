@@ -85,7 +85,6 @@ impl Daemon {
                 config
                     .zenoh
                     .locators
-                    .clone()
                     .iter()
                     .filter_map(|l| l.parse().ok())
                     .collect(),
@@ -101,7 +100,6 @@ impl Daemon {
                 config
                     .zenoh
                     .listen
-                    .clone()
                     .iter()
                     .filter_map(|l| l.parse().ok())
                     .collect(),
