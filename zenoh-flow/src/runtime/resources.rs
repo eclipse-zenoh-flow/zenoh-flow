@@ -290,70 +290,20 @@ impl DataStore {
 
     pub async fn get_runtime_info(&self, rtid: &Uuid) -> ZFResult<RuntimeInfo> {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
-        let mut ds = self.z.get(&selector).await?;
 
-        let data = ds.collect::<Vec<Reply>>().await;
-
-        match data.len() {
-            0 => Err(ZFError::Empty),
-            1 => {
-                let kv = &data[0];
-                match &kv.data.value.encoding {
-                    //@FIXME This is workaround because zenoh apis are broken, it should just be &Encoding::APP_OCTET_STREAM
-                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                        let ni = deserialize_data::<RuntimeInfo>(&kv.data.value.payload.to_vec())?;
-                        Ok(ni)
-                    }
-                    _ => Err(ZFError::DeseralizationError),
-                }
-            }
-            _ => Err(ZFError::InvalidData(String::from(
-                "Got more than one data for a single runtime information",
-            ))),
-        }
+        self.get_from_zenoh::<RuntimeInfo>(&selector).await
     }
 
     pub async fn get_all_runtime_info(&self) -> ZFResult<Vec<RuntimeInfo>> {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, "*");
 
-        let mut ds = self.z.get(&selector).await?;
-
-        let data = ds.collect::<Vec<Reply>>().await;
-        let mut runtimes = Vec::new();
-
-        for kv in data {
-            match &kv.data.value.encoding {
-                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                    let ni = deserialize_data::<RuntimeInfo>(&kv.data.value.payload.to_vec())?;
-                    runtimes.push(ni);
-                }
-                _ => return Err(ZFError::DeseralizationError),
-            }
-        }
-
-        Ok(runtimes)
+        self.get_vec_from_zenoh::<RuntimeInfo>(&selector).await
     }
 
     pub async fn get_runtime_info_by_name(&self, rtid: &str) -> ZFResult<RuntimeInfo> {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, "*");
 
-        let mut ds = self.z.get(&selector).await?;
-
-        let data = ds.collect::<Vec<Reply>>().await;
-
-        for kv in data.into_iter() {
-            match &kv.data.value.encoding {
-                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                    let ni = deserialize_data::<RuntimeInfo>(&kv.data.value.payload.to_vec())?;
-                    if ni.name.as_ref() == rtid {
-                        return Ok(ni);
-                    }
-                }
-                _ => return Err(ZFError::DeseralizationError),
-            }
-        }
-
-        Err(ZFError::Empty)
+        self.get_from_zenoh::<RuntimeInfo>(&selector).await
     }
 
     pub async fn remove_runtime_info(&self, rtid: &Uuid) -> ZFResult<()> {
@@ -371,28 +321,7 @@ impl DataStore {
 
     pub async fn get_runtime_config(&self, rtid: &Uuid) -> ZFResult<RuntimeConfig> {
         let selector = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
-
-        let mut ds = self.z.get(&selector).await?;
-
-        let data = ds.collect::<Vec<Reply>>().await;
-
-        match data.len() {
-            0 => Err(ZFError::Empty),
-            1 => {
-                let kv = &data[0];
-                match &kv.data.value.encoding {
-                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                        let ni =
-                            deserialize_data::<RuntimeConfig>(&kv.data.value.payload.to_vec())?;
-                        Ok(ni)
-                    }
-                    _ => Err(ZFError::DeseralizationError),
-                }
-            }
-            _ => Err(ZFError::InvalidData(String::from(
-                "Got more than one data for a single runtime information",
-            ))),
-        }
+        self.get_from_zenoh::<RuntimeConfig>(&selector).await
     }
 
     pub async fn subscribe_runtime_config(&self, rtid: &Uuid) -> ZFResult<ZFRuntimeConfigStream> {
@@ -420,28 +349,7 @@ impl DataStore {
 
     pub async fn get_runtime_status(&self, rtid: &Uuid) -> ZFResult<RuntimeStatus> {
         let selector = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
-
-        let mut ds = self.z.get(&selector).await?;
-
-        let data = ds.collect::<Vec<Reply>>().await;
-
-        match data.len() {
-            0 => Err(ZFError::Empty),
-            1 => {
-                let kv = &data[0];
-                match &kv.data.value.encoding {
-                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                        let ni =
-                            deserialize_data::<RuntimeStatus>(&kv.data.value.payload.to_vec())?;
-                        Ok(ni)
-                    }
-                    _ => Err(ZFError::DeseralizationError),
-                }
-            }
-            _ => Err(ZFError::InvalidData(String::from(
-                "Got more than one data for a single runtime information",
-            ))),
-        }
+        self.get_from_zenoh::<RuntimeStatus>(&selector).await
     }
 
     pub async fn remove_runtime_status(&self, rtid: &Uuid) -> ZFResult<()> {
@@ -464,50 +372,12 @@ impl DataStore {
     ) -> ZFResult<DataFlowRecord> {
         let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, rtid, iid);
 
-        let mut ds = self.z.get(&selector).await?;
-
-        let data = ds.collect::<Vec<Reply>>().await;
-
-        match data.len() {
-            0 => Err(ZFError::Empty),
-            1 => {
-                let kv = &data[0];
-                match &kv.data.value.encoding {
-                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                        let ni =
-                            deserialize_data::<DataFlowRecord>(&kv.data.value.payload.to_vec())?;
-                        Ok(ni)
-                    }
-                    _ => Err(ZFError::DeseralizationError),
-                }
-            }
-            _ => Err(ZFError::InvalidData(String::from(
-                "Got more than one data for a single runtime information",
-            ))),
-        }
+        self.get_from_zenoh::<DataFlowRecord>(&selector).await
     }
 
     pub async fn get_flow_by_instance(&self, iid: &Uuid) -> ZFResult<DataFlowRecord> {
         let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid);
-
-        let mut ds = self.z.get(&selector).await?;
-
-        let data = ds.collect::<Vec<Reply>>().await;
-
-        match data.len() {
-            0 => Err(ZFError::Empty),
-            _ => {
-                let kv = &data[0];
-                match &kv.data.value.encoding {
-                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                        let ni =
-                            deserialize_data::<DataFlowRecord>(&kv.data.value.payload.to_vec())?;
-                        Ok(ni)
-                    }
-                    _ => Err(ZFError::DeseralizationError),
-                }
-            }
-        }
+        self.get_from_zenoh::<DataFlowRecord>(&selector).await
     }
 
     pub async fn get_runtime_flow_instances(
@@ -517,64 +387,17 @@ impl DataStore {
     ) -> ZFResult<Vec<DataFlowRecord>> {
         let selector = RT_FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, rtid, fid);
 
-        let mut ds = self.z.get(&selector).await?;
-
-        let data = ds.collect::<Vec<Reply>>().await;
-        let mut instances = Vec::new();
-
-        for kv in data {
-            match &kv.data.value.encoding {
-                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                    let ni = deserialize_data::<DataFlowRecord>(&kv.data.value.payload.to_vec())?;
-                    instances.push(ni);
-                }
-                _ => return Err(ZFError::DeseralizationError),
-            }
-        }
-
-        Ok(instances)
+        self.get_vec_from_zenoh::<DataFlowRecord>(&selector).await
     }
 
     pub async fn get_flow_instances(&self, fid: &str) -> ZFResult<Vec<DataFlowRecord>> {
         let selector = FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, fid);
-
-        let mut ds = self.z.get(&selector).await?;
-
-        let data = ds.collect::<Vec<Reply>>().await;
-        let mut instances = Vec::new();
-
-        for kv in data {
-            match &kv.data.value.encoding {
-                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                    let ni = deserialize_data::<DataFlowRecord>(&kv.data.value.payload.to_vec())?;
-                    instances.push(ni);
-                }
-                _ => return Err(ZFError::DeseralizationError),
-            }
-        }
-
-        Ok(instances)
+        self.get_vec_from_zenoh::<DataFlowRecord>(&selector).await
     }
 
     pub async fn get_all_instances(&self) -> ZFResult<Vec<DataFlowRecord>> {
         let selector = FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, "*");
-
-        let mut ds = self.z.get(&selector).await?;
-
-        let data = ds.collect::<Vec<Reply>>().await;
-        let mut instances = Vec::new();
-
-        for kv in data {
-            match &kv.data.value.encoding {
-                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                    let ni = deserialize_data::<DataFlowRecord>(&kv.data.value.payload.to_vec())?;
-                    instances.push(ni);
-                }
-                _ => return Err(ZFError::DeseralizationError),
-            }
-        }
-
-        Ok(instances)
+        self.get_vec_from_zenoh::<DataFlowRecord>(&selector).await
     }
 
     pub async fn get_flow_instance_runtimes(&self, iid: &Uuid) -> ZFResult<Vec<Uuid>> {
@@ -632,17 +455,34 @@ impl DataStore {
 
     pub async fn get_graph(&self, graph_id: &str) -> ZFResult<RegistryNode> {
         let selector = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, graph_id);
+        self.get_from_zenoh::<RegistryNode>(&selector).await
+    }
 
-        let mut ds = self.z.get(&selector).await?;
+    pub async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryNode>> {
+        let selector = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, "*");
+        self.get_vec_from_zenoh::<RegistryNode>(&selector).await
+    }
 
+    pub async fn delete_graph(&self, graph_id: &str) -> ZFResult<()> {
+        let path = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph_id);
+
+        Ok(self.z.delete(&path).await?)
+    }
+
+    async fn get_from_zenoh<T>(&self, path: &str) -> ZFResult<T>
+    where
+        T: DeserializeOwned,
+    {
+        let mut ds = self.z.get(path).await?;
         let data = ds.collect::<Vec<Reply>>().await;
         match data.len() {
             0 => Err(ZFError::Empty),
             _ => {
                 let kv = &data[0];
                 match &kv.data.value.encoding {
+                    //@FIXME This is workaround because zenoh apis are broken, it should just be &Encoding::APP_OCTET_STREAM
                     e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                        let ni = deserialize_data::<RegistryNode>(&kv.data.value.payload.to_vec())?;
+                        let ni = deserialize_data::<T>(&kv.data.value.payload.to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -651,29 +491,25 @@ impl DataStore {
         }
     }
 
-    pub async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryNode>> {
-        let selector = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, "*");
-
-        let mut ds = self.z.get(&selector).await?;
+    async fn get_vec_from_zenoh<T>(&self, selector: &str) -> ZFResult<Vec<T>>
+    where
+        T: DeserializeOwned,
+    {
+        let mut ds = self.z.get(selector).await?;
 
         let data = ds.collect::<Vec<Reply>>().await;
-        let mut graphs = Vec::new();
+        let mut zf_data: Vec<T> = Vec::new();
 
         for kv in data.into_iter() {
             match &kv.data.value.encoding {
+                //@FIXME This is workaround because zenoh apis are broken, it should just be &Encoding::APP_OCTET_STREAM
                 e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                    let ni = deserialize_data::<RegistryNode>(&kv.data.value.payload.to_vec())?;
-                    graphs.push(ni);
+                    let ni = deserialize_data::<T>(&kv.data.value.payload.to_vec())?;
+                    zf_data.push(ni);
                 }
                 _ => return Err(ZFError::DeseralizationError),
             }
         }
-        Ok(graphs)
-    }
-
-    pub async fn delete_graph(&self, graph_id: &str) -> ZFResult<()> {
-        let path = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph_id);
-
-        Ok(self.z.delete(&path).await?)
+        Ok(zf_data)
     }
 }
