@@ -172,7 +172,7 @@ impl Message {
                     let serialized_message = Message::Data(DataMessage::new_serialized(
                         serialized_data,
                         data_message.timestamp,
-                        vec![],
+                        data_message.end_to_end_deadlines.clone(),
                     ));
 
                     bincode::serialize(&serialized_message).map_err(|_| ZFError::SerializationError)
