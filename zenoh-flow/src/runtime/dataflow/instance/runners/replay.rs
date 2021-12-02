@@ -22,7 +22,8 @@ use async_std::task;
 use async_trait::async_trait;
 use futures::prelude::*;
 use std::collections::HashMap;
-use zenoh::net::*;
+use zenoh::query::*;
+use zenoh::*;
 
 #[derive(Clone)]
 pub struct ZenohReplay {
@@ -135,17 +136,14 @@ impl Runner for ZenohReplay {
             kind: queryable::STORAGE,
             target: Target::default(),
         };
-
+        let res_name = format!("{}?(starttime=0)", self.resource_name);
         let replies = self
             .context
             .runtime
             .session
-            .query(
-                &self.resource_name.clone().into(),
-                "?(starttime=0)",
-                query_target,
-                QueryConsolidation::none(),
-            )
+            .get(&res_name)
+            .target(query_target)
+            .consolidation(QueryConsolidation::none())
             .await?;
 
         // Placeholder
@@ -155,7 +153,9 @@ impl Runner for ZenohReplay {
         let data = replies.collect::<Vec<Reply>>().await;
         let mut zf_data: Vec<Message> = data
             .iter()
-            .filter_map(|msg| bincode::deserialize::<Message>(&msg.data.payload.contiguous()).ok())
+            .filter_map(|msg| {
+                bincode::deserialize::<Message>(&msg.data.value.payload.contiguous()).ok()
+            })
             .collect();
         zf_data.sort();
         log::debug!("ZenohReplay - Total samples {} ", zf_data.len());

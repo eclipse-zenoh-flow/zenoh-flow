@@ -29,7 +29,7 @@ use async_std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{collections::HashMap, convert::TryInto};
 use uhlc::HLC;
-use zenoh::ZFuture;
+use zenoh::prelude::*;
 
 // ZFUsize implements Data.
 #[derive(Debug, Clone)]
@@ -160,7 +160,9 @@ impl Operator for TestOperatorDeadlineViolated {
 
 #[test]
 fn e2e_deadline() {
-    let session = zenoh::net::open(zenoh::net::config::peer()).wait().unwrap();
+    let session = zenoh::open(zenoh::config::Config::default())
+        .wait()
+        .unwrap();
     let hlc = Arc::new(uhlc::HLC::default());
     let uuid = uuid::Uuid::new_v4();
     let runtime_context = RuntimeContext {

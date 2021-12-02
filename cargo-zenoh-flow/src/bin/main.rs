@@ -67,62 +67,70 @@ async fn main() {
     let args = ZFCtl::from_iter(args.iter());
 
     #[cfg(feature = "local_registry")]
-    let znsession = match zenoh::net::open(
-        Properties::from(String::from(
-            "mode=peer;peer=unixsock-stream//tmp/zf-registry.sock",
-        ))
-        .into(),
-    )
-    .await
     {
-        Ok(zn) => Arc::new(zn),
-        Err(e) => {
-            println!("{}: to create Zenoh session: {:?}", "error".red().bold(), e);
-            exit(-1);
-        }
-    };
+        let mut zconfig = zenoh::config::Config::default();
 
-    #[cfg(feature = "local_registry")]
-    let servers = match RegistryClient::find_servers(znsession.clone()).await {
-        Ok(s) => s,
-        Err(e) => {
-            println!(
-                "{}: to create find registry servers: {:?}",
-                "error".red().bold(),
-                e
-            );
-            exit(-1);
-        }
-    };
+        match zconfig.set_mode(Some("peer".parse())) {
+            Ok => (),
+            Err(e) => {
+                println!(
+                    "{}: to create Zenoh session configuration: {:?}",
+                    "error".red().bold(),
+                    e
+                );
+                exit(-1);
+            }
+        };
 
-    #[cfg(feature = "local_registry")]
-    let client = match servers.choose(&mut rand::thread_rng()) {
-        Some(entry_point) => {
-            log::debug!("Selected entrypoint runtime: {:?}", entry_point);
-            let client = RegistryClient::new(znsession, *entry_point);
-            Some(client)
-        }
-        None => {
-            println!(
-                "{}: unable to connect to local registry, node will not be uploaded.",
-                "warning".yellow().bold()
-            );
-            None
-        }
-    };
+        match zconfig.set_peers(vec!["unixsock-stream//tmp/zf-registry.sock".parse()]) {
+            Ok => (),
+            Err(e) => {
+                println!(
+                    "{}: to create Zenoh session configuration: {:?}",
+                    "error".red().bold(),
+                    e
+                );
+                exit(-1);
+            }
+        };
 
-    #[cfg(feature = "local_registry")]
-    let zsession = match zenoh::Zenoh::new(Properties::from(String::from("mode=peer")).into()).await
-    {
-        Ok(z) => Arc::new(z),
-        Err(e) => {
-            println!("{}: to create Zenoh session: {:?}", "error".red().bold(), e);
-            exit(-1);
-        }
-    };
+        let zsession = match zenoh::open(zconfig).await {
+            Ok(zn) => Arc::new(zn),
+            Err(e) => {
+                println!("{}: to create Zenoh session: {:?}", "error".red().bold(), e);
+                exit(-1);
+            }
+        };
 
-    #[cfg(feature = "local_registry")]
-    let file_client = RegistryFileClient::from(zsession);
+        let servers = match RegistryClient::find_servers(zsession.clone()).await {
+            Ok(s) => s,
+            Err(e) => {
+                println!(
+                    "{}: to create find registry servers: {:?}",
+                    "error".red().bold(),
+                    e
+                );
+                exit(-1);
+            }
+        };
+
+        let client = match servers.choose(&mut rand::thread_rng()) {
+            Some(entry_point) => {
+                log::debug!("Selected entrypoint runtime: {:?}", entry_point);
+                let client = RegistryClient::new(zsession.clone(), *entry_point);
+                Some(client)
+            }
+            None => {
+                println!(
+                    "{}: unable to connect to local registry, node will not be uploaded.",
+                    "warning".yellow().bold()
+                );
+                None
+            }
+        };
+
+        let file_client = RegistryFileClient::from(zsession);
+    }
 
     match args {
         ZFCtl::Build {

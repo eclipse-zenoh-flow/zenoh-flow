@@ -14,7 +14,7 @@
 use async_std::sync::{Arc, Mutex};
 use std::{collections::HashMap, convert::TryInto};
 use uhlc::HLC;
-use zenoh::ZFuture;
+use zenoh::prelude::*;
 
 use crate::{
     default_output_rule,
@@ -180,7 +180,9 @@ async fn recv_usize(receiver: &LinkReceiver<Message>) -> usize {
 
 #[test]
 fn input_rule_keep() {
-    let session = zenoh::net::open(zenoh::net::config::peer()).wait().unwrap();
+    let session = zenoh::open(zenoh::config::Config::default())
+        .wait()
+        .unwrap();
     let hlc = Arc::new(uhlc::HLC::default());
     let uuid = uuid::Uuid::new_v4();
     let runtime_context = RuntimeContext {

@@ -180,8 +180,7 @@ async fn single_runtime() {
 
     let (tx, rx) = bounded::<()>(1); // Channel used to trigger the source
 
-    let session =
-        async_std::sync::Arc::new(zenoh::net::open(zenoh::net::config::peer()).await.unwrap());
+    let session = Arc::new(zenoh::open(zenoh::config::Config::default()).await.unwrap());
     let hlc = async_std::sync::Arc::new(uhlc::HLC::default());
     let rt_uuid = uuid::Uuid::new_v4();
     let ctx = RuntimeContext {

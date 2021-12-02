@@ -28,7 +28,7 @@ use async_std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use std::convert::TryInto;
 use std::time::Duration;
-use zenoh::ZFuture;
+use zenoh::prelude::*;
 
 // ZFUsize implements Data.
 #[derive(Debug, Clone)]
@@ -90,7 +90,9 @@ impl Source for TestSourceE2EDeadline {
 
 #[test]
 fn source_e2e_deadline() {
-    let session = zenoh::net::open(zenoh::net::config::peer()).wait().unwrap();
+    let session = zenoh::open(zenoh::config::Config::default())
+        .wait()
+        .unwrap();
     let hlc = Arc::new(uhlc::HLC::default());
     let uuid = uuid::Uuid::new_v4();
     let runtime_context = RuntimeContext {
