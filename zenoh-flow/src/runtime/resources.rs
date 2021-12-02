@@ -292,7 +292,6 @@ impl DataStore {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
 
         match data.len() {
@@ -319,7 +318,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
         let mut runtimes = Vec::new();
 
@@ -341,7 +339,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
 
         for kv in data.into_iter() {
@@ -377,7 +374,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
 
         match data.len() {
@@ -427,7 +423,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
 
         match data.len() {
@@ -471,7 +466,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
 
         match data.len() {
@@ -498,7 +492,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
 
         match data.len() {
@@ -526,7 +519,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
         let mut instances = Vec::new();
 
@@ -548,7 +540,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
         let mut instances = Vec::new();
 
@@ -570,7 +561,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
         let mut instances = Vec::new();
 
@@ -592,7 +582,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
         let mut runtimes = Vec::new();
 
@@ -646,7 +635,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
         match data.len() {
             0 => Err(ZFError::Empty),
@@ -668,7 +656,6 @@ impl DataStore {
 
         let mut ds = self.z.get(&selector).await?;
 
-        // Not sure this is needed...
         let data = ds.collect::<Vec<Reply>>().await;
         let mut graphs = Vec::new();
 

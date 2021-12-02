@@ -70,7 +70,7 @@ async fn main() {
     {
         let mut zconfig = zenoh::config::Config::default();
 
-        match config.set_mode(Some("peer".parse())) {
+        match zconfig.set_mode(Some("peer".parse())) {
             Ok => (),
             Err(e) => {
                 println!(
@@ -82,7 +82,7 @@ async fn main() {
             }
         };
 
-        match config.set_peers(vec!["unixsock-stream//tmp/zf-registry.sock".parse()]) {
+        match zconfig.set_peers(vec!["unixsock-stream//tmp/zf-registry.sock".parse()]) {
             Ok => (),
             Err(e) => {
                 println!(
@@ -94,7 +94,7 @@ async fn main() {
             }
         };
 
-        let zsession = match zenoh::net::open(config).await {
+        let zsession = match zenoh::open(zconfig).await {
             Ok(zn) => Arc::new(zn),
             Err(e) => {
                 println!("{}: to create Zenoh session: {:?}", "error".red().bold(), e);
@@ -117,7 +117,7 @@ async fn main() {
         let client = match servers.choose(&mut rand::thread_rng()) {
             Some(entry_point) => {
                 log::debug!("Selected entrypoint runtime: {:?}", entry_point);
-                let client = RegistryClient::new(zsession, *entry_point);
+                let client = RegistryClient::new(zsession.clone(), *entry_point);
                 Some(client)
             }
             None => {
@@ -129,14 +129,6 @@ async fn main() {
             }
         };
 
-        let zsession =
-            match zenoh::Zenoh::new(Properties::from(String::from("mode=peer")).into()).await {
-                Ok(z) => Arc::new(z),
-                Err(e) => {
-                    println!("{}: to create Zenoh session: {:?}", "error".red().bold(), e);
-                    exit(-1);
-                }
-            };
         let file_client = RegistryFileClient::from(zsession);
     }
 
