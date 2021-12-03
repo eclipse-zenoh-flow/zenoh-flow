@@ -111,7 +111,7 @@ impl Daemon {
                 ))
             })?;
 
-        let session = Arc::new(zenoh::open(zconfig).wait().unwrap());
+        let session = Arc::new(zenoh::open(zconfig).wait()?);
         let hlc = Arc::new(HLC::default());
         let loader = Arc::new(Loader::new(config.loader.clone()));
 
@@ -168,6 +168,8 @@ impl Daemon {
         self.store
             .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
             .await?;
+
+        log::trace!("Running...");
 
         let _ = stop
             .recv()
@@ -452,17 +454,20 @@ impl Runtime for Daemon {
             Some(mut instance) => {
                 let mut sinks = instance.get_sinks();
                 for id in sinks.drain(..) {
-                    instance.start_node(&id).await?
+                    instance.start_node(&id).await?;
+                    rt_status.running_sinks += 1;
                 }
 
                 let mut operators = instance.get_operators();
                 for id in operators.drain(..) {
-                    instance.start_node(&id).await?
+                    instance.start_node(&id).await?;
+                    rt_status.running_operators += 1;
                 }
 
                 let mut connectors = instance.get_connectors();
                 for id in connectors.drain(..) {
-                    instance.start_node(&id).await?
+                    instance.start_node(&id).await?;
+                    rt_status.running_connectors += 1;
                 }
 
                 self.store
@@ -488,7 +493,8 @@ impl Runtime for Daemon {
             Some(mut instance) => {
                 let mut sources = instance.get_sources();
                 for id in sources.drain(..) {
-                    instance.start_node(&id).await.unwrap()
+                    instance.start_node(&id).await?;
+                    rt_status.running_sources += 1;
                 }
 
                 rt_status.running_flows += 1;
