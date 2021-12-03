@@ -50,7 +50,7 @@ impl ZenohReplay {
             return Err(ZFError::IOError(format!(
                 "Expected exactly one link for port < {} > for Replay < {} >, found: {}",
                 &port_id,
-                &id,
+                &node_id,
                 links.len()
             )));
         }
@@ -67,6 +67,7 @@ impl ZenohReplay {
     }
 
     async fn send_data(&self, msg: Message) -> ZFResult<()> {
+        log::trace!("ZenohReplay {} - {} - SendData ", self.id, self.node_id);
         let links = self.links.lock().await;
         let msg = Arc::new(msg);
         for link in links.iter() {

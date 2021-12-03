@@ -30,14 +30,9 @@ pub use crate::ZFError;
 
 /// ZFContext is a structure provided by Zenoh Flow to access the execution context directly from
 /// the nodes.
+#[derive(Default)]
 pub struct Context {
     pub mode: usize,
-}
-
-impl Default for Context {
-    fn default() -> Self {
-        Self { mode: 0 }
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

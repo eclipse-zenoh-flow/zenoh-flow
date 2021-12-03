@@ -164,8 +164,8 @@ fn sink_e2e_deadline() {
         link: Arc::new(Mutex::new(Some(receiver_input))),
         state: Arc::new(Mutex::new(sink.initialize(&None).unwrap())),
         sink: Arc::new(sink),
-        library: None,
-        end_to_end_deadlines: vec![e2e_deadline_miss.clone(), e2e_deadline_ok.clone()],
+        _library: None,
+        _end_to_end_deadlines: vec![e2e_deadline_miss.clone(), e2e_deadline_ok.clone()],
     };
 
     let runner = NodeRunner::new(Arc::new(sink_runner), instance_context);

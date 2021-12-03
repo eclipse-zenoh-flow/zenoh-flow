@@ -43,10 +43,10 @@ pub struct SinkRunner {
     pub(crate) context: InstanceContext,
     pub(crate) input: PortDescriptor,
     pub(crate) link: Arc<Mutex<Option<LinkReceiver<Message>>>>,
+    pub(crate) _end_to_end_deadlines: Vec<E2EDeadlineRecord>, //FIXME
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) sink: Arc<dyn Sink>,
-    pub(crate) library: Option<Arc<Library>>,
-    pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
+    pub(crate) _library: Option<Arc<Library>>,
 }
 
 impl SinkRunner {
@@ -65,10 +65,10 @@ impl SinkRunner {
             context,
             input: sink.input,
             link: Arc::new(Mutex::new(Some(link))),
+            _end_to_end_deadlines: sink.end_to_end_deadlines,
             state: sink.state,
             sink: sink.sink,
-            library: sink.library,
-            end_to_end_deadlines: sink.end_to_end_deadlines,
+            _library: sink.library,
         })
     }
 }

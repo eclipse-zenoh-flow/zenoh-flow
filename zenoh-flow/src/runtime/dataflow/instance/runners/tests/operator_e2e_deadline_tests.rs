@@ -253,7 +253,7 @@ fn e2e_deadline() {
         local_deadline: None,
         state: Arc::new(Mutex::new(operator.initialize(&None).unwrap())),
         operator: Arc::new(operator),
-        library: None,
+        _library: None,
         end_to_end_deadlines: vec![operator_deadline.clone()],
     };
 

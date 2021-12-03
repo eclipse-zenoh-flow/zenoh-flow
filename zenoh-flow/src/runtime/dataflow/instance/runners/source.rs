@@ -54,7 +54,7 @@ pub struct SourceRunner {
     pub(crate) current_recording_resource: Arc<Mutex<Option<String>>>,
     pub(crate) is_recording: Arc<Mutex<bool>>,
     pub(crate) source: Arc<dyn Source>,
-    pub(crate) library: Option<Arc<Library>>,
+    pub(crate) _library: Option<Arc<Library>>,
 }
 
 impl SourceRunner {
@@ -86,7 +86,7 @@ impl SourceRunner {
             links: Arc::new(Mutex::new(links)),
             end_to_end_deadlines: source.end_to_end_deadlines,
             source: source.source,
-            library: source.library,
+            _library: source.library,
             base_resource_name,
             is_recording: Arc::new(Mutex::new(false)),
             current_recording_resource: Arc::new(Mutex::new(None)),
