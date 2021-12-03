@@ -161,7 +161,7 @@ fn source_e2e_deadline() {
         current_recording_resource: Arc::new(Mutex::new(None)),
         is_recording: Arc::new(Mutex::new(false)),
         source: Arc::new(source),
-        library: None,
+        _library: None,
     };
 
     let runner = NodeRunner::new(Arc::new(source_runner), instance_context);

@@ -115,7 +115,7 @@ pub struct OperatorRunner {
     pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
-    pub(crate) library: Option<Arc<Library>>,
+    pub(crate) _library: Option<Arc<Library>>,
 }
 
 impl OperatorRunner {
@@ -133,7 +133,7 @@ impl OperatorRunner {
             outputs: operator.outputs,
             state: operator.state,
             operator: operator.operator,
-            library: operator.library,
+            _library: operator.library,
             local_deadline: operator.local_deadline,
             end_to_end_deadlines: operator.end_to_end_deadlines,
         })
