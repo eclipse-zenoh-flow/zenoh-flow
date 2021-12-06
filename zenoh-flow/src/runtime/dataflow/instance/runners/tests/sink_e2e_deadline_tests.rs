@@ -14,7 +14,7 @@
 
 use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::PortDescriptor;
-use crate::model::{FromDescriptor, ToDescriptor};
+use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::sink::SinkRunner;
 use crate::runtime::dataflow::instance::runners::NodeRunner;
@@ -131,11 +131,11 @@ fn sink_e2e_deadline() {
     let sink = TestSinkE2EDeadline {};
 
     let e2e_deadline_miss = E2EDeadlineRecord {
-        from: FromDescriptor {
+        from: OutputDescriptor {
             node: "past-missed".into(),
             output: input.clone(),
         },
-        to: ToDescriptor {
+        to: InputDescriptor {
             node: sink_id.clone(),
             input: input.clone(),
         },
@@ -143,11 +143,11 @@ fn sink_e2e_deadline() {
     };
 
     let e2e_deadline_ok = E2EDeadlineRecord {
-        from: FromDescriptor {
+        from: OutputDescriptor {
             node: "past-ok".into(),
             output: input.clone(),
         },
-        to: ToDescriptor {
+        to: InputDescriptor {
             node: sink_id.clone(),
             input: input.clone(),
         },

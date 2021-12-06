@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 use types::{VecSource, ZFUsize};
 use zenoh_flow::model::link::PortDescriptor;
-use zenoh_flow::model::{FromDescriptor, ToDescriptor};
+use zenoh_flow::model::{InputDescriptor, OutputDescriptor};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
@@ -203,11 +203,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            FromDescriptor {
+            OutputDescriptor {
                 node: SOURCE.into(),
                 output: SOURCE.into(),
             },
-            ToDescriptor {
+            InputDescriptor {
                 node: OPERATOR.into(),
                 input: SOURCE.into(),
             },
@@ -219,11 +219,11 @@ async fn single_runtime() {
 
     dataflow
         .try_add_link(
-            FromDescriptor {
+            OutputDescriptor {
                 node: OPERATOR.into(),
                 output: SINK.into(),
             },
-            ToDescriptor {
+            InputDescriptor {
                 node: SINK.into(),
                 input: SINK.into(),
             },
@@ -236,11 +236,11 @@ async fn single_runtime() {
     // A deadline starting at SINK and going to OPERATOR is impossible and should return an error.
     assert!(dataflow
         .try_add_deadline(
-            FromDescriptor {
+            OutputDescriptor {
                 node: SINK.into(),
                 output: SINK.into(),
             },
-            ToDescriptor {
+            InputDescriptor {
                 node: OPERATOR.into(),
                 input: SOURCE.into(),
             },
@@ -251,11 +251,11 @@ async fn single_runtime() {
     // Correct end to end deadline between SOURCE and SINK.
     assert!(dataflow
         .try_add_deadline(
-            FromDescriptor {
+            OutputDescriptor {
                 node: SOURCE.into(),
                 output: SOURCE.into(),
             },
-            ToDescriptor {
+            InputDescriptor {
                 node: SINK.into(),
                 input: SINK.into(),
             },
