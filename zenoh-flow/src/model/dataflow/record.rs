@@ -17,7 +17,7 @@ use crate::model::dataflow::descriptor::DataFlowDescriptor;
 use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::{LinkDescriptor, PortDescriptor};
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::model::{FromDescriptor, ToDescriptor};
+use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{RuntimeId, ZFError, ZFResult};
 use crate::PortType;
@@ -194,7 +194,7 @@ impl DataFlowRecord {
                     // creating link between node and sender
                     let link_sender = LinkDescriptor {
                         from: l.from.clone(),
-                        to: ToDescriptor {
+                        to: InputDescriptor {
                             node: sender_id.into(),
                             input: l.from.output.clone(),
                         },
@@ -227,7 +227,7 @@ impl DataFlowRecord {
 
                 // Creating link between receiver and node
                 let link_receiver = LinkDescriptor {
-                    from: FromDescriptor {
+                    from: OutputDescriptor {
                         node: receiver_id.into(),
                         output: l.to.input.clone(),
                     },

@@ -13,7 +13,7 @@
 //
 
 use crate::model::deadline::E2EDeadlineRecord;
-use crate::model::{FromDescriptor, ToDescriptor};
+use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::{OperatorIO, OperatorRunner};
 use crate::runtime::dataflow::instance::runners::NodeRunner;
@@ -233,11 +233,11 @@ fn e2e_deadline() {
     };
     let operator_id: NodeId = "TestOperatorDeadlineViolated".into();
     let operator_deadline = E2EDeadlineRecord {
-        from: FromDescriptor {
+        from: OutputDescriptor {
             node: operator_id.clone(),
             output: output.clone(),
         },
-        to: ToDescriptor {
+        to: InputDescriptor {
             node: "future-not-violated".into(),
             input: input1.clone(),
         },
@@ -271,11 +271,11 @@ fn e2e_deadline() {
             // is not supposed to check it as it’s not the "to" node.
             let deadline_violated_to_propagate = E2EDeadline {
                 duration: Duration::from_millis(100),
-                from: FromDescriptor {
+                from: OutputDescriptor {
                     node: "past".into(),
                     output: output.clone(),
                 },
-                to: ToDescriptor {
+                to: InputDescriptor {
                     node: "future".into(),
                     input: input1.clone(),
                 },
@@ -299,11 +299,11 @@ fn e2e_deadline() {
                 vec![
                     E2EDeadline {
                         duration: Duration::from_millis(100),
-                        from: FromDescriptor {
+                        from: OutputDescriptor {
                             node: "past".into(),
                             output: output.clone(),
                         },
-                        to: ToDescriptor {
+                        to: InputDescriptor {
                             node: operator_id.clone(),
                             input: input1.clone(),
                         },
@@ -311,11 +311,11 @@ fn e2e_deadline() {
                     },
                     E2EDeadline {
                         duration: Duration::from_millis(100),
-                        from: FromDescriptor {
+                        from: OutputDescriptor {
                             node: "past".into(),
                             output: output.clone(),
                         },
-                        to: ToDescriptor {
+                        to: InputDescriptor {
                             node: operator_id.clone(),
                             input: input2.clone(),
                         },

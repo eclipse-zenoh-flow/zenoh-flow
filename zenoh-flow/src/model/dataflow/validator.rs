@@ -14,7 +14,7 @@
 
 use crate::model::dataflow::descriptor::DataFlowDescriptor;
 use crate::model::link::PortDescriptor;
-use crate::model::{FromDescriptor, ToDescriptor};
+use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::types::{NodeId, ZFError, ZFResult};
 use crate::{PortId, PortType};
 use petgraph::graph::{EdgeIndex, NodeIndex};
@@ -217,8 +217,8 @@ impl DataflowValidator {
 
     pub(crate) fn try_add_link(
         &mut self,
-        from: &FromDescriptor,
-        to: &ToDescriptor,
+        from: &OutputDescriptor,
+        to: &InputDescriptor,
     ) -> ZFResult<()> {
         let from_graph_checker_idx = self
             .map_id_to_graph_checker_idx
@@ -343,8 +343,8 @@ impl DataflowValidator {
     /// NOTE: . Hence the extra steps.
     pub(crate) fn validate_deadline(
         &self,
-        from: &FromDescriptor,
-        to: &ToDescriptor,
+        from: &OutputDescriptor,
+        to: &InputDescriptor,
     ) -> ZFResult<()> {
         let to_idx = self
             .map_id_to_graph_checker_idx

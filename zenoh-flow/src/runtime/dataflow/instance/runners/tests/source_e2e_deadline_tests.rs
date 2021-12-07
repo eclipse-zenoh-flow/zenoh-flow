@@ -14,7 +14,7 @@
 
 use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::PortDescriptor;
-use crate::model::{FromDescriptor, ToDescriptor};
+use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::source::SourceRunner;
 use crate::runtime::dataflow::instance::runners::NodeRunner;
@@ -123,11 +123,11 @@ fn source_e2e_deadline() {
     let source = TestSourceE2EDeadline {};
 
     let e2e_deadline_1 = E2EDeadlineRecord {
-        from: FromDescriptor {
+        from: OutputDescriptor {
             node: source_id.clone(),
             output: output.clone(),
         },
-        to: ToDescriptor {
+        to: InputDescriptor {
             node: "future".into(),
             input: "future-input".into(),
         },
@@ -135,11 +135,11 @@ fn source_e2e_deadline() {
     };
 
     let e2e_deadline_2 = E2EDeadlineRecord {
-        from: FromDescriptor {
+        from: OutputDescriptor {
             node: source_id.clone(),
             output: output.clone(),
         },
-        to: ToDescriptor {
+        to: InputDescriptor {
             node: "future2".into(),
             input: "future2-input".into(),
         },
