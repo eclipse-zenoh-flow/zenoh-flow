@@ -26,6 +26,10 @@ use libloading::Library;
 use std::path::{Path, PathBuf};
 use url::Url;
 
+#[cfg(target_family = "unix")]
+static LOAD_FLAGS: std::os::raw::c_int =
+    libloading::os::unix::RTLD_NOW | libloading::os::unix::RTLD_LOCAL;
+
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
@@ -198,10 +202,7 @@ impl Loader {
         log::debug!("Operator Loading {:#?}", path);
 
         #[cfg(target_family = "unix")]
-        let library = Library::open(
-            Some(path),
-            libloading::os::unix::RTLD_NOW | libloading::os::unix::RTLD_GLOBAL,
-        )?;
+        let library = Library::open(Some(path), LOAD_FLAGS)?;
 
         #[cfg(target_family = "windows")]
         let library = Library::new(path)?;
@@ -229,10 +230,7 @@ impl Loader {
         log::debug!("Source Loading {:#?}", path);
 
         #[cfg(target_family = "unix")]
-        let library = Library::open(
-            Some(path),
-            libloading::os::unix::RTLD_NOW | libloading::os::unix::RTLD_GLOBAL,
-        )?;
+        let library = Library::open(Some(path), LOAD_FLAGS)?;
 
         #[cfg(target_family = "windows")]
         let library = Library::new(path)?;
@@ -260,10 +258,7 @@ impl Loader {
         log::debug!("Sink Loading {:#?}", path);
 
         #[cfg(target_family = "unix")]
-        let library = Library::open(
-            Some(path),
-            libloading::os::unix::RTLD_NOW | libloading::os::unix::RTLD_GLOBAL,
-        )?;
+        let library = Library::open(Some(path), LOAD_FLAGS)?;
 
         #[cfg(target_family = "windows")]
         let library = Library::new(path)?;
