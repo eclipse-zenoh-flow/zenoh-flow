@@ -116,8 +116,8 @@ impl Operator for TestOperatorDeadlineViolated {
         let token_input1 = tokens.get(&self.input1).unwrap();
         match token_input1 {
             InputToken::Pending => panic!("Unexpected `Pending` token"),
-            InputToken::Ready(ready_token) => {
-                assert_eq!(ready_token.get_missed_end_to_end_deadlines().len(), 1);
+            InputToken::Ready(data_token) => {
+                assert_eq!(data_token.get_missed_end_to_end_deadlines().len(), 1);
             }
         }
 

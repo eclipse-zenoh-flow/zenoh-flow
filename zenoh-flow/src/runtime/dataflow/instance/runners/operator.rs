@@ -293,12 +293,12 @@ impl OperatorRunner {
                     data.remove(port_id);
                     continue;
                 }
-                InputToken::Ready(ready_token) => {
+                InputToken::Ready(data_token) => {
                     earliest_source_timestamp = match earliest_source_timestamp {
-                        None => Some(ready_token.data.timestamp),
+                        None => Some(data_token.data.timestamp),
                         Some(timestamp) => {
-                            if ready_token.data.timestamp > timestamp {
-                                Some(ready_token.data.timestamp)
+                            if data_token.data.timestamp > timestamp {
+                                Some(data_token.data.timestamp)
                             } else {
                                 Some(timestamp)
                             }
@@ -308,31 +308,31 @@ impl OperatorRunner {
                     // TODO: Refactor this code to:
                     // 1) Avoid considering the source_timestamp of a token that is dropped.
                     // 2) Avoid code duplication.
-                    match ready_token.action {
+                    match data_token.action {
                         TokenAction::Consume => {
                             log::debug!("[Operator: {}] Consuming < {} >.", self.id, port_id);
                             e2e_deadlines_to_propagate.extend(
-                                ready_token
+                                data_token
                                     .data
                                     .end_to_end_deadlines
                                     .iter()
                                     .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
                                     .cloned(),
                             );
-                            data.insert(port_id.clone(), ready_token.data.clone());
+                            data.insert(port_id.clone(), data_token.data.clone());
                             *token = InputToken::Pending;
                         }
                         TokenAction::Keep => {
                             log::debug!("[Operator: {}] Keeping < {} >.", self.id, port_id);
                             e2e_deadlines_to_propagate.extend(
-                                ready_token
+                                data_token
                                     .data
                                     .end_to_end_deadlines
                                     .iter()
                                     .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
                                     .cloned(),
                             );
-                            data.insert(port_id.clone(), ready_token.data.clone());
+                            data.insert(port_id.clone(), data_token.data.clone());
                         }
                         TokenAction::Drop => {
                             log::debug!("[Operator: {}] Dropping < {} >.", self.id, port_id);
@@ -513,7 +513,6 @@ impl Runner for OperatorRunner {
         // Looping on iteration, each iteration is a single
         // run of the source, as a run can fail in case of error it
         // stops and returns the error to the caller (the RunnerManager)
-
         loop {
             match self.iteration(context, tokens, data).await {
                 Ok((ctx, tkn, d)) => {

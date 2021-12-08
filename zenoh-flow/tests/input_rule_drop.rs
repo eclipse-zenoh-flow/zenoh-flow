@@ -116,10 +116,10 @@ impl Operator for DropOdd {
         let token = tokens
             .get_mut(&source)
             .ok_or_else(|| ZFError::InvalidData(SOURCE.to_string()))?;
-        if let InputToken::Ready(ready_token) = token {
-            let data = ready_token.get_data_mut();
+        if let InputToken::Ready(data_token) = token {
+            let data = data_token.get_data_mut();
             if data.try_get::<ZFUsize>()?.0 % 2 != 0 {
-                ready_token.set_action_drop();
+                data_token.set_action_drop();
                 return Ok(false);
             }
 

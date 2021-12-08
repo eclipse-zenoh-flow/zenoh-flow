@@ -52,12 +52,12 @@ impl std::fmt::Display for TokenAction {
 }
 
 #[derive(Debug, Clone)]
-pub struct ReadyToken {
+pub struct DataToken {
     pub(crate) data: DataMessage,
     pub(crate) action: TokenAction,
 }
 
-impl ReadyToken {
+impl DataToken {
     /// Tell Zenoh Flow to immediately discard the data.
     ///
     /// The data associated to the `Token` will be immediately discarded, regardless of the result
@@ -105,13 +105,13 @@ impl ReadyToken {
 #[derive(Debug, Clone)]
 pub enum InputToken {
     Pending,
-    Ready(ReadyToken),
+    Ready(DataToken),
 }
 
 impl InputToken {
     pub(crate) fn should_drop(&self) -> bool {
-        if let InputToken::Ready(token_ready) = self {
-            if let TokenAction::Drop = token_ready.action {
+        if let InputToken::Ready(data_token) = self {
+            if let TokenAction::Drop = data_token.action {
                 return true;
             }
         }
@@ -122,7 +122,7 @@ impl InputToken {
 
 impl From<DataMessage> for InputToken {
     fn from(data_message: DataMessage) -> Self {
-        Self::Ready(ReadyToken {
+        Self::Ready(DataToken {
             data: data_message,
             action: TokenAction::Consume,
         })
