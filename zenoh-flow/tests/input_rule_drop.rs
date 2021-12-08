@@ -113,13 +113,13 @@ impl Operator for DropOdd {
         tokens: &mut HashMap<PortId, zenoh_flow::InputToken>,
     ) -> zenoh_flow::ZFResult<bool> {
         let source: PortId = SOURCE.into();
-        let token = tokens
+        let input_token = tokens
             .get_mut(&source)
             .ok_or_else(|| ZFError::InvalidData(SOURCE.to_string()))?;
-        if let InputToken::Ready(data_token) = token {
+        if let InputToken::Ready(data_token) = input_token {
             let data = data_token.get_data_mut();
             if data.try_get::<ZFUsize>()?.0 % 2 != 0 {
-                data_token.set_action_drop();
+                input_token.set_action_drop();
                 return Ok(false);
             }
 

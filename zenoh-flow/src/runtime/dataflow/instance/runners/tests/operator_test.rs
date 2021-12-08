@@ -108,9 +108,9 @@ impl Operator for TestOperator {
                 .ok_or_else(|| ZFError::MissingInput((self.input_1.as_ref()).into()))?;
             if let InputToken::Ready(token) = input_1 {
                 if token.get_action() == &TokenAction::Keep {
-                    token.set_action_consume();
+                    input_1.set_action_consume();
                 } else {
-                    token.set_action_keep();
+                    input_1.set_action_keep();
                 }
             }
         }

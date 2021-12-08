@@ -58,33 +58,6 @@ pub struct DataToken {
 }
 
 impl DataToken {
-    /// Tell Zenoh Flow to immediately discard the data.
-    ///
-    /// The data associated to the `Token` will be immediately discarded, regardless of the result
-    /// of the `Input Rule`. Hence, even if the `Input Rule` return `True` (indicating the `Run`
-    /// method will be called), the data **will not** be transmitted.
-    pub fn set_action_drop(&mut self) {
-        self.action = TokenAction::Drop
-    }
-
-    /// Tell Zenoh Flow to use the data in the "next" run and keep it.
-    ///
-    /// The data associated to the `Token` will be transmitted to the `Run` method of the `Operator`
-    /// the next time `Run` is called, i.e. the next time the `Input Rule` returns `True`.
-    /// Once `Run` is over, the data is kept, _preventing data from being received on that link_.
-    pub fn set_action_keep(&mut self) {
-        self.action = TokenAction::Keep
-    }
-
-    /// (default) Tell Zenoh Flow to use the data in the "next" run and drop it after.
-    ///
-    /// The data associated to the `Token` will be transmitted to the `Run` method of the `Operator`
-    /// the next time `Run` is called, i.e. the next time the `Input Rule` returns `True`.
-    /// Once `Run` is over, the data is dropped, allowing for data to be received on that link.
-    pub fn set_action_consume(&mut self) {
-        self.action = TokenAction::Consume
-    }
-
     pub fn get_action(&self) -> &TokenAction {
         &self.action
     }
@@ -117,6 +90,47 @@ impl InputToken {
         }
 
         false
+    }
+
+    /// Tell Zenoh Flow to immediately discard the data.
+    ///
+    /// The data associated to the `InputToken` will be immediately discarded, regardless of the
+    /// result of the `Input Rule`. Hence, even if the `Input Rule` return `True` (indicating the
+    /// `Run` method will be called), the data **will not** be transmitted.
+    ///
+    /// This method will do nothing if the `InputToken` is a `InputToken::Pending`.
+    pub fn set_action_drop(&mut self) {
+        if let InputToken::Ready(data_token) = self {
+            data_token.action = TokenAction::Drop;
+        }
+    }
+
+    /// Tell Zenoh Flow to use the data in the "next" run and keep it.
+    ///
+    /// The data associated to the `InputToken` will be transmitted to the `Run` method of the
+    /// `Operator` the next time `Run` is called, i.e. the next time the `Input Rule` returns
+    /// `True`. Once `Run` is over, the data is kept, _preventing data from being received on that
+    /// link_.
+    ///
+    /// This method will do nothing if the `InputToken` is a `InputToken::Pending`.
+    pub fn set_action_keep(&mut self) {
+        if let InputToken::Ready(data_token) = self {
+            data_token.action = TokenAction::Keep;
+        }
+    }
+
+    /// (default) Tell Zenoh Flow to use the data in the "next" run and drop it after.
+    ///
+    /// The data associated to the `InputToken` will be transmitted to the `Run` method of the
+    /// `Operator` the next time `Run` is called, i.e. the next time the `Input Rule` returns
+    /// `True`. Once `Run` is over, the data is dropped, allowing for data to be received on that
+    /// link.
+    ///
+    /// This method will do nothing if the `InputToken` is a `InputToken::Pending`.
+    pub fn set_action_consume(&mut self) {
+        if let InputToken::Ready(data_token) = self {
+            data_token.action = TokenAction::Consume;
+        }
     }
 }
 
