@@ -22,7 +22,7 @@ use crate::runtime::deadline::E2EDeadline;
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::{
-    Context, DataMessage, LocalDeadlineMiss, NodeId, Operator, PortId, PortType, State, Token,
+    Context, DataMessage, InputToken, LocalDeadlineMiss, NodeId, Operator, PortId, PortType, State,
     TokenAction, ZFError, ZFResult,
 };
 use async_trait::async_trait;
@@ -148,11 +148,11 @@ impl OperatorRunner {
     async fn iteration(
         &self,
         mut context: Context,
-        mut tokens: HashMap<PortId, Token>,
+        mut tokens: HashMap<PortId, InputToken>,
         mut data: HashMap<PortId, DataMessage>,
     ) -> ZFResult<(
         Context,
-        HashMap<PortId, Token>,
+        HashMap<PortId, InputToken>,
         HashMap<PortId, DataMessage>,
     )> {
         // Guards are taken at the beginning of each iteration to allow interleaving.
@@ -165,7 +165,7 @@ impl OperatorRunner {
         // `ReadyToken` has its action set to `Keep` then it will stay as a `ReadyToken` (i.e.
         // it won’t be resetted later on) and we should not poll data.
         for (port_id, token) in tokens.iter() {
-            if let Token::Pending = token {
+            if let InputToken::Pending = token {
                 links.push(io.poll_input(&self.id, port_id)?);
             }
         }
@@ -188,11 +188,11 @@ impl OperatorRunner {
                                     .update_with_timestamp(&data_message.timestamp)
                                 {
                                     log::error!(
-                                        "[Operator: {}][HLC] Could not update HLC with timestamp {:?}: {:?}",
-                                        self.id,
-                                        data_message.timestamp,
-                                        error
-                                    );
+                                            "[Operator: {}][HLC] Could not update HLC with timestamp {:?}: {:?}",
+                                            self.id,
+                                            data_message.timestamp,
+                                            error
+                                        );
                                 }
 
                                 // We clone the `data_message` because the end to end deadlines
@@ -229,7 +229,7 @@ impl OperatorRunner {
                                         }
                                     });
 
-                                tokens.insert(port_id, Token::from(data_msg));
+                                tokens.insert(port_id, InputToken::from(data_msg));
                             }
 
                             Message::Control(_) => {
@@ -273,7 +273,7 @@ impl OperatorRunner {
             // Poll on the links where the action of the `Token` was set to `drop`.
             for (port_id, token) in tokens.iter_mut() {
                 if token.should_drop() {
-                    *token = Token::Pending;
+                    *token = InputToken::Pending;
                     links.push(io.poll_input(&self.id, port_id)?);
                 }
             }
@@ -284,7 +284,7 @@ impl OperatorRunner {
 
         for (port_id, token) in tokens.iter_mut() {
             match token {
-                Token::Pending => {
+                InputToken::Pending => {
                     log::debug!(
                         "[Operator: {}] Removing < {} > from Data transmitted to `run`.",
                         self.id,
@@ -293,7 +293,7 @@ impl OperatorRunner {
                     data.remove(port_id);
                     continue;
                 }
-                Token::Ready(ready_token) => {
+                InputToken::Ready(ready_token) => {
                     earliest_source_timestamp = match earliest_source_timestamp {
                         None => Some(ready_token.data.timestamp),
                         Some(timestamp) => {
@@ -320,7 +320,7 @@ impl OperatorRunner {
                                     .cloned(),
                             );
                             data.insert(port_id.clone(), ready_token.data.clone());
-                            *token = Token::Pending;
+                            *token = InputToken::Pending;
                         }
                         TokenAction::Keep => {
                             log::debug!("[Operator: {}] Keeping < {} >.", self.id, port_id);
@@ -337,7 +337,7 @@ impl OperatorRunner {
                         TokenAction::Drop => {
                             log::debug!("[Operator: {}] Dropping < {} >.", self.id, port_id);
                             data.remove(port_id);
-                            *token = Token::Pending;
+                            *token = InputToken::Pending;
                         }
                     }
                 }
@@ -503,10 +503,10 @@ impl Runner for OperatorRunner {
         self.start().await;
 
         let mut context = Context::default();
-        let mut tokens: HashMap<PortId, Token> = self
+        let mut tokens: HashMap<PortId, InputToken> = self
             .inputs
             .keys()
-            .map(|input_id| (input_id.clone(), Token::Pending))
+            .map(|input_id| (input_id.clone(), InputToken::Pending))
             .collect();
         let mut data: HashMap<PortId, DataMessage> = HashMap::with_capacity(tokens.len());
 

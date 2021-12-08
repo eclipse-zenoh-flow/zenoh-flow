@@ -31,9 +31,9 @@ use crate::{
         },
         InstanceContext, RuntimeContext,
     },
-    Configuration, Context, Data, DataMessage, Deserializable, DowncastAny, EmptyState,
-    LocalDeadlineMiss, Message, Node, NodeOutput, Operator, PortId, PortType, State, Token,
-    TokenAction, ZFData, ZFError, ZFResult,
+    Configuration, Context, Data, DataMessage, Deserializable, DowncastAny, EmptyState, InputToken,
+    LocalDeadlineMiss, Message, Node, NodeOutput, Operator, PortId, PortType, State, TokenAction,
+    ZFData, ZFError, ZFResult,
 };
 
 // ZFUsize implements Data.
@@ -89,13 +89,13 @@ impl Operator for TestOperator {
         &self,
         _context: &mut Context,
         _state: &mut State,
-        tokens: &mut HashMap<PortId, Token>,
+        tokens: &mut HashMap<PortId, InputToken>,
     ) -> ZFResult<bool> {
         let mut run = true;
 
         // 1st part: KPN input rules, we return `false` if a single input is missing.
         tokens.values().for_each(|token| {
-            if let Token::Pending = token {
+            if let InputToken::Pending = token {
                 run = false
             }
         });
@@ -106,7 +106,7 @@ impl Operator for TestOperator {
             let input_1 = tokens
                 .get_mut(&self.input_1)
                 .ok_or_else(|| ZFError::MissingInput((self.input_1.as_ref()).into()))?;
-            if let Token::Ready(token) = input_1 {
+            if let InputToken::Ready(token) = input_1 {
                 if token.get_action() == &TokenAction::Keep {
                     token.set_action_consume();
                 } else {

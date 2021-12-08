@@ -22,8 +22,8 @@ use crate::runtime::deadline::E2EDeadline;
 use crate::runtime::{InstanceContext, RuntimeContext};
 use crate::{
     default_output_rule, Configuration, Context, Data, DataMessage, Deserializable, DowncastAny,
-    EmptyState, LocalDeadlineMiss, Message, Node, NodeId, NodeOutput, Operator, PortId, PortType,
-    State, Token, ZFData, ZFError, ZFResult,
+    EmptyState, InputToken, LocalDeadlineMiss, Message, Node, NodeId, NodeOutput, Operator, PortId,
+    PortType, State, ZFData, ZFError, ZFResult,
 };
 use async_std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -111,12 +111,12 @@ impl Operator for TestOperatorDeadlineViolated {
         &self,
         _context: &mut Context,
         _state: &mut State,
-        tokens: &mut HashMap<PortId, Token>,
+        tokens: &mut HashMap<PortId, InputToken>,
     ) -> ZFResult<bool> {
         let token_input1 = tokens.get(&self.input1).unwrap();
         match token_input1 {
-            Token::Pending => panic!("Unexpected `Pending` token"),
-            Token::Ready(ready_token) => {
+            InputToken::Pending => panic!("Unexpected `Pending` token"),
+            InputToken::Ready(ready_token) => {
                 assert_eq!(ready_token.get_missed_end_to_end_deadlines().len(), 1);
             }
         }

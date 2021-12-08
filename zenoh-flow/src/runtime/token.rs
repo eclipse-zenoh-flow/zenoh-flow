@@ -18,18 +18,18 @@ use std::collections::HashMap;
 use uhlc::Timestamp;
 
 #[derive(Clone)]
-pub struct Tokens {
-    pub(crate) map: HashMap<PortId, Token>,
+pub struct InputTokens {
+    pub(crate) map: HashMap<PortId, InputToken>,
 }
 
-impl Tokens {
+impl InputTokens {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             map: HashMap::with_capacity(capacity),
         }
     }
 
-    pub fn get_mut(&mut self, port_id: &PortId) -> Option<&mut Token> {
+    pub fn get_mut(&mut self, port_id: &PortId) -> Option<&mut InputToken> {
         self.map.get_mut(port_id)
     }
 }
@@ -103,14 +103,14 @@ impl ReadyToken {
 }
 
 #[derive(Debug, Clone)]
-pub enum Token {
+pub enum InputToken {
     Pending,
     Ready(ReadyToken),
 }
 
-impl Token {
+impl InputToken {
     pub(crate) fn should_drop(&self) -> bool {
-        if let Token::Ready(token_ready) = self {
+        if let InputToken::Ready(token_ready) = self {
             if let TokenAction::Drop = token_ready.action {
                 return true;
             }
@@ -120,7 +120,7 @@ impl Token {
     }
 }
 
-impl From<DataMessage> for Token {
+impl From<DataMessage> for InputToken {
     fn from(data_message: DataMessage) -> Self {
         Self::Ready(ReadyToken {
             data: data_message,

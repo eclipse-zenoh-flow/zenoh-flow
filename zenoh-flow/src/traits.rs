@@ -14,7 +14,8 @@
 
 use crate::runtime::message::DataMessage;
 use crate::{
-    Configuration, Context, Data, LocalDeadlineMiss, NodeOutput, PortId, State, Token, ZFResult,
+    Configuration, Context, Data, InputToken, LocalDeadlineMiss, NodeOutput, PortId, State,
+    ZFResult,
 };
 use async_trait::async_trait;
 use std::any::Any;
@@ -54,7 +55,7 @@ pub trait Operator: Node + Send + Sync {
         &self,
         context: &mut Context,
         state: &mut State,
-        tokens: &mut HashMap<PortId, Token>,
+        tokens: &mut HashMap<PortId, InputToken>,
     ) -> ZFResult<bool>;
 
     fn run(
