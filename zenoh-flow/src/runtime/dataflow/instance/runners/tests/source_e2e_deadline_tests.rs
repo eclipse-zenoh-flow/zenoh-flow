@@ -155,6 +155,7 @@ fn source_e2e_deadline() {
             port_type: "ZFUsize".into(),
         },
         links: Arc::new(Mutex::new(vec![sender_output])),
+        is_running: Arc::new(Mutex::new(false)),
         state: Arc::new(Mutex::new(source.initialize(&None).unwrap())),
         end_to_end_deadlines: vec![e2e_deadline_1.clone(), e2e_deadline_2.clone()],
         base_resource_name: "test".into(),

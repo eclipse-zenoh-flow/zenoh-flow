@@ -258,6 +258,17 @@ impl DataflowInstance {
         Err(ZFError::Unimplemented)
     }
 
+    pub async fn is_node_running(&self, node_id: &NodeId) -> ZFResult<bool> {
+        self.runners
+            .get(node_id)
+            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
+
+        match self.managers.get(node_id) {
+            Some(manager) => Ok(manager.is_running().await),
+            None => Ok(false),
+        }
+    }
+
     pub async fn start_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
         let runner = self
             .runners
@@ -293,8 +304,12 @@ impl DataflowInstance {
         manager.stop_recording().await
     }
 
+    /// Assumes the source is already stopped before calling the start replay!
+    /// This method is called by the daemon, that always check that the node
+    /// is not running prior to call this function.
+    /// If someone is using directly the DataflowInstance need to stop and check
+    /// if the node is running before calling this function.
     pub async fn start_replay(&mut self, source_id: &NodeId, resource: String) -> ZFResult<NodeId> {
-        self.stop_node(source_id).await?;
         let runner = self
             .runners
             .get(source_id)
@@ -305,6 +320,7 @@ impl DataflowInstance {
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
+
         let (output_id, _output_type) = outputs
             .pop()
             .ok_or_else(|| ZFError::NodeNotFound(source_id.clone()))?;

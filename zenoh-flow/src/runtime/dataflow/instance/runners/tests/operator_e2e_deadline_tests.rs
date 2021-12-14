@@ -251,6 +251,7 @@ fn e2e_deadline() {
         inputs,
         outputs,
         local_deadline: None,
+        is_running: Arc::new(Mutex::new(false)),
         state: Arc::new(Mutex::new(operator.initialize(&None).unwrap())),
         operator: Arc::new(operator),
         _library: None,
