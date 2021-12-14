@@ -35,3 +35,38 @@ machine-uid = "0.2.0"
 git-version = "0.3"
 async-ctrlc ={version = "1.2.0", features = ["stream"]}
 futures = "0.3.5"
+
+
+
+# Debian package configuration
+
+[package.metadata.deb]
+maintainer = "ADLINK Zenoh team <zenoh@adlink-labs.tech>"
+copyright = "2021, ADLINK Technology Inc"
+extended-description = "Eclipse Zenoh Flow Daemon"
+license-file = ["../LICENSE", "0"]
+depends = "$auto, zenohd (=0.6.0~dev.0), zenoh-plugin-storages (=0.6.0~dev.0)"
+section = "utils"
+priority = "optional"
+assets = [
+    # binary
+    ["target/release/zenoh-flow-daemon", "/usr/bin/zenoh-flow-daemon", "755"],
+    # assets
+    ["etc/runtime.yaml", "/etc/zenoh-flow/runtime.yaml", "644"],
+    ["var/*", "/var/zenoh-flow", "644"],
+]
+
+# RPM package configuration
+
+[package.metadata.rpm]
+package = "zenoh-flow-daemon"
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+zenoh-flow-daemon = { path = "/usr/bin/zenoh-flow-daemon" }
+
+[package.metadata.rpm.files]
+"../etc/runtime.yaml" = { path = "/etc/zenoh-flow/runtime.yaml", mode = "644" }
+"../var/placeholder" = { path = "/var/zenoh-flow/placeholder" }

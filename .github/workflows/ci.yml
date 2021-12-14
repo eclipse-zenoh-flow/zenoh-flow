@@ -75,3 +75,9 @@ jobs:
           command: deb
           args: --no-build -p zenoh-flow-ctl
 
+      - name: Debian package - zenoh-flow-daemon
+        uses: actions-rs/cargo@v1
+        with:
+          command: deb
+          args: --no-build -p zenoh-flow-daemon
+
