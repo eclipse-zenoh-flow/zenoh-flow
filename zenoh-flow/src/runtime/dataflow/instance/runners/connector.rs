@@ -30,6 +30,7 @@ pub struct ZenohSender {
     pub(crate) id: NodeId,
     pub(crate) context: InstanceContext,
     pub(crate) record: ZFConnectorRecord,
+    pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) link: Arc<Mutex<Option<LinkReceiver<Message>>>>,
 }
 
@@ -52,19 +53,16 @@ impl ZenohSender {
             id: record.id.clone(),
             context,
             record,
+            is_running: Arc::new(Mutex::new(false)),
             link: Arc::new(Mutex::new(Some(link))),
         })
     }
-}
-#[async_trait]
-impl Runner for ZenohSender {
-    fn get_id(&self) -> NodeId {
-        self.id.clone()
+
+    async fn start(&self) {
+        *self.is_running.lock().await = true;
     }
-    fn get_kind(&self) -> RunnerKind {
-        RunnerKind::Connector
-    }
-    async fn run(&self) -> ZFResult<()> {
+
+    async fn iteration(&self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.record.resource);
         if let Some(link) = &*self.link.lock().await {
             while let Ok((_, message)) = link.recv().await {
@@ -78,8 +76,44 @@ impl Runner for ZenohSender {
                     .put(&self.record.resource, serialized)
                     .await?;
             }
+        } else {
+            return Err(ZFError::Disconnected);
         }
-        Err(ZFError::Disconnected)
+        Ok(())
+    }
+}
+#[async_trait]
+impl Runner for ZenohSender {
+    fn get_id(&self) -> NodeId {
+        self.id.clone()
+    }
+    fn get_kind(&self) -> RunnerKind {
+        RunnerKind::Connector
+    }
+    async fn run(&self) -> ZFResult<()> {
+        self.start().await;
+
+        // Looping on iteration, each iteration is a single
+        // run of the source, as a run can fail in case of error it
+        // stops and returns the error to the caller (the RunnerManager)
+
+        loop {
+            match self.iteration().await {
+                Ok(_) => {
+                    log::debug!("ZenohSender [{}] iteration ok", self.id);
+                    continue;
+                }
+                Err(e) => {
+                    log::error!(
+                        "ZenohSender [{}] iteration failed with error: {}",
+                        self.id,
+                        e
+                    );
+                    self.stop().await;
+                    break Err(e);
+                }
+            }
+        }
     }
 
     fn get_outputs(&self) -> HashMap<PortId, PortType> {
@@ -131,6 +165,14 @@ impl Runner for ZenohSender {
         false
     }
 
+    async fn is_running(&self) -> bool {
+        *self.is_running.lock().await
+    }
+
+    async fn stop(&self) {
+        *self.is_running.lock().await = false;
+    }
+
     async fn clean(&self) -> ZFResult<()> {
         Ok(())
     }
@@ -141,6 +183,7 @@ pub struct ZenohReceiver {
     pub(crate) id: NodeId,
     pub(crate) context: InstanceContext,
     pub(crate) record: ZFConnectorRecord,
+    pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) link: Arc<Mutex<Option<LinkSender<Message>>>>,
 }
 
@@ -174,8 +217,13 @@ impl ZenohReceiver {
             id: record.id.clone(),
             context,
             record,
+            is_running: Arc::new(Mutex::new(false)),
             link: Arc::new(Mutex::new(link)),
         })
+    }
+
+    async fn start(&self) {
+        *self.is_running.lock().await = true;
     }
 }
 
@@ -189,25 +237,32 @@ impl Runner for ZenohReceiver {
     }
 
     async fn run(&self) -> ZFResult<()> {
-        log::debug!("ZenohReceiver - {} - Started", self.record.resource);
-        if let Some(link) = &*self.link.lock().await {
-            let mut subscriber = self
-                .context
-                .runtime
-                .session
-                .subscribe(&self.record.resource)
-                .await?;
+        self.start().await;
 
-            while let Some(msg) = subscriber.receiver().next().await {
-                log::debug!("ZenohSender - {}<={:?} ", self.record.resource, msg);
-                let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
-                    .map_err(|_| ZFError::DeseralizationError)?;
-                log::debug!("ZenohSender - OUT =>{:?} ", de);
-                link.send(Arc::new(de)).await?;
+        let res = {
+            log::debug!("ZenohReceiver - {} - Started", self.record.resource);
+            if let Some(link) = &*self.link.lock().await {
+                let mut subscriber = self
+                    .context
+                    .runtime
+                    .session
+                    .subscribe(&self.record.resource)
+                    .await?;
+
+                while let Some(msg) = subscriber.receiver().next().await {
+                    log::debug!("ZenohSender - {}<={:?} ", self.record.resource, msg);
+                    let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
+                        .map_err(|_| ZFError::DeseralizationError)?;
+                    log::debug!("ZenohSender - OUT =>{:?} ", de);
+                    link.send(Arc::new(de)).await?;
+                }
             }
-        }
 
-        Err(ZFError::Disconnected)
+            Err(ZFError::Disconnected)
+        };
+
+        self.stop().await;
+        res
     }
 
     fn get_inputs(&self) -> HashMap<PortId, PortType> {
@@ -259,5 +314,13 @@ impl Runner for ZenohReceiver {
 
     async fn is_recording(&self) -> bool {
         false
+    }
+
+    async fn is_running(&self) -> bool {
+        *self.is_running.lock().await
+    }
+
+    async fn stop(&self) {
+        *self.is_running.lock().await = false;
     }
 }

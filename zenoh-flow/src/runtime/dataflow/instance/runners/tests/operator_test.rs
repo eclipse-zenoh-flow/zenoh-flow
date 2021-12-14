@@ -262,6 +262,7 @@ fn input_rule_keep() {
         outputs,
         local_deadline: None,
         state: Arc::new(Mutex::new(operator.initialize(&None).unwrap())),
+        is_running: Arc::new(Mutex::new(false)),
         operator: Arc::new(operator),
         _library: None,
         end_to_end_deadlines: vec![],

@@ -33,6 +33,7 @@ pub struct ZenohReplay {
     pub(crate) port_id: PortId,
     pub(crate) port_type: PortType,
     pub(crate) resource_name: String,
+    pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) links: Arc<Mutex<Vec<LinkSender<Message>>>>,
 }
 
@@ -62,6 +63,7 @@ impl ZenohReplay {
             port_id,
             port_type,
             resource_name,
+            is_running: Arc::new(Mutex::new(false)),
             links: Arc::new(Mutex::new(links)),
         })
     }
@@ -75,6 +77,9 @@ impl ZenohReplay {
             link.send(msg.clone()).await?;
         }
         Ok(())
+    }
+    async fn start(&self) {
+        *self.is_running.lock().await = true;
     }
 }
 
@@ -131,66 +136,80 @@ impl Runner for ZenohReplay {
         false
     }
 
+    async fn is_running(&self) -> bool {
+        *self.is_running.lock().await
+    }
+
+    async fn stop(&self) {
+        *self.is_running.lock().await = false;
+    }
+
     async fn run(&self) -> ZFResult<()> {
-        log::debug!("ZenohReplay - {} - Started", self.resource_name);
-        let query_target = QueryTarget {
-            kind: queryable::STORAGE,
-            target: Target::default(),
-        };
-        let res_name = format!("{}?(starttime=0)", self.resource_name);
-        let replies = self
-            .context
-            .runtime
-            .session
-            .get(&res_name)
-            .target(query_target)
-            .consolidation(QueryConsolidation::none())
-            .await?;
+        self.start().await;
 
-        // Placeholder
-        let mut last_ts = self.context.runtime.hlc.new_timestamp();
+        let res = {
+            log::debug!("ZenohReplay - {} - Started", self.resource_name);
+            let query_target = QueryTarget {
+                kind: queryable::STORAGE,
+                target: Target::default(),
+            };
+            let res_name = format!("{}?(starttime=0)", self.resource_name);
+            let replies = self
+                .context
+                .runtime
+                .session
+                .get(&res_name)
+                .target(query_target)
+                .consolidation(QueryConsolidation::none())
+                .await?;
 
-        // Here we need to get all the data and then order it.
-        let data = replies.collect::<Vec<Reply>>().await;
-        let mut zf_data: Vec<Message> = data
-            .iter()
-            .filter_map(|msg| {
-                bincode::deserialize::<Message>(&msg.data.value.payload.contiguous()).ok()
-            })
-            .collect();
-        zf_data.sort();
-        log::debug!("ZenohReplay - Total samples {} ", zf_data.len());
+            // Placeholder
+            let mut last_ts = self.context.runtime.hlc.new_timestamp();
 
-        for de in zf_data {
-            log::debug!("ZenohReplay - {}<={:?} ", self.resource_name, de);
-            match &de {
-                Message::Control(ref ctrl_msg) => match &ctrl_msg {
-                    ControlMessage::RecordingStart(ref ts) => {
-                        log::debug!("ZenohReplay - Recording start {:?} ", ts);
-                        last_ts = ts.timestamp;
+            // Here we need to get all the data and then order it.
+            let data = replies.collect::<Vec<Reply>>().await;
+            let mut zf_data: Vec<Message> = data
+                .iter()
+                .filter_map(|msg| {
+                    bincode::deserialize::<Message>(&msg.data.value.payload.contiguous()).ok()
+                })
+                .collect();
+            zf_data.sort();
+            log::debug!("ZenohReplay - Total samples {} ", zf_data.len());
+
+            for de in zf_data {
+                log::debug!("ZenohReplay - {}<={:?} ", self.resource_name, de);
+                match &de {
+                    Message::Control(ref ctrl_msg) => match &ctrl_msg {
+                        ControlMessage::RecordingStart(ref ts) => {
+                            log::debug!("ZenohReplay - Recording start {:?} ", ts);
+                            last_ts = ts.timestamp;
+                        }
+                        ControlMessage::RecordingStop(ref rs) => {
+                            log::debug!("ZenohReplay - Recording Stop {:?} ", rs);
+                        } // Commented because Control messages are not yet defined.
+                          // _ => {
+                          //     self.send_data(de).await?;
+                          // }
+                    },
+                    Message::Data(ref data_msg) => {
+                        let data_ts = data_msg.timestamp;
+                        let wait_time = data_ts.get_diff_duration(&last_ts);
+
+                        log::debug!("ZenohReplay - Wait for {:?} ", wait_time);
+                        task::sleep(wait_time).await;
+
+                        self.send_data(de).await?;
+
+                        // Updating last sent timestamp
+                        last_ts = data_ts;
                     }
-                    ControlMessage::RecordingStop(ref rs) => {
-                        log::debug!("ZenohReplay - Recording Stop {:?} ", rs);
-                    } // Commented because Control messages are not yet defined.
-                      // _ => {
-                      //     self.send_data(de).await?;
-                      // }
-                },
-                Message::Data(ref data_msg) => {
-                    let data_ts = data_msg.timestamp;
-                    let wait_time = data_ts.get_diff_duration(&last_ts);
-
-                    log::debug!("ZenohReplay - Wait for {:?} ", wait_time);
-                    task::sleep(wait_time).await;
-
-                    self.send_data(de).await?;
-
-                    // Updating last sent timestamp
-                    last_ts = data_ts;
                 }
             }
-        }
+        };
 
-        Ok(())
+        self.stop().await;
+
+        Ok(res)
     }
 }

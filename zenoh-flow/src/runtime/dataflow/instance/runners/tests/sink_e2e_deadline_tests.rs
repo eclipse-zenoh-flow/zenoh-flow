@@ -162,6 +162,7 @@ fn sink_e2e_deadline() {
             port_type: "ZFUsize".into(),
         },
         link: Arc::new(Mutex::new(Some(receiver_input))),
+        is_running: Arc::new(Mutex::new(false)),
         state: Arc::new(Mutex::new(sink.initialize(&None).unwrap())),
         sink: Arc::new(sink),
         _library: None,

@@ -136,6 +136,10 @@ pub trait Runner: Send + Sync {
     async fn stop_recording(&self) -> ZFResult<String>;
 
     async fn is_recording(&self) -> bool;
+
+    async fn is_running(&self) -> bool;
+
+    async fn stop(&self);
 }
 
 #[derive(Clone)]
@@ -177,6 +181,7 @@ impl NodeRunner {
                             "[Node: {}] Received kill command, killing runner",
                             self.get_id()
                         );
+                        self.stop().await;
                         return Ok(());
                     }
                 }

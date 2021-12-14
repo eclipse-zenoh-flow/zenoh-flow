@@ -53,6 +53,7 @@ pub struct SourceRunner {
     pub(crate) base_resource_name: String,
     pub(crate) current_recording_resource: Arc<Mutex<Option<String>>>,
     pub(crate) is_recording: Arc<Mutex<bool>>,
+    pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) _library: Option<Arc<Library>>,
 }
@@ -89,6 +90,7 @@ impl SourceRunner {
             _library: source.library,
             base_resource_name,
             is_recording: Arc::new(Mutex::new(false)),
+            is_running: Arc::new(Mutex::new(false)),
             current_recording_resource: Arc::new(Mutex::new(None)),
         })
     }
@@ -143,6 +145,37 @@ impl SourceRunner {
             .await?;
 
         Ok(())
+    }
+
+    async fn iteration(&self, mut context: Context) -> ZFResult<Context> {
+        let links = self.links.lock().await;
+        let mut state = self.state.lock().await;
+
+        // Running
+        let output = self.source.run(&mut context, &mut state).await?;
+
+        let timestamp = self.new_maybe_periodic_timestamp();
+
+        let e2e_deadlines = self
+            .end_to_end_deadlines
+            .iter()
+            .map(|deadline| E2EDeadline::new(deadline.clone(), timestamp))
+            .collect();
+
+        // Send to Links
+        log::debug!("Sending on {:?} data: {:?}", self.output.port_id, output);
+
+        let zf_message = Arc::new(Message::from_serdedata(output, timestamp, e2e_deadlines));
+        for link in links.iter() {
+            log::debug!("\tSending on: {:?}", link);
+            link.send(zf_message.clone()).await?;
+        }
+        self.record(zf_message).await?;
+        Ok(context)
+    }
+
+    async fn start(&self) {
+        *self.is_running.lock().await = true;
     }
 }
 
@@ -261,34 +294,38 @@ impl Runner for SourceRunner {
         *self.is_recording.lock().await
     }
 
+    async fn is_running(&self) -> bool {
+        *self.is_running.lock().await
+    }
+
+    async fn stop(&self) {
+        *self.is_running.lock().await = false;
+    }
+
     async fn run(&self) -> ZFResult<()> {
+        self.start().await;
+
         let mut context = Context::default();
-
+        // Looping on iteration, each iteration is a single
+        // run of the source, as a run can fail in case of error it
+        // stops and returns the error to the caller (the RunnerManager)
         loop {
-            // Guards are taken at the beginning of each iteration to allow interleaving.
-            let links = self.links.lock().await;
-            let mut state = self.state.lock().await;
-
-            // Running
-            let output = self.source.run(&mut context, &mut state).await?;
-
-            let timestamp = self.new_maybe_periodic_timestamp();
-
-            let e2e_deadlines = self
-                .end_to_end_deadlines
-                .iter()
-                .map(|deadline| E2EDeadline::new(deadline.clone(), timestamp))
-                .collect();
-
-            // Send to Links
-            log::debug!("Sending on {:?} data: {:?}", self.output.port_id, output);
-
-            let zf_message = Arc::new(Message::from_serdedata(output, timestamp, e2e_deadlines));
-            for link in links.iter() {
-                log::debug!("\tSending on: {:?}", link);
-                link.send(zf_message.clone()).await?;
+            match self.iteration(context).await {
+                Ok(ctx) => {
+                    log::debug!(
+                        "Source [{}] iteration ok with new context {:?}",
+                        self.id,
+                        ctx
+                    );
+                    context = ctx;
+                    continue;
+                }
+                Err(e) => {
+                    log::error!("Source [{}] iteration failed with error: {}", self.id, e);
+                    self.stop().await;
+                    break Err(e);
+                }
             }
-            self.record(zf_message).await?;
         }
     }
 }

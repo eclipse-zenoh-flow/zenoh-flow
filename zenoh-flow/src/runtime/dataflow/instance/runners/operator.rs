@@ -113,6 +113,7 @@ pub struct OperatorRunner {
     pub(crate) outputs: HashMap<PortId, PortType>,
     pub(crate) local_deadline: Option<Duration>,
     pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
+    pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) _library: Option<Arc<Library>>,
@@ -132,11 +133,297 @@ impl OperatorRunner {
             inputs: operator.inputs,
             outputs: operator.outputs,
             state: operator.state,
+            is_running: Arc::new(Mutex::new(false)),
             operator: operator.operator,
             _library: operator.library,
             local_deadline: operator.local_deadline,
             end_to_end_deadlines: operator.end_to_end_deadlines,
         })
+    }
+
+    async fn start(&self) {
+        *self.is_running.lock().await = true;
+    }
+
+    async fn iteration(
+        &self,
+        mut context: Context,
+        mut tokens: HashMap<PortId, Token>,
+        mut data: HashMap<PortId, DataMessage>,
+    ) -> ZFResult<(
+        Context,
+        HashMap<PortId, Token>,
+        HashMap<PortId, DataMessage>,
+    )> {
+        // Guards are taken at the beginning of each iteration to allow interleaving.
+        let io = self.io.lock().await;
+        let mut state = self.state.lock().await;
+
+        let mut links = Vec::with_capacity(tokens.len());
+
+        // Only call `recv` on links where the corresponding Token is `Pending`. If a
+        // `ReadyToken` has its action set to `Keep` then it will stay as a `ReadyToken` (i.e.
+        // it won’t be resetted later on) and we should not poll data.
+        for (port_id, token) in tokens.iter() {
+            if let Token::Pending = token {
+                links.push(io.poll_input(&self.id, port_id)?);
+            }
+        }
+
+        'input_rule: loop {
+            if !links.is_empty() {
+                match future::select_all(links).await {
+                    (Ok((port_id, message)), _index, remaining) => {
+                        match message.as_ref() {
+                            Message::Data(data_message) => {
+                                // In order to check for E2EDeadlines we first have to update
+                                // the HLC. There is indeed a possibility that the timestamp
+                                // associated with the data is "ahead" of the hlc on this
+                                // runtime — which would cause problems when computing the time
+                                // difference.
+                                if let Err(error) = self
+                                    .context
+                                    .runtime
+                                    .hlc
+                                    .update_with_timestamp(&data_message.timestamp)
+                                {
+                                    log::error!(
+                                        "[Operator: {}][HLC] Could not update HLC with timestamp {:?}: {:?}",
+                                        self.id,
+                                        data_message.timestamp,
+                                        error
+                                    );
+                                }
+
+                                // We clone the `data_message` because the end to end deadlines
+                                // are specific to each Operator. Suppose we have the following
+                                // dataflow, running on **the same daemon**:
+                                //
+                                //              ┌───┐
+                                //         ┌───►│ 2 │
+                                //         │    └───┘
+                                //       ┌─┴─┐
+                                //       │ 1 │
+                                //       └─┬─┘
+                                //         │    ┌───┐
+                                //         └───►│ 3 │
+                                //              └───┘
+                                //
+                                // Operators 2 and 3 receive the same output from Operator 1.
+                                //
+                                // They will thus both receive an `Arc`. I.e. they both share a
+                                // pointer on the **same** message. Operator 2 cannot add
+                                // information about an end-to-end deadline that applies only on
+                                // itself as Operator 3 would have access to it — which, in the
+                                // end, would be very incorrect (and confusing).
+                                let mut data_msg = data_message.clone();
+
+                                let now = self.context.runtime.hlc.new_timestamp();
+                                data_message
+                                    .end_to_end_deadlines
+                                    .iter()
+                                    .for_each(|deadline| {
+                                        if let Some(miss) = deadline.check(&self.id, &port_id, &now)
+                                        {
+                                            data_msg.missed_end_to_end_deadlines.push(miss)
+                                        }
+                                    });
+
+                                tokens.insert(port_id, Token::from(data_msg));
+                            }
+
+                            Message::Control(_) => {
+                                return Err(ZFError::Unimplemented);
+                            }
+                        }
+
+                        links = remaining;
+                    }
+
+                    (Err(e), _index, _remaining) => {
+                        let err_msg =
+                            format!("[Operator: {}] Link returned an error: {:?}", self.id, e);
+                        log::error!("{}", &err_msg);
+                        return Err(ZFError::IOError(err_msg));
+                    }
+                }
+            }
+
+            match self
+                .operator
+                .input_rule(&mut context, &mut state, &mut tokens)
+            {
+                Ok(true) => {
+                    log::debug!("[Operator: {}] Input Rule returned < true >.", self.id);
+                    break 'input_rule;
+                }
+                Ok(false) => {
+                    log::debug!("[Operator: {}] Input Rule returned < false >.", self.id);
+                }
+                Err(e) => {
+                    log::error!(
+                        "[Operator: {}] Input Rule returned an error: {:?}",
+                        self.id,
+                        e
+                    );
+                    return Err(ZFError::IOError(e.to_string()));
+                }
+            }
+
+            // Poll on the links where the action of the `Token` was set to `drop`.
+            for (port_id, token) in tokens.iter_mut() {
+                if token.should_drop() {
+                    *token = Token::Pending;
+                    links.push(io.poll_input(&self.id, port_id)?);
+                }
+            }
+        } // end < 'input_rule: loop >
+
+        let mut earliest_source_timestamp = None;
+        let mut e2e_deadlines_to_propagate: Vec<E2EDeadline> = vec![];
+
+        for (port_id, token) in tokens.iter_mut() {
+            match token {
+                Token::Pending => {
+                    log::debug!(
+                        "[Operator: {}] Removing < {} > from Data transmitted to `run`.",
+                        self.id,
+                        port_id
+                    );
+                    data.remove(port_id);
+                    continue;
+                }
+                Token::Ready(ready_token) => {
+                    earliest_source_timestamp = match earliest_source_timestamp {
+                        None => Some(ready_token.data.timestamp),
+                        Some(timestamp) => {
+                            if ready_token.data.timestamp > timestamp {
+                                Some(ready_token.data.timestamp)
+                            } else {
+                                Some(timestamp)
+                            }
+                        }
+                    };
+
+                    // TODO: Refactor this code to:
+                    // 1) Avoid considering the source_timestamp of a token that is dropped.
+                    // 2) Avoid code duplication.
+                    match ready_token.action {
+                        TokenAction::Consume => {
+                            log::debug!("[Operator: {}] Consuming < {} >.", self.id, port_id);
+                            e2e_deadlines_to_propagate.extend(
+                                ready_token
+                                    .data
+                                    .end_to_end_deadlines
+                                    .iter()
+                                    .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
+                                    .cloned(),
+                            );
+                            data.insert(port_id.clone(), ready_token.data.clone());
+                            *token = Token::Pending;
+                        }
+                        TokenAction::Keep => {
+                            log::debug!("[Operator: {}] Keeping < {} >.", self.id, port_id);
+                            e2e_deadlines_to_propagate.extend(
+                                ready_token
+                                    .data
+                                    .end_to_end_deadlines
+                                    .iter()
+                                    .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
+                                    .cloned(),
+                            );
+                            data.insert(port_id.clone(), ready_token.data.clone());
+                        }
+                        TokenAction::Drop => {
+                            log::debug!("[Operator: {}] Dropping < {} >.", self.id, port_id);
+                            data.remove(port_id);
+                            *token = Token::Pending;
+                        }
+                    }
+                }
+            }
+        }
+
+        let timestamp = {
+            match earliest_source_timestamp {
+                Some(max_timestamp) => max_timestamp,
+                None => self.context.runtime.hlc.new_timestamp(),
+            }
+        };
+
+        // Running
+        let start = Instant::now();
+        let run_outputs = self.operator.run(&mut context, &mut state, &mut data)?;
+        let elapsed = start.elapsed();
+
+        log::debug!(
+            "[Operator: {}] `run` executed in {} ms",
+            self.id,
+            elapsed.as_micros()
+        );
+
+        let mut deadline_miss = None;
+
+        if let Some(deadline) = self.local_deadline {
+            if elapsed > deadline {
+                log::warn!(
+                    "[Operator: {}] Deadline miss detected for `run`: {} ms (expected < {} ms)",
+                    self.id,
+                    elapsed.as_micros(),
+                    deadline.as_micros()
+                );
+                deadline_miss = Some(LocalDeadlineMiss {
+                    start,
+                    deadline,
+                    elapsed,
+                });
+            }
+        }
+
+        // Output rules
+        let mut outputs =
+            self.operator
+                .output_rule(&mut context, &mut state, run_outputs, deadline_miss)?;
+
+        // E2EDeadlines management: add deadlines that start at that operator.
+        let now = self.context.runtime.hlc.new_timestamp();
+        e2e_deadlines_to_propagate.extend(
+            self.end_to_end_deadlines
+                .iter()
+                .filter(|e2e_deadline| e2e_deadline.from.node == self.id)
+                .map(|e2e_deadline| E2EDeadline::new(e2e_deadline.clone(), now)),
+        );
+
+        // Send to Links
+        for port_id in self.outputs.keys() {
+            let output = match outputs.remove(port_id) {
+                Some(output) => output,
+                None => continue,
+            };
+
+            if let Some(link_senders) = io.outputs.get(port_id) {
+                let zf_message = Arc::new(Message::from_node_output(
+                    output,
+                    timestamp,
+                    e2e_deadlines_to_propagate.clone(),
+                ));
+                for link_sender in link_senders {
+                    let res = link_sender.send(zf_message.clone()).await;
+
+                    // TODO: Maybe we want to process somehow the error, not simply log it.
+                    if let Err(e) = res {
+                        log::error!(
+                            "[Operator: {}] Could not send output < {} > on link < {} >: {:?}",
+                            self.id,
+                            port_id,
+                            link_sender.id,
+                            e
+                        );
+                    }
+                }
+            }
+        }
+        Ok((context, tokens, data))
     }
 }
 
@@ -199,12 +486,22 @@ impl Runner for OperatorRunner {
         false
     }
 
+    async fn stop(&self) {
+        *self.is_running.lock().await = false;
+    }
+
+    async fn is_running(&self) -> bool {
+        *self.is_running.lock().await
+    }
+
     async fn clean(&self) -> ZFResult<()> {
         let mut state = self.state.lock().await;
         self.operator.finalize(&mut state)
     }
 
     async fn run(&self) -> ZFResult<()> {
+        self.start().await;
+
         let mut context = Context::default();
         let mut tokens: HashMap<PortId, Token> = self
             .inputs
@@ -213,274 +510,27 @@ impl Runner for OperatorRunner {
             .collect();
         let mut data: HashMap<PortId, DataMessage> = HashMap::with_capacity(tokens.len());
 
+        // Looping on iteration, each iteration is a single
+        // run of the source, as a run can fail in case of error it
+        // stops and returns the error to the caller (the RunnerManager)
+
         loop {
-            // Guards are taken at the beginning of each iteration to allow interleaving.
-            let io = self.io.lock().await;
-            let mut state = self.state.lock().await;
-
-            let mut links = Vec::with_capacity(tokens.len());
-
-            // Only call `recv` on links where the corresponding Token is `Pending`. If a
-            // `ReadyToken` has its action set to `Keep` then it will stay as a `ReadyToken` (i.e.
-            // it won’t be resetted later on) and we should not poll data.
-            for (port_id, token) in tokens.iter() {
-                if let Token::Pending = token {
-                    links.push(io.poll_input(&self.id, port_id)?);
-                }
-            }
-
-            'input_rule: loop {
-                if !links.is_empty() {
-                    match future::select_all(links).await {
-                        (Ok((port_id, message)), _index, remaining) => {
-                            match message.as_ref() {
-                                Message::Data(data_message) => {
-                                    // In order to check for E2EDeadlines we first have to update
-                                    // the HLC. There is indeed a possibility that the timestamp
-                                    // associated with the data is "ahead" of the hlc on this
-                                    // runtime — which would cause problems when computing the time
-                                    // difference.
-                                    if let Err(error) = self
-                                        .context
-                                        .runtime
-                                        .hlc
-                                        .update_with_timestamp(&data_message.timestamp)
-                                    {
-                                        log::error!(
-                                            "[Operator: {}][HLC] Could not update HLC with timestamp {:?}: {:?}",
-                                            self.id,
-                                            data_message.timestamp,
-                                            error
-                                        );
-                                    }
-
-                                    // We clone the `data_message` because the end to end deadlines
-                                    // are specific to each Operator. Suppose we have the following
-                                    // dataflow, running on **the same daemon**:
-                                    //
-                                    //              ┌───┐
-                                    //         ┌───►│ 2 │
-                                    //         │    └───┘
-                                    //       ┌─┴─┐
-                                    //       │ 1 │
-                                    //       └─┬─┘
-                                    //         │    ┌───┐
-                                    //         └───►│ 3 │
-                                    //              └───┘
-                                    //
-                                    // Operators 2 and 3 receive the same output from Operator 1.
-                                    //
-                                    // They will thus both receive an `Arc`. I.e. they both share a
-                                    // pointer on the **same** message. Operator 2 cannot add
-                                    // information about an end-to-end deadline that applies only on
-                                    // itself as Operator 3 would have access to it — which, in the
-                                    // end, would be very incorrect (and confusing).
-                                    let mut data_msg = data_message.clone();
-
-                                    let now = self.context.runtime.hlc.new_timestamp();
-                                    data_message
-                                        .end_to_end_deadlines
-                                        .iter()
-                                        .for_each(|deadline| {
-                                            if let Some(miss) =
-                                                deadline.check(&self.id, &port_id, &now)
-                                            {
-                                                data_msg.missed_end_to_end_deadlines.push(miss)
-                                            }
-                                        });
-
-                                    tokens.insert(port_id, Token::from(data_msg));
-                                }
-
-                                Message::Control(_) => {
-                                    return Err(ZFError::Unimplemented);
-                                }
-                            }
-
-                            links = remaining;
-                        }
-
-                        (Err(e), _index, _remaining) => {
-                            let err_msg =
-                                format!("[Operator: {}] Link returned an error: {:?}", self.id, e);
-                            log::error!("{}", &err_msg);
-                            return Err(ZFError::IOError(err_msg));
-                        }
-                    }
-                }
-
-                match self
-                    .operator
-                    .input_rule(&mut context, &mut state, &mut tokens)
-                {
-                    Ok(true) => {
-                        log::debug!("[Operator: {}] Input Rule returned < true >.", self.id);
-                        break 'input_rule;
-                    }
-                    Ok(false) => {
-                        log::debug!("[Operator: {}] Input Rule returned < false >.", self.id);
-                    }
-                    Err(e) => {
-                        log::error!(
-                            "[Operator: {}] Input Rule returned an error: {:?}",
-                            self.id,
-                            e
-                        );
-                        return Err(ZFError::IOError(e.to_string()));
-                    }
-                }
-
-                // Poll on the links where the action of the `Token` was set to `drop`.
-                for (port_id, token) in tokens.iter_mut() {
-                    if token.should_drop() {
-                        *token = Token::Pending;
-                        links.push(io.poll_input(&self.id, port_id)?);
-                    }
-                }
-            } // end < 'input_rule: loop >
-
-            let mut earliest_source_timestamp = None;
-            let mut e2e_deadlines_to_propagate: Vec<E2EDeadline> = vec![];
-
-            for (port_id, token) in tokens.iter_mut() {
-                match token {
-                    Token::Pending => {
-                        log::debug!(
-                            "[Operator: {}] Removing < {} > from Data transmitted to `run`.",
-                            self.id,
-                            port_id
-                        );
-                        data.remove(port_id);
-                        continue;
-                    }
-                    Token::Ready(ready_token) => {
-                        earliest_source_timestamp = match earliest_source_timestamp {
-                            None => Some(ready_token.data.timestamp),
-                            Some(timestamp) => {
-                                if ready_token.data.timestamp > timestamp {
-                                    Some(ready_token.data.timestamp)
-                                } else {
-                                    Some(timestamp)
-                                }
-                            }
-                        };
-
-                        // TODO: Refactor this code to:
-                        // 1) Avoid considering the source_timestamp of a token that is dropped.
-                        // 2) Avoid code duplication.
-                        match ready_token.action {
-                            TokenAction::Consume => {
-                                log::debug!("[Operator: {}] Consuming < {} >.", self.id, port_id);
-                                e2e_deadlines_to_propagate.extend(
-                                    ready_token
-                                        .data
-                                        .end_to_end_deadlines
-                                        .iter()
-                                        .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
-                                        .cloned(),
-                                );
-                                data.insert(port_id.clone(), ready_token.data.clone());
-                                *token = Token::Pending;
-                            }
-                            TokenAction::Keep => {
-                                log::debug!("[Operator: {}] Keeping < {} >.", self.id, port_id);
-                                e2e_deadlines_to_propagate.extend(
-                                    ready_token
-                                        .data
-                                        .end_to_end_deadlines
-                                        .iter()
-                                        .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
-                                        .cloned(),
-                                );
-                                data.insert(port_id.clone(), ready_token.data.clone());
-                            }
-                            TokenAction::Drop => {
-                                log::debug!("[Operator: {}] Dropping < {} >.", self.id, port_id);
-                                data.remove(port_id);
-                                *token = Token::Pending;
-                            }
-                        }
-                    }
-                }
-            }
-
-            let timestamp = {
-                match earliest_source_timestamp {
-                    Some(max_timestamp) => max_timestamp,
-                    None => self.context.runtime.hlc.new_timestamp(),
-                }
-            };
-
-            // Running
-            let start = Instant::now();
-            let run_outputs = self.operator.run(&mut context, &mut state, &mut data)?;
-            let elapsed = start.elapsed();
-
-            log::debug!(
-                "[Operator: {}] `run` executed in {} ms",
-                self.id,
-                elapsed.as_micros()
-            );
-
-            let mut deadline_miss = None;
-
-            if let Some(deadline) = self.local_deadline {
-                if elapsed > deadline {
-                    log::warn!(
-                        "[Operator: {}] Deadline miss detected for `run`: {} ms (expected < {} ms)",
+            match self.iteration(context, tokens, data).await {
+                Ok((ctx, tkn, d)) => {
+                    log::debug!(
+                        "Operator [{}] iteration ok with new context {:?}",
                         self.id,
-                        elapsed.as_micros(),
-                        deadline.as_micros()
+                        ctx
                     );
-                    deadline_miss = Some(LocalDeadlineMiss {
-                        start,
-                        deadline,
-                        elapsed,
-                    });
+                    context = ctx;
+                    tokens = tkn;
+                    data = d;
+                    continue;
                 }
-            }
-
-            // Output rules
-            let mut outputs =
-                self.operator
-                    .output_rule(&mut context, &mut state, run_outputs, deadline_miss)?;
-
-            // E2EDeadlines management: add deadlines that start at that operator.
-            let now = self.context.runtime.hlc.new_timestamp();
-            e2e_deadlines_to_propagate.extend(
-                self.end_to_end_deadlines
-                    .iter()
-                    .filter(|e2e_deadline| e2e_deadline.from.node == self.id)
-                    .map(|e2e_deadline| E2EDeadline::new(e2e_deadline.clone(), now)),
-            );
-
-            // Send to Links
-            for port_id in self.outputs.keys() {
-                let output = match outputs.remove(port_id) {
-                    Some(output) => output,
-                    None => continue,
-                };
-
-                if let Some(link_senders) = io.outputs.get(port_id) {
-                    let zf_message = Arc::new(Message::from_node_output(
-                        output,
-                        timestamp,
-                        e2e_deadlines_to_propagate.clone(),
-                    ));
-                    for link_sender in link_senders {
-                        let res = link_sender.send(zf_message.clone()).await;
-
-                        // TODO: Maybe we want to process somehow the error, not simply log it.
-                        if let Err(e) = res {
-                            log::error!(
-                                "[Operator: {}] Could not send output < {} > on link < {} >: {:?}",
-                                self.id,
-                                port_id,
-                                link_sender.id,
-                                e
-                            );
-                        }
-                    }
+                Err(e) => {
+                    log::error!("Operator [{}] iteration failed with error: {}", self.id, e);
+                    self.stop().await;
+                    break Err(e);
                 }
             }
         }

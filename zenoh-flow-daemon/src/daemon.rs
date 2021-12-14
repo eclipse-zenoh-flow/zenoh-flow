@@ -30,6 +30,7 @@ use zenoh_flow::runtime::RuntimeClient;
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
 use zenoh_flow::types::{ZFError, ZFResult};
+use zenoh_flow::NodeId;
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
@@ -578,12 +579,109 @@ impl Runtime for Daemon {
             None => Err(ZFError::InstanceNotFound(record_id)),
         }
     }
-    async fn start_node(&self, record_id: Uuid, node: String) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+    async fn start_node(&self, instance_id: Uuid, node: String) -> ZFResult<()> {
+        let mut _state = self.state.lock().await;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
+
+        match _state.graphs.get_mut(&instance_id) {
+            Some(mut instance) => Ok(instance.start_node(&node.into()).await?),
+            None => Err(ZFError::InstanceNotFound(instance_id)),
+        }
     }
-    async fn stop_node(&self, record_id: Uuid, node: String) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+    async fn stop_node(&self, instance_id: Uuid, node: String) -> ZFResult<()> {
+        let mut _state = self.state.lock().await;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
+
+        match _state.graphs.get_mut(&instance_id) {
+            Some(mut instance) => Ok(instance.stop_node(&node.into()).await?),
+            None => Err(ZFError::InstanceNotFound(instance_id)),
+        }
     }
+
+    async fn start_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String> {
+        let mut _state = self.state.lock().await;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
+
+        match _state.graphs.get(&instance_id) {
+            Some(instance) => {
+                let key_expr = instance.start_recording(&source_id).await?;
+                Ok(key_expr)
+            }
+            None => Err(ZFError::InstanceNotFound(instance_id)),
+        }
+    }
+
+    async fn stop_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String> {
+        let mut _state = self.state.lock().await;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
+
+        match _state.graphs.get(&instance_id) {
+            Some(instance) => {
+                let key_expr = instance.stop_recording(&source_id).await?;
+                Ok(key_expr)
+            }
+            None => Err(ZFError::InstanceNotFound(instance_id)),
+        }
+    }
+
+    async fn start_replay(
+        &self,
+        instance_id: Uuid,
+        source_id: NodeId,
+        key_expr: String,
+    ) -> ZFResult<NodeId> {
+        let mut _state = self.state.lock().await;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
+
+        match _state.graphs.get_mut(&instance_id) {
+            Some(mut instance) => {
+                if !(instance.node_is_running(&source_id).await?) {
+                    let replay_id = instance.start_replay(&source_id, key_expr).await?;
+                    Ok(replay_id)
+                } else {
+                    Err(ZFError::InvalidState)
+                }
+            }
+            None => Err(ZFError::InstanceNotFound(instance_id)),
+        }
+    }
+
+    async fn stop_replay(
+        &self,
+        instance_id: Uuid,
+        source_id: NodeId,
+        replay_id: NodeId,
+    ) -> ZFResult<NodeId> {
+        let mut _state = self.state.lock().await;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
+
+        match _state.graphs.get_mut(&instance_id) {
+            Some(mut instance) => {
+                instance.stop_replay(&replay_id).await?;
+                Ok(replay_id)
+            }
+            None => Err(ZFError::InstanceNotFound(instance_id)),
+        }
+    }
+
     async fn notify_runtime(
         &self,
         record_id: Uuid,
