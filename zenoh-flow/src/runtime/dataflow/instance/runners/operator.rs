@@ -518,7 +518,7 @@ impl Runner for OperatorRunner {
             match self.iteration(context, tokens, data).await {
                 Ok((ctx, tkn, d)) => {
                     log::debug!(
-                        "Operator [{}] iteration ok with new context {:?}",
+                        "[Operator: {}] iteration ok with new context {:?}",
                         self.id,
                         ctx
                     );
@@ -528,7 +528,7 @@ impl Runner for OperatorRunner {
                     continue;
                 }
                 Err(e) => {
-                    log::error!("Operator [{}] iteration failed with error: {}", self.id, e);
+                    log::error!("[Operator: {}] iteration failed with error: {}", self.id, e);
                     self.stop().await;
                     break Err(e);
                 }

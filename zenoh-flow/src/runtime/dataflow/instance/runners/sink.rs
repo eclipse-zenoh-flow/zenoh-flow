@@ -200,12 +200,16 @@ impl Runner for SinkRunner {
         loop {
             match self.iteration(context).await {
                 Ok(ctx) => {
-                    log::debug!("Sink [{}] iteration ok with new context {:?}", self.id, ctx);
+                    log::debug!(
+                        "[Sink: {}] iteration ok with new context {:?}",
+                        self.id,
+                        ctx
+                    );
                     context = ctx;
                     continue;
                 }
                 Err(e) => {
-                    log::error!("Sink [{}] iteration failed with error: {}", self.id, e);
+                    log::error!("[Sink: {}] iteration failed with error: {}", self.id, e);
                     self.stop().await;
                     break Err(e);
                 }

@@ -313,7 +313,7 @@ impl Runner for SourceRunner {
             match self.iteration(context).await {
                 Ok(ctx) => {
                     log::debug!(
-                        "Source [{}] iteration ok with new context {:?}",
+                        "[Source: {}] iteration ok with new context {:?}",
                         self.id,
                         ctx
                     );
@@ -321,7 +321,7 @@ impl Runner for SourceRunner {
                     continue;
                 }
                 Err(e) => {
-                    log::error!("Source [{}] iteration failed with error: {}", self.id, e);
+                    log::error!("[Source: {}] iteration failed with error: {}", self.id, e);
                     self.stop().await;
                     break Err(e);
                 }

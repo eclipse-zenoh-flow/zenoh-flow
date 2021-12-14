@@ -100,12 +100,12 @@ impl Runner for ZenohSender {
         loop {
             match self.iteration().await {
                 Ok(_) => {
-                    log::debug!("ZenohSender [{}] iteration ok", self.id);
+                    log::debug!("[ZenohSender: {}] iteration ok", self.id);
                     continue;
                 }
                 Err(e) => {
                     log::error!(
-                        "ZenohSender [{}] iteration failed with error: {}",
+                        "[ZenohSender: {}] iteration failed with error: {}",
                         self.id,
                         e
                     );

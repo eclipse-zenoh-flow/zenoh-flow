@@ -650,7 +650,7 @@ impl Runtime for Daemon {
 
         match _state.graphs.get_mut(&instance_id) {
             Some(mut instance) => {
-                if !(instance.node_is_running(&source_id).await?) {
+                if !(instance.is_node_running(&source_id).await?) {
                     let replay_id = instance.start_replay(&source_id, key_expr).await?;
                     Ok(replay_id)
                 } else {
