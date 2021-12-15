@@ -1,0 +1,133 @@
+pipeline {
+  agent {
+    kubernetes {
+      label 'my-agent-pod'
+      yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: ubu20
+    image: fog05/ubuntu-build:focal
+    imagePullPolicy: Always
+    command:
+    - cat
+    volumeMounts:
+    - mountPath: "/home/jenkins"
+      name: "jenkins-home"
+      readOnly: false
+    tty: true
+    resources:
+      limits:
+        memory: "4Gi"
+        cpu: "1"
+      requests:
+        memory: "4Gi"
+        cpu: "1"
+  volumes:
+  - name: "jenkins-home"
+    emptyDir: {}
+
+"""
+    }
+  }
+  stages {
+        stage('[Install] rust - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        pwd
+                        export  HOME=/home/$(id -u)
+                        curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y
+                        export RUSTUP_HOME=/home/$(id -u)/.rustup
+                        export PATH=$PATH:/home/$(id -u)/.cargo/bin
+                        export CARGO_HOME=/home/$(id -u)/.cargo
+
+                        rustup target add aarch64-unknown-linux-gnu
+                        echo '[target.aarch64-unknown-linux-gnu]' >> /home/$(id -u)/.cargo/config
+                        echo 'linker = "aarch64-linux-gnu-gcc"' >> /home/$(id -u)/.cargo/config
+                        echo 'strip = { path = "aarch64-linux-gnu-strip" }' >> /home/$(id -u)/.cargo/config
+                        echo 'objcopy = { path = "aarch64-linux-gnu-objcopy" }' >> /home/$(id -u)/.cargo/config
+
+                    '''
+                }
+            }
+        }
+
+
+        stage('[Check] Format - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        export  HOME=/home/$(id -u)
+                        export RUSTUP_HOME=/home/$(id -u)/.rustup
+                        export PATH=$PATH:/home/$(id -u)/.cargo/bin
+                        export CARGO_HOME=/home/$(id -u)/.cargo
+
+                        cd zenoh-flow
+
+                        cargo fmt -- --check
+                    '''
+                }
+            }
+        }
+
+        stage('[Check] Clippy - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        export  HOME=/home/$(id -u)
+                        export RUSTUP_HOME=/home/$(id -u)/.rustup
+                        export PATH=$PATH:/home/$(id -u)/.cargo/bin
+                        export CARGO_HOME=/home/$(id -u)/.cargo
+
+                        cd zenoh-flow
+
+                        cargo clippy --target=aarch64-unknown-linux-gnu --all --all-targets -- -D warnings
+                    '''
+                }
+            }
+        }
+
+        stage('[Check] Dependencies - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        export  HOME=/home/$(id -u)
+                        export RUSTUP_HOME=/home/$(id -u)/.rustup
+                        export PATH=$PATH:/home/$(id -u)/.cargo/bin
+                        export CARGO_HOME=/home/$(id -u)/.cargo
+
+                        cd zenoh-flow
+
+                        cargo check --target=aarch64-unknown-linux-gnu
+                    '''
+                }
+            }
+        }
+
+
+
+
+
+
+
+        stage('[Build] aarch64-unknown-linux-gnu - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        export  HOME=/home/$(id -u)
+                        export RUSTUP_HOME=/home/$(id -u)/.rustup
+                        export PATH=$PATH:/home/$(id -u)/.cargo/bin
+                        export CARGO_HOME=/home/$(id -u)/.cargo
+
+                        cd zenoh-flow
+
+                        cargo build --release --target=aarch64-unknown-linux-gnu --all-targets
+                    '''
+                }
+            }
+        }
+
+    }
+}
