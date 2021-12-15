@@ -68,16 +68,3 @@ jobs:
           args: --release --verbose
         env:
           ASYNC_STD_THREAD_COUNT: 4
-
-      - name: Debian package - zenoh-flow-ctl
-        uses: actions-rs/cargo@v1
-        with:
-          command: deb
-          args: --no-build -p zenoh-flow-ctl
-
-      - name: Debian package - zenoh-flow-daemon
-        uses: actions-rs/cargo@v1
-        with:
-          command: deb
-          args: --no-build -p zenoh-flow-daemon
-
