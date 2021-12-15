@@ -1,0 +1,167 @@
+pipeline {
+  agent {
+    kubernetes {
+      label 'my-agent-pod'
+      yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: ubu20
+    image: fog05/ubuntu-build:focal
+    imagePullPolicy: Always
+    command:
+    - cat
+    volumeMounts:
+    - mountPath: "/home/jenkins"
+      name: "jenkins-home"
+      readOnly: false
+    tty: true
+    resources:
+      limits:
+        memory: "8Gi"
+        cpu: "2"
+      requests:
+        memory: "8Gi"
+        cpu: "2"
+  - name: jnlp
+    volumeMounts:
+    - name: volume-known-hosts
+      mountPath: /home/jenkins/.ssh
+  volumes:
+  - name: "jenkins-home"
+    emptyDir: {}
+  - name: volume-known-hosts
+    configMap:
+      name: known-hosts
+
+"""
+    }
+  }
+  stages {
+        stage('[Install] rust - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        pwd
+                        export  HOME=/home/$(id -u)
+                        curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable -y
+                        export RUSTUP_HOME=/home/$(id -u)/.rustup
+                        export PATH=$PATH:/home/$(id -u)/.cargo/bin
+                        export CARGO_HOME=/home/$(id -u)/.cargo
+
+                        cargo install cargo-deb
+                    '''
+                }
+            }
+        }
+
+        stage('[Checkout] zenoh flow repositories - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        pwd
+                        export  HOME=/home/$(id -u)
+
+                        git clone https://github.com/eclipse-zenoh/zenoh-flow
+
+                    '''
+                }
+            }
+        }
+
+        stage('[Check] Dependencies - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        export  HOME=/home/$(id -u)
+                        export RUSTUP_HOME=/home/$(id -u)/.rustup
+                        export PATH=$PATH:/home/$(id -u)/.cargo/bin
+                        export CARGO_HOME=/home/$(id -u)/.cargo
+
+                        cd zenoh-flow
+
+                        cargo check
+                    '''
+                }
+            }
+        }
+
+
+        stage('[Check] Format - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        export  HOME=/home/$(id -u)
+                        export RUSTUP_HOME=/home/$(id -u)/.rustup
+                        export PATH=$PATH:/home/$(id -u)/.cargo/bin
+                        export CARGO_HOME=/home/$(id -u)/.cargo
+
+                        cd zenoh-flow
+
+                        cargo fmt -- --check
+                    '''
+                }
+            }
+        }
+
+        stage('[Check] Clippy - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        export  HOME=/home/$(id -u)
+                        export RUSTUP_HOME=/home/$(id -u)/.rustup
+                        export PATH=$PATH:/home/$(id -u)/.cargo/bin
+                        export CARGO_HOME=/home/$(id -u)/.cargo
+
+                        cd zenoh-flow
+
+                        cargo clippy --all --all-targets -- -D warnings
+                    '''
+                }
+            }
+        }
+
+
+
+
+        stage('[Build] x86_64-unknown-linux-gnu - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        export  HOME=/home/$(id -u)
+                        export RUSTUP_HOME=/home/$(id -u)/.rustup
+                        export PATH=$PATH:/home/$(id -u)/.cargo/bin
+                        export CARGO_HOME=/home/$(id -u)/.cargo
+
+                        cd zenoh-flow
+
+                        cargo build --release --all-targets
+                    '''
+                }
+            }
+        }
+
+
+        stage('[Tests] Clippy - Ubuntu 20.04') {
+            steps {
+                container('ubu20') {
+                    sh '''
+                        export  HOME=/home/$(id -u)
+                        export RUSTUP_HOME=/home/$(id -u)/.rustup
+                        export PATH=$PATH:/home/$(id -u)/.cargo/bin
+                        export CARGO_HOME=/home/$(id -u)/.cargo
+
+                        cd zenoh-flow
+
+                        cargo test --release --verbose
+                    '''
+                }
+            }
+        }
+
+
+
+
+    }
+}
