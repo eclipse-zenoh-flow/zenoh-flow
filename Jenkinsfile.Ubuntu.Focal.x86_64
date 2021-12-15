@@ -19,21 +19,14 @@ spec:
     tty: true
     resources:
       limits:
-        memory: "8Gi"
-        cpu: "2"
+        memory: "4Gi"
+        cpu: "1"
       requests:
-        memory: "8Gi"
-        cpu: "2"
-  - name: jnlp
-    volumeMounts:
-    - name: volume-known-hosts
-      mountPath: /home/jenkins/.ssh
+        memory: "4Gi"
+        cpu: "1"
   volumes:
   - name: "jenkins-home"
     emptyDir: {}
-  - name: volume-known-hosts
-    configMap:
-      name: known-hosts
 
 """
     }
@@ -49,22 +42,6 @@ spec:
                         export RUSTUP_HOME=/home/$(id -u)/.rustup
                         export PATH=$PATH:/home/$(id -u)/.cargo/bin
                         export CARGO_HOME=/home/$(id -u)/.cargo
-
-                        cargo install cargo-deb
-                    '''
-                }
-            }
-        }
-
-        stage('[Checkout] zenoh flow repositories - Ubuntu 20.04') {
-            steps {
-                container('ubu20') {
-                    sh '''
-                        pwd
-                        export  HOME=/home/$(id -u)
-
-                        git clone https://github.com/eclipse-zenoh/zenoh-flow
-
                     '''
                 }
             }
