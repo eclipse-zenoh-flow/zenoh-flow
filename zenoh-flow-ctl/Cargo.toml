@@ -39,3 +39,29 @@ serde-aux = "2.1.1"
 log = "0.4"
 env_logger = "0.9.0"
 git-version = "0.3.4"
+
+# Debian package configuration
+
+[package.metadata.deb]
+maintainer = "ADLINK Zenoh team <zenoh@adlink-labs.tech>"
+copyright = "2021, ADLINK Technology Inc"
+extended-description = "Eclipse Zenoh Flow CLI tool"
+license-file = ["../LICENSE", "0"]
+depends = "$auto"
+section = "utils"
+priority = "optional"
+assets = [
+    # binary
+    ["target/release/zenoh-flow-ctl", "/usr/bin/zenoh-flow-ctl", "755"],
+]
+
+# RPM package configuration
+
+[package.metadata.rpm]
+package = "zenoh-flow-ctl"
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+zenoh-flow-ctl = { path = "/usr/bin/zenoh-flow-ctl" }

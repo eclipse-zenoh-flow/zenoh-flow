@@ -1,11 +1,9 @@
 ---
-    uuid: 00000000-0000-0000-0000-000000000000
     pid_file : /var/zenoh-flow/runtime.pid
-    name: runtime
     path : /etc/zenoh-flow
     loader:
       extensions: []
     zenoh :
       kind: peer
-      listen: ["tcp/0.0.0.0:7447"]
+      listen: ["tcp/0.0.0.0:7997"]
       locators: []

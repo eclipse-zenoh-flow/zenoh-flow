@@ -39,6 +39,10 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install prerequisites
+        shell: bash
+        run: cargo install cargo-deb
+
       - name: Code format check
         uses: actions-rs/cargo@v1
         with:
