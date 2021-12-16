@@ -69,7 +69,7 @@ jobs:
       fail-fast: true
       matrix:
         job:
-          - { target: x86_64-unknown-linux-gnu, arch: amd64, contaienr: "fedora:latest" }
+          - { target: x86_64-unknown-linux-gnu, arch: amd64, container: "fedora:latest" }
     steps:
       - name: Checkout source code
         uses: actions/checkout@v2
