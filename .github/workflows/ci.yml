@@ -73,7 +73,6 @@ jobs:
           - { target: x86_64-unknown-linux-musl, arch: amd64, container: "alpine:latest" }
     steps:
       - name: Install prerequisites
-        shell: sh
         run: |
           case ${{ matrix.job.container }} in
             *fedora*)
@@ -83,7 +82,7 @@ jobs:
               ;;
             *alpine*)
               apk update
-              apk add git curl build-base -y
+              apk add git curl build-base
               ;;
           esac
 
