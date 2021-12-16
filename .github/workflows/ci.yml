@@ -63,41 +63,43 @@ jobs:
   docker_builds:
     name: Build for ${{ matrix.job.target }} on ${{ matrix.job.container }}
     needs: checks
-    runs-on: ${{ matrix.job.os }}
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.job.container }}
     strategy:
       fail-fast: true
       matrix:
         job:
           -  - { target: x86_64-unknown-linux-gnu, arch: amd64, container: "fedora:latest" }
       steps:
-      - name: Checkout source code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 500 # NOTE: get long history for git-version crate to correctly compute a version
-      - name: Fetch Git tags # NOTE: workaround for https://github.com/actions/checkout/issues/290
-        shell: bash
-        run: git fetch --tags --force
-      - name: Install prerequisites
-        shell: bash
-        run: |
-          cat /etc/os-release
-          case ${{ matrix.job.target }} in
-            *-linux-gnu*) cargo install cargo-rpm ;;
-          esac
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.job.target }}
-          override: true
-          profile: minimal
+        - name: Checkout source code
+          uses: actions/checkout@v2
+          with:
+            fetch-depth: 500 # NOTE: get long history for git-version crate to correctly compute a version
+        - name: Fetch Git tags # NOTE: workaround for https://github.com/actions/checkout/issues/290
+          shell: bash
+          run: git fetch --tags --force
+        - name: Install prerequisites
+          shell: bash
+          run: |
+            cat /etc/os-release
+            case ${{ matrix.job.target }} in
+              *-linux-gnu*) cargo install cargo-rpm ;;
+            esac
+        - name: Install Rust toolchain
+          uses: actions-rs/toolchain@v1
+          with:
+            toolchain: stable
+            target: ${{ matrix.job.target }}
+            override: true
+            profile: minimal
 
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: ${{ matrix.job.use-cross }}
-          command: build
-          args: --release --bins --lib --examples --target=${{ matrix.job.target }}
+        - name: Build
+          uses: actions-rs/cargo@v1
+          with:
+            use-cross: ${{ matrix.job.use-cross }}
+            command: build
+            args: --release --bins --lib --examples --target=${{ matrix.job.target }}
 
 
   builds:
