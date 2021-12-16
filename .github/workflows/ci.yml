@@ -22,46 +22,46 @@ on:
     - cron: '0 0 * * 1-5'
 
 jobs:
-  checks:
-    name: Code checks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          components: rustfmt, clippy
-      - name: Code format check
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: -- --check
-      - name: Clippy check
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets -- -D warnings
+#   checks:
+#     name: Code checks
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#       - name: Install Rust toolchain
+#         uses: actions-rs/toolchain@v1
+#         with:
+#           components: rustfmt, clippy
+#       - name: Code format check
+#         uses: actions-rs/cargo@v1
+#         with:
+#           command: fmt
+#           args: -- --check
+#       - name: Clippy check
+#         uses: actions-rs/cargo@v1
+#         with:
+#           command: clippy
+#           args: --all-targets -- -D warnings
 
 
-  tests:
-    name: Tests
-    needs: checks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release --verbose
-        env:
-          ASYNC_STD_THREAD_COUNT: 4
+#   tests:
+#     name: Tests
+#     needs: checks
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#       - name: Install Rust toolchain
+#         uses: actions-rs/toolchain@v1
+#       - name: Run tests
+#         uses: actions-rs/cargo@v1
+#         with:
+#           command: test
+#           args: --release --verbose
+#         env:
+#           ASYNC_STD_THREAD_COUNT: 4
 
   docker_builds:
     name: Build for ${{ matrix.job.target }} on ${{ matrix.job.container }}
-    needs: checks
+    #needs: checks
     runs-on: ubuntu-latest
     container:
       image: ${{ matrix.job.container }}
@@ -76,7 +76,7 @@ jobs:
         run: |
           dnf update -y
           dnf install -y git curl
-          dnf groupinstall @development-tools @development-libraries -y
+          dnf groupinstall "Development Tools" "Development Libraries" -y
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
