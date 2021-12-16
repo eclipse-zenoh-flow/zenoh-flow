@@ -60,11 +60,40 @@ jobs:
           ASYNC_STD_THREAD_COUNT: 4
 
   builds:
+    # Fedora Build
+    name: Build for Fedora 35
+    needs: checks
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 500 # NOTE: get long history for git-version crate to correctly compute a version
+      - name: Fetch Git tags # NOTE: workaround for https://github.com/actions/checkout/issues/290
+        shell: bash
+        run: git fetch --tags --force
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.job.target }}
+          override: true
+          profile: minimal
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.job.use-cross }}
+          command: build
+          args: --release --all-targets
+
     name: Build for ${{ matrix.job.target }} on ${{ matrix.job.os }}
     needs: checks
     runs-on: ${{ matrix.job.os }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         job:
           - { target: x86_64-unknown-linux-gnu, arch: amd64, os: ubuntu-20.04 }
@@ -98,8 +127,39 @@ jobs:
               os: ubuntu-20.04,
               use-cross: true,
             }
+          - { target: x86_64-unknown-linux-gnu, arch: amd64, os: ubuntu-18.04 }
+          - {
+              target: x86_64-unknown-linux-musl,
+              arch: amd64,
+              os: ubuntu-18.04,
+              use-cross: true,
+            }
+          - {
+              target: arm-unknown-linux-gnueabi,
+              arch: armel,
+              os: ubuntu-18.04,
+              use-cross: true,
+            }
+          - {
+              target: arm-unknown-linux-gnueabihf,
+              arch: armhf,
+              os: ubuntu-18.04,
+              use-cross: true,
+            }
+          - {
+              target: armv7-unknown-linux-gnueabihf,
+              arch: armhf,
+              os: ubuntu-18.04,
+              use-cross: true,
+            }
+          - {
+              target: aarch64-unknown-linux-gnu,
+              arch: arm64,
+              os: ubuntu-18.04,
+              use-cross: true,
+            }
           - { target: x86_64-apple-darwin, arch: darwin, os: macos-10.15 }
-          - { target: x86_64-pc-windows-msvc, arch: win64, os: windows-2019 }
+          # - { target: x86_64-pc-windows-msvc, arch: win64, os: windows-2019 }
           # - { target: x86_64-pc-windows-gnu         , arch: win64 , os: windows-2019                  }
     steps:
       - name: Checkout source code
@@ -142,4 +202,4 @@ jobs:
         with:
           use-cross: ${{ matrix.job.use-cross }}
           command: build
-          args: --release --bins --lib --examples --target=${{ matrix.job.target }}
+          args: --release --all-targets --target=${{ matrix.job.target }}
