@@ -64,7 +64,7 @@ jobs:
     needs: checks
     runs-on: ${{ matrix.job.os }}gi
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         job:
           - { target: x86_64-unknown-linux-gnu, arch: amd64, os: ubuntu-20.04 }
