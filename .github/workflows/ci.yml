@@ -71,7 +71,7 @@ jobs:
         job:
           - { target: x86_64-unknown-linux-gnu, arch: amd64, container: "fedora:latest" }
     steps:
-       - name: Install prerequisites
+      - name: Install prerequisites
         shell: bash
         run: |
           dnf update -y
