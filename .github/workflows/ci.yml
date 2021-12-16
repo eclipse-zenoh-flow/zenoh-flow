@@ -62,7 +62,7 @@ jobs:
   builds:
     name: Build for ${{ matrix.job.target }} on ${{ matrix.job.os }}
     needs: checks
-    runs-on: ${{ matrix.job.os }}
+    runs-on: ${{ matrix.job.os }}gi
     strategy:
       fail-fast: false
       matrix:
@@ -96,11 +96,6 @@ jobs:
               target: aarch64-unknown-linux-gnu,
               arch: arm64,
               os: ubuntu-20.04,
-              use-cross: true,
-            }
-          - {
-              target: x86_64-unknown-linux-gnu,
-              container: "fedora:latest",
               use-cross: true,
             }
           - { target: x86_64-apple-darwin, arch: darwin, os: macos-10.15 }
