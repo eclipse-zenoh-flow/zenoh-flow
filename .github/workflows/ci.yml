@@ -82,7 +82,7 @@ jobs:
               dnf groupinstall "Development Tools" "Development Libraries" -y
               case ${{ matrix.job.target }} in
               aarch64-unknown-linux-gnu)
-                dnf install -y install gcc-aarch64-linux-gnu
+                dnf install -y gcc-aarch64-linux-gnu
                 ;;
               esac
               ;;
