@@ -64,7 +64,7 @@ jobs:
     needs: checks
     runs-on: ${{ matrix.job.os }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         job:
           - { target: x86_64-unknown-linux-gnu, arch: amd64, os: ubuntu-20.04 }
@@ -98,38 +98,7 @@ jobs:
               os: ubuntu-20.04,
               use-cross: true,
             }
-          - { target: x86_64-unknown-linux-gnu, arch: amd64, os: ubuntu-18.04 }
           - {
-              target: x86_64-unknown-linux-musl,
-              arch: amd64,
-              os: ubuntu-18.04,
-              use-cross: true,
-            }
-          - {
-              target: arm-unknown-linux-gnueabi,
-              arch: armel,
-              os: ubuntu-18.04,
-              use-cross: true,
-            }
-          - {
-              target: arm-unknown-linux-gnueabihf,
-              arch: armhf,
-              os: ubuntu-18.04,
-              use-cross: true,
-            }
-          - {
-              target: armv7-unknown-linux-gnueabihf,
-              arch: armhf,
-              os: ubuntu-18.04,
-              use-cross: true,
-            }
-          - {
-              target: aarch64-unknown-linux-gnu,
-              arch: arm64,
-              os: ubuntu-18.04,
-              use-cross: true,
-            }
-            - {
               target: x86_64-unknown-linux-gnu,
               arch: amd64,
               os: ubuntu-20.04,
@@ -181,4 +150,4 @@ jobs:
         with:
           use-cross: ${{ matrix.job.use-cross }}
           command: build
-          args: --release --all-targets --target=${{ matrix.job.target }}
+          args: --release --bins --lib --examples --target=${{ matrix.job.target }}
