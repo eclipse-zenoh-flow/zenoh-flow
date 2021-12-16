@@ -22,46 +22,46 @@ on:
     - cron: '0 0 * * 1-5'
 
 jobs:
-  # checks:
-  #   name: Code checks
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Install Rust toolchain
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         components: rustfmt, clippy
-  #     - name: Code format check
-  #       uses: actions-rs/cargo@v1
-  #       with:
-  #         command: fmt
-  #         args: -- --check
-  #     - name: Clippy check
-  #       uses: actions-rs/cargo@v1
-  #       with:
-  #         command: clippy
-  #         args: --all-targets -- -D warnings
+  checks:
+    name: Code checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          components: rustfmt, clippy
+      - name: Code format check
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: -- --check
+      - name: Clippy check
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-targets -- -D warnings
 
 
-  # tests:
-  #   name: Tests
-  #   needs: checks
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - name: Install Rust toolchain
-  #       uses: actions-rs/toolchain@v1
-  #     - name: Run tests
-  #       uses: actions-rs/cargo@v1
-  #       with:
-  #         command: test
-  #         args: --release --verbose
-  #       env:
-  #         ASYNC_STD_THREAD_COUNT: 4
+  tests:
+    name: Tests
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release --verbose
+        env:
+          ASYNC_STD_THREAD_COUNT: 4
 
   docker_builds:
     name: Build for ${{ matrix.job.target }} on ${{ matrix.job.container }}
-    #needs: checks
+    needs: checks
     runs-on: ubuntu-latest
     container:
       image: ${{ matrix.job.container }}
@@ -107,118 +107,118 @@ jobs:
           command: build
           args: --release --bins --lib --examples --target=${{ matrix.job.target }}
 
-  # builds:
-  #   name: Build for ${{ matrix.job.target }} on ${{ matrix.job.os }}
-  #   needs: checks
-  #   runs-on: ${{ matrix.job.os }}
-  #   strategy:
-  #     fail-fast: true
-  #     matrix:
-  #       job:
-  #         - { target: x86_64-unknown-linux-gnu, arch: amd64, os: ubuntu-20.04 }
-  #         - {
-  #             target: x86_64-unknown-linux-musl,
-  #             arch: amd64,
-  #             os: ubuntu-20.04,
-  #             use-cross: true,
-  #           }
-  #         - {
-  #             target: arm-unknown-linux-gnueabi,
-  #             arch: armel,
-  #             os: ubuntu-20.04,
-  #             use-cross: true,
-  #           }
-  #         - {
-  #             target: arm-unknown-linux-gnueabihf,
-  #             arch: armhf,
-  #             os: ubuntu-20.04,
-  #             use-cross: true,
-  #           }
-  #         - {
-  #             target: armv7-unknown-linux-gnueabihf,
-  #             arch: armhf,
-  #             os: ubuntu-20.04,
-  #             use-cross: true,
-  #           }
-  #         - {
-  #             target: aarch64-unknown-linux-gnu,
-  #             arch: arm64,
-  #             os: ubuntu-20.04,
-  #             use-cross: true,
-  #           }
-  #         - { target: x86_64-unknown-linux-gnu, arch: amd64, os: ubuntu-18.04 }
-  #         - {
-  #             target: x86_64-unknown-linux-musl,
-  #             arch: amd64,
-  #             os: ubuntu-18.04,
-  #             use-cross: true,
-  #           }
-  #         - {
-  #             target: arm-unknown-linux-gnueabi,
-  #             arch: armel,
-  #             os: ubuntu-18.04,
-  #             use-cross: true,
-  #           }
-  #         - {
-  #             target: arm-unknown-linux-gnueabihf,
-  #             arch: armhf,
-  #             os: ubuntu-18.04,
-  #             use-cross: true,
-  #           }
-  #         - {
-  #             target: armv7-unknown-linux-gnueabihf,
-  #             arch: armhf,
-  #             os: ubuntu-18.04,
-  #             use-cross: true,
-  #           }
-  #         - {
-  #             target: aarch64-unknown-linux-gnu,
-  #             arch: arm64,
-  #             os: ubuntu-18.04,
-  #             use-cross: true,
-  #           }
-  #         - { target: x86_64-apple-darwin, arch: darwin, os: macos-10.15 }
-  #         # - { target: x86_64-pc-windows-msvc, arch: win64, os: windows-2019 }
-  #         # - { target: x86_64-pc-windows-gnu         , arch: win64 , os: windows-2019                  }
-  #   steps:
-  #     - name: Checkout source code
-  #       uses: actions/checkout@v2
-  #       with:
-  #         fetch-depth: 500 # NOTE: get long history for git-version crate to correctly compute a version
-  #     - name: Fetch Git tags # NOTE: workaround for https://github.com/actions/checkout/issues/290
-  #       shell: bash
-  #       run: git fetch --tags --force
-  #     - name: Install prerequisites
-  #       shell: bash
-  #       run: |
-  #         case ${{ matrix.job.target }} in
-  #           *-linux-gnu*) cargo install cargo-deb ;;
-  #         esac
-  #         case ${{ matrix.job.target }} in
-  #           arm-unknown-linux-gnueabi)
-  #             sudo apt-get -y update
-  #             sudo apt-get -y install gcc-arm-linux-gnueabi
-  #             ;;
-  #           arm*-unknown-linux-gnueabihf)
-  #             sudo apt-get -y update
-  #             sudo apt-get -y install gcc-arm-linux-gnueabihf
-  #             ;;
-  #           aarch64-unknown-linux-gnu)
-  #             sudo apt-get -y update
-  #             sudo apt-get -y install gcc-aarch64-linux-gnu
-  #             ;;
-  #         esac
-  #     - name: Install Rust toolchain
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #         target: ${{ matrix.job.target }}
-  #         override: true
-  #         profile: minimal
+  builds:
+    name: Build for ${{ matrix.job.target }} on ${{ matrix.job.os }}
+    needs: checks
+    runs-on: ${{ matrix.job.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        job:
+          - { target: x86_64-unknown-linux-gnu, arch: amd64, os: ubuntu-20.04 }
+          - {
+              target: x86_64-unknown-linux-musl,
+              arch: amd64,
+              os: ubuntu-20.04,
+              use-cross: true,
+            }
+          - {
+              target: arm-unknown-linux-gnueabi,
+              arch: armel,
+              os: ubuntu-20.04,
+              use-cross: true,
+            }
+          - {
+              target: arm-unknown-linux-gnueabihf,
+              arch: armhf,
+              os: ubuntu-20.04,
+              use-cross: true,
+            }
+          - {
+              target: armv7-unknown-linux-gnueabihf,
+              arch: armhf,
+              os: ubuntu-20.04,
+              use-cross: true,
+            }
+          - {
+              target: aarch64-unknown-linux-gnu,
+              arch: arm64,
+              os: ubuntu-20.04,
+              use-cross: true,
+            }
+          - { target: x86_64-unknown-linux-gnu, arch: amd64, os: ubuntu-18.04 }
+          - {
+              target: x86_64-unknown-linux-musl,
+              arch: amd64,
+              os: ubuntu-18.04,
+              use-cross: true,
+            }
+          - {
+              target: arm-unknown-linux-gnueabi,
+              arch: armel,
+              os: ubuntu-18.04,
+              use-cross: true,
+            }
+          - {
+              target: arm-unknown-linux-gnueabihf,
+              arch: armhf,
+              os: ubuntu-18.04,
+              use-cross: true,
+            }
+          - {
+              target: armv7-unknown-linux-gnueabihf,
+              arch: armhf,
+              os: ubuntu-18.04,
+              use-cross: true,
+            }
+          - {
+              target: aarch64-unknown-linux-gnu,
+              arch: arm64,
+              os: ubuntu-18.04,
+              use-cross: true,
+            }
+          - { target: x86_64-apple-darwin, arch: darwin, os: macos-10.15 }
+          # - { target: x86_64-pc-windows-msvc, arch: win64, os: windows-2019 }
+          # - { target: x86_64-pc-windows-gnu         , arch: win64 , os: windows-2019                  }
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 500 # NOTE: get long history for git-version crate to correctly compute a version
+      - name: Fetch Git tags # NOTE: workaround for https://github.com/actions/checkout/issues/290
+        shell: bash
+        run: git fetch --tags --force
+      - name: Install prerequisites
+        shell: bash
+        run: |
+          case ${{ matrix.job.target }} in
+            *-linux-gnu*) cargo install cargo-deb ;;
+          esac
+          case ${{ matrix.job.target }} in
+            arm-unknown-linux-gnueabi)
+              sudo apt-get -y update
+              sudo apt-get -y install gcc-arm-linux-gnueabi
+              ;;
+            arm*-unknown-linux-gnueabihf)
+              sudo apt-get -y update
+              sudo apt-get -y install gcc-arm-linux-gnueabihf
+              ;;
+            aarch64-unknown-linux-gnu)
+              sudo apt-get -y update
+              sudo apt-get -y install gcc-aarch64-linux-gnu
+              ;;
+          esac
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.job.target }}
+          override: true
+          profile: minimal
 
-  #     - name: Build
-  #       uses: actions-rs/cargo@v1
-  #       with:
-  #         use-cross: ${{ matrix.job.use-cross }}
-  #         command: build
-  #         args: --release --bins --lib --examples --target=${{ matrix.job.target }}
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.job.use-cross }}
+          command: build
+          args: --release --bins --lib --examples --target=${{ matrix.job.target }}
