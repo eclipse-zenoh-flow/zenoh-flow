@@ -1,0 +1,18 @@
+[Unit]
+Description = Eclipse Zenoh Flow runtime
+
+[Service]
+Type=simple
+Environment=RUST_LOG="zenoh-flow=info"
+PIDFile=/var/zenoh-flow/runtime.pid
+ExecStart = /usr/bin/zenoh-flow-daemon -c /etc/zenoh-flow/runtime.yaml
+KillMode=mixed
+KillSignal=SIGINT
+RestartKillSignal=SIGINT
+Restart=on-failure
+User=zenohflowd
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=zenoh-flow-runtime
+[Install]
+WantedBy=multi-user.target
