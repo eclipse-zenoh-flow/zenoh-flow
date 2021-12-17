@@ -70,7 +70,7 @@ jobs:
       matrix:
         job:
           - { target: x86_64-unknown-linux-gnu, arch: amd64, container: "fedora:35" }
-          - { target: aarch64-unknown-linux-gnu, arch: arm64, container: "fedora:35", use-cross: true }
+          # - { target: aarch64-unknown-linux-gnu, arch: arm64, container: "fedora:35", use-cross: true }
           - { target: x86_64-unknown-linux-musl, arch: amd64, container: "alpine:3" }
     steps:
       - name: Install prerequisites
