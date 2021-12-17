@@ -1,0 +1,60 @@
+%define __spec_install_post %{nil}
+%define __os_install_post %{_dbpath}/brp-compress
+%define debug_package %{nil}
+
+Name: zenoh-flow-daemon
+Summary: Zenoh-Flow: zenoh-based data-flow programming framework for computations that span from the cloud to the device.
+Version: @@VERSION@@
+Release: @@RELEASE@@%{?dist}
+
+License: EPL-2.0 OR Apache-2.0
+
+Group: System Environment/Daemons
+Group: Applications/System
+Source0: %{name}-%{version}.tar.gz
+URL: http://zenoh.io
+
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
+BuildRequires: systemd
+Requires(pre): /usr/sbin/useradd, /usr/sbin/groupadd,  /usr/bin/getent, /usr/sbin/usermod, /usr/bin/id, /usr/bin/echo, /usr/bin/tee
+Requires(post): systemd, /usr/bin/chown
+Requires(preun): systemd
+Requires(postun): systemd, /usr/sbin/userdel
+%description
+%{summary}
+
+%prep
+%setup -q
+
+%pre
+/usr/bin/getent group zenohflowd || /usr/sbin/fos -r myservice
+/usr/bin/getent passwd zenohflowd ||  /usr/sbin/useradd -r -s /bin/false zenohflowd
+
+%install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}
+cp -a * %{buildroot}
+
+%clean
+rm -rf %{buildroot}
+
+
+%post
+%systemd_post zenoh-flow.service
+/usr/bin/chown zenohflowd:zenohflowd -R /var/zenoh-flow
+
+%preun
+%systemd_preun zenoh-flow.service
+/usr/sbin/userdel zenohflowd
+
+%postun
+%systemd_postun_with_restart zenoh-flow.service
+
+
+%files
+%defattr(-,root,root,-)
+%config(noreplace) /etc/zenoh-flow/runtime.yaml
+/usr/bin/zenoh-flow-daemon
+/var/zenoh-flow/placeholder
+/lib/systemd/system/zenoh-flow.service
+%{_unitdir}/zenoh-flow.service
