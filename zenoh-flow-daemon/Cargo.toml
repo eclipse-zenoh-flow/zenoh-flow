@@ -45,7 +45,7 @@ maintainer = "ADLINK Zenoh team <zenoh@adlink-labs.tech>"
 copyright = "2021, ADLINK Technology Inc"
 extended-description = "Eclipse Zenoh Flow Daemon"
 license-file = ["../LICENSE", "0"]
-depends = "$auto, zenohd (=0.6.0~dev.0), zenoh-plugin-storages (=0.6.0~dev.0)"
+depends = "$auto"
 section = "utils"
 priority = "optional"
 assets = [
