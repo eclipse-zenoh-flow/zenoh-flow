@@ -1,0 +1,9 @@
+%package -n zenoh-flow
+Summary: zenoh-based data-flow programming framework for computations that span from the cloud to the device.
+Requires: zenohd
+Requires: zenoh-plugin-storages
+Requires: zenoh-backend-influxdb
+Requires: zenoh-flow-daemon
+Requires: zenoh-flow-ctl
+%description -n  zenoh-flow
+zenoh-flow
