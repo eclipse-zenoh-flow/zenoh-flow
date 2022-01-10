@@ -14,11 +14,13 @@
 
 use crate::async_std::sync::{Arc, Mutex};
 use crate::model::deadline::E2EDeadlineRecord;
+use crate::model::loops::LoopDescriptor;
 use crate::model::node::OperatorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::deadline::E2EDeadline;
+use crate::runtime::loops::LoopContext;
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::{
@@ -114,6 +116,7 @@ pub struct OperatorRunner {
     pub(crate) local_deadline: Option<Duration>,
     pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
     pub(crate) is_running: Arc<Mutex<bool>>,
+    pub(crate) ciclo: Option<LoopDescriptor>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) _library: Option<Arc<Library>>,
@@ -138,6 +141,7 @@ impl OperatorRunner {
             _library: operator.library,
             local_deadline: operator.local_deadline,
             end_to_end_deadlines: operator.end_to_end_deadlines,
+            ciclo: operator.ciclo,
         })
     }
 
@@ -188,11 +192,12 @@ impl OperatorRunner {
                                     .update_with_timestamp(&data_message.timestamp)
                                 {
                                     log::error!(
-                                            "[Operator: {}][HLC] Could not update HLC with timestamp {:?}: {:?}",
-                                            self.id,
-                                            data_message.timestamp,
-                                            error
-                                        );
+                                        "[Operator: {}][HLC] Could not update HLC with \
+                                             timestamp {:?}: {:?}",
+                                        self.id,
+                                        data_message.timestamp,
+                                        error
+                                    );
                                 }
 
                                 // We clone the `data_message` because the end to end deadlines
@@ -281,6 +286,8 @@ impl OperatorRunner {
 
         let mut earliest_source_timestamp = None;
         let mut e2e_deadlines_to_propagate: Vec<E2EDeadline> = vec![];
+        let mut loop_feedback = false;
+        let mut loop_contexts_to_propagate: Vec<LoopContext> = vec![];
 
         for (port_id, token) in tokens.iter_mut() {
             match token {
@@ -307,9 +314,8 @@ impl OperatorRunner {
 
                     // TODO: Refactor this code to:
                     // 1) Avoid considering the source_timestamp of a token that is dropped.
-                    // 2) Avoid code duplication.
                     match data_token.action {
-                        TokenAction::Consume => {
+                        TokenAction::Consume | TokenAction::Keep => {
                             log::debug!("[Operator: {}] Consuming < {} >.", self.id, port_id);
                             e2e_deadlines_to_propagate.extend(
                                 data_token
@@ -319,26 +325,51 @@ impl OperatorRunner {
                                     .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
                                     .cloned(),
                             );
+
+                            loop_contexts_to_propagate
+                                .extend(data_token.data.loop_contexts.iter().cloned());
+
+                            if let Some(ciclo) = &self.ciclo {
+                                if ciclo.ingress == self.id && *port_id == ciclo.feedback_port {
+                                    loop_feedback = true;
+                                }
+                            }
+
                             data.insert(port_id.clone(), data_token.data.clone());
-                            *token = InputToken::Pending;
-                        }
-                        TokenAction::Keep => {
-                            log::debug!("[Operator: {}] Keeping < {} >.", self.id, port_id);
-                            e2e_deadlines_to_propagate.extend(
-                                data_token
-                                    .data
-                                    .end_to_end_deadlines
-                                    .iter()
-                                    .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
-                                    .cloned(),
-                            );
-                            data.insert(port_id.clone(), data_token.data.clone());
+                            if data_token.action == TokenAction::Consume {
+                                *token = InputToken::Pending;
+                            }
                         }
                         TokenAction::Drop => {
                             log::debug!("[Operator: {}] Dropping < {} >.", self.id, port_id);
                             data.remove(port_id);
                             *token = InputToken::Pending;
                         }
+                    }
+                }
+            }
+        }
+
+        // Loop management: Ingress.
+        //
+        // Two, mutually exclusive, cases can happen:
+        // 1. No message coming from the feedback link was processed. This means a new Loop is
+        //    starting and we need to associate a context to this message.
+        // 2. A message from the feedback link was processed: a LoopContext is already
+        //    associated. We need to update it.
+        if let Some(ciclo) = &self.ciclo {
+            if ciclo.ingress == self.id {
+                let now = self.context.runtime.hlc.new_timestamp();
+                if !loop_feedback {
+                    log::debug!("[Operator: {}] Ingress, new loop detected", self.id);
+                    loop_contexts_to_propagate.push(LoopContext::new(ciclo, now));
+                } else {
+                    log::debug!("[Operator: {}] Ingress, updating LoopContext", self.id);
+                    let loop_ctx = loop_contexts_to_propagate
+                        .iter_mut()
+                        .find(|loop_ctx| loop_ctx.ingress == self.id);
+                    if let Some(ctx) = loop_ctx {
+                        ctx.update_ingress(now);
                     }
                 }
             }
@@ -401,12 +432,45 @@ impl OperatorRunner {
                 None => continue,
             };
 
+            log::debug!("Sending on port < {} >…", port_id);
+
             if let Some(link_senders) = io.outputs.get(port_id) {
+                let mut loop_contexts = loop_contexts_to_propagate.clone();
+
+                // Loop management: the node is an Egress, depending on which output the message
+                // is sent, we need to either update the LoopContext or remove it.
+                //
+                // CAVEAT: both options are possible at the same time! A message can be sent on
+                // the feedback link and on another output. We thus need to perform the clone
+                // above.
+                if let Some(ciclo) = &self.ciclo {
+                    if ciclo.egress == self.id {
+                        if *port_id != ciclo.feedback_port {
+                            // Output is not sent on the feedback link, remove the LoopContext.
+                            loop_contexts = loop_contexts
+                                .into_iter()
+                                .filter(|loop_ctx| loop_ctx.egress != self.id)
+                                .collect::<Vec<LoopContext>>();
+                        } else {
+                            // Output is sent on the feedback link, we updade the context before
+                            // sending it.
+                            let loop_context = loop_contexts
+                                .iter_mut()
+                                .find(|loop_ctx| loop_ctx.egress == self.id);
+                            if let Some(loop_ctx) = loop_context {
+                                loop_ctx.update_egress(now);
+                            }
+                        }
+                    }
+                }
+
                 let zf_message = Arc::new(Message::from_node_output(
                     output,
                     timestamp,
                     e2e_deadlines_to_propagate.clone(),
+                    loop_contexts,
                 ));
+
                 for link_sender in link_senders {
                     let res = link_sender.send(zf_message.clone()).await;
 

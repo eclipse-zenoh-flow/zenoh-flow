@@ -26,11 +26,13 @@ use crate::model::dataflow::record::DataFlowRecord;
 use crate::model::dataflow::validator::DataflowValidator;
 use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::{LinkDescriptor, PortDescriptor};
+use crate::model::loops::LoopDescriptor;
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
 use crate::{
-    DurationDescriptor, FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult,
+    DurationDescriptor, FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFError,
+    ZFResult,
 };
 
 pub struct Dataflow {
@@ -73,35 +75,35 @@ impl Dataflow {
     }
 
     pub fn try_new(context: RuntimeContext, record: DataFlowRecord) -> ZFResult<Self> {
-        let res_sources: ZFResult<Vec<SourceLoaded>> = record
+        let loaded_sources = record
             .sources
-            .into_iter()
+            .into_values()
             .filter(|source| source.runtime == context.runtime_name)
-            .map(|r| context.loader.load_source(r))
-            .collect();
-        let sources: HashMap<_, _> = res_sources?
+            .map(|source| context.loader.load_source(source))
+            .collect::<Result<Vec<_>, _>>()?;
+        let sources: HashMap<_, _> = loaded_sources
             .into_iter()
             .map(|source| (source.id.clone(), source))
             .collect();
 
-        let res_operators: ZFResult<Vec<OperatorLoaded>> = record
+        let loaded_operators = record
             .operators
-            .into_iter()
+            .into_values()
             .filter(|operator| operator.runtime == context.runtime_name)
             .map(|r| context.loader.load_operator(r))
-            .collect();
-        let operators: HashMap<_, _> = res_operators?
+            .collect::<Result<Vec<_>, _>>()?;
+        let operators: HashMap<_, _> = loaded_operators
             .into_iter()
             .map(|operator| (operator.id.clone(), operator))
             .collect();
 
-        let res_sinks: ZFResult<Vec<SinkLoaded>> = record
+        let loaded_sinks = record
             .sinks
-            .into_iter()
+            .into_values()
             .filter(|sink| sink.runtime == context.runtime_name)
             .map(|r| context.loader.load_sink(r))
-            .collect();
-        let sinks: HashMap<_, _> = res_sinks?
+            .collect::<Result<Vec<_>, _>>()?;
+        let sinks: HashMap<_, _> = loaded_sinks
             .into_iter()
             .map(|sink| (sink.id.clone(), sink))
             .collect();
@@ -192,6 +194,7 @@ impl Dataflow {
                 operator,
                 library: None,
                 end_to_end_deadlines: vec![],
+                ciclo: None,
             },
         );
 
@@ -281,5 +284,82 @@ impl Dataflow {
         if let Some(sink) = self.sinks.get_mut(&deadline.to.node) {
             sink.end_to_end_deadlines.push(deadline);
         }
+    }
+
+    pub fn try_add_loop(
+        &mut self,
+        ingress: NodeId,
+        egress: NodeId,
+        feedback_port: PortId,
+        port_type: PortType,
+        is_infinite: bool,
+    ) -> ZFResult<()> {
+        log::debug!("Validating loop…");
+        self.validator
+            .validate_loop(&ingress, &egress, &feedback_port)?;
+        log::debug!("Validating loop… OK.");
+
+        let loop_descriptor = LoopDescriptor {
+            ingress: ingress.clone(),
+            egress: egress.clone(),
+            feedback_port: feedback_port.clone(),
+            is_infinite,
+            port_type: port_type.clone(),
+        };
+
+        log::debug!("Updating Ingress node < {} >…", &ingress);
+        let ingress_op = self
+            .operators
+            .get_mut(&ingress)
+            .ok_or(ZFError::GenericError)?;
+        ingress_op
+            .inputs
+            .insert(feedback_port.clone(), port_type.clone());
+        ingress_op.ciclo = Some(loop_descriptor.clone());
+        self.validator.try_add_input(
+            ingress.clone(),
+            PortDescriptor {
+                port_id: feedback_port.clone(),
+                port_type: port_type.clone(),
+            },
+        )?;
+        log::debug!("Updating Ingress node < {} >… OK.", &ingress);
+
+        log::debug!("Updating Egress node < {} >…", &egress);
+        let egress_op = self
+            .operators
+            .get_mut(&egress)
+            .ok_or(ZFError::GenericError)?;
+        egress_op
+            .outputs
+            .insert(feedback_port.clone(), port_type.clone());
+        egress_op.ciclo = Some(loop_descriptor);
+        self.validator.try_add_output(
+            egress.clone(),
+            PortDescriptor {
+                port_id: feedback_port.clone(),
+                port_type,
+            },
+        )?;
+        log::debug!("Updating Egress node < {} >… OK.", &egress);
+
+        log::debug!("Adding feedback link…");
+        self.try_add_link(
+            OutputDescriptor {
+                node: egress.clone(),
+                output: feedback_port.clone(),
+            },
+            InputDescriptor {
+                node: ingress.clone(),
+                input: feedback_port.clone(),
+            },
+            None,
+            None,
+            None,
+        )?;
+
+        log::debug!("Adding feedback link… OK.");
+
+        Ok(())
     }
 }

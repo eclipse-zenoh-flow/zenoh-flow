@@ -14,6 +14,7 @@
 
 use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::PortDescriptor;
+use crate::model::loops::LoopDescriptor;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
 use async_std::sync::{Arc, Mutex};
@@ -60,6 +61,7 @@ pub struct OperatorLoaded {
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
     pub(crate) local_deadline: Option<Duration>,
+    pub(crate) ciclo: Option<LoopDescriptor>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
@@ -95,6 +97,7 @@ impl OperatorLoaded {
             operator,
             library: lib,
             end_to_end_deadlines: vec![],
+            ciclo: record.ciclo,
         })
     }
 }

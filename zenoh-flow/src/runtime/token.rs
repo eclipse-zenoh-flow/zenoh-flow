@@ -13,7 +13,7 @@
 //
 
 use crate::runtime::deadline::E2EDeadlineMiss;
-use crate::{Data, DataMessage, PortId};
+use crate::{Data, DataMessage, LoopContext, PortId};
 use std::collections::HashMap;
 use uhlc::Timestamp;
 
@@ -72,6 +72,10 @@ impl DataToken {
 
     pub fn get_missed_end_to_end_deadlines(&self) -> &[E2EDeadlineMiss] {
         &self.data.missed_end_to_end_deadlines
+    }
+
+    pub fn get_loop_contexts(&self) -> &[LoopContext] {
+        self.data.get_loop_contexts()
     }
 }
 

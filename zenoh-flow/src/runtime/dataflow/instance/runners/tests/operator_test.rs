@@ -266,6 +266,7 @@ fn input_rule_keep() {
         operator: Arc::new(operator),
         _library: None,
         end_to_end_deadlines: vec![],
+        ciclo: None,
     };
 
     let runner = NodeRunner::new(Arc::new(operator_runner), instance_context);

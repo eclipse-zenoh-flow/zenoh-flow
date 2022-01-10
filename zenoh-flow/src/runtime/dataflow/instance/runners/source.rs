@@ -165,7 +165,12 @@ impl SourceRunner {
         // Send to Links
         log::debug!("Sending on {:?} data: {:?}", self.output.port_id, output);
 
-        let zf_message = Arc::new(Message::from_serdedata(output, timestamp, e2e_deadlines));
+        let zf_message = Arc::new(Message::from_serdedata(
+            output,
+            timestamp,
+            e2e_deadlines,
+            vec![],
+        ));
         for link in links.iter() {
             log::debug!("\tSending on: {:?}", link);
             link.send(zf_message.clone()).await?;

@@ -178,19 +178,19 @@ async fn main() {
                             instance.flow,
                             instance
                                 .operators
-                                .iter()
+                                .values()
                                 .map(|o| format!("{}", o))
                                 .collect::<Vec<String>>()
                                 .join("\n"),
                             instance
                                 .sinks
-                                .iter()
+                                .values()
                                 .map(|o| format!("{}", o))
                                 .collect::<Vec<String>>()
                                 .join("\n"),
                             instance
                                 .sources
-                                .iter()
+                                .values()
                                 .map(|o| format!("{}", o))
                                 .collect::<Vec<String>>()
                                 .join("\n"),

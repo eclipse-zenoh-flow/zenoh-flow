@@ -13,6 +13,7 @@
 //
 
 use crate::model::link::PortDescriptor;
+use crate::model::loops::LoopDescriptor;
 use crate::types::{Configuration, NodeId, RuntimeId};
 use crate::{DurationDescriptor, PortType};
 use serde::{Deserialize, Serialize};
@@ -130,6 +131,7 @@ pub struct OperatorRecord {
     pub(crate) configuration: Option<Configuration>,
     pub(crate) deadline: Option<Duration>,
     pub(crate) runtime: RuntimeId,
+    pub(crate) ciclo: Option<LoopDescriptor>,
 }
 
 impl std::fmt::Display for OperatorRecord {

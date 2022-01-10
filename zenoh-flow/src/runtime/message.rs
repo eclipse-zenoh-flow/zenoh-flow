@@ -14,6 +14,8 @@
 
 extern crate serde;
 
+use crate::runtime::deadline::{E2EDeadline, E2EDeadlineMiss};
+use crate::runtime::loops::LoopContext;
 use crate::{Data, FlowId, NodeId, NodeOutput, PortId, ZFData, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
@@ -21,16 +23,13 @@ use std::{cmp::Ordering, fmt::Debug};
 use uhlc::Timestamp;
 use uuid::Uuid;
 
-use crate::runtime::deadline::E2EDeadline;
-
-use super::deadline::E2EDeadlineMiss;
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
     pub(crate) data: Data,
     pub(crate) timestamp: Timestamp,
     pub(crate) end_to_end_deadlines: Vec<E2EDeadline>,
     pub(crate) missed_end_to_end_deadlines: Vec<E2EDeadlineMiss>,
+    pub(crate) loop_contexts: Vec<LoopContext>,
 }
 
 impl DataMessage {
@@ -40,6 +39,7 @@ impl DataMessage {
             timestamp,
             end_to_end_deadlines,
             missed_end_to_end_deadlines: vec![],
+            loop_contexts: vec![],
         }
     }
 
@@ -64,16 +64,22 @@ impl DataMessage {
         self.missed_end_to_end_deadlines.as_slice()
     }
 
+    pub fn get_loop_contexts(&self) -> &[LoopContext] {
+        self.loop_contexts.as_slice()
+    }
+
     pub fn new_serialized(
         data: Arc<Vec<u8>>,
         timestamp: Timestamp,
         end_to_end_deadlines: Vec<E2EDeadline>,
+        loop_contexts: Vec<LoopContext>,
     ) -> Self {
         Self {
             data: Data::Bytes(data),
             timestamp,
             end_to_end_deadlines,
             missed_end_to_end_deadlines: vec![],
+            loop_contexts,
         }
     }
 
@@ -81,12 +87,14 @@ impl DataMessage {
         data: Arc<dyn ZFData>,
         timestamp: Timestamp,
         end_to_end_deadlines: Vec<E2EDeadline>,
+        loop_contexts: Vec<LoopContext>,
     ) -> Self {
         Self {
             data: Data::Typed(data),
             timestamp,
             end_to_end_deadlines,
             missed_end_to_end_deadlines: vec![],
+            loop_contexts,
         }
     }
 }
@@ -121,21 +129,13 @@ impl Message {
         output: NodeOutput,
         timestamp: Timestamp,
         end_to_end_deadlines: Vec<E2EDeadline>,
+        loop_contexts: Vec<LoopContext>,
     ) -> Self {
         match output {
             NodeOutput::Control(c) => Self::Control(c),
-            NodeOutput::Data(d) => match d {
-                Data::Typed(d) => Self::Data(DataMessage::new_deserialized(
-                    d,
-                    timestamp,
-                    end_to_end_deadlines,
-                )),
-                Data::Bytes(sd) => Self::Data(DataMessage::new_serialized(
-                    sd,
-                    timestamp,
-                    end_to_end_deadlines,
-                )),
-            },
+            NodeOutput::Data(d) => {
+                Self::from_serdedata(d, timestamp, end_to_end_deadlines, loop_contexts)
+            }
         }
     }
 
@@ -143,17 +143,20 @@ impl Message {
         output: Data,
         timestamp: Timestamp,
         end_to_end_deadlines: Vec<E2EDeadline>,
+        loop_contexts: Vec<LoopContext>,
     ) -> Self {
         match output {
             Data::Typed(data) => Self::Data(DataMessage::new_deserialized(
                 data,
                 timestamp,
                 end_to_end_deadlines,
+                loop_contexts,
             )),
             Data::Bytes(data) => Self::Data(DataMessage::new_serialized(
                 data,
                 timestamp,
                 end_to_end_deadlines,
+                loop_contexts,
             )),
         }
     }
@@ -173,6 +176,7 @@ impl Message {
                         serialized_data,
                         data_message.timestamp,
                         data_message.end_to_end_deadlines.clone(),
+                        data_message.loop_contexts.clone(),
                     ));
 
                     bincode::serialize(&serialized_message).map_err(|_| ZFError::SerializationError)

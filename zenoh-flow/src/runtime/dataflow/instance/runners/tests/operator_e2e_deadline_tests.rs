@@ -256,6 +256,7 @@ fn e2e_deadline() {
         operator: Arc::new(operator),
         _library: None,
         end_to_end_deadlines: vec![operator_deadline.clone()],
+        ciclo: None,
     };
 
     let runner = NodeRunner::new(Arc::new(operator_runner), instance_context);
