@@ -59,7 +59,7 @@ pub enum ZFError {
     NodeNotFound(NodeId),
     PortNotFound((NodeId, PortId)),
     PortNotConnected((NodeId, PortId)),
-    NotRecoding,
+    NotRecording,
     AlreadyRecording,
     NoPathBetweenNodes(((NodeId, PortId), (NodeId, PortId))),
 }

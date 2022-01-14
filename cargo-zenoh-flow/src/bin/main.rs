@@ -159,7 +159,7 @@ async fn main() {
             let target = if release {
                 format!(
                     "{}/release/{}{}{}",
-                    target_dir.as_path().display().to_string(),
+                    target_dir.as_path().display(),
                     std::env::consts::DLL_PREFIX,
                     node_info.id,
                     std::env::consts::DLL_SUFFIX
@@ -167,7 +167,7 @@ async fn main() {
             } else {
                 format!(
                     "{}/debug/{}{}{}",
-                    target_dir.as_path().display().to_string(),
+                    target_dir.as_path().display(),
                     std::env::consts::DLL_PREFIX,
                     node_info.id,
                     std::env::consts::DLL_SUFFIX
