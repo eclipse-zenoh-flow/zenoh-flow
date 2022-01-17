@@ -39,6 +39,7 @@ use self::dataflow::loader::LoaderConfig;
 
 pub mod dataflow;
 pub mod deadline;
+pub mod loops;
 pub mod message;
 pub mod resources;
 pub mod token;

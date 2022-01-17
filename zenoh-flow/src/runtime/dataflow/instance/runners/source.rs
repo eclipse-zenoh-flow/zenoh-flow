@@ -165,7 +165,12 @@ impl SourceRunner {
         // Send to Links
         log::debug!("Sending on {:?} data: {:?}", self.output.port_id, output);
 
-        let zf_message = Arc::new(Message::from_serdedata(output, timestamp, e2e_deadlines));
+        let zf_message = Arc::new(Message::from_serdedata(
+            output,
+            timestamp,
+            e2e_deadlines,
+            vec![],
+        ));
         for link in links.iter() {
             log::debug!("\tSending on: {:?}", link);
             link.send(zf_message.clone()).await?;
@@ -224,17 +229,17 @@ impl Runner for SourceRunner {
     async fn start_recording(&self) -> ZFResult<String> {
         let mut is_recording_guard = self.is_recording.lock().await;
         if !(*is_recording_guard) {
-            let ts_recoding_start = self.context.runtime.hlc.new_timestamp();
+            let ts_recording_start = self.context.runtime.hlc.new_timestamp();
             let resource_name = format!(
                 "{}/{}",
                 self.base_resource_name,
-                ts_recoding_start.get_time().to_string()
+                ts_recording_start.get_time()
             );
 
             *(self.current_recording_resource.lock().await) = Some(resource_name.clone());
 
             let recording_metadata = RecordingMetadata {
-                timestamp: ts_recoding_start,
+                timestamp: ts_recording_start,
                 port_id: self.output.port_id.clone(),
                 node_id: self.id.clone(),
                 flow_id: self.context.flow_id.clone(),
@@ -244,9 +249,9 @@ impl Runner for SourceRunner {
             let message = Message::Control(ControlMessage::RecordingStart(recording_metadata));
             let serialized = message.serialize_bincode()?;
             log::debug!(
-                "ZenohLogger - {} - Started recoding at {:?}",
+                "ZenohLogger - {} - Started recording at {:?}",
                 resource_name,
-                ts_recoding_start
+                ts_recording_start
             );
             self.context
                 .runtime
@@ -269,13 +274,13 @@ impl Runner for SourceRunner {
                 .ok_or(ZFError::Unimplemented)?
                 .clone();
 
-            let ts_recoding_stop = self.context.runtime.hlc.new_timestamp();
-            let message = Message::Control(ControlMessage::RecordingStop(ts_recoding_stop));
+            let ts_recording_stop = self.context.runtime.hlc.new_timestamp();
+            let message = Message::Control(ControlMessage::RecordingStop(ts_recording_stop));
             let serialized = message.serialize_bincode()?;
             log::debug!(
-                "ZenohLogger - {} - Stop recoding at {:?}",
+                "ZenohLogger - {} - Stop recording at {:?}",
                 resource_name,
-                ts_recoding_stop
+                ts_recording_stop
             );
             self.context
                 .runtime
@@ -287,7 +292,7 @@ impl Runner for SourceRunner {
             *resource_name_guard = None;
             return Ok(resource_name);
         }
-        return Err(ZFError::NotRecoding);
+        return Err(ZFError::NotRecording);
     }
 
     async fn is_recording(&self) -> bool {

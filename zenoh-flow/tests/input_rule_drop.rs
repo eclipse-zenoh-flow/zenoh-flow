@@ -25,8 +25,8 @@ use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::{
-    default_output_rule, zf_empty_state, Configuration, Context, Data, LocalDeadlineMiss, Node,
-    NodeOutput, Operator, PortId, Sink, Source, State, Token, ZFError, ZFResult,
+    default_output_rule, zf_empty_state, Configuration, Context, Data, InputToken,
+    LocalDeadlineMiss, Node, NodeOutput, Operator, PortId, Sink, Source, State, ZFError, ZFResult,
 };
 
 static SOURCE: &str = "Source";
@@ -110,16 +110,16 @@ impl Operator for DropOdd {
         &self,
         _context: &mut zenoh_flow::Context,
         _state: &mut State,
-        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
+        tokens: &mut HashMap<PortId, zenoh_flow::InputToken>,
     ) -> zenoh_flow::ZFResult<bool> {
         let source: PortId = SOURCE.into();
-        let token = tokens
+        let input_token = tokens
             .get_mut(&source)
             .ok_or_else(|| ZFError::InvalidData(SOURCE.to_string()))?;
-        if let Token::Ready(ready_token) = token {
-            let data = ready_token.get_data_mut();
+        if let InputToken::Ready(data_token) = input_token {
+            let data = data_token.get_data_mut();
             if data.try_get::<ZFUsize>()?.0 % 2 != 0 {
-                ready_token.set_action_drop();
+                input_token.set_action_drop();
                 return Ok(false);
             }
 

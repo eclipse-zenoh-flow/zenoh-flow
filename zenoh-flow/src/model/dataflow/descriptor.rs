@@ -15,6 +15,7 @@
 use crate::model::dataflow::validator::DataflowValidator;
 use crate::model::deadline::E2EDeadlineDescriptor;
 use crate::model::link::LinkDescriptor;
+use crate::model::loops::LoopDescriptor;
 use crate::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{NodeId, RuntimeId, ZFError, ZFResult};
@@ -37,6 +38,7 @@ pub struct DataFlowDescriptor {
     pub links: Vec<LinkDescriptor>,
     pub mapping: Option<Vec<Mapping>>,
     pub deadlines: Option<Vec<E2EDeadlineDescriptor>>,
+    pub loops: Option<Vec<LoopDescriptor>>,
 }
 
 impl DataFlowDescriptor {
@@ -98,13 +100,26 @@ impl DataFlowDescriptor {
     // - each node has a unique id,
     // - each port (input and output) is connected,
     // - an input port is connected only once (i.e. it receives data from a single output port),
-    // - connected ports are declared with the same type.
+    // - connected ports are declared with the same type,
+    // - the dataflow, without the loops, is a DAG,
+    // - the end-to-end deadlines are correct,
+    // - the loops are valid.
     fn validate(&self) -> ZFResult<()> {
-        let validator = DataflowValidator::try_from(self)?;
+        let mut validator = DataflowValidator::try_from(self)?;
+
         validator.validate_ports()?;
+
+        validator.validate_dag()?;
+
         if let Some(deadlines) = &self.deadlines {
             deadlines.iter().try_for_each(|deadline| {
                 validator.validate_deadline(&deadline.from, &deadline.to)
+            })?
+        }
+
+        if let Some(loops) = &self.loops {
+            loops.iter().try_for_each(|ciclo| {
+                validator.validate_loop(&ciclo.ingress, &ciclo.egress, &ciclo.feedback_port)
             })?
         }
 

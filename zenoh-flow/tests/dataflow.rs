@@ -133,7 +133,7 @@ impl Operator for NoOp {
         &self,
         _context: &mut zenoh_flow::Context,
         state: &mut State,
-        tokens: &mut HashMap<PortId, zenoh_flow::Token>,
+        tokens: &mut HashMap<PortId, zenoh_flow::InputToken>,
     ) -> zenoh_flow::ZFResult<bool> {
         default_input_rule(state, tokens)
     }

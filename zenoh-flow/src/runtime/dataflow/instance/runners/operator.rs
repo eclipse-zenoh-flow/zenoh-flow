@@ -14,15 +14,17 @@
 
 use crate::async_std::sync::{Arc, Mutex};
 use crate::model::deadline::E2EDeadlineRecord;
+use crate::model::loops::LoopDescriptor;
 use crate::model::node::OperatorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::deadline::E2EDeadline;
+use crate::runtime::loops::LoopContext;
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::{
-    Context, DataMessage, LocalDeadlineMiss, NodeId, Operator, PortId, PortType, State, Token,
+    Context, DataMessage, InputToken, LocalDeadlineMiss, NodeId, Operator, PortId, PortType, State,
     TokenAction, ZFError, ZFResult,
 };
 use async_trait::async_trait;
@@ -114,6 +116,8 @@ pub struct OperatorRunner {
     pub(crate) local_deadline: Option<Duration>,
     pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
     pub(crate) is_running: Arc<Mutex<bool>>,
+    // Ciclo is the italian word for "loop" — we cannot use "loop" as it’s a reserved keyword.
+    pub(crate) ciclo: Option<LoopDescriptor>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) _library: Option<Arc<Library>>,
@@ -138,6 +142,7 @@ impl OperatorRunner {
             _library: operator.library,
             local_deadline: operator.local_deadline,
             end_to_end_deadlines: operator.end_to_end_deadlines,
+            ciclo: operator.ciclo,
         })
     }
 
@@ -148,11 +153,11 @@ impl OperatorRunner {
     async fn iteration(
         &self,
         mut context: Context,
-        mut tokens: HashMap<PortId, Token>,
+        mut tokens: HashMap<PortId, InputToken>,
         mut data: HashMap<PortId, DataMessage>,
     ) -> ZFResult<(
         Context,
-        HashMap<PortId, Token>,
+        HashMap<PortId, InputToken>,
         HashMap<PortId, DataMessage>,
     )> {
         // Guards are taken at the beginning of each iteration to allow interleaving.
@@ -165,7 +170,7 @@ impl OperatorRunner {
         // `ReadyToken` has its action set to `Keep` then it will stay as a `ReadyToken` (i.e.
         // it won’t be resetted later on) and we should not poll data.
         for (port_id, token) in tokens.iter() {
-            if let Token::Pending = token {
+            if let InputToken::Pending = token {
                 links.push(io.poll_input(&self.id, port_id)?);
             }
         }
@@ -188,7 +193,8 @@ impl OperatorRunner {
                                     .update_with_timestamp(&data_message.timestamp)
                                 {
                                     log::error!(
-                                        "[Operator: {}][HLC] Could not update HLC with timestamp {:?}: {:?}",
+                                        "[Operator: {}][HLC] Could not update HLC with \
+                                             timestamp {:?}: {:?}",
                                         self.id,
                                         data_message.timestamp,
                                         error
@@ -229,7 +235,7 @@ impl OperatorRunner {
                                         }
                                     });
 
-                                tokens.insert(port_id, Token::from(data_msg));
+                                tokens.insert(port_id, InputToken::from(data_msg));
                             }
 
                             Message::Control(_) => {
@@ -273,7 +279,7 @@ impl OperatorRunner {
             // Poll on the links where the action of the `Token` was set to `drop`.
             for (port_id, token) in tokens.iter_mut() {
                 if token.should_drop() {
-                    *token = Token::Pending;
+                    *token = InputToken::Pending;
                     links.push(io.poll_input(&self.id, port_id)?);
                 }
             }
@@ -281,10 +287,12 @@ impl OperatorRunner {
 
         let mut earliest_source_timestamp = None;
         let mut e2e_deadlines_to_propagate: Vec<E2EDeadline> = vec![];
+        let mut loop_feedback = false;
+        let mut loop_contexts_to_propagate: Vec<LoopContext> = vec![];
 
         for (port_id, token) in tokens.iter_mut() {
             match token {
-                Token::Pending => {
+                InputToken::Pending => {
                     log::debug!(
                         "[Operator: {}] Removing < {} > from Data transmitted to `run`.",
                         self.id,
@@ -293,12 +301,12 @@ impl OperatorRunner {
                     data.remove(port_id);
                     continue;
                 }
-                Token::Ready(ready_token) => {
+                InputToken::Ready(data_token) => {
                     earliest_source_timestamp = match earliest_source_timestamp {
-                        None => Some(ready_token.data.timestamp),
+                        None => Some(data_token.data.timestamp),
                         Some(timestamp) => {
-                            if ready_token.data.timestamp > timestamp {
-                                Some(ready_token.data.timestamp)
+                            if data_token.data.timestamp > timestamp {
+                                Some(data_token.data.timestamp)
                             } else {
                                 Some(timestamp)
                             }
@@ -307,38 +315,62 @@ impl OperatorRunner {
 
                     // TODO: Refactor this code to:
                     // 1) Avoid considering the source_timestamp of a token that is dropped.
-                    // 2) Avoid code duplication.
-                    match ready_token.action {
-                        TokenAction::Consume => {
+                    match data_token.action {
+                        TokenAction::Consume | TokenAction::Keep => {
                             log::debug!("[Operator: {}] Consuming < {} >.", self.id, port_id);
                             e2e_deadlines_to_propagate.extend(
-                                ready_token
+                                data_token
                                     .data
                                     .end_to_end_deadlines
                                     .iter()
                                     .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
                                     .cloned(),
                             );
-                            data.insert(port_id.clone(), ready_token.data.clone());
-                            *token = Token::Pending;
-                        }
-                        TokenAction::Keep => {
-                            log::debug!("[Operator: {}] Keeping < {} >.", self.id, port_id);
-                            e2e_deadlines_to_propagate.extend(
-                                ready_token
-                                    .data
-                                    .end_to_end_deadlines
-                                    .iter()
-                                    .filter(|e2e_deadline| e2e_deadline.to.node != self.id)
-                                    .cloned(),
-                            );
-                            data.insert(port_id.clone(), ready_token.data.clone());
+
+                            loop_contexts_to_propagate
+                                .extend(data_token.data.loop_contexts.iter().cloned());
+
+                            if let Some(ciclo) = &self.ciclo {
+                                if ciclo.ingress == self.id && *port_id == ciclo.feedback_port {
+                                    loop_feedback = true;
+                                }
+                            }
+
+                            data.insert(port_id.clone(), data_token.data.clone());
+                            if data_token.action == TokenAction::Consume {
+                                *token = InputToken::Pending;
+                            }
                         }
                         TokenAction::Drop => {
                             log::debug!("[Operator: {}] Dropping < {} >.", self.id, port_id);
                             data.remove(port_id);
-                            *token = Token::Pending;
+                            *token = InputToken::Pending;
                         }
+                    }
+                }
+            }
+        }
+
+        // Loop management: Ingress.
+        //
+        // Two, mutually exclusive, cases can happen:
+        // 1. No message coming from the feedback link was processed. This means a new Loop is
+        //    starting and we need to associate a context to this message.
+        // 2. A message from the feedback link was processed: a LoopContext is already
+        //    associated. We need to update it.
+        if let Some(ciclo) = &self.ciclo {
+            if ciclo.ingress == self.id {
+                let now = self.context.runtime.hlc.new_timestamp();
+                if !loop_feedback {
+                    log::debug!("[Operator: {}] Ingress, new loop detected", self.id);
+                    loop_contexts_to_propagate.push(LoopContext::new(ciclo, now));
+                } else {
+                    log::debug!("[Operator: {}] Ingress, updating LoopContext", self.id);
+                    let loop_ctx = loop_contexts_to_propagate
+                        .iter_mut()
+                        .find(|loop_ctx| loop_ctx.ingress == self.id);
+                    if let Some(ctx) = loop_ctx {
+                        ctx.update_ingress(now);
                     }
                 }
             }
@@ -401,12 +433,44 @@ impl OperatorRunner {
                 None => continue,
             };
 
+            log::debug!("Sending on port < {} >…", port_id);
+
             if let Some(link_senders) = io.outputs.get(port_id) {
+                // Loop management: the node is an Egress, depending on which output the message
+                // is sent, we need to either update the LoopContext or remove it.
+                //
+                // CAVEAT: both options are possible at the same time! A message can be sent on
+                // the feedback link and on another output. We thus need to clone.
+                let mut loop_contexts = loop_contexts_to_propagate.clone();
+
+                if let Some(ciclo) = &self.ciclo {
+                    if ciclo.egress == self.id {
+                        if *port_id != ciclo.feedback_port {
+                            // Output is not sent on the feedback link, remove the LoopContext.
+                            loop_contexts = loop_contexts
+                                .into_iter()
+                                .filter(|loop_ctx| loop_ctx.egress != self.id)
+                                .collect::<Vec<LoopContext>>();
+                        } else {
+                            // Output is sent on the feedback link, we updade the context before
+                            // sending it.
+                            let loop_context = loop_contexts
+                                .iter_mut()
+                                .find(|loop_ctx| loop_ctx.egress == self.id);
+                            if let Some(loop_ctx) = loop_context {
+                                loop_ctx.update_egress(now);
+                            }
+                        }
+                    }
+                }
+
                 let zf_message = Arc::new(Message::from_node_output(
                     output,
                     timestamp,
                     e2e_deadlines_to_propagate.clone(),
+                    loop_contexts,
                 ));
+
                 for link_sender in link_senders {
                     let res = link_sender.send(zf_message.clone()).await;
 
@@ -503,17 +567,16 @@ impl Runner for OperatorRunner {
         self.start().await;
 
         let mut context = Context::default();
-        let mut tokens: HashMap<PortId, Token> = self
+        let mut tokens: HashMap<PortId, InputToken> = self
             .inputs
             .keys()
-            .map(|input_id| (input_id.clone(), Token::Pending))
+            .map(|input_id| (input_id.clone(), InputToken::Pending))
             .collect();
         let mut data: HashMap<PortId, DataMessage> = HashMap::with_capacity(tokens.len());
 
         // Looping on iteration, each iteration is a single
         // run of the source, as a run can fail in case of error it
         // stops and returns the error to the caller (the RunnerManager)
-
         loop {
             match self.iteration(context, tokens, data).await {
                 Ok((ctx, tkn, d)) => {

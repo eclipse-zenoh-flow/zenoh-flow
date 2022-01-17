@@ -22,7 +22,7 @@ use petgraph::Graph;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 
-/// `DataflowValidator` performs verifications on the graph.
+/// `DataflowValidator` performs and allows performing verifications on the Dataflow graph.
 ///
 /// In particular it verifies that:
 /// - each node has a unique id,
@@ -36,48 +36,36 @@ use std::convert::TryFrom;
 /// `graph_checker` is an accurate representation of the dataflow. We use it to apply well-known
 /// graph algorithms.
 ///
-/// `node_checker, is used to check that all ports are connected and that input ports do not have
-/// more than one link. In `node_checker` we view a pair `(NodeId, PortId)` as a "node". For example,
-/// an Operator with one input and one output will be viewed as two nodes: (Operator, input) and
-/// (Operator, output).
+/// `node_checker` is used to check that all ports are connected and that input ports do not have
+/// more than one link. In `node_checker` we view a triplet `(NodeId, PortId, PortKind)` as a
+/// "node". For example, an Operator with one input and one output will be viewed as two nodes:
+/// (Operator, input, PortKind::Input) and (Operator, output, PortKind::Output).
+/// These triplets are used to check that no two ports of the same kind and for the same node have
+/// the same name. Ports of different kind for the same Operator can share the same name.
 ///
 /// We store additional information in dedicated structures:
 /// - `input_indexes` stores the `node_checker` indexes of inputs (i.e. for Operators and Sinks),
 /// - `output_indexes` does the same for all outputs (i.e. for Operators and Sources),
-/// - `map_id_to_node_checker_idx` maps the `(NodeId, PortId)` to the indexes in `node_checker`,
-/// - `map_id_to_type` maps the `(NodeId, PortId)` to the type declared in the YAML file,
-/// - `map_id_to_graph_checker_idx` maps the `NodeId` to the indexes in `graph_checker`.
+/// - `map_id_to_node_checker_idx` maps the `(NodeId, PortId, PortKind)` to the indexes in
+///   `node_checker`,
+/// - `map_id_to_type` maps the `(NodeId, PortId, PortKind)` to the type declared in the YAML file,
+/// - `map_id_to_graph_checker_idx` maps the `NodeId` to the indexes in `graph_checker`,
+/// - `loops_node_ids` stores the ids of the nodes involved in loops (ingress and egress).
 ///
-/// For each source we store:
-/// - its `(node_id, output.port_id)` in `output_indexes`,
-/// - the type of its output in the `map_id_to_type`,
-/// - its `node_id` in `graph_checker`,
-/// - its `(node_id, output.port_id)` in `node_checker`.
-///
-/// For each operator we store:
-/// - its `node_id` in `graph_checker`,
-/// - for each output:
-///     - its `(node_id, output.port_id)` in `output_indexes`,
-///     - the type of the output in the `map_id_to_type`,
-///     - its `(node_id, output.port_id)` in `node_checker`.
-/// - for each input:
-///     - store its `(node_id, input.port_id)` in `input_indexes`,
-///     - the type of the input in the `map_id_to_type`,
-///     - its `(node_id, input.port_id)` in `node_check`.
-///
-/// For each sink we store:
-/// - its `(node_id, input.port_id)` in `input_indexes`,
-/// - the type of its input in the `map_id_to_type`,
-/// - its `node_id` in `graph_checker`,
-/// - its `(node_id, input.port_id)` in `node_checker`.
+/// Additional verifications are performed calling:
+/// - `validate_ports`
+/// - `validate_dag`
+/// - `validate_deadline`
+/// - `validate_loop`
 pub(crate) struct DataflowValidator {
-    graph_checker: Graph<NodeId, (PortId, PortId, EdgeIndex)>,
+    graph_checker: Graph<(NodeId, NodeKind), (PortId, PortId, EdgeIndex)>,
     node_checker: Graph<PortUniqueId, PortType>,
     input_indexes: HashSet<NodeIndex>,
     output_indexes: HashSet<NodeIndex>,
     map_id_to_node_checker_idx: HashMap<PortUniqueId, NodeIndex>,
     map_id_to_type: HashMap<PortUniqueId, PortType>,
-    map_id_to_graph_checker_idx: HashMap<NodeId, NodeIndex>,
+    map_id_to_graph_checker_idx: HashMap<NodeId, (NodeKind, NodeIndex)>,
+    loops_node_ids: HashSet<NodeId>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -86,7 +74,14 @@ enum PortKind {
     Output,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum NodeKind {
+    Source,
+    Sink,
+    Operator,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 struct PortUniqueId {
     node_id: NodeId,
     port_id: PortId,
@@ -128,15 +123,16 @@ impl DataflowValidator {
             map_id_to_node_checker_idx: HashMap::new(),
             map_id_to_type: HashMap::new(),
             map_id_to_graph_checker_idx: HashMap::new(),
+            loops_node_ids: HashSet::new(),
         }
     }
 
     /// `try_add_id` returns an error if two nodes have the same id.
-    fn try_add_id(&mut self, node_id: NodeId) -> ZFResult<()> {
-        let graph_checker_idx = self.graph_checker.add_node(node_id.clone());
+    fn try_add_id(&mut self, node_kind: NodeKind, node_id: NodeId) -> ZFResult<()> {
+        let graph_checker_idx = self.graph_checker.add_node((node_id.clone(), node_kind));
         if self
             .map_id_to_graph_checker_idx
-            .insert(node_id.clone(), graph_checker_idx)
+            .insert(node_id.clone(), (node_kind, graph_checker_idx))
             .is_some()
         {
             return Err(ZFError::DuplicatedNodeId(node_id));
@@ -170,14 +166,18 @@ impl DataflowValidator {
         Ok(node_checker_idx)
     }
 
-    fn try_add_input(&mut self, node_id: NodeId, input: PortDescriptor) -> ZFResult<()> {
+    pub(crate) fn try_add_input(&mut self, node_id: NodeId, input: PortDescriptor) -> ZFResult<()> {
         let node_checker_idx = self.try_add_node(node_id, input, PortKind::Input)?;
         self.input_indexes.insert(node_checker_idx);
         Ok(())
     }
 
     /// `try_add_output` can fail when calling `try_add_node`.
-    fn try_add_output(&mut self, node_id: NodeId, output: PortDescriptor) -> ZFResult<()> {
+    pub(crate) fn try_add_output(
+        &mut self,
+        node_id: NodeId,
+        output: PortDescriptor,
+    ) -> ZFResult<()> {
         let node_checker_idx = self.try_add_node(node_id, output, PortKind::Output)?;
         self.output_indexes.insert(node_checker_idx);
         Ok(())
@@ -188,13 +188,13 @@ impl DataflowValidator {
         node_id: NodeId,
         output: PortDescriptor,
     ) -> ZFResult<()> {
-        self.try_add_id(node_id.clone())?;
+        self.try_add_id(NodeKind::Source, node_id.clone())?;
 
         self.try_add_output(node_id, output)
     }
 
     pub(crate) fn try_add_sink(&mut self, node_id: NodeId, input: PortDescriptor) -> ZFResult<()> {
-        self.try_add_id(node_id.clone())?;
+        self.try_add_id(NodeKind::Sink, node_id.clone())?;
         self.try_add_input(node_id, input)
     }
 
@@ -204,7 +204,7 @@ impl DataflowValidator {
         inputs: &[PortDescriptor],
         outputs: &[PortDescriptor],
     ) -> ZFResult<()> {
-        self.try_add_id(node_id.clone())?;
+        self.try_add_id(NodeKind::Operator, node_id.clone())?;
 
         inputs
             .iter()
@@ -220,14 +220,18 @@ impl DataflowValidator {
         from: &OutputDescriptor,
         to: &InputDescriptor,
     ) -> ZFResult<()> {
-        let from_graph_checker_idx = self
+        log::debug!("Looking for node < {} >…", &from.node);
+        let (_, from_graph_checker_idx) = self
             .map_id_to_graph_checker_idx
             .get(&from.node)
             .ok_or_else(|| ZFError::NodeNotFound(from.node.clone()))?;
-        let to_graph_checker_idx = self
+        log::debug!("Looking for node < {} >… OK.", &from.node);
+        log::debug!("Looking for node < {} >…", &to.node);
+        let (_, to_graph_checker_idx) = self
             .map_id_to_graph_checker_idx
             .get(&to.node)
             .ok_or_else(|| ZFError::NodeNotFound(to.node.clone()))?;
+        log::debug!("Looking for node < {} >… OK.", &to.node);
 
         let from_id = PortUniqueId {
             node_id: from.node.clone(),
@@ -240,20 +244,26 @@ impl DataflowValidator {
             kind: PortKind::Input,
         };
 
+        log::debug!("Looking for port type of < {:?} >…", &from_id);
         let from_type = self
             .map_id_to_type
             .get(&from_id)
             .ok_or_else(|| ZFError::PortNotFound((from.node.clone(), from.output.clone())))?;
+        log::debug!("Looking for port type of < {:?} >… OK.", &from_id);
+        log::debug!("Looking for port type of < {:?} >…", &to_id);
         let to_type = self
             .map_id_to_type
             .get(&to_id)
             .ok_or_else(|| ZFError::PortNotFound((to.node.clone(), to.input.clone())))?;
+        log::debug!("Looking for port type of < {:?} >… OK.", &to_id);
+        log::debug!("Port types are identical…");
         if from_type != to_type {
             return Err(ZFError::PortTypeNotMatching((
                 from_type.clone(),
                 to_type.clone(),
             )));
         }
+        log::debug!("Port types are identical… OK.");
 
         let edge_idx = self.graph_checker.add_edge(
             *from_graph_checker_idx,
@@ -324,6 +334,18 @@ impl DataflowValidator {
         })
     }
 
+    /// Validates that, without the Loops, the Dataflow is a Directed Acyclic Graph.
+    pub(crate) fn validate_dag(&self) -> ZFResult<()> {
+        match petgraph::algo::is_cyclic_directed(&self.graph_checker) {
+            true => Err(ZFError::InvalidData(
+                "The dataflow contains a cycle, please use the \
+                 `Loops` section to express this behavior."
+                    .into(),
+            )),
+            false => Ok(()),
+        }
+    }
+
     /// Validate that the deadline can be enforced.
     ///
     /// In particular, we check that there is a path between the "from.output" and "to.input" nodes.
@@ -334,19 +356,16 @@ impl DataflowValidator {
     /// 1) Isolate the incoming edge (singular!) that ends at the "to" node,
     /// 2) Get the index, in `graph_checker`, of the node that is at the origin of edge that we
     ///    isolated in step 1). This node is the node *before* the "to" node.
-    ///
     /// 3) Isolate the outgoing edges that start at the "from" node.
     /// 4) For all the nodes that are at the end of all the edges isolated in step 3) (i.e. all
     ///    nodes that are *after* the "from" node for the provided port) check that there is a path
     ///    connecting them. If there is a path then the deadline is valid.
-    ///
-    /// NOTE: . Hence the extra steps.
     pub(crate) fn validate_deadline(
         &self,
         from: &OutputDescriptor,
         to: &InputDescriptor,
     ) -> ZFResult<()> {
-        let to_idx = self
+        let (_, to_idx) = self
             .map_id_to_graph_checker_idx
             .get(&to.node)
             .ok_or_else(|| ZFError::NodeNotFound(to.node.clone()))?;
@@ -365,7 +384,7 @@ impl DataflowValidator {
         let (_, _, edge_idx) = to_edges[0].weight();
         let (to_prev_idx, _) = self.graph_checker.edge_endpoints(*edge_idx).unwrap();
 
-        let from_idx = self
+        let (_, from_idx) = self
             .map_id_to_graph_checker_idx
             .get(&from.node)
             .ok_or_else(|| ZFError::NodeNotFound(from.node.clone()))?;
@@ -405,5 +424,133 @@ impl DataflowValidator {
                 (to.node.clone(), to.input.clone()),
             )))
         }
+    }
+
+    /// Validate that the Loop respects the constraints we impose.
+    ///
+    /// 1. The Ingress should have only one output.
+    /// 2. The Egress should have only one input.
+    /// 3. The `feedback_port` should not already exist for the Ingress and the Egress.
+    /// 4. The Ingress should be an Operator.
+    /// 5. The Egress should be an Operator.
+    /// 6. No path should exist between the Ingress and Egress — excluding other loops.
+    /// 7. The Ingress should not be involved in another loop as Ingress or Egress.
+    /// 8. The Egress should not be involved in another loop as Ingress or Egress.
+    pub(crate) fn validate_loop(
+        &mut self,
+        ingress: &NodeId,
+        egress: &NodeId,
+        feedback_port: &PortId,
+    ) -> ZFResult<()> {
+        // Feedback port should not exist for both ingress and egress.
+        let ingress_port_id = PortUniqueId {
+            node_id: ingress.clone(),
+            port_id: feedback_port.clone(),
+            kind: PortKind::Input,
+        };
+
+        if self
+            .map_id_to_node_checker_idx
+            .contains_key(&ingress_port_id)
+        {
+            return Err(ZFError::InvalidData(format!(
+                "Port < {} > already exists for Ingress < {} >",
+                feedback_port, ingress
+            )));
+        }
+
+        let egress_port_id = PortUniqueId {
+            node_id: egress.clone(),
+            port_id: feedback_port.clone(),
+            kind: PortKind::Output,
+        };
+
+        if self
+            .map_id_to_node_checker_idx
+            .contains_key(&egress_port_id)
+        {
+            return Err(ZFError::InvalidData(format!(
+                "Port < {} > already exists for Egress < {} >",
+                feedback_port, egress
+            )));
+        }
+
+        // Ingress must be an Operator and must have a single output.
+        let (ingress_kind, ingress_idx) = self
+            .map_id_to_graph_checker_idx
+            .get(ingress)
+            .ok_or_else(|| ZFError::NodeNotFound(ingress.clone()))?;
+
+        if *ingress_kind != NodeKind::Operator {
+            return Err(ZFError::InvalidData(format!(
+                "Ingress < {} > is not an Operator, found: {:?}",
+                ingress, ingress_kind
+            )));
+        }
+
+        if self
+            .graph_checker
+            .edges_directed(*ingress_idx, petgraph::Outgoing)
+            .count()
+            > 1
+        {
+            return Err(ZFError::InvalidData(format!(
+                "Ingress < {} > has more than one output",
+                ingress
+            )));
+        }
+
+        // Egress must be an Operator and must have a single input.
+        let (egress_kind, egress_idx) = self
+            .map_id_to_graph_checker_idx
+            .get(egress)
+            .ok_or_else(|| ZFError::NodeNotFound(egress.clone()))?;
+
+        if *egress_kind != NodeKind::Operator {
+            return Err(ZFError::InvalidData(format!(
+                "Egress < {} > is not an Operator, found: {:?}",
+                egress, egress_kind
+            )));
+        }
+
+        if self
+            .graph_checker
+            .edges_directed(*egress_idx, petgraph::Incoming)
+            .count()
+            > 1
+        {
+            return Err(ZFError::InvalidData(format!(
+                "Egress < {} > has more than one output",
+                egress
+            )));
+        }
+
+        // No path should exist going from the Egress to the Ingress.
+        if petgraph::algo::has_path_connecting(&self.graph_checker, *egress_idx, *ingress_idx, None)
+        {
+            return Err(ZFError::InvalidData(format!(
+                "The loop between < {} > and < {} > is not backward, please create a link instead",
+                ingress, egress
+            )));
+        }
+
+        // We only authorize a single loop per Ingress / Egress.
+        if !self.loops_node_ids.insert(ingress.clone()) {
+            return Err(ZFError::InvalidData(format!(
+                "Ingress < {} > is already used in another loop",
+                ingress
+            )));
+        }
+
+        if !self.loops_node_ids.insert(egress.clone()) {
+            // Remove the ingress from the HashSet as we are about to return an Error.
+            self.loops_node_ids.remove(ingress);
+            return Err(ZFError::InvalidData(format!(
+                "Egress < {} > is already used in another loop",
+                egress
+            )));
+        }
+
+        Ok(())
     }
 }

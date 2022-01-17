@@ -13,23 +13,23 @@
 //
 
 use crate::runtime::deadline::E2EDeadlineMiss;
-use crate::{Data, DataMessage, PortId};
+use crate::{Data, DataMessage, LoopContext, PortId};
 use std::collections::HashMap;
 use uhlc::Timestamp;
 
 #[derive(Clone)]
-pub struct Tokens {
-    pub(crate) map: HashMap<PortId, Token>,
+pub struct InputTokens {
+    pub(crate) map: HashMap<PortId, InputToken>,
 }
 
-impl Tokens {
+impl InputTokens {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             map: HashMap::with_capacity(capacity),
         }
     }
 
-    pub fn get_mut(&mut self, port_id: &PortId) -> Option<&mut Token> {
+    pub fn get_mut(&mut self, port_id: &PortId) -> Option<&mut InputToken> {
         self.map.get_mut(port_id)
     }
 }
@@ -52,39 +52,12 @@ impl std::fmt::Display for TokenAction {
 }
 
 #[derive(Debug, Clone)]
-pub struct ReadyToken {
+pub struct DataToken {
     pub(crate) data: DataMessage,
     pub(crate) action: TokenAction,
 }
 
-impl ReadyToken {
-    /// Tell Zenoh Flow to immediately discard the data.
-    ///
-    /// The data associated to the `Token` will be immediately discarded, regardless of the result
-    /// of the `Input Rule`. Hence, even if the `Input Rule` return `True` (indicating the `Run`
-    /// method will be called), the data **will not** be transmitted.
-    pub fn set_action_drop(&mut self) {
-        self.action = TokenAction::Drop
-    }
-
-    /// Tell Zenoh Flow to use the data in the "next" run and keep it.
-    ///
-    /// The data associated to the `Token` will be transmitted to the `Run` method of the `Operator`
-    /// the next time `Run` is called, i.e. the next time the `Input Rule` returns `True`.
-    /// Once `Run` is over, the data is kept, _preventing data from being received on that link_.
-    pub fn set_action_keep(&mut self) {
-        self.action = TokenAction::Keep
-    }
-
-    /// (default) Tell Zenoh Flow to use the data in the "next" run and drop it after.
-    ///
-    /// The data associated to the `Token` will be transmitted to the `Run` method of the `Operator`
-    /// the next time `Run` is called, i.e. the next time the `Input Rule` returns `True`.
-    /// Once `Run` is over, the data is dropped, allowing for data to be received on that link.
-    pub fn set_action_consume(&mut self) {
-        self.action = TokenAction::Consume
-    }
-
+impl DataToken {
     pub fn get_action(&self) -> &TokenAction {
         &self.action
     }
@@ -100,29 +73,74 @@ impl ReadyToken {
     pub fn get_missed_end_to_end_deadlines(&self) -> &[E2EDeadlineMiss] {
         &self.data.missed_end_to_end_deadlines
     }
+
+    pub fn get_loop_contexts(&self) -> &[LoopContext] {
+        self.data.get_loop_contexts()
+    }
 }
 
 #[derive(Debug, Clone)]
-pub enum Token {
+pub enum InputToken {
     Pending,
-    Ready(ReadyToken),
+    Ready(DataToken),
 }
 
-impl Token {
+impl InputToken {
     pub(crate) fn should_drop(&self) -> bool {
-        if let Token::Ready(token_ready) = self {
-            if let TokenAction::Drop = token_ready.action {
+        if let InputToken::Ready(data_token) = self {
+            if let TokenAction::Drop = data_token.action {
                 return true;
             }
         }
 
         false
     }
+
+    /// Tell Zenoh Flow to immediately discard the data.
+    ///
+    /// The data associated to the `InputToken` will be immediately discarded, regardless of the
+    /// result of the `Input Rule`. Hence, even if the `Input Rule` return `True` (indicating the
+    /// `Run` method will be called), the data **will not** be transmitted.
+    ///
+    /// This method will do nothing if the `InputToken` is a `InputToken::Pending`.
+    pub fn set_action_drop(&mut self) {
+        if let InputToken::Ready(data_token) = self {
+            data_token.action = TokenAction::Drop;
+        }
+    }
+
+    /// Tell Zenoh Flow to use the data in the "next" run and keep it.
+    ///
+    /// The data associated to the `InputToken` will be transmitted to the `Run` method of the
+    /// `Operator` the next time `Run` is called, i.e. the next time the `Input Rule` returns
+    /// `True`. Once `Run` is over, the data is kept, _preventing data from being received on that
+    /// link_.
+    ///
+    /// This method will do nothing if the `InputToken` is a `InputToken::Pending`.
+    pub fn set_action_keep(&mut self) {
+        if let InputToken::Ready(data_token) = self {
+            data_token.action = TokenAction::Keep;
+        }
+    }
+
+    /// (default) Tell Zenoh Flow to use the data in the "next" run and drop it after.
+    ///
+    /// The data associated to the `InputToken` will be transmitted to the `Run` method of the
+    /// `Operator` the next time `Run` is called, i.e. the next time the `Input Rule` returns
+    /// `True`. Once `Run` is over, the data is dropped, allowing for data to be received on that
+    /// link.
+    ///
+    /// This method will do nothing if the `InputToken` is a `InputToken::Pending`.
+    pub fn set_action_consume(&mut self) {
+        if let InputToken::Ready(data_token) = self {
+            data_token.action = TokenAction::Consume;
+        }
+    }
 }
 
-impl From<DataMessage> for Token {
+impl From<DataMessage> for InputToken {
     fn from(data_message: DataMessage) -> Self {
-        Self::Ready(ReadyToken {
+        Self::Ready(DataToken {
             data: data_message,
             action: TokenAction::Consume,
         })

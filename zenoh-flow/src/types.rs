@@ -14,7 +14,7 @@
 
 use crate::async_std::sync::Arc;
 use crate::serde::{Deserialize, Serialize};
-use crate::{ControlMessage, DataMessage, Token, ZFData, ZFState};
+use crate::{ControlMessage, DataMessage, InputToken, ZFData, ZFState};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -204,12 +204,12 @@ pub fn default_output_rule(
 
 pub fn default_input_rule(
     _state: &mut State,
-    tokens: &mut HashMap<PortId, Token>,
+    tokens: &mut HashMap<PortId, InputToken>,
 ) -> ZFResult<bool> {
     for token in tokens.values() {
         match token {
-            Token::Ready(_) => continue,
-            Token::Pending => return Ok(false),
+            InputToken::Ready(_) => continue,
+            InputToken::Pending => return Ok(false),
         }
     }
 

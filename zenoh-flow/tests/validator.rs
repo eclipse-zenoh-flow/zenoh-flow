@@ -898,3 +898,968 @@ fn validate_ko_reverse_deadline() {
         )))
     )
 }
+
+//            ┌───┐    ┌───┐    ┌───┐    ┌───┐
+//  Source ──►│ A ├───►│ B ├───►│ C ├───►│ D ├──► Sink
+//            └───┘    └───┘    └─┬─┘    └─┬─┘
+//             ▲         ▲ finite │        │
+//             │         └────────┘        │
+//             │                           │
+//             │      infinite             │
+//             └───────────────────────────┘
+static DESCRIPTOR_OK_LOOP: &str = r#"
+flow: LoopOK
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+- id : B
+  uri: file://./B.dylib
+  inputs:
+    - id: in-B
+      type: any
+  outputs:
+    - id: out-B
+      type: any
+- id: C
+  uri: file://./C.dylib
+  inputs:
+    - id: in-C
+      type: any
+  outputs:
+    - id: out-C
+      type: any
+- id: D
+  uri: file://./D.dylib
+  inputs:
+    - id: in-D
+      type: any
+  outputs:
+    - id: out-D
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : B
+    input : in-B
+- from:
+    node : B
+    output : out-B
+  to:
+    node : C
+    input : in-C
+- from:
+    node : C
+    output : out-C
+  to:
+    node : D
+    input : in-D
+- from:
+    node : D
+    output : out-D
+  to:
+    node : Sink
+    input : in-Sink
+
+loops:
+- ingress: A
+  egress: D
+  feedback_port: feedback-AD
+  is_infinite: false
+  port_type: any
+- ingress: B
+  egress: C
+  feedback_port: feedback-BC
+  is_infinite: true
+  port_type: any
+"#;
+
+#[test]
+fn validate_ok_loop() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_OK_LOOP);
+    assert!(r.is_ok(), "Expecting ok, have err: {:?}", r)
+}
+
+// Operator A has two outputs, it cannot be an Ingress
+static DESCRIPTOR_KO_LOOP_INGRESS_MULTIPLE_OUTPUTS: &str = r#"
+flow: Loop-KO-Ingress-multiple outputs
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+    - id: out-A-error
+      type: any
+- id : B
+  uri: file://./B.dylib
+  inputs:
+    - id: in-B
+      type: any
+    - id: in-B-error
+      type: any
+  outputs:
+    - id: out-B
+      type: any
+- id: C
+  uri: file://./C.dylib
+  inputs:
+    - id: in-C
+      type: any
+  outputs:
+    - id: out-C
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : B
+    input : in-B
+- from:
+    node : A
+    output : out-A-error
+  to:
+    node : B
+    input : in-B-error
+- from:
+    node : B
+    output : out-B
+  to:
+    node : C
+    input : in-C
+- from:
+    node : C
+    output : out-C
+  to:
+    node : Sink
+    input : in-Sink
+
+loops:
+- ingress: A
+  egress: C
+  feedback_port: feedback-AC
+  is_infinite: false
+  port_type: any
+"#;
+
+#[test]
+fn validate_ko_loop_ingress_multiple_outputs() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_LOOP_INGRESS_MULTIPLE_OUTPUTS);
+    assert!(
+        r.is_err(),
+        "Expecting err 'Ingress, multiple outputs', have: {:?}",
+        r
+    )
+}
+
+// Operator C has two outputs, it cannot be an Egress
+static DESCRIPTOR_KO_LOOP_EGRESS_MULTIPLE_INPUTS: &str = r#"
+flow: Loop-KO-Egress-multiple-inputs
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+- id : Source-error
+  uri: file://./source-error.dylib
+  output:
+    id: out-Source-error
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+- id : B
+  uri: file://./B.dylib
+  inputs:
+    - id: in-B
+      type: any
+  outputs:
+    - id: out-B
+      type: any
+- id: C
+  uri: file://./C.dylib
+  inputs:
+    - id: in-C
+      type: any
+    - id: in-C-error
+      type: any
+  outputs:
+    - id: out-C
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : B
+    input : in-B
+- from:
+    node : B
+    output : out-B
+  to:
+    node : C
+    input : in-C
+- from:
+    node : C
+    output : out-C
+  to:
+    node : Sink
+    input : in-Sink
+- from:
+    node : Source-error
+    output : out-Source-error
+  to:
+    node : C
+    input : in-C-error
+
+loops:
+- ingress: A
+  egress: C
+  feedback_port: feedback-AC
+  is_infinite: false
+  port_type: any
+"#;
+
+#[test]
+fn validate_ko_loop_egress_multiple_inputs() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_LOOP_EGRESS_MULTIPLE_INPUTS);
+    assert!(
+        r.is_err(),
+        "Expecting err 'Egress, multiple inputs', have: {:?}",
+        r
+    )
+}
+
+// Operator A already has an input port called "feedback-AC".
+static DESCRIPTOR_KO_LOOP_INGRESS_PORT_ALREADY_EXISTS: &str = r#"
+flow: Loop-KO-Ingress-port-already-exists
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+    - id: feedback-AC
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+- id : B
+  uri: file://./B.dylib
+  inputs:
+    - id: in-B
+      type: any
+  outputs:
+    - id: out-B
+      type: any
+- id: C
+  uri: file://./C.dylib
+  inputs:
+    - id: in-C
+      type: any
+  outputs:
+    - id: out-C
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : feedback-AC
+- from:
+    node : A
+    output : out-A
+  to:
+    node : B
+    input : in-B
+- from:
+    node : B
+    output : out-B
+  to:
+    node : C
+    input : in-C
+- from:
+    node : C
+    output : out-C
+  to:
+    node : Sink
+    input : in-Sink
+
+loops:
+- ingress: A
+  egress: C
+  feedback_port: feedback-AC
+  is_infinite: false
+  port_type: any
+"#;
+
+#[test]
+fn validate_ko_loop_ingress_port_already_taken() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_LOOP_INGRESS_PORT_ALREADY_EXISTS);
+    assert!(
+        r.is_err(),
+        "Expecting err 'Ingress, port already exists', have: {:?}",
+        r
+    )
+}
+
+// Operator C already has an output port called "feedback-AC".
+static DESCRIPTOR_KO_LOOP_EGRESS_PORT_ALREADY_EXISTS: &str = r#"
+flow: Loop-KO-Egress-port-already-exists
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+- id : B
+  uri: file://./B.dylib
+  inputs:
+    - id: in-B
+      type: any
+  outputs:
+    - id: out-B
+      type: any
+- id: C
+  uri: file://./C.dylib
+  inputs:
+    - id: in-C
+      type: any
+  outputs:
+    - id: out-C
+      type: any
+    - id: feedback-AC
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+  - id : Sink-2
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink-2
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : B
+    input : in-B
+- from:
+    node : B
+    output : out-B
+  to:
+    node : C
+    input : in-C
+- from:
+    node : C
+    output : out-C
+  to:
+    node : Sink
+    input : in-Sink
+- from:
+    node : C
+    output : feedback-AC
+  to:
+    node : Sink-2
+    input : in-Sink-2
+
+loops:
+- ingress: A
+  egress: C
+  feedback_port: feedback-AC
+  is_infinite: false
+  port_type: any
+"#;
+
+#[test]
+fn validate_ko_loop_egress_port_already_exists() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_LOOP_EGRESS_PORT_ALREADY_EXISTS);
+    assert!(
+        r.is_err(),
+        "Expecting err 'Egress, port already exists', have: {:?}",
+        r
+    )
+}
+
+static DESCRIPTOR_KO_LOOP_INGRESS_MUST_BE_OPERATOR: &str = r#"
+flow: Loop-KO-Ingress-not-operator
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : Sink
+    input : in-Sink
+
+loops:
+- ingress: Source
+  egress: A
+  feedback_port: feedback-Source-A
+  is_infinite: false
+  port_type: any
+"#;
+
+#[test]
+fn validate_ko_loop_ingress_must_be_operator() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_LOOP_INGRESS_MUST_BE_OPERATOR);
+    assert!(
+        r.is_err(),
+        "Expecting err 'Ingress must be an Operator', have: {:?}",
+        r
+    )
+}
+
+static DESCRIPTOR_KO_LOOP_EGRESS_MUST_BE_OPERATOR: &str = r#"
+flow: Loop-KO-Egress-not-operator
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : Sink
+    input : in-Sink
+
+loops:
+- ingress: A
+  egress: Sink
+  feedback_port: feedback-A-Sink
+  is_infinite: false
+  port_type: any
+"#;
+
+#[test]
+fn validate_ko_loop_egress_must_be_operator() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_LOOP_EGRESS_MUST_BE_OPERATOR);
+    assert!(
+        r.is_err(),
+        "Expecting err 'Egress must be an Operator', have: {:?}",
+        r
+    )
+}
+
+static DESCRIPTOR_KO_CYCLE_OUTSIDE_LOOPS_SECTION: &str = r#"
+flow: Loop-KO-Egress-not-operator
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+    - id: feedback-AB
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+- id : B
+  uri: file://./B.dylib
+  inputs:
+    - id: in-B
+      type: any
+  outputs:
+    - id: out-B
+      type: any
+    - id: feedback-AB
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : B
+    input : in-B
+- from:
+    node : B
+    output : feedback-AB
+  to:
+    node : A
+    input : feedback-AB
+- from:
+    node : B
+    output : out-B
+  to:
+    node : Sink
+    input : in-Sink
+"#;
+
+#[test]
+fn validate_ko_cycle_outside_loops_section() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_CYCLE_OUTSIDE_LOOPS_SECTION);
+    assert!(
+        r.is_err(),
+        "Expecting err 'The dataflow contains a cycle, please use the `Loops` section to express this behavior.', have: {:?}",
+        r
+    )
+}
+
+static DESCRIPTOR_KO_INGRESS_REUSED: &str = r#"
+flow: Loop-KO-Ingress-reused
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+- id : B
+  uri: file://./B.dylib
+  inputs:
+    - id: in-B
+      type: any
+  outputs:
+    - id: out-B
+      type: any
+- id : C
+  uri: file://./C.dylib
+  inputs:
+    - id: in-C
+      type: any
+  outputs:
+    - id: out-C
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : B
+    input : in-B
+- from:
+    node : B
+    output : out-B
+  to:
+    node : C
+    input : in-C
+- from:
+    node : C
+    output : out-C
+  to:
+    node : Sink
+    input : in-Sink
+
+loops:
+- ingress: A
+  egress: B
+  feedback_port: feedback-AB
+  is_infinite: false
+  port_type: any
+- ingress: A
+  egress: C
+  feedback_port: feedback-AC
+  is_infinite: false
+  port_type: any
+"#;
+
+#[test]
+fn validate_ko_ingress_reused() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_INGRESS_REUSED);
+    assert!(
+        r.is_err(),
+        "Expecting err 'Ingress < A > is already used in another loop', have: {:?}",
+        r
+    )
+}
+
+static DESCRIPTOR_KO_EGRESS_REUSED: &str = r#"
+flow: Loop-KO-Egress-reused
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+- id : B
+  uri: file://./B.dylib
+  inputs:
+    - id: in-B
+      type: any
+  outputs:
+    - id: out-B
+      type: any
+- id : C
+  uri: file://./C.dylib
+  inputs:
+    - id: in-C
+      type: any
+  outputs:
+    - id: out-C
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : B
+    input : in-B
+- from:
+    node : B
+    output : out-B
+  to:
+    node : C
+    input : in-C
+- from:
+    node : C
+    output : out-C
+  to:
+    node : Sink
+    input : in-Sink
+
+loops:
+- ingress: A
+  egress: C
+  feedback_port: feedback-AC
+  is_infinite: false
+  port_type: any
+- ingress: B
+  egress: C
+  feedback_port: feedback-BC
+  is_infinite: false
+  port_type: any
+"#;
+
+#[test]
+fn validate_ko_egress_reused() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_EGRESS_REUSED);
+    assert!(
+        r.is_err(),
+        "Expecting err 'Egress < C > is already used in another loop', have: {:?}",
+        r
+    )
+}
+
+static DESCRIPTOR_KO_EGRESS_REUSED_AS_INGRESS: &str = r#"
+flow: Loop-KO-Egress-reused-as-ingress
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+- id : B
+  uri: file://./B.dylib
+  inputs:
+    - id: in-B
+      type: any
+  outputs:
+    - id: out-B
+      type: any
+- id : C
+  uri: file://./C.dylib
+  inputs:
+    - id: in-C
+      type: any
+  outputs:
+    - id: out-C
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : B
+    input : in-B
+- from:
+    node : B
+    output : out-B
+  to:
+    node : C
+    input : in-C
+- from:
+    node : C
+    output : out-C
+  to:
+    node : Sink
+    input : in-Sink
+
+loops:
+- ingress: A
+  egress: B
+  feedback_port: feedback-AB
+  is_infinite: false
+  port_type: any
+- ingress: B
+  egress: C
+  feedback_port: feedback-BC
+  is_infinite: false
+  port_type: any
+"#;
+
+#[test]
+fn validate_ko_egress_reused_as_ingress() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_EGRESS_REUSED_AS_INGRESS);
+    assert!(
+        r.is_err(),
+        "Expecting err 'Ingress < B > is already used in another loop', have: {:?}",
+        r
+    )
+}
