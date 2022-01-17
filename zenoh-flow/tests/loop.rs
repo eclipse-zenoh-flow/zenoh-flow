@@ -197,7 +197,7 @@ impl Operator for OperatorIngressInner {
             };
 
             let feedback_data = feedback_input.get_inner_data().try_get::<ZFUsize>()?;
-            data = Data::from::<ZFUsize>(ZFUsize(feedback_data.0 + increment));
+            data = Data::from::<ZFUsize>(ZFUsize(feedback_data.0 + increment as usize));
         }
 
         results.insert(OPERATOR_EGRESS_INNER.into(), data);

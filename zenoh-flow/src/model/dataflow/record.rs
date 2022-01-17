@@ -332,6 +332,8 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
         //
         // We finally add the loop information to the Ingress and Egress.
         if let Some(loops) = d.loops {
+            // Ciclo is the italian word for "loop" — we cannot use "loop" as it’s a reserved
+            // keyword.
             for ciclo in loops {
                 // Update the ingress / egress.
                 let ingress = dfr

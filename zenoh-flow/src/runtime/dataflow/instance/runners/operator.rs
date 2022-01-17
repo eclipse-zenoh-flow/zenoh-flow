@@ -116,6 +116,7 @@ pub struct OperatorRunner {
     pub(crate) local_deadline: Option<Duration>,
     pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
     pub(crate) is_running: Arc<Mutex<bool>>,
+    // Ciclo is the italian word for "loop" — we cannot use "loop" as it’s a reserved keyword.
     pub(crate) ciclo: Option<LoopDescriptor>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
@@ -435,14 +436,13 @@ impl OperatorRunner {
             log::debug!("Sending on port < {} >…", port_id);
 
             if let Some(link_senders) = io.outputs.get(port_id) {
-                let mut loop_contexts = loop_contexts_to_propagate.clone();
-
                 // Loop management: the node is an Egress, depending on which output the message
                 // is sent, we need to either update the LoopContext or remove it.
                 //
                 // CAVEAT: both options are possible at the same time! A message can be sent on
-                // the feedback link and on another output. We thus need to perform the clone
-                // above.
+                // the feedback link and on another output. We thus need to clone.
+                let mut loop_contexts = loop_contexts_to_propagate.clone();
+
                 if let Some(ciclo) = &self.ciclo {
                     if ciclo.egress == self.id {
                         if *port_id != ciclo.feedback_port {

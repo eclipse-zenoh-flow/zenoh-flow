@@ -38,7 +38,7 @@ pub struct LoopContext {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum LoopIteration {
-    Finite(usize),
+    Finite(u64),
     Infinite,
 }
 
@@ -65,7 +65,11 @@ impl LoopContext {
 
     pub(crate) fn update_egress(&mut self, now: Timestamp) {
         if let LoopIteration::Finite(counter) = self.iteration {
-            self.iteration = LoopIteration::Finite(counter + 1);
+            let (iteration, has_overflowed) = counter.overflowing_add(1);
+            if has_overflowed {
+                log::error!("LoopIteration counter overflowed for Loop: {:?}", self);
+            }
+            self.iteration = LoopIteration::Finite(iteration);
         }
 
         self.duration_last_iteration = self

@@ -131,6 +131,7 @@ pub struct OperatorRecord {
     pub(crate) configuration: Option<Configuration>,
     pub(crate) deadline: Option<Duration>,
     pub(crate) runtime: RuntimeId,
+    // Ciclo is the italian word for "loop" — we cannot use "loop" as it’s a reserved keyword.
     pub(crate) ciclo: Option<LoopDescriptor>,
 }
 
