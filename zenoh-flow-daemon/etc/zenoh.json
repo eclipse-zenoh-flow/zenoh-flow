@@ -1,0 +1,32 @@
+{
+    "listeners": ["tcp/0.0.0.0:7887"],
+    "link_state":true,
+    "plugins_search_dirs":["/usr/lib/"],
+    "plugins":{
+        "storages":{
+        "required":true,
+        "backends":{
+            "memory":{
+                "required":true,
+                "storages":{
+                    "zfrpc":{
+                        "key_expr":"/zf/runtime/**"
+                        },
+                        "zf":{
+                            "key_expr":"/zenoh-flow/**"
+                           }
+                    }
+                }//,
+            // "influxdb":{
+            //     "url":"http://localhost:8086",
+            //     "db":"zf_log_example",
+            //     "storages":{
+            //         "replay":{
+            //             "key_expr":"/zf/record/**"
+            //             }
+            //         }
+            //     }
+            }
+        }
+    }
+}
