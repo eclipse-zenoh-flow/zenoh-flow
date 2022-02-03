@@ -24,6 +24,7 @@ use crate::runtime::InstanceContext;
 use crate::{NodeId, PortId, PortType, ZFError, ZFResult};
 use async_trait::async_trait;
 use futures::prelude::*;
+use zenoh::publication::CongestionControl;
 
 #[derive(Clone)]
 pub struct ZenohSender {
@@ -74,6 +75,7 @@ impl ZenohSender {
                     .runtime
                     .session
                     .put(&self.record.resource, serialized)
+                    .congestion_control(CongestionControl::Block)
                     .await?;
             }
         } else {
