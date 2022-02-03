@@ -33,7 +33,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use zenoh_util::sync::Signal;
+use zenoh_sync::Signal;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RunnerKind {

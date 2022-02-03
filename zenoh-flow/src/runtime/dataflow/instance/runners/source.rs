@@ -30,6 +30,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::time::Duration;
 use uhlc::{Timestamp, NTP64};
+use zenoh::publication::CongestionControl;
 
 #[cfg(target_family = "unix")]
 use libloading::os::unix::Library;
@@ -142,6 +143,7 @@ impl SourceRunner {
             .runtime
             .session
             .put(&resource_name, serialized)
+            .congestion_control(CongestionControl::Block)
             .await?;
 
         Ok(())
