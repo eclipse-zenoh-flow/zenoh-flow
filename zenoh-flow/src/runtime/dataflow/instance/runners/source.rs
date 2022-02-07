@@ -29,7 +29,6 @@ use crate::{
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::time::Duration;
-use uhlc::{Timestamp, NTP64};
 use zenoh::publication::CongestionControl;
 
 #[cfg(target_family = "unix")]
@@ -96,32 +95,6 @@ impl SourceRunner {
         })
     }
 
-    fn new_maybe_periodic_timestamp(&self) -> Timestamp {
-        let mut timestamp = self.context.runtime.hlc.new_timestamp();
-        log::debug!("Timestamp generated: {:?}", timestamp);
-
-        if let Some(period) = &self.period {
-            let period_us = period.as_secs_f64();
-            let orig_timestamp_us = timestamp.get_time().to_duration().as_secs_f64();
-
-            let nb_period_floored = f64::floor(orig_timestamp_us / period_us);
-            let periodic_timestamp_us = Duration::from_secs_f64(period_us * nb_period_floored);
-
-            timestamp = Timestamp::new(
-                NTP64::from(periodic_timestamp_us),
-                timestamp.get_id().to_owned(),
-            );
-            log::debug!(
-                "Periodic timestamp: {:?} — period = {:?} — original = {:?}",
-                periodic_timestamp_us,
-                period_us,
-                orig_timestamp_us,
-            );
-        }
-
-        timestamp
-    }
-
     async fn record(&self, message: Arc<Message>) -> ZFResult<()> {
         log::debug!("ZenohLogger IN <= {:?} ", message);
         let recording = self.is_recording.lock().await;
@@ -156,7 +129,7 @@ impl SourceRunner {
         // Running
         let output = self.source.run(&mut context, &mut state).await?;
 
-        let timestamp = self.new_maybe_periodic_timestamp();
+        let timestamp = self.context.runtime.hlc.new_timestamp();
 
         let e2e_deadlines = self
             .end_to_end_deadlines
@@ -325,6 +298,9 @@ impl Runner for SourceRunner {
                         ctx
                     );
                     context = ctx;
+                    if let Some(p) = self.period {
+                        async_std::task::sleep(p).await;
+                    }
                     continue;
                 }
                 Err(e) => {
@@ -340,3 +316,7 @@ impl Runner for SourceRunner {
 #[cfg(test)]
 #[path = "./tests/source_e2e_deadline_tests.rs"]
 mod e2e_deadline_tests;
+
+#[cfg(test)]
+#[path = "./tests/source_periodic_test.rs"]
+mod periodic_tests;
