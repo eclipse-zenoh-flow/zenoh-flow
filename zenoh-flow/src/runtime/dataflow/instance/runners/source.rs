@@ -325,6 +325,9 @@ impl Runner for SourceRunner {
                         ctx
                     );
                     context = ctx;
+                    if let Some(p) = self.period {
+                        async_std::task::sleep(p).await;
+                    }
                     continue;
                 }
                 Err(e) => {
@@ -340,3 +343,7 @@ impl Runner for SourceRunner {
 #[cfg(test)]
 #[path = "./tests/source_e2e_deadline_tests.rs"]
 mod e2e_deadline_tests;
+
+#[cfg(test)]
+#[path = "./tests/source_periodic_test.rs"]
+mod periodic_tests;
