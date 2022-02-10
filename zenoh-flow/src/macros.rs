@@ -18,9 +18,57 @@
 /// Example:
 ///
 /// ```no_run
+/// use std::collections::HashMap;
 /// use async_std::sync::Arc;
-/// use zenoh_flow::{ZFResult, Operator, export_operator};
+/// use zenoh_flow::{ZFResult, Operator, export_operator, Node, zf_empty_state,
+///     State, Configuration, Context, DataMessage, default_input_rule,
+///     default_output_rule, PortId, InputToken, LocalDeadlineMiss,
+///     NodeOutput, Data};
+///
+/// pub struct MyOperator;
+///
+/// impl Node for MyOperator {
+///     fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+///         zf_empty_state!()
+///     }
+///
+///     fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+///         Ok(())
+///     }
+/// }
+///
+/// impl Operator for MyOperator {
+///     fn input_rule(
+///         &self,
+///         _context: &mut Context,
+///         state: &mut State,
+///         tokens: &mut HashMap<PortId, InputToken>
+///     ) -> ZFResult<bool> {
+///         default_input_rule(state, tokens)
+///     }
+///
+///     fn run(
+///         &self,
+///         context: &mut Context,
+///         state: &mut State,
+///         inputs: &mut HashMap<PortId, DataMessage>,
+///      ) -> ZFResult<HashMap<PortId, Data>> {
+///         panic!("Not implemented...")
+///      }
+///
+///     fn output_rule(
+///        &self,
+///        _context: &mut Context,
+///        state: &mut State,
+///        outputs: HashMap<PortId, Data>,
+///        _deadline_miss: Option<LocalDeadlineMiss>,
+///      ) -> ZFResult<HashMap<PortId, NodeOutput>> {
+///         default_output_rule(state, outputs)
+///      }
+/// }
+///
 /// export_operator!(register);
+///
 ///
 ///
 /// fn register() -> ZFResult<Arc<dyn Operator>> {
@@ -49,8 +97,29 @@ macro_rules! export_operator {
 /// Example:
 ///
 /// ```no_run
+/// use async_trait::async_trait;
 /// use async_std::sync::Arc;
-/// use zenoh_flow::{ZFResult, Source, export_source};
+/// use zenoh_flow::{ZFResult, Source, export_source, Node, zf_empty_state,
+///     State, Configuration, Context, Data};
+///
+/// pub struct MySource;
+///
+/// impl Node for MySource {
+///     fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+///         zf_empty_state!()
+///     }
+///
+///     fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+///         Ok(())
+///     }
+/// }
+///
+/// #[async_trait]
+/// impl Source for MySource {
+///     async fn run(&self, _context: &mut Context, _state: &mut State) -> ZFResult<Data> {
+///         panic!("Not implemented...")
+///     }
+/// }
 ///
 /// export_source!(register);
 ///
@@ -81,8 +150,29 @@ macro_rules! export_source {
 /// Example:
 ///
 /// ```no_run
+/// use async_trait::async_trait;
 /// use async_std::sync::Arc;
-/// use zenoh_flow::{ZFResult, Sink, export_sink};
+/// use zenoh_flow::{ZFResult, Sink, export_sink, Node, zf_empty_state,
+///     State, Configuration, Context, DataMessage};
+///
+/// pub struct MySink;
+///
+/// impl Node for MySink {
+///     fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+///         zf_empty_state!()
+///     }
+///
+///     fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+///         Ok(())
+///     }
+/// }
+///
+/// #[async_trait]
+/// impl Sink for MySink {
+///     async fn run(&self, _context: &mut Context, _state: &mut State, _input : DataMessage)  -> ZFResult<()> {
+///         Ok(())
+///     }
+/// }
 ///
 /// export_sink!(register);
 ///
@@ -127,6 +217,8 @@ macro_rules! zf_spin_lock {
 /// Example:
 ///
 /// ```no_run
+/// use zenoh_flow::{zf_empty_state, Node, ZFResult, State, Configuration};
+///
 /// struct MyOp;
 ///
 ///

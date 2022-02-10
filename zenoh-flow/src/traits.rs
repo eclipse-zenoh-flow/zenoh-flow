@@ -30,6 +30,7 @@ use std::fmt::Debug;
 ///
 /// Example::
 /// ```no_run
+/// use zenoh_flow::zenoh_flow_derive::ZFData;
 /// #[derive(Debug, Clone, ZFData)]
 /// pub struct MyString(pub String);
 /// ```
@@ -48,6 +49,11 @@ pub trait DowncastAny {
 ///
 /// Example:
 /// ```no_run
+/// use zenoh_flow::zenoh_flow_derive::ZFData;
+/// use zenoh_flow::ZFData;
+///
+/// #[derive(Debug, Clone, ZFData)]
+/// pub struct MyString(pub String);
 /// impl ZFData for MyString {
 ///     fn try_serialize(&self) -> zenoh_flow::ZFResult<Vec<u8>> {
 ///         Ok(self.0.as_bytes().to_vec())
@@ -66,12 +72,19 @@ pub trait ZFData: DowncastAny + Debug + Send + Sync {
 ///
 /// Example:
 /// ```no_run
+///
+/// use zenoh_flow::{Deserializable, ZFResult, ZFError};
+/// use zenoh_flow::zenoh_flow_derive::ZFData;
+///
+/// #[derive(Debug, Clone, ZFData)]
+/// pub struct MyString(pub String);
+///
 /// impl Deserializable for MyString {
 ///     fn try_deserialize(bytes: &[u8]) -> ZFResult<MyString>
 ///     where
 ///         Self: Sized,
 ///     {
-///         Ok(ZFString(
+///         Ok(MyString(
 ///             String::from_utf8(bytes.to_vec()).map_err(|_| ZFError::DeseralizationError)?,
 ///         ))
 ///     }
@@ -94,6 +107,7 @@ pub trait Deserializable {
 /// Example:
 ///
 /// ```no_run
+/// use zenoh_flow::zenoh_flow_derive::ZFState;
 /// #[derive(Debug, Clone, ZFState)]
 /// pub struct MyState;
 /// ```

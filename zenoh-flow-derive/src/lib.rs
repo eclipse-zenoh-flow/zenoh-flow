@@ -19,7 +19,9 @@ use syn::{parse_macro_input, DeriveInput};
 /// in implementing the `DowncastAny` trait.
 ///
 /// Example::
-/// ```no_run
+/// ```no_compile
+/// use zenoh_flow_derive::ZFData;
+///
 /// #[derive(Debug, Clone, ZFData)]
 /// pub struct ZFString(pub String);
 /// ```
@@ -46,7 +48,9 @@ pub fn zf_data_derive(input: TokenStream) -> TokenStream {
 /// in implementing the `ZFState` trait.
 ///
 /// Example:
-/// ```no_run
+/// ```no_compile
+/// use zenoh_flow_derive::ZFState;
+///
 /// #[derive(Debug, Clone, ZFState)]
 /// pub struct MyState;
 /// ```
