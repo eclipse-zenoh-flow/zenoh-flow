@@ -29,8 +29,8 @@ use async_trait::async_trait;
 use std::time::{Duration, Instant};
 use zenoh::prelude::*;
 
-// Using 5ms as default delta, this has proven to be effective on my MacBook.
-static DEFAULT_DELTA_MS: u64 = 5;
+// Using 10ms as default delta, this has proven to be effective on my MacBook.
+static DEFAULT_DELTA_MS: u64 = 10;
 
 // Using 1s as default period.
 static DEFAULT_PERIOD_S: u64 = 1;
