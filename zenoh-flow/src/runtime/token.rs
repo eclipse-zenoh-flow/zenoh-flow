@@ -17,22 +17,39 @@ use crate::{Data, DataMessage, LoopContext, PortId};
 use std::collections::HashMap;
 use uhlc::Timestamp;
 
+/// The Tokens provided to input rules of an operator.
+/// Tokens are indexed by [`PortId`](`PortId`)
+/// *NOTE:* Not yet used.
+/// It will be used instead of the `HashMap<PortId,InputToken>` in
+/// `Operator::input_rule` function.
 #[derive(Clone)]
 pub struct InputTokens {
     pub(crate) map: HashMap<PortId, InputToken>,
 }
 
 impl InputTokens {
+    /// Creates an empty set of token with the given `capacity`.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             map: HashMap::with_capacity(capacity),
         }
     }
 
+    /// Gets a mutable reference to the [`InputToken`](`InputToken`) associated
+    /// to the given `port_id`.
     pub fn get_mut(&mut self, port_id: &PortId) -> Option<&mut InputToken> {
         self.map.get_mut(port_id)
     }
 }
+
+/// The action that can be executed on a token.
+/// Once the Token is created with some data inside,
+/// different actions could be executed by the input rules.
+///
+/// - Consume (default) the data will be consumed when run is triggered
+/// - Drop the data will be dropped
+/// - Keep the data will be kept for the current and the next
+/// time the run is triggered, if can be set back to `Consume` by the user.
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenAction {
@@ -51,6 +68,7 @@ impl std::fmt::Display for TokenAction {
     }
 }
 
+/// The Token containing the data.
 #[derive(Debug, Clone)]
 pub struct DataToken {
     pub(crate) data: DataMessage,
@@ -58,27 +76,35 @@ pub struct DataToken {
 }
 
 impl DataToken {
+    /// Gets the current action for this token.
     pub fn get_action(&self) -> &TokenAction {
         &self.action
     }
 
+    /// Gets a mutable reference to the `Data`.
     pub fn get_data_mut(&mut self) -> &mut Data {
         &mut self.data.data
     }
 
+    /// Gets the token `Timestamp`.
     pub fn get_timestamp(&self) -> &Timestamp {
         &self.data.timestamp
     }
 
+    /// Gets a slice with all `E2EDeadlinesMiss` for this token.
     pub fn get_missed_end_to_end_deadlines(&self) -> &[E2EDeadlineMiss] {
         &self.data.missed_end_to_end_deadlines
     }
 
+    /// Gets a slice with all `LoopContext` for this token.
     pub fn get_loop_contexts(&self) -> &[LoopContext] {
         self.data.get_loop_contexts()
     }
 }
 
+/// The token representing the input.
+/// It can be either containing the data or the information the data is
+/// still pending.
 #[derive(Debug, Clone)]
 pub enum InputToken {
     Pending,
@@ -86,6 +112,7 @@ pub enum InputToken {
 }
 
 impl InputToken {
+    /// Checks if the data should be dropped.
     pub(crate) fn should_drop(&self) -> bool {
         if let InputToken::Ready(data_token) = self {
             if let TokenAction::Drop = data_token.action {

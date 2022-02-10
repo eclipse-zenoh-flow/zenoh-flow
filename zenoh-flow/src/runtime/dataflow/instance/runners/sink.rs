@@ -32,11 +32,14 @@ use libloading::os::unix::Library;
 #[cfg(target_family = "windows")]
 use libloading::Library;
 
-// Do not reorder the fields in this struct.
-// Rust drops fields in a struct in the same order they are declared.
-// Ref: https://doc.rust-lang.org/reference/destructors.html
-// We need the state to be dropped before the sink/lib, otherwise we
-// will have a SIGSEV.
+/// The `SinkRunner` is the component in charge of executing the sink.
+/// It contains all the runtime information for the sink, the graph instance.
+///
+/// Do not reorder the fields in this struct.
+/// Rust drops fields in a struct in the same order they are declared.
+/// Ref: <https://doc.rust-lang.org/reference/destructors.html>
+/// We need the state to be dropped before the sink/lib, otherwise we
+/// will have a SIGSEV.
 #[derive(Clone)]
 pub struct SinkRunner {
     pub(crate) id: NodeId,
@@ -51,6 +54,11 @@ pub struct SinkRunner {
 }
 
 impl SinkRunner {
+    /// Tries to create a new `SinkRunner` using the given
+    /// [`InstanceContext`](`InstanceContext`), [`SinkLoaded`](`SinkLoaded`)
+    /// and [`OperatorIO`](`OperatorIO`).
+    ///
+    /// If fails if the input is not connected.
     pub fn try_new(context: InstanceContext, sink: SinkLoaded, io: OperatorIO) -> ZFResult<Self> {
         let (mut inputs, _) = io.take();
         let port_id = sink.input.port_id.clone();
@@ -74,9 +82,12 @@ impl SinkRunner {
         })
     }
 
+    /// Starts the sink.
     async fn start(&self) {
         *self.is_running.lock().await = true;
     }
+
+    /// A single iteration of the run loop.
     async fn iteration(&self, mut context: Context) -> ZFResult<Context> {
         // Guards are taken at the beginning of each iteration to allow interleaving.
         if let Some(link) = &*self.link.lock().await {

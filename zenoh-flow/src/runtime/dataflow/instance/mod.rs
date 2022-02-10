@@ -33,12 +33,16 @@ use uuid::Uuid;
 
 use self::runners::RunnerManager;
 
+/// The instance of a data flow graph.
+/// It contains runtime information for the instance
+/// and the [`InstanceContext`](`InstanceContext`)
 pub struct DataflowInstance {
     pub(crate) context: InstanceContext,
     pub(crate) runners: HashMap<NodeId, NodeRunner>,
     pub(crate) managers: HashMap<NodeId, RunnerManager>,
 }
 
+/// Creates the [`Link`](`Link`) between the `nodes` using `links`.
 fn create_links(
     nodes: &[NodeId],
     links: &[LinkDescriptor],
@@ -84,6 +88,10 @@ fn create_links(
 }
 
 impl DataflowInstance {
+    /// Tries to instantiate the [`Dataflow`](`Dataflow`)
+    ///
+    /// This function is called by the runtime once the `Dataflow` object was
+    /// created and validated.
     pub fn try_instantiate(dataflow: Dataflow) -> ZFResult<Self> {
         // Gather all node ids to be able to generate (i) the links and (ii) the hash map containing
         // the runners.
@@ -191,18 +199,22 @@ impl DataflowInstance {
         })
     }
 
+    /// Returns the instance's `Uuid`.
     pub fn get_uuid(&self) -> Uuid {
         self.context.instance_id
     }
 
+    /// Returns the instance's `FlowId`.
     pub fn get_flow(&self) -> Arc<str> {
         self.context.flow_id.clone()
     }
 
+    /// Returns a copy of the `InstanceContext`.
     pub fn get_instance_context(&self) -> InstanceContext {
         self.context.clone()
     }
 
+    /// Returns the `NodeId` for all the sources in this instance.
     pub fn get_sources(&self) -> Vec<NodeId> {
         self.runners
             .values()
@@ -211,6 +223,7 @@ impl DataflowInstance {
             .collect()
     }
 
+    /// Returns the `NodeId` for all the sinks in this instance.
     pub fn get_sinks(&self) -> Vec<NodeId> {
         self.runners
             .values()
@@ -219,6 +232,7 @@ impl DataflowInstance {
             .collect()
     }
 
+    /// Returns the `NodeId` for all the sinks in this instance.
     pub fn get_operators(&self) -> Vec<NodeId> {
         self.runners
             .values()
@@ -227,6 +241,7 @@ impl DataflowInstance {
             .collect()
     }
 
+    /// Returns the `NodeId` for all the connectors in this instance.
     pub fn get_connectors(&self) -> Vec<NodeId> {
         self.runners
             .values()
@@ -235,6 +250,7 @@ impl DataflowInstance {
             .collect()
     }
 
+    /// Returns the `NodeId` for all the nodes in this instance.
     pub fn get_nodes(&self) -> Vec<NodeId> {
         self.runners
             .values()
@@ -242,22 +258,37 @@ impl DataflowInstance {
             .collect()
     }
 
+    /// Starts all the sources in this instance.
+    ///
+    /// *Note:* Not implemented.
     pub async fn start_sources(&mut self) -> ZFResult<()> {
         Err(ZFError::Unimplemented)
     }
 
+    /// Starts all the nodes in this instance.
+    ///
+    /// *Note:* Not implemented.
     pub async fn start_nodes(&mut self) -> ZFResult<()> {
         Err(ZFError::Unimplemented)
     }
 
+    /// Stops all the sources in this instance.
+    ///
+    /// *Note:* Not implemented.
     pub async fn stop_sources(&mut self) -> ZFResult<()> {
         Err(ZFError::Unimplemented)
     }
 
+    /// Stops all the sources in this instance.
+    ///
+    /// *Note:* Not implemented.
     pub async fn stop_nodes(&mut self) -> ZFResult<()> {
         Err(ZFError::Unimplemented)
     }
 
+    /// Checks if the given node is running.
+    ///
+    /// If fails if the node is not found.
     pub async fn is_node_running(&self, node_id: &NodeId) -> ZFResult<bool> {
         self.runners
             .get(node_id)
@@ -269,6 +300,9 @@ impl DataflowInstance {
         }
     }
 
+    /// Starts the given node.
+    ///
+    /// If fails if the node is not found.
     pub async fn start_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
         let runner = self
             .runners
@@ -279,6 +313,9 @@ impl DataflowInstance {
         Ok(())
     }
 
+    /// Stops the given node.
+    ///
+    /// If fails if the node is not found or it is not running.
     pub async fn stop_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
         let manager = self
             .managers
@@ -288,6 +325,11 @@ impl DataflowInstance {
         Ok(manager.await?)
     }
 
+    /// Starts the recoding for the given source.
+    ///
+    /// It returns the key expression where the recording is stored.
+    ///
+    /// If fails if the node is not found.
     pub async fn start_recording(&self, node_id: &NodeId) -> ZFResult<String> {
         let manager = self
             .managers
@@ -296,6 +338,11 @@ impl DataflowInstance {
         manager.start_recording().await
     }
 
+    /// Stops the recoding for the given source.
+    ///
+    /// It returns the key expression where the recording is stored.
+    ///
+    /// If fails if the node is not found.
     pub async fn stop_recording(&self, node_id: &NodeId) -> ZFResult<String> {
         let manager = self
             .managers
@@ -305,7 +352,7 @@ impl DataflowInstance {
     }
 
     /// Assumes the source is already stopped before calling the start replay!
-    /// This method is called by the daemon, that always check that the node
+    /// This method is called by the runtime, that always check that the node
     /// is not running prior to call this function.
     /// If someone is using directly the DataflowInstance need to stop and check
     /// if the node is running before calling this function.
@@ -355,6 +402,9 @@ impl DataflowInstance {
         Ok(replay_id)
     }
 
+    /// Stops the recoding for the given source.
+    ///
+    /// If fails if the node is not found.
     pub async fn stop_replay(&mut self, replay_id: &NodeId) -> ZFResult<()> {
         self.stop_node(replay_id).await?;
         self.runners.remove(replay_id);

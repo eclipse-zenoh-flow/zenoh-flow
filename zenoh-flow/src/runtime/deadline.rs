@@ -31,6 +31,8 @@ pub struct LocalDeadlineMiss {
     pub elapsed: Duration,
 }
 
+/// A End to End Deadline.
+/// A deadline can apply for a whole graph or for a subpart of it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct E2EDeadlineMiss {
     pub duration: Duration,
@@ -41,6 +43,9 @@ pub struct E2EDeadlineMiss {
 }
 
 impl E2EDeadlineMiss {
+    /// Creates a new `E2EDeadlineMiss` from an [`E2EDeadline`](`E2EDeadline`)
+    /// and a [`Timestamp`](`Timestamp`).
+    ///
     pub fn new(deadline: &E2EDeadline, end: &Timestamp) -> Self {
         Self {
             duration: deadline.duration,

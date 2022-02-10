@@ -17,37 +17,58 @@ use crate::serde::{Deserialize, Serialize};
 use crate::{ControlMessage, DataMessage, InputToken, ZFData, ZFState};
 use std::collections::HashMap;
 use std::time::Duration;
-
+/// A NodeId identifies a node inside a Zenoh Flow graph
 pub type NodeId = Arc<str>;
+/// A PortId identifies a port within an node.
 pub type PortId = Arc<str>;
+/// A RuntimeId identifies a runtime within the Zenoh Flow infrastructure.
 pub type RuntimeId = Arc<str>;
+/// A FlowId identifies a Zenoh Flow graph within Zenoh Flow
 pub type FlowId = Arc<str>;
+/// The PortType identifies the type of the data expected in a port.
 pub type PortType = Arc<str>;
 
+/// The Zenoh Flow result type.
 pub type ZFResult<T> = Result<T, ZFError>;
 
 pub use crate::ZFError;
 
-/// ZFContext is a structure provided by Zenoh Flow to access the execution context directly from
-/// the nodes.
+/// Context is a structure provided by Zenoh Flow to access
+/// the execution context directly from the nodes.
+/// It contains the `mode` as usize.
 #[derive(Default, Debug)]
 pub struct Context {
     pub mode: usize,
 }
 
+/// The Zenoh Flow data.
+/// It is an `enum` that can contain both the serialized data (if received from
+/// the network, or from operators not written in Rust),
+/// or the actual `Typed` data as [`ZFData`](`ZFData`).
+/// The `Typed` data is never serialized directly when sending over Zenoh
+/// or to an operator not written in Rust.
+///
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Data {
+    /// Serialized data, coming either from Zenoh of from non-rust operator.
     Bytes(Arc<Vec<u8>>),
     #[serde(skip_serializing, skip_deserializing)]
-    // Typed data is never serialized using serde
+    /// Actual data as instance of 'ZFData` coming from a Rust operator.
+    /// This is never serialized directly.
     Typed(Arc<dyn ZFData>),
 }
 
 impl Data {
+    /// Creates a new `Data` from a `Vec<u8>`,
+    /// In order to avoid copies it puts the data inside an `Arc`.
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         Self::Bytes(Arc::new(bytes))
     }
 
+    /// Tries to return a serialized representation of the data.
+    /// It does not actually change the internal representation.
+    /// The serialized representation in stored inside an `Arc`
+    /// to avoid copies.
     pub fn try_as_bytes(&self) -> ZFResult<Arc<Vec<u8>>> {
         match &self {
             Self::Bytes(bytes) => Ok(bytes.clone()),
@@ -60,6 +81,8 @@ impl Data {
         }
     }
 
+    /// Creates a Data from an `Arc` of  typed data.
+    /// The typed data has to be an instance of `ZFData`.
     pub fn from_arc<Typed>(arc: Arc<Typed>) -> Self
     where
         Typed: ZFData + 'static,
@@ -67,6 +90,9 @@ impl Data {
         Self::Typed(arc)
     }
 
+    /// Creates a Data from  typed data.
+    /// The typed data has to be an instance of `ZFData`.
+    /// The data is then stored inside an `Arc` to avoid copies.
     pub fn from<Typed>(typed: Typed) -> Self
     where
         Typed: ZFData + 'static,
@@ -74,6 +100,15 @@ impl Data {
         Self::Typed(Arc::new(typed))
     }
 
+    /// Tries to cast the data to the given type.
+    /// If the data is represented as serialized, this will try to deserialize
+    /// the bytes and change the internal representation of the data.
+    /// If the data is already represented with as `Typed` then is will
+    /// return a *immutable* reference to the internal data.
+    /// This reference in *immutable* because one Output can send data to
+    /// multiple Inputs, therefore to avoid copies the same `Arc` is send
+    /// to multiple operators, this it is multiple-owned and data inside
+    /// cannot be modifed.
     pub fn try_get<Typed>(&mut self) -> ZFResult<&Typed>
     where
         Typed: ZFData + crate::Deserializable + 'static,
@@ -101,11 +136,14 @@ impl Data {
     }
 }
 
+/// This structs stores a node state in the heap.
 pub struct State {
     state: Box<dyn ZFState>,
 }
 
 impl State {
+    /// Creates a new `State`, from an already boxed state.
+    /// The state has to be an instance of [`ZFState`]`ZFState`
     pub fn from_box<S>(boxed: Box<S>) -> Self
     where
         S: ZFState + 'static,
@@ -113,6 +151,8 @@ impl State {
         Self { state: boxed }
     }
 
+    /// Creates a new `State` from the provided state.
+    /// The state has to be an instance of [`ZFState`]`ZFState`
     pub fn from<S>(state: S) -> Self
     where
         S: ZFState + 'static,
@@ -122,6 +162,9 @@ impl State {
         }
     }
 
+    /// Tries to cast the state to the given type.
+    /// It returns a mutable reference to the internal state, so user can
+    /// modify it.
     pub fn try_get<S>(&mut self) -> ZFResult<&mut S>
     where
         S: ZFState + 'static,
@@ -133,6 +176,13 @@ impl State {
     }
 }
 
+/// Represents the output of a node.
+/// A node can either send `Data` or `Control`
+/// Where the first is an [`Data`](`Data`) and the latter
+/// a [`ControlMessage`](`Data`).
+///
+///
+/// *NOTE:* Handling of control messages is not yet implemented.
 #[derive(Debug, Clone)]
 pub enum NodeOutput {
     Data(Data),
@@ -141,42 +191,52 @@ pub enum NodeOutput {
     Control(ControlMessage),
 }
 
+/// The inputs provided to operator's run function.
+/// Inputs are indexed by [`PortId`](`PortId`)
+/// *NOTE:* Not yet used.
+/// It will be used instead of the `HashMap<PortId,DataMessage>` in
+/// `Operator::run` function.
 #[derive(Debug, Clone)]
-pub struct ZFInput(HashMap<String, DataMessage>);
+pub struct Inputs(HashMap<PortId, DataMessage>);
 
-impl Default for ZFInput {
+impl Default for Inputs {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ZFInput {
+impl Inputs {
+    /// Creates an empty set of `Inputs`.
     pub fn new() -> Self {
         Self(HashMap::new())
     }
 
-    pub fn insert(&mut self, id: String, data: DataMessage) -> Option<DataMessage> {
+    /// Inserts the given `data` with the given `id`.
+    pub fn insert(&mut self, id: PortId, data: DataMessage) -> Option<DataMessage> {
         self.0.insert(id, data)
     }
 
-    pub fn get(&self, id: &str) -> Option<&DataMessage> {
+    /// Gets a reference to the data identified by the `id`.
+    pub fn get(&self, id: &PortId) -> Option<&DataMessage> {
         self.0.get(id)
     }
-
-    pub fn get_mut(&mut self, id: &str) -> Option<&mut DataMessage> {
+    /// Gets a mutable reference to the data idenfitied by the `id`.
+    pub fn get_mut(&mut self, id: &PortId) -> Option<&mut DataMessage> {
         self.0.get_mut(id)
     }
 }
 
-impl<'a> IntoIterator for &'a ZFInput {
-    type Item = (&'a String, &'a DataMessage);
-    type IntoIter = std::collections::hash_map::Iter<'a, String, DataMessage>;
+impl<'a> IntoIterator for &'a Inputs {
+    type Item = (&'a PortId, &'a DataMessage);
+    type IntoIter = std::collections::hash_map::Iter<'a, PortId, DataMessage>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
     }
 }
 
+/// The empty state is a commodity struct provided to user that do not
+/// need any state for they operators.
 #[derive(Debug, Clone)]
 pub struct EmptyState;
 
@@ -190,6 +250,9 @@ impl ZFState for EmptyState {
     }
 }
 
+/// The default output rules are a commodity function provided to
+/// users that do not need output rules in their operators.
+/// It converts all the incoming data to the right node output.
 pub fn default_output_rule(
     _state: &mut State,
     outputs: HashMap<PortId, Data>,
@@ -202,6 +265,10 @@ pub fn default_output_rule(
     Ok(results)
 }
 
+/// The default input rules are a commodity function provided to
+/// users that do not need inputs rules in their operators.
+/// They provide a KPN input rule. Thus they trigger the execution only when
+/// all inputs are present.
 pub fn default_input_rule(
     _state: &mut State,
     tokens: &mut HashMap<PortId, InputToken>,
@@ -216,8 +283,11 @@ pub fn default_input_rule(
     Ok(true)
 }
 
+/// The generic configuration of a graph node.
+/// It is a re-export of `serde_json::Value`
 pub type Configuration = serde_json::Value;
 
+/// The unit od duration used in different descriptors.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum DurationUnit {
     #[serde(alias = "s")]
@@ -235,6 +305,8 @@ pub enum DurationUnit {
     Microsecond,
 }
 
+/// The descriptor for a duration.
+/// Used is different descriptors.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DurationDescriptor {
     #[serde(alias = "duration")]
@@ -243,6 +315,7 @@ pub struct DurationDescriptor {
 }
 
 impl DurationDescriptor {
+    /// Converts the [`DurationDescriptor`](`DurationDescriptor`) to a [`Duration`](`Duration`).
     pub fn to_duration(&self) -> Duration {
         match self.unit {
             DurationUnit::Second => Duration::from_secs(self.length),

@@ -18,6 +18,25 @@ use crate::DurationDescriptor;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+/// An End to End deadline is a deadline on sub graph.
+///
+/// The descriptor is its representation within the
+/// [`DataFlowDescriptor`](`DataFlowDescriptor`)
+///
+/// Example:
+///
+/// ```yaml
+/// from:
+///    node: AI-Magic-Face-Detection
+///    output: Faces
+/// to:
+///    node: AI-Magic-Face-Recognition
+///    input: Faces
+/// duration:
+///    length: 250
+///     unit: ms
+/// ```
+///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct E2EDeadlineDescriptor {
     pub(crate) from: OutputDescriptor,
@@ -25,6 +44,7 @@ pub struct E2EDeadlineDescriptor {
     pub(crate) duration: DurationDescriptor,
 }
 
+/// An instance of [`E2EDeadlineDescriptor`](`E2EDeadlineDescriptor`)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct E2EDeadlineRecord {
     pub(crate) from: OutputDescriptor,

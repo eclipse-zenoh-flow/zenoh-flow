@@ -12,6 +12,23 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+/// This macros should be used in order to provide the symbols
+/// for the dynamic load of an Operator. Along with a register function
+///
+/// Example:
+///
+/// ```no_run
+/// use async_std::sync::Arc;
+/// use zenoh_flow::{ZFResult, Operator, export_operator};
+/// export_operator!(register);
+///
+///
+/// fn register() -> ZFResult<Arc<dyn Operator>> {
+///    Ok(Arc::new(MyOperator) as Arc<dyn Operator>)
+/// }
+///
+/// ```
+///
 #[macro_export]
 macro_rules! export_operator {
     ($register:expr) => {
@@ -26,6 +43,24 @@ macro_rules! export_operator {
     };
 }
 
+/// This macros should be used in order to provide the symbols
+/// for the dynamic load of an Source. Along with a register function
+///
+/// Example:
+///
+/// ```no_run
+/// use async_std::sync::Arc;
+/// use zenoh_flow::{ZFResult, Source, export_source};
+///
+/// export_source!(register);
+///
+///
+/// fn register() -> ZFResult<Arc<dyn Source>> {
+///    Ok(Arc::new(MySource) as Arc<dyn Source>)
+/// }
+///
+/// ```
+///
 #[macro_export]
 macro_rules! export_source {
     ($register:expr) => {
@@ -40,6 +75,24 @@ macro_rules! export_source {
     };
 }
 
+/// This macros should be used in order to provide the symbols
+/// for the dynamic load of an Sink. Along with a register function
+///
+/// Example:
+///
+/// ```no_run
+/// use async_std::sync::Arc;
+/// use zenoh_flow::{ZFResult, Sink, export_sink};
+///
+/// export_sink!(register);
+///
+///
+/// fn register() -> ZFResult<Arc<dyn Sink>> {
+///    Ok(Arc::new(MySink) as Arc<dyn Sink>)
+/// }
+///
+/// ```
+///
 #[macro_export]
 macro_rules! export_sink {
     ($register:expr) => {
@@ -54,6 +107,8 @@ macro_rules! export_sink {
     };
 }
 
+/// Spin lock over an [`async_std::sync::Mutex`](`async_std::sync::Mutex`)
+/// Note: This is intended for internal usage.
 #[macro_export]
 macro_rules! zf_spin_lock {
     ($val : expr) => {
@@ -66,6 +121,26 @@ macro_rules! zf_spin_lock {
     };
 }
 
+/// This macro is an helper if you node does not need any state.
+/// In can be used inside your implementation of `Node::intialize`
+///
+/// Example:
+///
+/// ```no_run
+/// struct MyOp;
+///
+///
+///  impl Node for MyOp {
+///     fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+///         zf_empty_state!()
+///     }
+///
+///     fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+///         Ok(())
+///     }
+///  }
+///
+/// ```
 #[macro_export]
 macro_rules! zf_empty_state {
     () => {

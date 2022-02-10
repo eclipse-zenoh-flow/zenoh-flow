@@ -36,6 +36,7 @@ pub struct LoopContext {
     pub(crate) duration_last_iteration: Option<Duration>,
 }
 
+/// The LoopIteration specifies if the loop is finite or infinite.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum LoopIteration {
     Finite(u64),
@@ -43,6 +44,9 @@ pub enum LoopIteration {
 }
 
 impl LoopContext {
+    /// Creates a new `LoopContext` from a [`LoopDescriptor`](`LoopDescriptor`)
+    /// and a `Timestamp`.
+    ///
     pub(crate) fn new(descriptor: &LoopDescriptor, start: Timestamp) -> Self {
         let iteration = match descriptor.is_infinite {
             true => LoopIteration::Infinite,
@@ -59,10 +63,14 @@ impl LoopContext {
         }
     }
 
+    /// Updates the start timestamp for the current iteration.
+    /// This is called when the iteration begins.
     pub(crate) fn update_ingress(&mut self, now: Timestamp) {
         self.timestamp_start_current_iteration = Some(now);
     }
 
+    /// Updates the end timestamp for the current iteration.
+    /// This is called when the iteration ends.
     pub(crate) fn update_egress(&mut self, now: Timestamp) {
         if let LoopIteration::Finite(counter) = self.iteration {
             let (iteration, has_overflowed) = counter.overflowing_add(1);
@@ -79,26 +87,32 @@ impl LoopContext {
         self.timestamp_start_current_iteration = None;
     }
 
+    /// Returns the ingress node for the loop.
     pub fn get_ingress(&self) -> &NodeId {
         &self.ingress
     }
 
+    /// Returns the egress node for the loop.
     pub fn get_egress(&self) -> &NodeId {
         &self.egress
     }
 
+    /// Returns the [`LoopIteration`](`LoopIteration`).
     pub fn get_iteration(&self) -> LoopIteration {
         self.iteration
     }
 
+    /// Returns the timestamp for the first iteration.
     pub fn get_timestamp_start_first_iteration(&self) -> Timestamp {
         self.timestamp_start_first_iteration
     }
 
+    /// Returns the initial timestamp for the current iteration.
     pub fn get_timestamp_start_current_iteration(&self) -> Option<Timestamp> {
         self.timestamp_start_current_iteration
     }
 
+    /// Returns the duration of the previous iteration.
     pub fn get_duration_last_iteration(&self) -> Option<Duration> {
         self.duration_last_iteration
     }

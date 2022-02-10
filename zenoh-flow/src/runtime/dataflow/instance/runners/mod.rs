@@ -35,6 +35,9 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use zenoh_sync::Signal;
 
+/// Type of the Runner.
+///
+/// The runner is the one actually running the nodes.
 #[derive(Clone, Debug, PartialEq)]
 pub enum RunnerKind {
     Source,
@@ -43,6 +46,9 @@ pub enum RunnerKind {
     Connector,
 }
 
+/// A runner manager is crated when a `Runner` is start.
+///
+/// The runner manager is used to send commands to the runner.
 pub struct RunnerManager {
     stopper: Signal,
     handler: JoinHandle<ZFResult<()>>,
@@ -51,6 +57,9 @@ pub struct RunnerManager {
 }
 
 impl RunnerManager {
+    /// Creates a new `RunnerManager` associated with the given `runner`.
+    ///
+    /// It is able to communicate via the `stopper` and the `handler`.
     pub fn new(
         stopper: Signal,
         handler: JoinHandle<ZFResult<()>>,
@@ -65,6 +74,7 @@ impl RunnerManager {
         }
     }
 
+    /// Stops the associated runner.
     pub async fn kill(&self) -> ZFResult<()> {
         if self.runner.is_recording().await {
             self.runner.stop_recording().await?;
@@ -73,18 +83,29 @@ impl RunnerManager {
         Ok(())
     }
 
+    /// Returns a reference to the handler.
+    ///
+    /// The handler can be used to verify the exit value
+    /// of a `Runner`.
     pub fn get_handler(&self) -> &JoinHandle<ZFResult<()>> {
         &self.handler
     }
 
+    /// Starts the recording of the associated `Runner`.
+    ///
+    /// Fails if the `Runner` is not a source.
     pub async fn start_recording(&self) -> ZFResult<String> {
         self.runner.start_recording().await
     }
 
+    /// Stops the recording for the associated `Runner`.
+    ///
+    /// Fails if the `Runner` is not a source.
     pub async fn stop_recording(&self) -> ZFResult<String> {
         self.runner.stop_recording().await
     }
 
+    /// Returns a reference to the instance context.
     pub fn get_context(&self) -> &InstanceContext {
         &self.ctx
     }
@@ -106,42 +127,81 @@ impl Future for RunnerManager {
     }
 }
 
+/// Action to be taken depending on the result of the run.
 pub enum RunAction {
     RestartRun(Option<ZFError>),
     Stop,
 }
 
+/// This traits abstracts the runners, it provides the functions that are
+/// common across the runners.
+///
+///
 #[async_trait]
 pub trait Runner: Send + Sync {
+    /// The actual run where the magic happens.
+    ///
+    /// It can fail to indicate that something went wrong when executing the
+    /// node.
     async fn run(&self) -> ZFResult<()>;
+
+    /// Adds an input to the runner.
+    ///
+    /// If may fail if the runner is not supposed to have that input or
+    /// if does not expect any input (eg. Source)
     async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()>;
 
+    /// Adds an output to the runner.
+    ///
+    /// If may fail if the runner is not supposed to have that output or
+    /// if does not expect any outputs (e.g.  Sink)
     async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()>;
 
+    /// Finalizes the node
     async fn clean(&self) -> ZFResult<()>;
 
+    /// Returns the type of the runner.
     fn get_kind(&self) -> RunnerKind;
 
+    /// Returns the `NodeId` of the runner.
     fn get_id(&self) -> NodeId;
 
+    /// Returns the inputs of the `Runner`.
     fn get_inputs(&self) -> HashMap<PortId, PortType>;
 
+    /// Returns the outputs of the `Runner`.
     fn get_outputs(&self) -> HashMap<PortId, PortType>;
 
+    /// Returns the output link of the `Runner.
     async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>>;
 
+    /// Returns the input link of the `Runner`.
     async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>>;
 
+    /// Starts the recoding of the `Runner`
+    ///
+    /// Fails if the `Runner` is not a source
     async fn start_recording(&self) -> ZFResult<String>;
+
+    /// Stops the recording of the `Runner`.
+    ///
+    /// Fails it the `Runner` is not a source.
     async fn stop_recording(&self) -> ZFResult<String>;
 
+    /// Checks if the `Runner` is recording.
+    ///
+    /// Always `false` if the runner is not a source.
     async fn is_recording(&self) -> bool;
 
+    /// Checks if the `Runner` is running.
     async fn is_running(&self) -> bool;
 
+    /// Stops the runner.
     async fn stop(&self);
 }
 
+/// A `NodeRunner` wraps the `Runner and associated it
+/// with an `InstanceContext`
 #[derive(Clone)]
 pub struct NodeRunner {
     inner: Arc<dyn Runner>,
@@ -149,10 +209,12 @@ pub struct NodeRunner {
 }
 
 impl NodeRunner {
+    /// Creates a new `NodeRunner`.
     pub fn new(inner: Arc<dyn Runner>, ctx: InstanceContext) -> Self {
         Self { inner, ctx }
     }
 
+    /// Run the node in a stoppable fashion.
     fn run_stoppable(&self, signal: Signal) -> ZFResult<()> {
         async fn run(runner: &NodeRunner) -> RunAction {
             match runner.run().await {
@@ -188,6 +250,8 @@ impl NodeRunner {
             }
         })
     }
+
+    /// Starts the node, returning the `RunnerManager` to stop it.
     pub fn start(&self) -> RunnerManager {
         let signal = Signal::new();
         let cloned_self = self.clone();
@@ -207,6 +271,7 @@ impl Deref for NodeRunner {
     }
 }
 
+/// Helper macro for the input rules, this allows code reuse.
 #[macro_export]
 macro_rules! run_input_rules {
     ($node: expr, $tokens : expr, $links : expr, $state: expr, $context: expr) => {

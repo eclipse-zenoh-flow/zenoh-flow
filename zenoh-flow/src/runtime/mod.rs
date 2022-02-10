@@ -44,6 +44,10 @@ pub mod message;
 pub mod resources;
 pub mod token;
 
+/// The context of a Zenoh Flow runtime.
+/// This is shared across all the instances in a runtime.
+/// It allows sharing the `zenoh::Session`, the `Loader`,
+/// the `HLC` and other relevant singletons.
 #[derive(Clone)]
 pub struct RuntimeContext {
     pub session: Arc<Session>,
@@ -53,6 +57,7 @@ pub struct RuntimeContext {
     pub runtime_uuid: Uuid,
 }
 
+/// The context of a Zenoh Flow graph instance.
 #[derive(Clone)]
 pub struct InstanceContext {
     pub flow_id: FlowId,
@@ -60,6 +65,10 @@ pub struct InstanceContext {
     pub runtime: RuntimeContext,
 }
 
+/// This function maps a [`DataFlowDescriptor`](`DataFlowDescriptor`) into
+/// the infrastructure.
+/// The initial implementation simply maps all missing mapping
+/// to the given runtime `runtime`.
 pub async fn map_to_infrastructure(
     mut descriptor: DataFlowDescriptor,
     runtime: &str,
@@ -120,6 +129,9 @@ pub async fn map_to_infrastructure(
 }
 
 // Runtime related types, maybe can be moved.
+
+/// Runtime Status, either Ready or Not Ready.
+/// When Ready it is able to accept commands and instantiate graphs.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum RuntimeStatusKind {
@@ -127,6 +139,7 @@ pub enum RuntimeStatusKind {
     NotReady,
 }
 
+/// The Runtime information.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RuntimeInfo {
     pub id: Uuid,
@@ -136,6 +149,7 @@ pub struct RuntimeInfo {
     // Do we need/want also RAM usage?
 }
 
+/// The detailed runtime status.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RuntimeStatus {
     pub id: Uuid,
@@ -147,6 +161,7 @@ pub struct RuntimeStatus {
     pub running_connectors: usize,
 }
 
+/// Wrapper for Zenoh kind.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum ZenohConfigKind {
@@ -184,6 +199,7 @@ impl Into<zenoh::config::whatami::WhatAmI> for ZenohConfigKind {
     }
 }
 
+/// Wrapper for Zenoh config in the runtime configuration file.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZenohConfig {
     pub kind: ZenohConfigKind, // whether the runtime is a peer or a client
@@ -191,6 +207,7 @@ pub struct ZenohConfig {
     pub locators: Vec<String>, // where to connect (eg. a router if the runtime is a client, or other peers/routers if the runtime is a peer)
 }
 
+/// The runtime configuration file struct.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RuntimeConfig {
     pub pid_file: String, //Where the PID file resides
@@ -203,6 +220,8 @@ pub struct RuntimeConfig {
 
 /// The interface the Runtime expose to a client
 /// (eg. another runtime, the cli, the mgmt API)
+/// The service is exposed using zenoh-rpc, the server and client
+/// are generated automatically.
 #[znservice(
     timeout_s = 60,
     prefix = "/zf/runtime",

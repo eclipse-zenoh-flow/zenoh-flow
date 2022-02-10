@@ -26,6 +26,8 @@ use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 use uuid::Uuid;
 
+/// The instance of a [`DataFlowDescriptor`](`DataFlowDescriptor`).
+///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DataFlowRecord {
     pub uuid: Uuid,
@@ -39,24 +41,29 @@ pub struct DataFlowRecord {
 }
 
 impl DataFlowRecord {
+    /// Creates a new `DataFlowDescriptor` record from its YAML format.
     pub fn from_yaml(data: &str) -> ZFResult<Self> {
         serde_yaml::from_str::<DataFlowRecord>(data)
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))
     }
 
+    /// Creates a new `DataFlowDescriptor` from its JSON format.
     pub fn from_json(data: &str) -> ZFResult<Self> {
         serde_json::from_str::<DataFlowRecord>(data)
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))
     }
 
+    /// Returns the JSON representation of the `DataFlowDescriptor`.
     pub fn to_json(&self) -> ZFResult<String> {
         serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
+    /// Returns the YAML representation of the `DataFlowDescriptor`.
     pub fn to_yaml(&self) -> ZFResult<String> {
         serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
+    /// Returns the runtime mapping for the given node.
     pub fn find_node_runtime(&self, id: &str) -> Option<RuntimeId> {
         match self.operators.get(id) {
             Some(o) => Some(o.runtime.clone()),
@@ -67,6 +74,7 @@ impl DataFlowRecord {
         }
     }
 
+    /// Returns the output type for the given node and port.
     pub fn find_node_output_type(&self, id: &str, output: &str) -> Option<PortType> {
         log::trace!("find_node_output_type({:?},{:?})", id, output);
         match self.operators.get(id) {
@@ -78,6 +86,7 @@ impl DataFlowRecord {
         }
     }
 
+    /// Returns the input type for the given node and port.
     pub fn find_node_input_type(&self, id: &str, input: &str) -> Option<PortType> {
         log::trace!("find_node_input_type({:?},{:?})", id, input);
         match self.operators.get(id) {
@@ -89,6 +98,11 @@ impl DataFlowRecord {
         }
     }
 
+    /// Adds the links.
+    ///
+    /// If the nodes are mapped to different machines it adds the couple of
+    /// connectors in between and creates the unique key expression
+    /// for the data to flow in Zenoh.
     fn add_links(&mut self, links: &[LinkDescriptor]) -> ZFResult<()> {
         for l in links {
             log::debug!("Adding link: {:?}…", l);

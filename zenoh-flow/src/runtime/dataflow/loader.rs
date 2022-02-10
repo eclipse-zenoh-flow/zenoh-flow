@@ -30,13 +30,18 @@ use url::Url;
 static LOAD_FLAGS: std::os::raw::c_int =
     libloading::os::unix::RTLD_NOW | libloading::os::unix::RTLD_LOCAL;
 
+/// Constant used to for version check when loading nodes, Zenoh Flow version,
+/// as API changes across versions.
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Constant used to for version check when loading nodes,
+/// rust compiler version, as ABI is not stable.
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 // OPERATOR
-
+/// Operator register function signature
 pub type OperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
 
+/// Operator declaration expected in the library that will be loaded.
 pub struct OperatorDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
@@ -45,8 +50,10 @@ pub struct OperatorDeclaration {
 
 // SOURCE
 
+/// Source register function signature.
 pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
 
+/// Source declaration expected in the library that will be loaded.
 pub struct SourceDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
@@ -55,15 +62,30 @@ pub struct SourceDeclaration {
 
 // SINK
 
+/// Sink register function signature.
 pub type SinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
 
+/// Sink declaration expected in the library that will be loaded.
 pub struct SinkDeclaration {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
     pub register: SinkRegisterFn,
 }
 
-// Extensible support for different implementations
+/// Extensible support for different implementations
+/// This represent the configuration for an extention.
+///
+///
+/// Example:
+///
+/// ```yaml
+/// - name: python
+///   file_extension: py
+///   source_lib: ./target/release/libpy_source.so
+///   sink_lib: ./target/release/libpy_sink.so
+///   operator_lib: ./target/release/libpy_op.so
+///   config_lib_key: python-script
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtensibleImplementation {
     pub(crate) name: String,
@@ -74,24 +96,57 @@ pub struct ExtensibleImplementation {
     pub(crate) config_lib_key: String,
 }
 
-// Loader Config
+/// Loader configuration files, it includes the extentions.
+///
+/// Example:
+///
+/// ```yaml
+/// extensions:
+///   - name: python
+///     file_extension: py
+///     source_lib: ./target/release/libpy_source.so
+///     sink_lib: ./target/release/libpy_sink.so
+///     operator_lib: ./target/release/libpy_op.so
+///     config_lib_key: python-script
+/// ```
+///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoaderConfig {
     pub extensions: Vec<ExtensibleImplementation>,
 }
 
+/// The dynamic library loader.
+/// Before loading it verifies if the version are compatible and if the symbols
+/// are presents.
+/// It loads the files in different way depending on the operating system.
+/// In particular the scope of the symbols is different between Unix and
+/// Windows.
+/// In Unix system the symbols are loaded with the flags:
+///
+/// - `RTLD_NOW` load all the symbols when loading the library.
+/// - `RTLD_LOCAL` keep all the symbols local.
+///
+///
 pub struct Loader {
     pub(crate) config: LoaderConfig,
 }
 
 impl Loader {
+    /// Creates a new `Loaded` with the given `config`.
     pub fn new(config: LoaderConfig) -> Self {
         Self { config }
     }
 
-    /// # Safety
+    /// Tries to load an operator from the information passed within
+    /// the [`OperatorRecord`](`OperatorRecord`).
     ///
-    /// TODO remove all copy-pasted code, make macros/functions instead
+    /// It can fail because of:
+    ///
+    /// - different version of zenoh flow used to build the operator
+    /// - different verion of rust compiler used to build the operator
+    /// - the library does not contain the symbols.
+    /// - the URI is missing
+    /// - the URI scheme is not known ( so far only `file://` is known).
     pub fn load_operator(&self, record: OperatorRecord) -> ZFResult<OperatorLoaded> {
         let uri = record.uri.clone().ok_or_else(|| {
             ZFError::LoadingError(format!(
@@ -125,6 +180,16 @@ impl Loader {
         }
     }
 
+    /// Tries to load a source from the information passed within
+    /// the [`SourceRecord`](`SourceRecord`).
+    ///
+    /// It can fail because of:
+    ///
+    /// - different version of zenoh flow used to build the source
+    /// - different verion of rust compiler used to build the source
+    /// - the library does not contain the symbols.
+    /// - the URI is missing
+    /// - the URI scheme is not known ( so far only `file://` is known).
     pub fn load_source(&self, record: SourceRecord) -> ZFResult<SourceLoaded> {
         let uri = record.uri.clone().ok_or_else(|| {
             ZFError::LoadingError(format!(
@@ -158,6 +223,16 @@ impl Loader {
         }
     }
 
+    /// Tries to load a sink from the information passed within
+    /// the [`SinkRecord`](`SinkRecord`).
+    ///
+    /// It can fail because of:
+    ///
+    /// - different version of zenoh flow used to build the sink
+    /// - different verion of rust compiler used to build the sink
+    /// - the library does not contain the symbols.
+    /// - the URI is missing
+    /// - the URI scheme is not known ( so far only `file://` is known).
     pub fn load_sink(&self, record: SinkRecord) -> ZFResult<SinkLoaded> {
         let uri = record.uri.clone().ok_or_else(|| {
             ZFError::LoadingError(format!(
@@ -196,7 +271,7 @@ impl Loader {
     /// # Safety
     ///
     /// This function dynamically loads an external library, things can go wrong:
-    /// - it will panic if the symbol `zfoperator_declaration` is not found,
+    /// - it fails if the symbol `zfoperator_declaration` is not found,
     /// - be sure to *trust* the code you are loading.
     unsafe fn load_lib_operator(path: PathBuf) -> ZFResult<(Library, Arc<dyn Operator>)> {
         log::debug!("Operator Loading {:#?}", path);
@@ -224,7 +299,7 @@ impl Loader {
     /// # Safety
     ///
     /// This function dynamically loads an external library, things can go wrong:
-    /// - it will panic if the symbol `zfsource_declaration` is not found,
+    /// - it fails if the symbol `zfsource_declaration` is not found,
     /// - be sure to *trust* the code you are loading.
     unsafe fn load_lib_source(path: PathBuf) -> ZFResult<(Library, Arc<dyn Source>)> {
         log::debug!("Source Loading {:#?}", path);
@@ -252,7 +327,7 @@ impl Loader {
     /// # Safety
     ///
     /// This function dynamically loads an external library, things can go wrong:
-    /// - it will panic if the symbol `zfsink_declaration` is not found,
+    /// - it fails if the symbol `zfsink_declaration` is not found,
     /// - be sure to *trust* the code you are loading.
     unsafe fn load_lib_sink(path: PathBuf) -> ZFResult<(Library, Arc<dyn Sink>)> {
         log::debug!("Sink Loading {:#?}", path);
@@ -274,6 +349,8 @@ impl Loader {
 
         Ok((library, (decl.register)()?))
     }
+
+    /// Converts the `Url` to a `PathBuf`
     fn make_file_path(uri: Url) -> ZFResult<PathBuf> {
         let mut path = PathBuf::new();
         let file_path = match uri.host_str() {
@@ -285,6 +362,7 @@ impl Loader {
         Ok(path)
     }
 
+    /// Checks if the file is a dynamic library.
     fn is_lib(ext: &str) -> bool {
         if ext == std::env::consts::DLL_EXTENSION {
             return true;
@@ -292,6 +370,7 @@ impl Loader {
         false
     }
 
+    /// Returns the file extension.
     fn get_file_extension(file: &Path) -> Option<String> {
         if let Some(ext) = file.extension() {
             if let Some(ext) = ext.to_str() {
@@ -301,6 +380,17 @@ impl Loader {
         None
     }
 
+    /// Loads an operator that is not a dynamic library.
+    /// Using one of the extension configured within the loader.
+    ///
+    /// This function can fail:
+    /// - the extension is not known
+    /// - different version of zenoh flow used to build the extension
+    /// - different verion of rust compiler used to build the extension
+    /// - the extension library does not contain the symbols.
+    /// - the URI is missing
+    /// - the URI scheme is not known ( so far only `file://` is known).
+    /// - the operator does not match the extension interface.
     fn load_operator_from_extension(
         &self,
         mut record: OperatorRecord,
@@ -335,6 +425,17 @@ impl Loader {
         }
     }
 
+    /// Loads an source that is not a dynamic library.
+    /// Using one of the extension configured within the loader.
+    ///
+    /// This function can fail:
+    /// - the extension is not known
+    /// - different version of zenoh flow used to build the extension
+    /// - different verion of rust compiler used to build the extension
+    /// - the extension library does not contain the symbols.
+    /// - the URI is missing
+    /// - the URI scheme is not known ( so far only `file://` is known).
+    /// - the source does not match the extension interface.
     fn load_source_from_extension(
         &self,
         mut record: SourceRecord,
@@ -369,6 +470,17 @@ impl Loader {
         }
     }
 
+    /// Loads an sink that is not a dynamic library.
+    /// Using one of the extension configured within the loader.
+    ///
+    /// This function can fail:
+    /// - the extension is not known
+    /// - different version of zenoh flow used to build the extension
+    /// - different verion of rust compiler used to build the extension
+    /// - the extension library does not contain the symbols.
+    /// - the URI is missing
+    /// - the URI scheme is not known ( so far only `file://` is known).
+    /// - the sink does not match the extension interface.
     fn load_sink_from_extension(
         &self,
         mut record: SinkRecord,
@@ -403,6 +515,7 @@ impl Loader {
         }
     }
 
+    /// Wraps the configuration in case of an extension.
     fn generate_wrapper_config(
         configuration: Option<Configuration>,
         config_key: String,

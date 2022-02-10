@@ -68,12 +68,14 @@ pub(crate) struct DataflowValidator {
     loops_node_ids: HashSet<NodeId>,
 }
 
+/// Type of a Port, either Input or Output.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum PortKind {
     Input,
     Output,
 }
 
+/// The type of a Node.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum NodeKind {
     Source,
@@ -81,6 +83,7 @@ enum NodeKind {
     Operator,
 }
 
+/// Unique tuple that identifies a port.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 struct PortUniqueId {
     node_id: NodeId,
@@ -114,6 +117,7 @@ impl TryFrom<&DataFlowDescriptor> for DataflowValidator {
 }
 
 impl DataflowValidator {
+    /// Creates an empty `DataflowValidator`/
     pub(crate) fn new() -> Self {
         Self {
             graph_checker: Graph::new(),
@@ -166,6 +170,7 @@ impl DataflowValidator {
         Ok(node_checker_idx)
     }
 
+    /// `try_add_input` can fail when calling `try_add_node`.
     pub(crate) fn try_add_input(&mut self, node_id: NodeId, input: PortDescriptor) -> ZFResult<()> {
         let node_checker_idx = self.try_add_node(node_id, input, PortKind::Input)?;
         self.input_indexes.insert(node_checker_idx);
@@ -183,6 +188,7 @@ impl DataflowValidator {
         Ok(())
     }
 
+    /// Adds a source, can fail when calling `try_add_output` or `try_add_it`.
     pub(crate) fn try_add_source(
         &mut self,
         node_id: NodeId,
@@ -193,11 +199,14 @@ impl DataflowValidator {
         self.try_add_output(node_id, output)
     }
 
+    /// Adds a sink, can fail when calling `try_add_output` or `try_add_it`.
     pub(crate) fn try_add_sink(&mut self, node_id: NodeId, input: PortDescriptor) -> ZFResult<()> {
         self.try_add_id(NodeKind::Sink, node_id.clone())?;
         self.try_add_input(node_id, input)
     }
 
+    /// Adds an operator, can fail when calling `try_add_output`, `try_add_it`
+    /// or `try_add_input`.
     pub(crate) fn try_add_operator(
         &mut self,
         node_id: NodeId,
@@ -215,6 +224,7 @@ impl DataflowValidator {
             .try_for_each(|output| self.try_add_output(node_id.clone(), output.clone()))
     }
 
+    /// Adds a link, can fail if it does not find the ports.
     pub(crate) fn try_add_link(
         &mut self,
         from: &OutputDescriptor,

@@ -34,11 +34,19 @@ use zenoh_flow::NodeId;
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
+/// The internal runtime state.
+///
+/// It keeps track of running instances and runtime configuration.
 pub struct RTState {
     pub graphs: HashMap<Uuid, DataflowInstance>,
     pub config: RuntimeConfig,
 }
 
+/// The Zenoh flow daemon
+///
+/// It keeps track of the state, with an `Arc<RTState>`
+/// and the `RuntimeContext`, it has an handle to the `DataStore`
+/// for storing/retrieving data from Zenoh.
 #[derive(Clone)]
 pub struct Daemon {
     pub store: DataStore,
@@ -47,6 +55,7 @@ pub struct Daemon {
 }
 
 impl Daemon {
+    /// Creates a new `Daemon` from the given parameters.
     pub fn new(z: Arc<zenoh::Session>, ctx: RuntimeContext, config: RuntimeConfig) -> Self {
         let state = Arc::new(Mutex::new(RTState {
             graphs: HashMap::new(),
@@ -60,6 +69,13 @@ impl Daemon {
         }
     }
 
+    /// Creates a new `Daemon` from a configuration file.
+    ///
+    /// This function can fail if:
+    /// - unable to configure zenoh.
+    /// - unable to get the machine hostname.
+    /// - unable to get the machine uuid.
+    /// - unable to open the zenoh session.
     pub fn from_config(config: RuntimeConfig) -> ZFResult<Self> {
         let uuid = match &config.uuid {
             Some(u) => *u,
@@ -127,6 +143,12 @@ impl Daemon {
         Ok(Self::new(session, ctx, config))
     }
 
+    /// The daemon run.
+    ///
+    /// It starts the zenoh-rpc services.
+    /// Sets the status to ready and serves all the requests.
+    ///
+    /// It stops when receives the stop signal.
     pub async fn run(&self, stop: async_std::channel::Receiver<()>) -> ZFResult<()> {
         log::info!("Runtime main loop starting");
 
@@ -194,6 +216,13 @@ impl Daemon {
         Ok(())
     }
 
+    /// Starts the daemon.
+    ///
+    /// It stores the configuration and runtime information in Zenoh.
+    ///
+    /// The daemon is started on a separated blocking task.
+    /// And the stop sender and task handler are returned to the caller.
+    ///
     pub async fn start(
         &self,
     ) -> ZFResult<(
@@ -240,6 +269,9 @@ impl Daemon {
         Ok((s, h))
     }
 
+    /// Stops the daemon.
+    ///
+    /// Removes information, configuration and status from Zenoh.
     pub async fn stop(&self, stop: async_std::channel::Sender<()>) -> ZFResult<()> {
         stop.send(())
             .await
@@ -259,6 +291,7 @@ impl Daemon {
     }
 }
 
+/// Gets the machine Uuid.
 pub fn get_machine_uuid() -> ZFResult<Uuid> {
     let machine_id_raw = machine_uid::get().map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
     let node_str: &str = &machine_id_raw;

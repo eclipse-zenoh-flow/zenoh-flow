@@ -23,6 +23,9 @@ use std::{cmp::Ordering, fmt::Debug};
 use uhlc::Timestamp;
 use uuid::Uuid;
 
+/// Zenoh Flow data messages
+/// It contains the actual data, the timestamp associated,
+/// the end to end deadline, the end to end deadline misses and loop contexts.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
     pub(crate) data: Data,
@@ -33,6 +36,8 @@ pub struct DataMessage {
 }
 
 impl DataMessage {
+    /// Creates a new [`DataMessage`](`DataMessage`) with given `Data`,
+    ///  `Timestamp` and `Vec<E2EDeadline>`.
     pub fn new(data: Data, timestamp: Timestamp, end_to_end_deadlines: Vec<E2EDeadline>) -> Self {
         Self {
             data,
@@ -56,18 +61,26 @@ impl DataMessage {
         &mut self.data
     }
 
+    /// Returns a reference to the data `Timestamp`.
     pub fn get_timestamp(&self) -> &Timestamp {
         &self.timestamp
     }
 
+    /// Returns the slice of [`E2EDeadlineMiss`](`E2EDeadlineMiss`) associated
+    /// with the message.
     pub fn get_missed_end_to_end_deadlines(&self) -> &[E2EDeadlineMiss] {
         self.missed_end_to_end_deadlines.as_slice()
     }
 
+    /// Returns the slice of [`LoopContext`](`LoopContext`) associated
+    /// with the message.
     pub fn get_loop_contexts(&self) -> &[LoopContext] {
         self.loop_contexts.as_slice()
     }
 
+    /// Creates a new message from serialized data.
+    /// This is used when the message is coming from Zenoh or from a non-rust
+    /// node.
     pub fn new_serialized(
         data: Arc<Vec<u8>>,
         timestamp: Timestamp,
@@ -83,6 +96,8 @@ impl DataMessage {
         }
     }
 
+    /// Creates a messages from `Typed` data.
+    /// This is used when the data is generated from rust source.
     pub fn new_deserialized(
         data: Arc<dyn ZFData>,
         timestamp: Timestamp,
@@ -99,6 +114,10 @@ impl DataMessage {
     }
 }
 
+/// Metadata stored in Zenoh's time series storages.
+/// It contains information about the recoding.
+/// Multiple [`RecordingMetadata`](`RecordingMetadata`) can be used
+/// to syncronize the recoding from different Ports.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RecordingMetadata {
     pub(crate) timestamp: Timestamp,
@@ -108,6 +127,11 @@ pub struct RecordingMetadata {
     pub(crate) instance_id: Uuid,
 }
 
+/// Zenoh Flow control messages.
+/// It contains the control messages used within Zenoh Flow.
+/// For the time being only the `RecodingStart` and `RecodingStop` messages
+/// have been defined,
+/// *Note*: Most of messages are not yet defined.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ControlMessage {
     // These messages are not yet defined, those are some ideas
@@ -118,6 +142,9 @@ pub enum ControlMessage {
     RecordingStop(Timestamp),
 }
 
+/// The Zenoh Flow message that is sent across `Link` and across Zenoh.
+/// It contains either a [`DataMessage`](`DataMessage`) or
+/// a [`ControlMessage`](`ControlMessage`).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Message {
     Data(DataMessage),
@@ -125,6 +152,8 @@ pub enum Message {
 }
 
 impl Message {
+    /// Creates a `Message` from a [`NodeOutput`](`NodeOutput`)
+    ///
     pub fn from_node_output(
         output: NodeOutput,
         timestamp: Timestamp,
@@ -139,6 +168,7 @@ impl Message {
         }
     }
 
+    /// Creates a `Message::Data` from [`Data`](`Data`).
     pub fn from_serdedata(
         output: Data,
         timestamp: Timestamp,
@@ -161,6 +191,7 @@ impl Message {
         }
     }
 
+    /// Serialized the `Message` using bincode.
     pub fn serialize_bincode(&self) -> ZFResult<Vec<u8>> {
         match &self {
             Message::Control(_) => {
@@ -185,6 +216,7 @@ impl Message {
         }
     }
 
+    /// Returns the `Timestamp` associated with the message.
     pub fn get_timestamp(&self) -> Timestamp {
         match self {
             Self::Control(ref ctrl) => match ctrl {

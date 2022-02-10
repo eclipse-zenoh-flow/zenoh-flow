@@ -16,6 +16,20 @@ use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::{PortId, PortType};
 use serde::{Deserialize, Serialize};
 
+/// The description of a link.
+///
+/// Example:
+///
+/// ```yaml
+///
+/// from:
+///   node : Counter
+///   output : Counter
+/// to:
+///   node : SumOperator
+///   input : Number
+///
+/// ```
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LinkDescriptor {
     pub from: OutputDescriptor,
@@ -31,6 +45,14 @@ impl std::fmt::Display for LinkDescriptor {
     }
 }
 
+/// The description of a port.
+///
+/// Example:
+///
+/// ```yaml
+/// id: Counter
+/// type: usize
+/// ```
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PortDescriptor {
     #[serde(alias = "id")]

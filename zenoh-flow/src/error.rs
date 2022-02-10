@@ -17,6 +17,9 @@ use std::convert::From;
 use uuid::Uuid;
 use zrpc::zrpcresult::ZRPCError;
 
+/// The Zenoh Flow error
+/// It contains mapping to most of the error that could happen withing
+/// Zenoh Flow and dependencies.
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum ZFError {
     GenericError,

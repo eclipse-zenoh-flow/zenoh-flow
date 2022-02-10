@@ -25,6 +25,7 @@ use std::collections::HashMap;
 use zenoh::query::*;
 use zenoh::*;
 
+/// The Replay node.
 #[derive(Clone)]
 pub struct ZenohReplay {
     pub(crate) id: NodeId,
@@ -38,6 +39,10 @@ pub struct ZenohReplay {
 }
 
 impl ZenohReplay {
+    /// Tries to create a replay node, that will replay from the given
+    /// `resource_name`.
+    ///
+    /// It fails if the ports are not connected correctly.
     pub fn try_new(
         id: NodeId,
         context: InstanceContext,
@@ -68,6 +73,9 @@ impl ZenohReplay {
         })
     }
 
+    /// Sends a data to the link.
+    ///
+    /// This is the replay.
     async fn send_data(&self, msg: Message) -> ZFResult<()> {
         log::trace!("ZenohReplay {} - {} - SendData ", self.id, self.node_id);
         let links = self.links.lock().await;
@@ -78,6 +86,8 @@ impl ZenohReplay {
         }
         Ok(())
     }
+
+    /// Starts the replay.
     async fn start(&self) {
         *self.is_running.lock().await = true;
     }

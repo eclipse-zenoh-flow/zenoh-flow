@@ -35,6 +35,12 @@ use crate::{
     ZFResult,
 };
 
+/// The data flow struct.
+/// This struct contains all the information needed to instantiate a data flow.
+/// running withing a Zenoh Flow runtime.
+/// It stores a `RuntimeContext` all the loaded nodes, the connectors.
+/// It also contains a `DataflowValidator` that is used to verify that the
+/// data flow can be instantiated.
 pub struct Dataflow {
     pub(crate) uuid: Uuid,
     pub(crate) flow_id: FlowId,
@@ -74,6 +80,13 @@ impl Dataflow {
         }
     }
 
+    /// Creates a new `Dataflow` departing from
+    /// an existing [`DataFlowRecord`](`DataFlowRecord`)
+    ///
+    /// This function is called by the runtime when instantiating
+    /// a dynamically loaded graph.
+    /// It loads the nodes using the loader stored in
+    /// the [`RuntimeContext`](`RuntimeContext`).
     pub fn try_new(context: RuntimeContext, record: DataFlowRecord) -> ZFResult<Self> {
         let loaded_sources = record
             .sources
@@ -136,6 +149,11 @@ impl Dataflow {
         Ok(dataflow)
     }
 
+    /// Tries to add a static source to the data flow.
+    ///
+    /// If the validation fails the source cannot be added.
+    /// This is mean to be used when creating an empty dataflow using
+    /// `Dataflow::new(..)` function.
     pub fn try_add_static_source(
         &mut self,
         id: NodeId,
@@ -162,6 +180,11 @@ impl Dataflow {
         Ok(())
     }
 
+    /// Tries to add a static operator to the data flow.
+    ///
+    /// If the validation fails the operator cannot be added.
+    /// This is mean to be used when creating an empty dataflow using
+    /// `Dataflow::new(..)` function.
     pub fn try_add_static_operator(
         &mut self,
         id: NodeId,
@@ -201,6 +224,11 @@ impl Dataflow {
         Ok(())
     }
 
+    /// Tries to add a static sink to the data flow.
+    ///
+    /// If the validation fails the sink cannot be added.
+    /// This is mean to be used when creating an empty dataflow using
+    /// `Dataflow::new(..)` function.
     pub fn try_add_static_sink(
         &mut self,
         id: NodeId,
@@ -253,6 +281,9 @@ impl Dataflow {
         Ok(())
     }
 
+    /// Tries to add a deadline within the dataflow
+    ///
+    /// If the validation fails the deadline cannot be added.
     pub fn try_add_deadline(
         &mut self,
         from: OutputDescriptor,
@@ -266,6 +297,7 @@ impl Dataflow {
         Ok(())
     }
 
+    /// Adds a deadline within the dataflow.
     fn add_end_to_end_deadline(&mut self, deadline: E2EDeadlineRecord) {
         // Look for the "from" node in either Sources and Operators.
         if let Some(source) = self.sources.get_mut(&deadline.from.node) {
@@ -286,6 +318,9 @@ impl Dataflow {
         }
     }
 
+    /// Tries to add a loop within the dataflow
+    ///
+    /// If the validation fails the loop cannot be added.
     pub fn try_add_loop(
         &mut self,
         ingress: NodeId,

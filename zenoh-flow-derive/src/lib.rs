@@ -15,7 +15,14 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
-
+/// The `ZFData` derive macro is provided to help the users
+/// in implementing the `DowncastAny` trait.
+///
+/// Example::
+/// ```no_run
+/// #[derive(Debug, Clone, ZFData)]
+/// pub struct ZFString(pub String);
+/// ```
 #[proc_macro_derive(ZFData)]
 pub fn zf_data_derive(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
@@ -35,6 +42,15 @@ pub fn zf_data_derive(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
+/// The `ZFState` derive macros is provided to help the users
+/// in implementing the `ZFState` trait.
+///
+/// Example:
+/// ```no_run
+/// #[derive(Debug, Clone, ZFState)]
+/// pub struct MyState;
+/// ```
+///
 #[proc_macro_derive(ZFState)]
 pub fn zf_state_derive(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);

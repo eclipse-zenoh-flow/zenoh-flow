@@ -23,12 +23,76 @@ use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 
+/// The mapping of a node into the infrastructure.
+///
+/// Example:
+///
+/// ```yaml
+/// id: SumOperator
+/// runtime: runtime1
+//// ```
+///
+///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Mapping {
     pub id: NodeId,
     pub runtime: RuntimeId,
 }
 
+/// The description of a data flow graph.
+/// It contains all the information needed to instantiate a data flow graph.
+///
+/// Example:
+/// ```yaml
+/// flow: SimplePipeline
+/// operators:
+///   - id : SumOperator
+///     uri: file://./target/release/libsum_and_send.dylib
+///     inputs:
+///       - id: Number
+///         type: usize
+///     outputs:
+///       - id: Sum
+///         type: usize
+/// sources:
+///   - id : Counter
+///     uri: file://./target/release/libcounter_source.dylib
+///     output:
+///       id: Counter
+///       type: usize
+/// sinks:
+///   - id : PrintSink
+///     uri: file://./target/release/libgeneric_sink.dylib
+///     configuration:
+///       file: /tmp/generic-sink.txt
+///     input:
+///       id: Data
+///       type: usize///
+///
+/// links:
+/// - from:
+///     node : Counter
+///     output : Counter
+///   to:
+///     node : SumOperator
+///     input : Number
+/// - from:
+///     node : SumOperator
+///     output : Sum
+///   to:
+///     node : PrintSink
+///     input : Data
+///
+/// mapping:
+///   - id: SumOperator
+///     runtime: runtime1
+///   - id: Counter
+///     runtime: runtime0
+///   - id: PrintSink
+///     runtime: runtime0
+/// ```
+///
+///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DataFlowDescriptor {
     pub flow: String,
@@ -42,6 +106,7 @@ pub struct DataFlowDescriptor {
 }
 
 impl DataFlowDescriptor {
+    /// Creates a new `DataFlowDescriptor` from its YAML representation.
     pub fn from_yaml(data: &str) -> ZFResult<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<DataFlowDescriptor>(data)
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
@@ -49,20 +114,25 @@ impl DataFlowDescriptor {
         Ok(dataflow_descriptor)
     }
 
+    /// Creates a new `DataFlowDescriptor` from its JSON representation.
     pub fn from_json(data: &str) -> ZFResult<Self> {
         let dataflow_descriptor = serde_json::from_str::<DataFlowDescriptor>(data)
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
         dataflow_descriptor.validate()?;
         Ok(dataflow_descriptor)
     }
+
+    /// Returns the JSON representation of the `DataFlowDescriptor`.
     pub fn to_json(&self) -> ZFResult<String> {
         serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
+    /// Returns the YAML representation of the `DataFlowDescriptor`.
     pub fn to_yaml(&self) -> ZFResult<String> {
         serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
+    /// Returns the mapping of the given node, if any.
     pub fn get_mapping(&self, id: &str) -> Option<RuntimeId> {
         match &self.mapping {
             Some(mapping) => mapping
@@ -73,6 +143,7 @@ impl DataFlowDescriptor {
         }
     }
 
+    /// Adds a the given mapping to the `DataFlowDescriptor`.
     pub fn add_mapping(&mut self, mapping: Mapping) {
         match self.mapping.as_mut() {
             Some(m) => m.push(mapping),
@@ -80,6 +151,7 @@ impl DataFlowDescriptor {
         }
     }
 
+    /// Gets all the `RuntimeId` mapped to nodes of this `DataFlowDescriptor`.
     pub fn get_runtimes(&self) -> Vec<RuntimeId> {
         let mut runtimes = HashSet::new();
 
@@ -94,16 +166,16 @@ impl DataFlowDescriptor {
         runtimes.into_iter().collect()
     }
 
-    // This method checks that the dataflow graph is correct.
-    //
-    // In particular it verifies that:
-    // - each node has a unique id,
-    // - each port (input and output) is connected,
-    // - an input port is connected only once (i.e. it receives data from a single output port),
-    // - connected ports are declared with the same type,
-    // - the dataflow, without the loops, is a DAG,
-    // - the end-to-end deadlines are correct,
-    // - the loops are valid.
+    /// This method checks that the dataflow graph is correct.
+    ///
+    /// In particular it verifies that:
+    /// - each node has a unique id,
+    /// - each port (input and output) is connected,
+    /// - an input port is connected only once (i.e. it receives data from a single output port),
+    /// - connected ports are declared with the same type,
+    /// - the dataflow, without the loops, is a DAG,
+    /// - the end-to-end deadlines are correct,
+    /// - the loops are valid.
     fn validate(&self) -> ZFResult<()> {
         let mut validator = DataflowValidator::try_from(self)?;
 
