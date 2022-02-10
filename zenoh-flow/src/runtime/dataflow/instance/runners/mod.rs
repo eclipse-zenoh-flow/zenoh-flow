@@ -75,6 +75,9 @@ impl RunnerManager {
     }
 
     /// Stops the associated runner.
+    ///
+    /// # Errors
+    /// An error variant is returned in case the runner is already stopped.
     pub async fn kill(&self) -> ZFResult<()> {
         if self.runner.is_recording().await {
             self.runner.stop_recording().await?;
@@ -87,12 +90,16 @@ impl RunnerManager {
     ///
     /// The handler can be used to verify the exit value
     /// of a `Runner`.
+    ///
+    /// # Errors
+    /// An error variant is returned in case the run failed.
     pub fn get_handler(&self) -> &JoinHandle<ZFResult<()>> {
         &self.handler
     }
 
     /// Starts the recording of the associated `Runner`.
     ///
+    /// # Errors
     /// Fails if the `Runner` is not a source.
     pub async fn start_recording(&self) -> ZFResult<String> {
         self.runner.start_recording().await
@@ -100,6 +107,7 @@ impl RunnerManager {
 
     /// Stops the recording for the associated `Runner`.
     ///
+    /// # Errors
     /// Fails if the `Runner` is not a source.
     pub async fn stop_recording(&self) -> ZFResult<String> {
         self.runner.stop_recording().await
@@ -141,23 +149,29 @@ pub enum RunAction {
 pub trait Runner: Send + Sync {
     /// The actual run where the magic happens.
     ///
+    /// # Errors
     /// It can fail to indicate that something went wrong when executing the
     /// node.
     async fn run(&self) -> ZFResult<()>;
 
     /// Adds an input to the runner.
     ///
+    /// # Errors
     /// If may fail if the runner is not supposed to have that input or
     /// if does not expect any input (eg. Source)
     async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()>;
 
     /// Adds an output to the runner.
     ///
+    /// # Errors
     /// If may fail if the runner is not supposed to have that output or
     /// if does not expect any outputs (e.g.  Sink)
     async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()>;
 
     /// Finalizes the node
+    ///
+    /// # Errors
+    /// Returns an error variant if the finalize fails.
     async fn clean(&self) -> ZFResult<()>;
 
     /// Returns the type of the runner.
@@ -180,16 +194,19 @@ pub trait Runner: Send + Sync {
 
     /// Starts the recoding of the `Runner`
     ///
+    /// # Errors
     /// Fails if the `Runner` is not a source
     async fn start_recording(&self) -> ZFResult<String>;
 
     /// Stops the recording of the `Runner`.
     ///
+    /// # Errors
     /// Fails it the `Runner` is not a source.
     async fn stop_recording(&self) -> ZFResult<String>;
 
     /// Checks if the `Runner` is recording.
     ///
+    /// # Errors
     /// Always `false` if the runner is not a source.
     async fn is_recording(&self) -> bool;
 
@@ -215,6 +232,9 @@ impl NodeRunner {
     }
 
     /// Run the node in a stoppable fashion.
+    ///
+    ///  # Errors
+    /// An error variant is returned in case the run return an error.
     fn run_stoppable(&self, signal: Signal) -> ZFResult<()> {
         async fn run(runner: &NodeRunner) -> RunAction {
             match runner.run().await {

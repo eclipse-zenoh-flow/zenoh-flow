@@ -209,6 +209,10 @@ macro_rules! REG_GRAPH_SELECTOR {
 /// Deserialize data from Zenoh storage.
 /// The format used depends on the features.
 /// It can be JSON (default), bincode or CBOR.
+///
+/// # Errors
+/// If it fails to deserialize an error
+/// variant will be returned.
 pub fn deserialize_data<T>(raw_data: &[u8]) -> ZFResult<T>
 where
     T: DeserializeOwned,
@@ -223,7 +227,11 @@ where
     return Ok(serde_json::from_str::<T>(std::str::from_utf8(raw_data)?)?);
 }
 
-/// Deseralizes data from zenoh
+/// Serializes data for zenoh
+///
+/// # Errors
+/// If it fails to serialize an error
+/// variant will be returned.
 #[cfg(feature = "data_bincode")]
 
 pub fn serialize_data<T: ?Sized>(data: &T) -> FResult<Vec<u8>>
@@ -233,7 +241,11 @@ where
     Ok(bincode::serialize(data)?)
 }
 
-/// Deseralizes data from zenoh
+/// Serializes data for zenoh
+///
+/// # Errors
+/// If it fails to serialize an error
+/// variant will be returned.
 #[cfg(feature = "data_json")]
 pub fn serialize_data<T: ?Sized>(data: &T) -> ZFResult<Vec<u8>>
 where
@@ -242,7 +254,11 @@ where
     Ok(serde_json::to_string(data)?.into_bytes())
 }
 
-/// Deseralizes data from zenoh
+/// Serializes data for zenoh
+///
+/// # Errors
+/// If it fails to serialize an error
+/// variant will be returned.
 #[cfg(feature = "data_cbor")]
 pub fn serialize_data<T>(data: &T) -> FResult<Vec<u8>>
 where
@@ -319,6 +335,11 @@ impl DataStore {
     }
 
     /// Gets the [`RuntimeInfo`](`RuntimeInfo`) for the given `rtid.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
     pub async fn get_runtime_info(&self, rtid: &Uuid) -> ZFResult<RuntimeInfo> {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
@@ -327,6 +348,11 @@ impl DataStore {
 
     /// Gets the  [`RuntimeInfo`](`RuntimeInfo`) for all the runtime in the
     /// infrastructure
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
     pub async fn get_all_runtime_info(&self) -> ZFResult<Vec<RuntimeInfo>> {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, "*");
 
@@ -335,6 +361,11 @@ impl DataStore {
 
     /// Gets the  [`RuntimeInfo`](`RuntimeInfo`) for the runtime with the
     /// given name `rtid`.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
     pub async fn get_runtime_info_by_name(&self, rtid: &str) -> ZFResult<RuntimeInfo> {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, "*");
 
@@ -342,6 +373,9 @@ impl DataStore {
     }
 
     /// Removes the information for the given runtime `rtid`.
+    ///
+    /// # Errors
+    /// If zenoh delete fails an error variant is returned.
     pub async fn remove_runtime_info(&self, rtid: &Uuid) -> ZFResult<()> {
         let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
@@ -350,6 +384,11 @@ impl DataStore {
 
     /// Stores the given  [`RuntimeInfo`](`RuntimeInfo`) for the given `rtid`
     /// in Zenoh.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - fails to serialize
+    /// - zenoh put fails
     pub async fn add_runtime_info(&self, rtid: &Uuid, rt_info: &RuntimeInfo) -> ZFResult<()> {
         let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
@@ -358,13 +397,23 @@ impl DataStore {
     }
 
     /// Gets [`RuntimeConfig`](`RuntimeConfig`) for the given `rtid`
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
     pub async fn get_runtime_config(&self, rtid: &Uuid) -> ZFResult<RuntimeConfig> {
         let selector = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
         self.get_from_zenoh::<RuntimeConfig>(&selector).await
     }
 
     /// Subscribers to configuration changes for the given `rtid`
-    /// *NOTE:* not implemented.
+    /// **NOTE:** not implemented.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - zenoh subscribe fails
+    /// - fails to deserialize
     pub async fn subscribe_runtime_config(&self, rtid: &Uuid) -> ZFResult<ZFRuntimeConfigStream> {
         // let selector = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
         //
@@ -376,6 +425,9 @@ impl DataStore {
     }
 
     /// Removes the configuration for the given `rtid`.
+    ///
+    /// # Errors
+    /// If zenoh delete fails an error variant is returned.
     pub async fn remove_runtime_config(&self, rtid: &Uuid) -> ZFResult<()> {
         let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
 
@@ -384,6 +436,11 @@ impl DataStore {
 
     /// Stores the given [`RuntimeConfig`](`RuntimeConfig`) for the given
     /// `rtid` in Zenoh.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - fails to serialize
+    /// - zenoh put fails
     pub async fn add_runtime_config(&self, rtid: &Uuid, rt_info: &RuntimeConfig) -> ZFResult<()> {
         let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
 
@@ -391,12 +448,21 @@ impl DataStore {
         Ok(self.z.put(&path, encoded_info).await?)
     }
 
+    /// Gets the `RuntimeStatus` for the given runtinme `rtid.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
     pub async fn get_runtime_status(&self, rtid: &Uuid) -> ZFResult<RuntimeStatus> {
         let selector = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
         self.get_from_zenoh::<RuntimeStatus>(&selector).await
     }
 
     /// Gets the [`RuntimeStatus`](`RuntimeStatus`) for the given `rtid`.
+    ///
+    /// # Errors
+    /// If zenoh delete fails an error variant is returned.
     pub async fn remove_runtime_status(&self, rtid: &Uuid) -> ZFResult<()> {
         let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
 
@@ -405,6 +471,12 @@ impl DataStore {
 
     /// Stores the given [`RuntimeStatus`](`RuntimeStatus`) for the given `rtid`
     /// in Zenoh.
+    ///
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - fails to serialize
+    /// - zenoh put fails
     pub async fn add_runtime_status(&self, rtid: &Uuid, rt_info: &RuntimeStatus) -> ZFResult<()> {
         let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
 
@@ -414,6 +486,11 @@ impl DataStore {
 
     /// Gets the [`DataFlowRecord`](`DataFlowRecord`) running on the give
     /// runtime `rtid` for the given instance `iid`.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
     pub async fn get_runtime_flow_by_instance(
         &self,
         rtid: &Uuid,
@@ -426,6 +503,11 @@ impl DataStore {
 
     /// Getsthe [`DataFlowRecord`](`DataFlowRecord`) running across the
     /// infrastructure for the instance `iid`.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
     pub async fn get_flow_by_instance(&self, iid: &Uuid) -> ZFResult<DataFlowRecord> {
         let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid);
         self.get_from_zenoh::<DataFlowRecord>(&selector).await
@@ -433,6 +515,12 @@ impl DataStore {
 
     /// Gets all the [`DataFlowRecord`](`DataFlowRecord`) for the given
     /// instance `iid` running on the given runtime `rtid`.
+    ///
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
     pub async fn get_runtime_flow_instances(
         &self,
         rtid: &Uuid,
@@ -445,6 +533,12 @@ impl DataStore {
 
     /// Gets all the [`DataFlowRecord`](`DataFlowRecord`) running across
     /// the infrastructure for the given flow `fid`.
+    ///
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
     pub async fn get_flow_instances(&self, fid: &str) -> ZFResult<Vec<DataFlowRecord>> {
         let selector = FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, fid);
         self.get_vec_from_zenoh::<DataFlowRecord>(&selector).await
@@ -477,6 +571,9 @@ impl DataStore {
 
     /// Removes information on the given instance `iid` of the given flow `fid`
     /// running on the given runtime `rtid` from Zenoh.
+    ///
+    /// # Errors
+    /// If zenoh delete fails an error variant is returned.
     pub async fn remove_runtime_flow_instance(
         &self,
         rtid: &Uuid,
@@ -490,6 +587,11 @@ impl DataStore {
 
     /// Stores the given [`DataFlowRecord`](`DataFlowRecord`) running on the
     /// given runtime `rtid` in Zenoh.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - fails to serialize
+    /// - zenoh put fails
     pub async fn add_runtime_flow(
         &self,
         rtid: &Uuid,
@@ -510,6 +612,11 @@ impl DataStore {
 
     /// Stores the given [`RegistryNode`](`RegistryNode`) in the registry's
     /// Zenoh.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - fails to serialize
+    /// - zenoh put fails
     pub async fn add_graph(&self, graph: &RegistryNode) -> ZFResult<()> {
         let path = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph.id);
 
@@ -519,6 +626,11 @@ impl DataStore {
 
     /// Gets the [`RegistryNode`](`RegistryNode`) associated with the given
     /// `graph_id` from registry's Zenoh.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
     pub async fn get_graph(&self, graph_id: &str) -> ZFResult<RegistryNode> {
         let selector = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, graph_id);
         self.get_from_zenoh::<RegistryNode>(&selector).await
@@ -526,6 +638,12 @@ impl DataStore {
 
     /// Gets all the nodes [`RegistryNode`](`RegistryNode`) within the
     /// registry's Zenoh.
+    ///
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
     pub async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryNode>> {
         let selector = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, "*");
         self.get_vec_from_zenoh::<RegistryNode>(&selector).await
@@ -540,6 +658,12 @@ impl DataStore {
 
     /// Helper function to get a generic data `T` and deserializing it
     /// from Zenoh.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - no data present in zenoh
+    /// - fails to deserialize
+    /// - wrong zenoh encoding
     async fn get_from_zenoh<T>(&self, path: &str) -> ZFResult<T>
     where
         T: DeserializeOwned,
@@ -564,6 +688,11 @@ impl DataStore {
 
     /// Helper function to get a vector of genetic `T` and deserializing
     /// it from Zenoh.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - wrong encoding
+    /// - fails to deserialize
     async fn get_vec_from_zenoh<T>(&self, selector: &str) -> ZFResult<Vec<T>>
     where
         T: DeserializeOwned,

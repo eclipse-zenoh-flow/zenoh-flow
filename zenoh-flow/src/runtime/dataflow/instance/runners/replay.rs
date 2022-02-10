@@ -42,6 +42,7 @@ impl ZenohReplay {
     /// Tries to create a replay node, that will replay from the given
     /// `resource_name`.
     ///
+    /// # Errors
     /// It fails if the ports are not connected correctly.
     pub fn try_new(
         id: NodeId,
@@ -76,6 +77,10 @@ impl ZenohReplay {
     /// Sends a data to the link.
     ///
     /// This is the replay.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// -  link send fails
     async fn send_data(&self, msg: Message) -> ZFResult<()> {
         log::trace!("ZenohReplay {} - {} - SendData ", self.id, self.node_id);
         let links = self.links.lock().await;

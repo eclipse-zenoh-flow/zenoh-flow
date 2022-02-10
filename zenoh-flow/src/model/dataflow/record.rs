@@ -42,23 +42,35 @@ pub struct DataFlowRecord {
 
 impl DataFlowRecord {
     /// Creates a new `DataFlowDescriptor` record from its YAML format.
+    ///
+    ///  # Errors
+    /// A variant error is returned if deserialization fails.
     pub fn from_yaml(data: &str) -> ZFResult<Self> {
         serde_yaml::from_str::<DataFlowRecord>(data)
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))
     }
 
     /// Creates a new `DataFlowDescriptor` from its JSON format.
+    ///
+    ///  # Errors
+    /// A variant error is returned if deserialization fails.
     pub fn from_json(data: &str) -> ZFResult<Self> {
         serde_json::from_str::<DataFlowRecord>(data)
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))
     }
 
     /// Returns the JSON representation of the `DataFlowDescriptor`.
+    ///
+    ///  # Errors
+    /// A variant error is returned if serialization fails.
     pub fn to_json(&self) -> ZFResult<String> {
         serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
     /// Returns the YAML representation of the `DataFlowDescriptor`.
+    ///
+    ///  # Errors
+    /// A variant error is returned if serialization fails.
     pub fn to_yaml(&self) -> ZFResult<String> {
         serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
@@ -103,6 +115,9 @@ impl DataFlowRecord {
     /// If the nodes are mapped to different machines it adds the couple of
     /// connectors in between and creates the unique key expression
     /// for the data to flow in Zenoh.
+    ///
+    ///  # Errors
+    /// A variant error is returned if validation fails.
     fn add_links(&mut self, links: &[LinkDescriptor]) -> ZFResult<()> {
         for l in links {
             log::debug!("Adding link: {:?}…", l);

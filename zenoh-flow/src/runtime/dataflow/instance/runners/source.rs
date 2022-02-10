@@ -66,6 +66,7 @@ impl SourceRunner {
     /// [`InstanceContext`](`InstanceContext`), [`SourceLoaded`](`SourceLoaded`)
     /// and [`OperatorIO`](`OperatorIO`).
     ///
+    /// # Errors
     /// If fails if the output is not connected.
     pub fn try_new(
         context: InstanceContext,
@@ -104,6 +105,11 @@ impl SourceRunner {
     }
 
     /// Records the given `message`.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - unable to put on zenoh
+    /// - serialization fails
     async fn record(&self, message: Arc<Message>) -> ZFResult<()> {
         log::debug!("ZenohLogger IN <= {:?} ", message);
         let recording = self.is_recording.lock().await;
@@ -132,6 +138,12 @@ impl SourceRunner {
     }
 
     /// A single iteration of the run loop.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - user returns an error
+    /// - record fails
+    /// - link send fails
     async fn iteration(&self, mut context: Context) -> ZFResult<Context> {
         let links = self.links.lock().await;
         let mut state = self.state.lock().await;

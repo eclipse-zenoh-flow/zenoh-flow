@@ -69,6 +69,10 @@ impl Data {
     /// It does not actually change the internal representation.
     /// The serialized representation in stored inside an `Arc`
     /// to avoid copies.
+    ///
+    /// # Errors
+    /// If it fails to serialize an error
+    /// variant will be returned.
     pub fn try_as_bytes(&self) -> ZFResult<Arc<Vec<u8>>> {
         match &self {
             Self::Bytes(bytes) => Ok(bytes.clone()),
@@ -109,6 +113,10 @@ impl Data {
     /// multiple Inputs, therefore to avoid copies the same `Arc` is send
     /// to multiple operators, this it is multiple-owned and data inside
     /// cannot be modifed.
+    ///
+    /// # Errors
+    /// If fails to cast an error
+    /// variant will be returned.
     pub fn try_get<Typed>(&mut self) -> ZFResult<&Typed>
     where
         Typed: ZFData + crate::Deserializable + 'static,
@@ -165,6 +173,10 @@ impl State {
     /// Tries to cast the state to the given type.
     /// It returns a mutable reference to the internal state, so user can
     /// modify it.
+    ///
+    /// # Errors
+    /// If it fails to cast an error
+    /// variant will be returned.
     pub fn try_get<S>(&mut self) -> ZFResult<&mut S>
     where
         S: ZFState + 'static,
@@ -253,6 +265,8 @@ impl ZFState for EmptyState {
 /// The default output rules are a commodity function provided to
 /// users that do not need output rules in their operators.
 /// It converts all the incoming data to the right node output.
+///
+/// It never returns an error.
 pub fn default_output_rule(
     _state: &mut State,
     outputs: HashMap<PortId, Data>,
@@ -269,6 +283,8 @@ pub fn default_output_rule(
 /// users that do not need inputs rules in their operators.
 /// They provide a KPN input rule. Thus they trigger the execution only when
 /// all inputs are present.
+///
+/// It never returns an error.
 pub fn default_input_rule(
     _state: &mut State,
     tokens: &mut HashMap<PortId, InputToken>,

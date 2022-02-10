@@ -192,6 +192,10 @@ impl Message {
     }
 
     /// Serialized the `Message` using bincode.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - fails to serialize
     pub fn serialize_bincode(&self) -> ZFResult<Vec<u8>> {
         match &self {
             Message::Control(_) => {

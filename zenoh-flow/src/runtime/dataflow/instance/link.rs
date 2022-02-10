@@ -38,12 +38,15 @@ pub struct LinkReceiver<T> {
 ///
 /// In Zenoh Flow `T = Data`.
 ///
+///
 pub type ZFLinkOutput<T> = ZFResult<(PortId, Arc<T>)>;
 
 impl<T: std::marker::Send + std::marker::Sync> LinkReceiver<T> {
     /// Wrapper over flume::Receiver::recv_async(),
     /// it returns [`ZFLinkOutput<T>`](`ZFLinkOutput<T>`)
     ///
+    /// # Errors
+    /// If fails if the link is disconnected
     pub fn recv(
         &self,
     ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_ + Send + Sync>>
@@ -58,6 +61,9 @@ impl<T: std::marker::Send + std::marker::Sync> LinkReceiver<T> {
     /// Discards the message
     ///
     /// *Note:* Not implemented.
+    ///
+    /// # Errors
+    /// It fails if the link is disconnected
     pub async fn discard(&self) -> ZFResult<()> {
         Ok(())
     }
@@ -77,6 +83,8 @@ impl<T> LinkSender<T> {
     /// Wrapper over flume::Sender::send_async(),
     /// it sends `Arc<T>`.
     ///
+    /// # Errors
+    /// It fails if the link is disconnected
     pub async fn send(&self, data: Arc<T>) -> ZFResult<()> {
         Ok(self.sender.send_async(data).await?)
     }

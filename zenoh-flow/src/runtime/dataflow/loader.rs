@@ -39,6 +39,10 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 // OPERATOR
 /// Operator register function signature
+///
+/// # Errors
+/// An error variant is returned in case of:
+/// -  user wants to return an error.
 pub type OperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
 
 /// Operator declaration expected in the library that will be loaded.
@@ -51,6 +55,10 @@ pub struct OperatorDeclaration {
 // SOURCE
 
 /// Source register function signature.
+///
+/// # Errors
+/// An error variant is returned in case of:
+/// -  user wants to return an error.
 pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
 
 /// Source declaration expected in the library that will be loaded.
@@ -63,6 +71,10 @@ pub struct SourceDeclaration {
 // SINK
 
 /// Sink register function signature.
+///
+/// # Errors
+/// An error variant is returned in case of:
+/// -  user wants to return an error.
 pub type SinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
 
 /// Sink declaration expected in the library that will be loaded.
@@ -140,8 +152,8 @@ impl Loader {
     /// Tries to load an operator from the information passed within
     /// the [`OperatorRecord`](`OperatorRecord`).
     ///
+    /// # Errors
     /// It can fail because of:
-    ///
     /// - different version of zenoh flow used to build the operator
     /// - different verion of rust compiler used to build the operator
     /// - the library does not contain the symbols.
@@ -183,8 +195,9 @@ impl Loader {
     /// Tries to load a source from the information passed within
     /// the [`SourceRecord`](`SourceRecord`).
     ///
-    /// It can fail because of:
     ///
+    /// # Errors
+    /// It can fail because of:
     /// - different version of zenoh flow used to build the source
     /// - different verion of rust compiler used to build the source
     /// - the library does not contain the symbols.
@@ -226,8 +239,8 @@ impl Loader {
     /// Tries to load a sink from the information passed within
     /// the [`SinkRecord`](`SinkRecord`).
     ///
+    /// # Errors
     /// It can fail because of:
-    ///
     /// - different version of zenoh flow used to build the sink
     /// - different verion of rust compiler used to build the sink
     /// - the library does not contain the symbols.
@@ -269,10 +282,11 @@ impl Loader {
     /// Load the library of the operator.
     ///
     /// # Safety
+    /// - dynamic loading of library and lookup of symbols.
     ///
+    /// # Errors
     /// This function dynamically loads an external library, things can go wrong:
     /// - it fails if the symbol `zfoperator_declaration` is not found,
-    /// - be sure to *trust* the code you are loading.
     unsafe fn load_lib_operator(path: PathBuf) -> ZFResult<(Library, Arc<dyn Operator>)> {
         log::debug!("Operator Loading {:#?}", path);
 
@@ -297,10 +311,11 @@ impl Loader {
     /// Load the library of a source.
     ///
     /// # Safety
+    /// - dynamic loading of library, and lookup of symbols.
     ///
+    /// # Errors
     /// This function dynamically loads an external library, things can go wrong:
     /// - it fails if the symbol `zfsource_declaration` is not found,
-    /// - be sure to *trust* the code you are loading.
     unsafe fn load_lib_source(path: PathBuf) -> ZFResult<(Library, Arc<dyn Source>)> {
         log::debug!("Source Loading {:#?}", path);
 
@@ -325,10 +340,12 @@ impl Loader {
     /// Load the library of a sink.
     ///
     /// # Safety
+    /// - dynamic loading of library, and lookup of symbols.
     ///
+    /// # Errors
     /// This function dynamically loads an external library, things can go wrong:
     /// - it fails if the symbol `zfsink_declaration` is not found,
-    /// - be sure to *trust* the code you are loading.
+    ///
     unsafe fn load_lib_sink(path: PathBuf) -> ZFResult<(Library, Arc<dyn Sink>)> {
         log::debug!("Sink Loading {:#?}", path);
 
@@ -370,7 +387,7 @@ impl Loader {
         false
     }
 
-    /// Returns the file extension.
+    /// Returns the file extension, if any.
     fn get_file_extension(file: &Path) -> Option<String> {
         if let Some(ext) = file.extension() {
             if let Some(ext) = ext.to_str() {
@@ -383,6 +400,7 @@ impl Loader {
     /// Loads an operator that is not a dynamic library.
     /// Using one of the extension configured within the loader.
     ///
+    /// # Errors
     /// This function can fail:
     /// - the extension is not known
     /// - different version of zenoh flow used to build the extension
@@ -428,6 +446,7 @@ impl Loader {
     /// Loads an source that is not a dynamic library.
     /// Using one of the extension configured within the loader.
     ///
+    /// # Errors
     /// This function can fail:
     /// - the extension is not known
     /// - different version of zenoh flow used to build the extension
@@ -473,6 +492,7 @@ impl Loader {
     /// Loads an sink that is not a dynamic library.
     /// Using one of the extension configured within the loader.
     ///
+    /// # Errors
     /// This function can fail:
     /// - the extension is not known
     /// - different version of zenoh flow used to build the extension
@@ -516,6 +536,10 @@ impl Loader {
     }
 
     /// Wraps the configuration in case of an extension.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// -  unable to parse the file path
     fn generate_wrapper_config(
         configuration: Option<Configuration>,
         config_key: String,

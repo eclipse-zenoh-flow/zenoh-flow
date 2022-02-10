@@ -131,7 +131,10 @@ impl DataflowValidator {
         }
     }
 
-    /// `try_add_id` returns an error if two nodes have the same id.
+    /// Adds a new node id
+    ///
+    /// # Errors
+    /// An error variant is returned if two nodes have the same id.
     fn try_add_id(&mut self, node_kind: NodeKind, node_id: NodeId) -> ZFResult<()> {
         let graph_checker_idx = self.graph_checker.add_node((node_id.clone(), node_kind));
         if self
@@ -145,7 +148,11 @@ impl DataflowValidator {
         Ok(())
     }
 
-    /// `try_add_node` can fail if two ports (input / output), for the same node, have the same id.
+    /// Adds a node
+    ///
+    /// # Errors
+    /// It can fail if two ports (input / output), for the same node,
+    ///  have the same id.
     fn try_add_node(
         &mut self,
         node_id: NodeId,
@@ -170,14 +177,20 @@ impl DataflowValidator {
         Ok(node_checker_idx)
     }
 
-    /// `try_add_input` can fail when calling `try_add_node`.
+    /// Adds an input
+    ///
+    /// # Errors
+    /// It can fail when calling `try_add_node`.
     pub(crate) fn try_add_input(&mut self, node_id: NodeId, input: PortDescriptor) -> ZFResult<()> {
         let node_checker_idx = self.try_add_node(node_id, input, PortKind::Input)?;
         self.input_indexes.insert(node_checker_idx);
         Ok(())
     }
 
-    /// `try_add_output` can fail when calling `try_add_node`.
+    /// Adds an output
+    ///
+    /// # Errors
+    /// It can fail when calling `try_add_node`.
     pub(crate) fn try_add_output(
         &mut self,
         node_id: NodeId,
@@ -188,7 +201,10 @@ impl DataflowValidator {
         Ok(())
     }
 
-    /// Adds a source, can fail when calling `try_add_output` or `try_add_it`.
+    /// Adds a source
+    ///
+    /// #Errors
+    /// It can fail when calling `try_add_output` or `try_add_it`.
     pub(crate) fn try_add_source(
         &mut self,
         node_id: NodeId,
@@ -199,13 +215,19 @@ impl DataflowValidator {
         self.try_add_output(node_id, output)
     }
 
-    /// Adds a sink, can fail when calling `try_add_output` or `try_add_it`.
+    /// Adds a sink
+    ///
+    /// # Errors
+    /// It can fail when calling `try_add_output` or `try_add_it`.
     pub(crate) fn try_add_sink(&mut self, node_id: NodeId, input: PortDescriptor) -> ZFResult<()> {
         self.try_add_id(NodeKind::Sink, node_id.clone())?;
         self.try_add_input(node_id, input)
     }
 
-    /// Adds an operator, can fail when calling `try_add_output`, `try_add_it`
+    /// Adds an operator
+    ///
+    /// # Errors
+    /// It can fail when calling `try_add_output`, `try_add_it`
     /// or `try_add_input`.
     pub(crate) fn try_add_operator(
         &mut self,
@@ -225,6 +247,9 @@ impl DataflowValidator {
     }
 
     /// Adds a link, can fail if it does not find the ports.
+    ///
+    /// # Errors
+    /// An error variant is returned if validation fails.
     pub(crate) fn try_add_link(
         &mut self,
         from: &OutputDescriptor,
@@ -301,6 +326,9 @@ impl DataflowValidator {
     /// - an output port has at least one outgoing link.
     ///
     /// A link is represented by an "edge" in Petgraph vocabulary.
+    ///
+    /// # Errors
+    /// A variant error is returned if validation fails.
     pub(crate) fn validate_ports(&self) -> ZFResult<()> {
         self.input_indexes.iter().try_for_each(|idx| {
             match self
@@ -345,6 +373,9 @@ impl DataflowValidator {
     }
 
     /// Validates that, without the Loops, the Dataflow is a Directed Acyclic Graph.
+    ///
+    /// # Errors
+    /// A variant error is returned if validation fails.
     pub(crate) fn validate_dag(&self) -> ZFResult<()> {
         match petgraph::algo::is_cyclic_directed(&self.graph_checker) {
             true => Err(ZFError::InvalidData(
@@ -370,6 +401,9 @@ impl DataflowValidator {
     /// 4) For all the nodes that are at the end of all the edges isolated in step 3) (i.e. all
     ///    nodes that are *after* the "from" node for the provided port) check that there is a path
     ///    connecting them. If there is a path then the deadline is valid.
+    ///
+    /// # Errors
+    /// A variant error is returned if validation fails.
     pub(crate) fn validate_deadline(
         &self,
         from: &OutputDescriptor,
@@ -446,6 +480,9 @@ impl DataflowValidator {
     /// 6. No path should exist between the Ingress and Egress — excluding other loops.
     /// 7. The Ingress should not be involved in another loop as Ingress or Egress.
     /// 8. The Egress should not be involved in another loop as Ingress or Egress.
+    ///
+    ///  # Errors
+    /// A variant error is returned if validation fails.
     pub(crate) fn validate_loop(
         &mut self,
         ingress: &NodeId,

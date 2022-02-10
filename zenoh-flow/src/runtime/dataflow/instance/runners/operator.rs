@@ -78,6 +78,7 @@ impl OperatorIO {
 
     /// Tries to add the given `LinkReceiver<Message>`
     ///
+    /// # Errors
     /// It fails if the `PortId` is duplicated.
     pub fn try_add_input(&mut self, rx: LinkReceiver<Message>) -> ZFResult<()> {
         if self.inputs.contains_key(&rx.id()) {
@@ -144,6 +145,7 @@ impl OperatorRunner {
     /// [`InstanceContext`](`InstanceContext`), [`OperatorLoaded`](`OperatorLoaded`)
     /// and [`OperatorIO`](`OperatorIO`).
     ///
+    /// # Errors
     /// If fails if the output is not connected.
     pub fn try_new(
         context: InstanceContext,
@@ -173,6 +175,13 @@ impl OperatorRunner {
     }
 
     /// A single iteration of the run loop.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// -  user returns an error
+    /// - link recv fails
+    /// - link send fails
+    ///
     async fn iteration(
         &self,
         mut context: Context,

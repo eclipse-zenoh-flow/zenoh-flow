@@ -107,6 +107,9 @@ pub struct DataFlowDescriptor {
 
 impl DataFlowDescriptor {
     /// Creates a new `DataFlowDescriptor` from its YAML representation.
+    ///
+    ///  # Errors
+    /// A variant error is returned if deserialization fails.
     pub fn from_yaml(data: &str) -> ZFResult<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<DataFlowDescriptor>(data)
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
@@ -115,6 +118,9 @@ impl DataFlowDescriptor {
     }
 
     /// Creates a new `DataFlowDescriptor` from its JSON representation.
+    ///
+    ///  # Errors
+    /// A variant error is returned if deserialization fails.
     pub fn from_json(data: &str) -> ZFResult<Self> {
         let dataflow_descriptor = serde_json::from_str::<DataFlowDescriptor>(data)
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
@@ -123,11 +129,17 @@ impl DataFlowDescriptor {
     }
 
     /// Returns the JSON representation of the `DataFlowDescriptor`.
+    ///
+    ///  # Errors
+    /// A variant error is returned if serialization fails.
     pub fn to_json(&self) -> ZFResult<String> {
         serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
     /// Returns the YAML representation of the `DataFlowDescriptor`.
+    ///
+    ///  # Errors
+    /// A variant error is returned if serialization fails.
     pub fn to_yaml(&self) -> ZFResult<String> {
         serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
@@ -176,6 +188,9 @@ impl DataFlowDescriptor {
     /// - the dataflow, without the loops, is a DAG,
     /// - the end-to-end deadlines are correct,
     /// - the loops are valid.
+    ///
+    ///  # Errors
+    /// A variant error is returned if validation fails.
     fn validate(&self) -> ZFResult<()> {
         let mut validator = DataflowValidator::try_from(self)?;
 

@@ -58,6 +58,7 @@ impl SinkRunner {
     /// [`InstanceContext`](`InstanceContext`), [`SinkLoaded`](`SinkLoaded`)
     /// and [`OperatorIO`](`OperatorIO`).
     ///
+    /// # Errors
     /// If fails if the input is not connected.
     pub fn try_new(context: InstanceContext, sink: SinkLoaded, io: OperatorIO) -> ZFResult<Self> {
         let (mut inputs, _) = io.take();
@@ -88,6 +89,12 @@ impl SinkRunner {
     }
 
     /// A single iteration of the run loop.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// -  user returns an error
+    /// - link recv fails
+    ///
     async fn iteration(&self, mut context: Context) -> ZFResult<Context> {
         // Guards are taken at the beginning of each iteration to allow interleaving.
         if let Some(link) = &*self.link.lock().await {

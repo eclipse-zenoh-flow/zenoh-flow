@@ -62,6 +62,9 @@ pub trait DowncastAny {
 /// ```
 pub trait ZFData: DowncastAny + Debug + Send + Sync {
     /// Tries to serialize the data as `Vec<u8>`
+    ///
+    /// # Errors
+    /// If it fails to serialize an error variant will be returned.
     fn try_serialize(&self) -> ZFResult<Vec<u8>>;
 }
 
@@ -92,6 +95,9 @@ pub trait ZFData: DowncastAny + Debug + Send + Sync {
 /// ```
 pub trait Deserializable {
     /// Tries to deserialize from a slice of `u8`.
+    ///
+    /// # Errors
+    /// If it fails to deserialize an error variant will be returned.
     fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
     where
         Self: Sized;
@@ -130,6 +136,9 @@ pub trait Node {
     /// graph.
     /// An example of node state is files that should be opened, connection
     /// to devices or internal configuration.
+    ///
+    /// # Errors
+    /// If it fails to initialize an error variant will be returned.
     fn initialize(&self, configuration: &Option<Configuration>) -> ZFResult<State>;
 
     /// This method is used to finalize the state of the node.
@@ -138,10 +147,13 @@ pub trait Node {
     ///
     /// An example of node state to finalize is files to be closed,
     /// clean-up of libraries, or devices.
+    ///
+    /// # Errors
+    /// If it fails to finalize an error variant will be returned.
     fn finalize(&self, state: &mut State) -> ZFResult<()>;
 }
 
-/// The `Operator` triait represent an Operator inside Zenoh Flow.
+/// The `Operator` trait represent an Operator inside Zenoh Flow.
 pub trait Operator: Node + Send + Sync {
     /// This method is called when data is received on one or more inputs.
     /// The result of this method is use as discriminant to trigger the
@@ -154,6 +166,10 @@ pub trait Operator: Node + Send + Sync {
     /// the run or not.
     /// The commodity function [`default_input_rule`](`default_input_rule`)
     /// can be used if the operator should be triggered based on KPN rules.
+    ///
+    /// # Errors
+    /// If something goes wrong during execution an error
+    /// variant will be returned.
     fn input_rule(
         &self,
         context: &mut Context,
@@ -171,6 +187,10 @@ pub trait Operator: Node + Send + Sync {
     /// When it does provide output the `PortId` used should match the one
     /// defined in the descriptor for the operator. Any not matching `PortId`
     /// will be dropped.
+    ///
+    /// # Errors
+    /// If something goes wrong during execution an error
+    /// variant will be returned.
     fn run(
         &self,
         context: &mut Context,
@@ -186,6 +206,10 @@ pub trait Operator: Node + Send + Sync {
     /// The operator can access to its context and its state during execution.
     /// The commodity function [`default_output_rule`](`default_output_rule`)
     /// can be used if the operator does not need any post-processing.
+    ///
+    /// # Errors
+    /// If something goes wrong during execution an error
+    /// variant will be returned.
     fn output_rule(
         &self,
         context: &mut Context,
@@ -204,7 +228,11 @@ pub trait Source: Node + Send + Sync {
     /// This method is `async` therefore I/O is possible, e.g. reading data
     /// from a file/external device.
     ///
-    /// The Source can access its state and context while executing,
+    /// The Source can access its state and context while executing.
+    ///
+    /// # Errors
+    /// If something goes wrong during execution an error
+    /// variant will be returned.
     async fn run(&self, context: &mut Context, state: &mut State) -> ZFResult<Data>;
 }
 
@@ -216,7 +244,11 @@ pub trait Sink: Node + Send + Sync {
     /// This method is `async` therefore I/O is possible, e.g. writing to
     /// a file or interacting with an external device.
     ///
-    /// The Sink can access its state and context while executing,
+    /// The Sink can access its state and context while executing.
+    ///
+    /// # Errors
+    /// If something goes wrong during execution an error
+    /// variant will be returned.
     async fn run(
         &self,
         context: &mut Context,

@@ -40,6 +40,8 @@ pub struct ZenohSender {
 impl ZenohSender {
     /// Creates a new `ZenohSender` with the given parameters.
     ///
+    /// # Errors
+    /// An error variant is returned if the link is wrong.
     pub fn try_new(
         context: InstanceContext,
         record: ZFConnectorRecord,
@@ -69,6 +71,12 @@ impl ZenohSender {
     }
 
     /// A single sender iteration
+    ///
+    /// # Errors
+    /// An error variant is returned if:
+    /// - serialization fails
+    /// - zenoh put fails
+    /// - link recv fails
     async fn iteration(&self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.record.resource);
         if let Some(link) = &*self.link.lock().await {
@@ -199,6 +207,9 @@ pub struct ZenohReceiver {
 
 impl ZenohReceiver {
     /// Creates a new `ZenohReceiver` with the given parametes.
+    ///
+    /// # Errors
+    /// An error variant is returned if the link is wrong.
     pub fn try_new(
         context: InstanceContext,
         record: ZFConnectorRecord,

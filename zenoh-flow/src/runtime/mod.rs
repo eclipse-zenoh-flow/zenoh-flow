@@ -69,6 +69,10 @@ pub struct InstanceContext {
 /// the infrastructure.
 /// The initial implementation simply maps all missing mapping
 /// to the given runtime `runtime`.
+///
+/// # Errors
+/// An error variant is returned in case of:
+/// - unable to map node to infrastructure
 pub async fn map_to_infrastructure(
     mut descriptor: DataFlowDescriptor,
     runtime: &str,
@@ -234,56 +238,139 @@ pub trait Runtime {
     /// and, creates the associated [`DataFlowRecord`].
     /// The record contains an [`Uuid`] that identifies the record.
     /// The actual instantiation process runs asynchronously in the runtime.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - unable to instantiate
     async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord>; //TODO: workaround - it should just take the ID of the flow...
 
     /// Sends a teardown request for the given record identified by the [`Uuid`]
     /// Note the request is asynchronous, the runtime that receives the request will
     /// return immediately, but the teardown process will run asynchronously in the runtime.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - unable to teardown
+    /// - instance not found
     async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
 
     /// Prepares the runtime host the instance identified [`Uuid`] for the Flow identified by [`FlowId`].
     /// Preparing a runtime means, fetch the operators/source/sinks libraries,
     /// create the needed structures in memory, the links.
     /// Once everything is prepared the runtime should return the [`DataFlowRecord`]
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - unable to prepare
     async fn prepare(&self, flow: DataFlowDescriptor, record_id: Uuid) -> ZFResult<DataFlowRecord>; //TODO: workaround - it should just take the ID of the flow...
 
     /// Cleans the runtime from the remains of the given record.
     /// Cleans means unload the libraries, drop data structures and destroy links.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - unable to clean
     async fn clean(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
 
     /// Starts the sinks, connectors, and operators for the given record.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - record already started
     async fn start(&self, record_id: Uuid) -> ZFResult<()>;
 
     /// Starts the sources for the given record.
     /// Note that this should be called only after the `start(record)` has returned
     /// successfully otherwise data may be lost.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - sources already started
     async fn start_sources(&self, record_id: Uuid) -> ZFResult<()>;
 
     /// Stops the sinks, connectors, and operators for the given record.
     /// Note that this should be called after the `stop_sources(record)` has returned
     /// successfully otherwise data may be lost.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - record already stopped
     async fn stop(&self, record_id: Uuid) -> ZFResult<()>;
 
     /// Stops the sources for the given record.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - sources already stopped
     async fn stop_sources(&self, record_id: Uuid) -> ZFResult<()>;
 
     /// Starts the given graph node for the given instance.
     /// A graph node can be a source, a sink, a connector, or an operator.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - node already started
+    /// - node not found
     async fn start_node(&self, record_id: Uuid, node: String) -> ZFResult<()>;
 
     /// Stops the given graph node from the given instance.
     /// A graph node can be a source, a sink, a connector, or an operator.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - node already started
+    /// - node not found
     async fn stop_node(&self, record_id: Uuid, node: String) -> ZFResult<()>;
 
     /// Start a recording for the given source.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - record already started
+    /// - source not found
+    /// - node is not a source
     async fn start_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String>;
 
     /// Stops the recording for the given source.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - record already stopped
+    /// - source not found
+    /// - node is not a source
     async fn stop_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String>;
 
     /// Starts the replay for the given source.
     /// The replay creates a new node that has the same port and links as the
     /// source is replaying.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - replay already started
+    /// - source not found
+    /// - node is not a source
     async fn start_replay(
         &self,
         instance_id: Uuid,
@@ -293,6 +380,14 @@ pub trait Runtime {
 
     /// Stops the replay for the given source.
     /// This stops and removes the replay node from the graph.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - replay already stopped
+    /// - source not found
+    /// - node is not a source
     async fn stop_replay(
         &self,
         instance_id: Uuid,
@@ -309,6 +404,11 @@ pub trait Runtime {
     /// Sends the `message` to `node` for the given record.
     /// This is useful for sending out-of-band notification to a node.
     /// eg. in the case of deadline miss notification.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
     async fn notify_runtime(
         &self,
         record_id: Uuid,
@@ -318,13 +418,25 @@ pub trait Runtime {
 
     /// Checks the compatibility for the given `operator`
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
     async fn check_operator_compatibility(&self, operator: OperatorDescriptor) -> ZFResult<bool>;
 
     /// Checks the compatibility for the given `source`
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
     async fn check_source_compatibility(&self, source: SourceDescriptor) -> ZFResult<bool>;
 
     /// Checks the compatibility for the given `sink`
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
     async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> ZFResult<bool>;
 }

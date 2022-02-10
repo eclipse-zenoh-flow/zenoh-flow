@@ -43,14 +43,17 @@ struct RuntimeOpt {
 
 /// Helper function to read a file into a string.
 ///
-/// **Note:** it may panic.
+/// # Panics
+/// It may panic when calling filesystem related functions.
 async fn read_file(path: &Path) -> String {
     fs::read_to_string(path).await.unwrap() //FIXME.
 }
 
 /// Helper function to write a file.
 ///
-/// **Note:** it may panic.
+/// # Panics
+///
+/// It may panic when calling filesystem related functions.
 async fn _write_file(path: &Path, content: Vec<u8>) {
     // FIXME.
     let mut file = fs::File::create(path).await.unwrap();
