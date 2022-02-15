@@ -12,27 +12,27 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 //!
-//! Zenoh-Flow provides a zenoh-based dataflow programming framework for
+//! Zenoh Flow provides a zenoh-based data flow programming framework for
 //! computations that span from the cloud to the device.
 //!
-//! Zenoh-Flow allow users to declare a dataflow graph, via a YAML file,
-//! and use tags to express location affinity and requirements for the
-//! operators that makeup the graph. When deploying the dataflow graph,
-//! Zenoh-Flow automatically deals with distribution by linking
+//! Zenoh Flow allows users to declare a data flow graph, via a YAML file,
+//! and uses tags to express location affinity and requirements for the
+//! operators that makeup the graph. When deploying the data flow graph,
+//! Zenoh Flow automatically deals with distribution by linking
 //! remote operators through zenoh.
 //!
-//! A dataflow is composed of set of nodes: sources — producing data, operators
+//! A data flow is composed of set of nodes: sources — producing data, operators
 //! — computing over the data, and sinks — consuming the resulting data.
 //!  These nodes are dynamically loaded at runtime.
 //!
 //! Remote source, operators, and sinks leverage zenoh to communicate in a
-//! transparent manner. In other terms, the dataflow the dafalow graph retails
+//! transparent manner. In other terms, the data flow the data flow graph retails
 //! location transparency and could be deployed in
 //! different ways depending on specific needs.
 //!
-//! Zenoh-Flow provides several working examples that illustrate how to
+//! Zenoh Flow provides several working examples that illustrate how to
 //! define operators, sources and sinks as well as how to
-//! declaratively define they dataflow graph by means of a YAML file.
+//! declaratively define they data flow graph by means of a YAML file.
 
 use const_format::formatcp;
 

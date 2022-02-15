@@ -97,7 +97,7 @@ impl DataMessage {
     }
 
     /// Creates a messages from `Typed` data.
-    /// This is used when the data is generated from rust source.
+    /// This is used when the data is generated from rust nodes.
     pub fn new_deserialized(
         data: Arc<dyn ZFData>,
         timestamp: Timestamp,
@@ -115,9 +115,9 @@ impl DataMessage {
 }
 
 /// Metadata stored in Zenoh's time series storages.
-/// It contains information about the recoding.
+/// It contains information about the recording.
 /// Multiple [`RecordingMetadata`](`RecordingMetadata`) can be used
-/// to syncronize the recoding from different Ports.
+/// to synchronize the recording from different Ports.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RecordingMetadata {
     pub(crate) timestamp: Timestamp,
@@ -129,7 +129,7 @@ pub struct RecordingMetadata {
 
 /// Zenoh Flow control messages.
 /// It contains the control messages used within Zenoh Flow.
-/// For the time being only the `RecodingStart` and `RecodingStop` messages
+/// For the time being only the `RecordingStart` and `RecordingStop` messages
 /// have been defined,
 /// *Note*: Most of messages are not yet defined.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -191,7 +191,7 @@ impl Message {
         }
     }
 
-    /// Serialized the `Message` using bincode.
+    /// Serializes the `Message` using bincode.
     ///
     /// # Errors
     /// An error variant is returned in case of:

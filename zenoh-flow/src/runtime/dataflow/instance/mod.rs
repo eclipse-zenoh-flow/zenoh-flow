@@ -354,7 +354,7 @@ impl DataflowInstance {
         Ok(manager.await?)
     }
 
-    /// Starts the recoding for the given source.
+    /// Starts the recording for the given source.
     ///
     /// It returns the key expression where the recording is stored.
     ///
@@ -368,7 +368,7 @@ impl DataflowInstance {
         manager.start_recording().await
     }
 
-    /// Stops the recoding for the given source.
+    /// Stops the recording for the given source.
     ///
     /// It returns the key expression where the recording is stored.
     ///
@@ -439,7 +439,7 @@ impl DataflowInstance {
         Ok(replay_id)
     }
 
-    /// Stops the recoding for the given source.
+    /// Stops the recording for the given source.
     ///
     /// # Errors
     /// If fails if the node is not found.

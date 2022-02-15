@@ -71,6 +71,7 @@ impl Daemon {
 
     /// Creates a new `Daemon` from a configuration file.
     ///
+    /// # Errors
     /// This function can fail if:
     /// - unable to configure zenoh.
     /// - unable to get the machine hostname.
@@ -149,6 +150,9 @@ impl Daemon {
     /// Sets the status to ready and serves all the requests.
     ///
     /// It stops when receives the stop signal.
+    ///
+    /// # Errors
+    /// Returns an error variant if zenoh-rpc fails.
     pub async fn run(&self, stop: async_std::channel::Receiver<()>) -> ZFResult<()> {
         log::info!("Runtime main loop starting");
 
@@ -223,6 +227,8 @@ impl Daemon {
     /// The daemon is started on a separated blocking task.
     /// And the stop sender and task handler are returned to the caller.
     ///
+    /// # Errors
+    /// Returns an error variant if zenoh fails.
     pub async fn start(
         &self,
     ) -> ZFResult<(
@@ -272,6 +278,10 @@ impl Daemon {
     /// Stops the daemon.
     ///
     /// Removes information, configuration and status from Zenoh.
+    ///
+    /// # Errors
+    /// Returns an error variant if zenoh fails, or if the stop
+    /// channels is disconnected.
     pub async fn stop(&self, stop: async_std::channel::Sender<()>) -> ZFResult<()> {
         stop.send(())
             .await
@@ -292,6 +302,9 @@ impl Daemon {
 }
 
 /// Gets the machine Uuid.
+///
+/// # Errors
+/// Returns an error variant if unable to get or parse the Uuid.
 pub fn get_machine_uuid() -> ZFResult<Uuid> {
     let machine_id_raw = machine_uid::get().map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
     let node_str: &str = &machine_id_raw;

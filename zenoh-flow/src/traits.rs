@@ -26,7 +26,7 @@ use std::fmt::Debug;
 /// NOTE: This trait is separate from `ZFDataTrait` so that we can provide
 /// a `#derive` macro to automatically implement it for the users.
 ///
-/// This can be derived using the `#derive(ZFData)
+/// This can be derived using the `#derive(ZFData)`
 ///
 /// Example::
 /// ```no_run
@@ -35,10 +35,10 @@ use std::fmt::Debug;
 /// pub struct MyString(pub String);
 /// ```
 pub trait DowncastAny {
-    /// Donwcast as reference to [`Any`](`Any`)
+    /// Donwcast as a reference to [`Any`](`Any`)
     fn as_any(&self) -> &dyn Any;
 
-    /// Donwcast as mutable reference to [`Any`](`Any`)
+    /// Donwcast as a mutable reference to [`Any`](`Any`)
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
@@ -153,16 +153,17 @@ pub trait Node {
     fn finalize(&self, state: &mut State) -> ZFResult<()>;
 }
 
-/// The `Operator` trait represent an Operator inside Zenoh Flow.
+/// The `Operator` trait represents an Operator inside Zenoh Flow.
 pub trait Operator: Node + Send + Sync {
     /// This method is called when data is received on one or more inputs.
     /// The result of this method is use as discriminant to trigger the
     /// operator's run function.
-    /// The operator can access to its context and its state during execution.
+    /// An operator can access its context and state during
+    /// the execution of this function.
     ///
     /// The received data is provided as [`InputToken`](`InputToken`) that
-    /// represent the state of the associated port.
-    /// Based on the tokens and on the data users can decide if trigger
+    /// represents the state of the associated port.
+    /// Based on the tokens and on the data users can decide to trigger
     /// the run or not.
     /// The commodity function [`default_input_rule`](`default_input_rule`)
     /// can be used if the operator should be triggered based on KPN rules.
@@ -182,7 +183,8 @@ pub trait Operator: Node + Send + Sync {
     /// As operators are computing over data,
     /// *I/O should not be done in the run*.
     ///
-    /// The operator can access to its context and its state during execution.
+    /// An operator can access its context and state
+    /// during the execution of this function.
     /// The result of a computation can also not provide any output.
     /// When it does provide output the `PortId` used should match the one
     /// defined in the descriptor for the operator. Any not matching `PortId`
@@ -198,12 +200,15 @@ pub trait Operator: Node + Send + Sync {
         inputs: &mut HashMap<PortId, DataMessage>,
     ) -> ZFResult<HashMap<PortId, Data>>;
 
-    /// This method is called after the run, and can be used for
-    /// further analysis and adjustment over the computed data.
+    /// This method is called after the run, its main purpose is to check
+    /// for missed local deadlines.
+    /// It can also be used for further analysis and
+    /// adjustment over the computed data.
     /// E.g. flooring a value to a specified MAX, or check if it is within
     /// a given range.
     ///
-    /// The operator can access to its context and its state during execution.
+    /// An operator can access its context and
+    /// state during the execution of this function.
     /// The commodity function [`default_output_rule`](`default_output_rule`)
     /// can be used if the operator does not need any post-processing.
     ///
@@ -219,7 +224,7 @@ pub trait Operator: Node + Send + Sync {
     ) -> ZFResult<HashMap<PortId, NodeOutput>>;
 }
 
-/// The `Source` trait represent a Source inside Zenoh Flow
+/// The `Source` trait represents a Source inside Zenoh Flow
 #[async_trait]
 pub trait Source: Node + Send + Sync {
     /// This method is the actual one producing the data.
@@ -236,7 +241,7 @@ pub trait Source: Node + Send + Sync {
     async fn run(&self, context: &mut Context, state: &mut State) -> ZFResult<Data>;
 }
 
-/// The `Sink` trait represent a Sink inside Zenoh Flow
+/// The `Sink` trait represents a Sink inside Zenoh Flow
 #[async_trait]
 pub trait Sink: Node + Send + Sync {
     /// This method is the actual one consuming the data.

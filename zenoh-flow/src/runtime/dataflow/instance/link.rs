@@ -25,7 +25,7 @@ pub struct LinkSender<T> {
 }
 
 /// The Zenoh Flow link receiver.
-/// A wrapper over a flume recver, that receiver `Arc<T>` and the associated
+/// A wrapper over a flume Receiver, that receives `Arc<T>` and the associated
 /// `PortId`
 #[derive(Clone, Debug)]
 pub struct LinkReceiver<T> {
@@ -33,8 +33,8 @@ pub struct LinkReceiver<T> {
     pub receiver: flume::Receiver<Arc<T>>,
 }
 
-/// The output of the [`LinkReceiver<T>`](`LinkReceiver<T>`) a tuple
-/// containg the `PortId` and `Arc<T>`.
+/// The output of the [`LinkReceiver<T>`](`LinkReceiver<T>`), a tuple
+/// containing the `PortId` and `Arc<T>`.
 ///
 /// In Zenoh Flow `T = Data`.
 ///

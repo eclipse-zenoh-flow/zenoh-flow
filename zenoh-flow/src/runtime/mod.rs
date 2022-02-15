@@ -68,7 +68,7 @@ pub struct InstanceContext {
 /// This function maps a [`DataFlowDescriptor`](`DataFlowDescriptor`) into
 /// the infrastructure.
 /// The initial implementation simply maps all missing mapping
-/// to the given runtime `runtime`.
+/// to the provided runtime.
 ///
 /// # Errors
 /// An error variant is returned in case of:

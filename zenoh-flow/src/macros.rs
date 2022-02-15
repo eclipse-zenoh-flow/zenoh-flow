@@ -145,7 +145,7 @@ macro_rules! export_source {
 }
 
 /// This macros should be used in order to provide the symbols
-/// for the dynamic load of an Sink. Along with a register function
+/// for the dynamic load of a Sink. Along with a register function
 ///
 /// Example:
 ///
@@ -211,8 +211,8 @@ macro_rules! zf_spin_lock {
     };
 }
 
-/// This macro is an helper if you node does not need any state.
-/// In can be used inside your implementation of `Node::intialize`
+/// This macro is a helper if your node does not need any state.
+/// It can be used inside your implementation of `Node::intialize`
 ///
 /// Example:
 ///

@@ -204,7 +204,7 @@ impl DataflowValidator {
     /// Adds a source
     ///
     /// #Errors
-    /// It can fail when calling `try_add_output` or `try_add_it`.
+    /// It can fail when calling `try_add_output` or `try_add_id`.
     pub(crate) fn try_add_source(
         &mut self,
         node_id: NodeId,
@@ -218,7 +218,7 @@ impl DataflowValidator {
     /// Adds a sink
     ///
     /// # Errors
-    /// It can fail when calling `try_add_output` or `try_add_it`.
+    /// It can fail when calling `try_add_output` or `try_add_id`.
     pub(crate) fn try_add_sink(&mut self, node_id: NodeId, input: PortDescriptor) -> ZFResult<()> {
         self.try_add_id(NodeKind::Sink, node_id.clone())?;
         self.try_add_input(node_id, input)
@@ -227,7 +227,7 @@ impl DataflowValidator {
     /// Adds an operator
     ///
     /// # Errors
-    /// It can fail when calling `try_add_output`, `try_add_it`
+    /// It can fail when calling `try_add_output`, `try_add_id`
     /// or `try_add_input`.
     pub(crate) fn try_add_operator(
         &mut self,

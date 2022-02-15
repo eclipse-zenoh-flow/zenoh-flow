@@ -46,7 +46,7 @@ pub enum RunnerKind {
     Connector,
 }
 
-/// A runner manager is crated when a `Runner` is start.
+/// A runner manager is created when a `Runner` is started.
 ///
 /// The runner manager is used to send commands to the runner.
 pub struct RunnerManager {
@@ -157,15 +157,15 @@ pub trait Runner: Send + Sync {
     /// Adds an input to the runner.
     ///
     /// # Errors
-    /// If may fail if the runner is not supposed to have that input or
-    /// if does not expect any input (eg. Source)
+    /// It may fail if the runner is not supposed to have that input or
+    /// if it does not expect any input (eg. Source)
     async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()>;
 
     /// Adds an output to the runner.
     ///
     /// # Errors
-    /// If may fail if the runner is not supposed to have that output or
-    /// if does not expect any outputs (e.g.  Sink)
+    /// It may fail if the runner is not supposed to have that output or
+    /// if it does not expect any outputs (e.g.  Sink)
     async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()>;
 
     /// Finalizes the node
@@ -192,7 +192,7 @@ pub trait Runner: Send + Sync {
     /// Returns the input link of the `Runner`.
     async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>>;
 
-    /// Starts the recoding of the `Runner`
+    /// Starts the recording of the `Runner`
     ///
     /// # Errors
     /// Fails if the `Runner` is not a source
@@ -217,7 +217,7 @@ pub trait Runner: Send + Sync {
     async fn stop(&self);
 }
 
-/// A `NodeRunner` wraps the `Runner and associated it
+/// A `NodeRunner` wraps the `Runner and associates it
 /// with an `InstanceContext`
 #[derive(Clone)]
 pub struct NodeRunner {
@@ -234,7 +234,7 @@ impl NodeRunner {
     /// Run the node in a stoppable fashion.
     ///
     ///  # Errors
-    /// An error variant is returned in case the run return an error.
+    /// An error variant is returned in case the run returns an error.
     fn run_stoppable(&self, signal: Signal) -> ZFResult<()> {
         async fn run(runner: &NodeRunner) -> RunAction {
             match runner.run().await {
@@ -289,50 +289,4 @@ impl Deref for NodeRunner {
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
-}
-
-/// Helper macro for the input rules, this allows code reuse.
-#[macro_export]
-macro_rules! run_input_rules {
-    ($node: expr, $tokens : expr, $links : expr, $state: expr, $context: expr) => {
-        while !$links.is_empty() {
-            match future::select_all($links).await {
-                // this could be "slow" as suggested by LC
-                (Ok((id, message)), _i, remaining) => {
-                    match message.as_ref() {
-                        Message::Data(_) => {
-                            $tokens.insert(id, Token::from(message));
-
-                            match $node.input_rule($context, $state, &mut $tokens) {
-                                Ok(true) => {
-                                    // we can run
-                                    log::debug!("IR: OK");
-                                    $links = vec![]; // this makes the while loop to end
-                                }
-                                Ok(false) => {
-                                    //we cannot run, we should update the list of futures
-                                    log::debug!("IR: Not OK");
-                                    $links = remaining;
-                                }
-                                Err(_) => {
-                                    // we got an error on the input rules, we should recover/update list of futures
-                                    log::debug!("IR: received an error");
-                                    $links = remaining;
-                                }
-                            }
-                        }
-                        Message::Control(_) => {
-                            //control message receiver, we should handle it
-                            $links = remaining;
-                        }
-                    };
-                }
-                (Err(e), i, remaining) => {
-                    log::debug!("Link index {:?} has got error {:?}", i, e);
-                    $links = remaining;
-                }
-            }
-        };
-        drop($links);
-    };
 }

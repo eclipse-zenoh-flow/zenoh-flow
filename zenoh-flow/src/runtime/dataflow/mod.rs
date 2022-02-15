@@ -37,8 +37,8 @@ use crate::{
 
 /// The data flow struct.
 /// This struct contains all the information needed to instantiate a data flow.
-/// running withing a Zenoh Flow runtime.
-/// It stores a `RuntimeContext` all the loaded nodes, the connectors.
+/// running within a Zenoh Flow runtime.
+/// It stores in a `RuntimeContext` all the loaded nodes and the connectors.
 /// It also contains a `DataflowValidator` that is used to verify that the
 /// data flow can be instantiated.
 pub struct Dataflow {
@@ -156,7 +156,7 @@ impl Dataflow {
     /// Tries to add a static source to the data flow.
     ///
     /// If the validation fails the source cannot be added.
-    /// This is mean to be used when creating an empty dataflow using
+    /// This is meant to be used when creating an empty data flow using
     /// `Dataflow::new(..)` function.
     ///
     /// # Errors
@@ -191,7 +191,7 @@ impl Dataflow {
     /// Tries to add a static operator to the data flow.
     ///
     /// If the validation fails the operator cannot be added.
-    /// This is mean to be used when creating an empty dataflow using
+    /// This is meant to be used when creating an empty data flow using
     /// `Dataflow::new(..)` function.
     ///
     /// # Errors
@@ -239,7 +239,7 @@ impl Dataflow {
     /// Tries to add a static sink to the data flow.
     ///
     /// If the validation fails the sink cannot be added.
-    /// This is mean to be used when creating an empty dataflow using
+    /// This is meant to be used when creating an empty data flow using
     /// `Dataflow::new(..)` function.
     ///
     /// # Errors

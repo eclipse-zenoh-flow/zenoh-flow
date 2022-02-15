@@ -49,7 +49,7 @@ impl InputTokens {
 /// - Consume (default) the data will be consumed when run is triggered
 /// - Drop the data will be dropped
 /// - Keep the data will be kept for the current and the next
-/// time the run is triggered, if can be set back to `Consume` by the user.
+/// time the run is triggered, it has to be explicitly set back to `Consume`
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenAction {
     Consume,

@@ -334,7 +334,7 @@ impl DataStore {
         Self { z }
     }
 
-    /// Gets the [`RuntimeInfo`](`RuntimeInfo`) for the given `rtid.
+    /// Gets the [`RuntimeInfo`](`RuntimeInfo`) for the given `rtid`.
     ///
     /// # Errors
     /// An error variant is returned in case of:
@@ -346,7 +346,7 @@ impl DataStore {
         self.get_from_zenoh::<RuntimeInfo>(&selector).await
     }
 
-    /// Gets the  [`RuntimeInfo`](`RuntimeInfo`) for all the runtime in the
+    /// Gets the  [`RuntimeInfo`](`RuntimeInfo`) for all the runtimes in the
     /// infrastructure
     ///
     /// # Errors
@@ -407,7 +407,7 @@ impl DataStore {
         self.get_from_zenoh::<RuntimeConfig>(&selector).await
     }
 
-    /// Subscribers to configuration changes for the given `rtid`
+    /// Subscribes to configuration changes for the given `rtid`
     /// **NOTE:** not implemented.
     ///
     /// # Errors
@@ -448,7 +448,7 @@ impl DataStore {
         Ok(self.z.put(&path, encoded_info).await?)
     }
 
-    /// Gets the `RuntimeStatus` for the given runtinme `rtid.
+    /// Gets the `RuntimeStatus` for the given runtime `rtid`.
     ///
     /// # Errors
     /// An error variant is returned in case of:
@@ -484,7 +484,7 @@ impl DataStore {
         Ok(self.z.put(&path, encoded_info).await?)
     }
 
-    /// Gets the [`DataFlowRecord`](`DataFlowRecord`) running on the give
+    /// Gets the [`DataFlowRecord`](`DataFlowRecord`) running on the given
     /// runtime `rtid` for the given instance `iid`.
     ///
     /// # Errors
@@ -501,7 +501,7 @@ impl DataStore {
         self.get_from_zenoh::<DataFlowRecord>(&selector).await
     }
 
-    /// Getsthe [`DataFlowRecord`](`DataFlowRecord`) running across the
+    /// Gets the [`DataFlowRecord`](`DataFlowRecord`) running across the
     /// infrastructure for the instance `iid`.
     ///
     /// # Errors

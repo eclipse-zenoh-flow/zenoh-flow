@@ -43,17 +43,17 @@ pub struct Context {
 
 /// The Zenoh Flow data.
 /// It is an `enum` that can contain both the serialized data (if received from
-/// the network, or from operators not written in Rust),
+/// the network, or from nodes not written in Rust),
 /// or the actual `Typed` data as [`ZFData`](`ZFData`).
 /// The `Typed` data is never serialized directly when sending over Zenoh
 /// or to an operator not written in Rust.
 ///
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Data {
-    /// Serialized data, coming either from Zenoh of from non-rust operator.
+    /// Serialized data, coming either from Zenoh of from non-rust node.
     Bytes(Arc<Vec<u8>>),
     #[serde(skip_serializing, skip_deserializing)]
-    /// Actual data as instance of 'ZFData` coming from a Rust operator.
+    /// Actual data as instance of 'ZFData` coming from a Rust node.
     /// This is never serialized directly.
     Typed(Arc<dyn ZFData>),
 }
@@ -107,12 +107,12 @@ impl Data {
     /// Tries to cast the data to the given type.
     /// If the data is represented as serialized, this will try to deserialize
     /// the bytes and change the internal representation of the data.
-    /// If the data is already represented with as `Typed` then is will
-    /// return a *immutable* reference to the internal data.
-    /// This reference in *immutable* because one Output can send data to
-    /// multiple Inputs, therefore to avoid copies the same `Arc` is send
-    /// to multiple operators, this it is multiple-owned and data inside
-    /// cannot be modifed.
+    /// If the data is already represented with as `Typed` then it will
+    /// return an *immutable* reference to the internal data.
+    /// This reference is *immutable* because one Output can send data to
+    /// multiple Inputs, therefore to avoid copies the same `Arc` is sent
+    /// to multiple operators, thus it is multiple-owned and the data inside
+    /// cannot be modified.
     ///
     /// # Errors
     /// If fails to cast an error
@@ -190,8 +190,8 @@ impl State {
 
 /// Represents the output of a node.
 /// A node can either send `Data` or `Control`
-/// Where the first is an [`Data`](`Data`) and the latter
-/// a [`ControlMessage`](`Data`).
+/// Where the first is a [`Data`](`Data`) and the latter
+/// a [`ControlMessage`](`ControlMessage`).
 ///
 ///
 /// *NOTE:* Handling of control messages is not yet implemented.
@@ -262,11 +262,10 @@ impl ZFState for EmptyState {
     }
 }
 
-/// The default output rules are a commodity function provided to
-/// users that do not need output rules in their operators.
-/// It converts all the incoming data to the right node output.
-///
-/// It never returns an error.
+/// Commodity function for users that do not need output
+/// rules in their operators.
+/// The data is simply converted to the
+/// expected [`NodeOutput`](`NodeOutput`) type.
 pub fn default_output_rule(
     _state: &mut State,
     outputs: HashMap<PortId, Data>,
@@ -279,12 +278,9 @@ pub fn default_output_rule(
     Ok(results)
 }
 
-/// The default input rules are a commodity function provided to
-/// users that do not need inputs rules in their operators.
-/// They provide a KPN input rule. Thus they trigger the execution only when
-/// all inputs are present.
-///
-/// It never returns an error.
+/// Commodity function for users that need their operators to behave
+/// in a KPN manner:
+/// all inputs must be present before a computation can be triggered.
 pub fn default_input_rule(
     _state: &mut State,
     tokens: &mut HashMap<PortId, InputToken>,
@@ -303,7 +299,7 @@ pub fn default_input_rule(
 /// It is a re-export of `serde_json::Value`
 pub type Configuration = serde_json::Value;
 
-/// The unit od duration used in different descriptors.
+/// The unit of duration used in different descriptors.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum DurationUnit {
     #[serde(alias = "s")]
@@ -322,7 +318,6 @@ pub enum DurationUnit {
 }
 
 /// The descriptor for a duration.
-/// Used is different descriptors.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DurationDescriptor {
     #[serde(alias = "duration")]

@@ -26,7 +26,7 @@ use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 use uuid::Uuid;
 
-/// The instance of a [`DataFlowDescriptor`](`DataFlowDescriptor`).
+///A `DataFlowRecord` is an instance of a [`DataFlowDescriptor`](`DataFlowDescriptor`).
 ///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DataFlowRecord {
@@ -41,7 +41,7 @@ pub struct DataFlowRecord {
 }
 
 impl DataFlowRecord {
-    /// Creates a new `DataFlowDescriptor` record from its YAML format.
+    /// Creates a new `DataFlowRecord` record from its YAML format.
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
@@ -50,7 +50,7 @@ impl DataFlowRecord {
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))
     }
 
-    /// Creates a new `DataFlowDescriptor` from its JSON format.
+    /// Creates a new `DataFlowRecord` from its JSON format.
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
@@ -59,7 +59,7 @@ impl DataFlowRecord {
             .map_err(|e| ZFError::ParsingError(format!("{}", e)))
     }
 
-    /// Returns the JSON representation of the `DataFlowDescriptor`.
+    /// Returns the JSON representation of the `DataFlowRecord`.
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
@@ -67,7 +67,7 @@ impl DataFlowRecord {
         serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
-    /// Returns the YAML representation of the `DataFlowDescriptor`.
+    /// Returns the YAML representation of the `DataFlowRecord`.
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.

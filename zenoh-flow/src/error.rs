@@ -18,8 +18,8 @@ use uuid::Uuid;
 use zrpc::zrpcresult::ZRPCError;
 
 /// The Zenoh Flow error
-/// It contains mapping to most of the error that could happen withing
-/// Zenoh Flow and dependencies.
+/// It contains mapping to most of the errors that could happen within
+/// Zenoh Flow and its dependencies.
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum ZFError {
     GenericError,

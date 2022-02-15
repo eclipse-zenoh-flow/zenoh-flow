@@ -82,7 +82,7 @@ impl std::fmt::Display for SourceDescriptor {
     }
 }
 
-/// Describes a operator.
+/// Describes an operator.
 ///
 /// Example:
 ///
@@ -119,7 +119,7 @@ impl std::fmt::Display for OperatorDescriptor {
 
 // Records
 
-/// The instance of a [`SinkDescriptor`](`SinkDescriptor`)
+/// A `SinkRecord` is an instance of a [`SinkDescriptor`](`SinkDescriptor`)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SinkRecord {
     pub id: NodeId,
@@ -146,7 +146,7 @@ impl SinkRecord {
     }
 }
 
-/// The instance of a [`SourceDescriptor`](`SourceDescriptor`)
+/// A `SourceRecord` is an instance of a [`SourceDescriptor`](`SourceDescriptor`)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SourceRecord {
     pub id: NodeId,
@@ -174,7 +174,7 @@ impl SourceRecord {
     }
 }
 
-/// The instance of a [`OperatorDescriptor`](`OperatorDescriptor`)
+/// An `OperatorRecord` is an instance of an [`OperatorDescriptor`](`OperatorDescriptor`)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperatorRecord {
     pub(crate) id: NodeId,

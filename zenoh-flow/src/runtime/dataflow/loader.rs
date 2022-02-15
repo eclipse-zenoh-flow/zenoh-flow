@@ -30,11 +30,15 @@ use url::Url;
 static LOAD_FLAGS: std::os::raw::c_int =
     libloading::os::unix::RTLD_NOW | libloading::os::unix::RTLD_LOCAL;
 
-/// Constant used to for version check when loading nodes, Zenoh Flow version,
-/// as API changes across versions.
+/// Constant used to check if a node is compatible with the currently
+/// running Zenoh Flow daemon.
+/// As nodes are dynamically loaded, this is to prevent (possibly cryptic)
+///  runtime error due to incompatible API.
 pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
-/// Constant used to for version check when loading nodes,
-/// rust compiler version, as ABI is not stable.
+/// Constant used to check if a node was compiled with the same version of
+/// the Rust compiler than the currently running Zenoh Flow daemon.
+/// As Rust is not ABI stable,
+/// this is to prevent (possibly cryptic) runtime errors.
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 // OPERATOR
@@ -85,7 +89,7 @@ pub struct SinkDeclaration {
 }
 
 /// Extensible support for different implementations
-/// This represent the configuration for an extention.
+/// This represents the configuration for an extension.
 ///
 ///
 /// Example:
@@ -108,7 +112,7 @@ pub struct ExtensibleImplementation {
     pub(crate) config_lib_key: String,
 }
 
-/// Loader configuration files, it includes the extentions.
+/// Loader configuration files, it includes the extensions.
 ///
 /// Example:
 ///
@@ -128,8 +132,8 @@ pub struct LoaderConfig {
 }
 
 /// The dynamic library loader.
-/// Before loading it verifies if the version are compatible and if the symbols
-/// are presents.
+/// Before loading it verifies if the versions are compatible
+/// and if the symbols are presents.
 /// It loads the files in different way depending on the operating system.
 /// In particular the scope of the symbols is different between Unix and
 /// Windows.
@@ -144,7 +148,7 @@ pub struct Loader {
 }
 
 impl Loader {
-    /// Creates a new `Loaded` with the given `config`.
+    /// Creates a new `Loader` with the given `config`.
     pub fn new(config: LoaderConfig) -> Self {
         Self { config }
     }
@@ -154,8 +158,8 @@ impl Loader {
     ///
     /// # Errors
     /// It can fail because of:
-    /// - different version of zenoh flow used to build the operator
-    /// - different verion of rust compiler used to build the operator
+    /// - different versions of zenoh flow used to build the operator
+    /// - different versions of rust compiler used to build the operator
     /// - the library does not contain the symbols.
     /// - the URI is missing
     /// - the URI scheme is not known ( so far only `file://` is known).
@@ -198,8 +202,8 @@ impl Loader {
     ///
     /// # Errors
     /// It can fail because of:
-    /// - different version of zenoh flow used to build the source
-    /// - different verion of rust compiler used to build the source
+    /// - different versions of zenoh flow used to build the source
+    /// - different versions of rust compiler used to build the source
     /// - the library does not contain the symbols.
     /// - the URI is missing
     /// - the URI scheme is not known ( so far only `file://` is known).
@@ -241,8 +245,8 @@ impl Loader {
     ///
     /// # Errors
     /// It can fail because of:
-    /// - different version of zenoh flow used to build the sink
-    /// - different verion of rust compiler used to build the sink
+    /// - different versions of zenoh flow used to build the sink
+    /// - different versions of rust compiler used to build the sink
     /// - the library does not contain the symbols.
     /// - the URI is missing
     /// - the URI scheme is not known ( so far only `file://` is known).
@@ -403,8 +407,8 @@ impl Loader {
     /// # Errors
     /// This function can fail:
     /// - the extension is not known
-    /// - different version of zenoh flow used to build the extension
-    /// - different verion of rust compiler used to build the extension
+    /// - different versions of zenoh flow used to build the extension
+    /// - different versions of rust compiler used to build the extension
     /// - the extension library does not contain the symbols.
     /// - the URI is missing
     /// - the URI scheme is not known ( so far only `file://` is known).
@@ -443,14 +447,14 @@ impl Loader {
         }
     }
 
-    /// Loads an source that is not a dynamic library.
+    /// Loads a source that is not a dynamic library.
     /// Using one of the extension configured within the loader.
     ///
     /// # Errors
     /// This function can fail:
     /// - the extension is not known
-    /// - different version of zenoh flow used to build the extension
-    /// - different verion of rust compiler used to build the extension
+    /// - different versions of zenoh flow used to build the extension
+    /// - different versions of rust compiler used to build the extension
     /// - the extension library does not contain the symbols.
     /// - the URI is missing
     /// - the URI scheme is not known ( so far only `file://` is known).
@@ -489,14 +493,14 @@ impl Loader {
         }
     }
 
-    /// Loads an sink that is not a dynamic library.
+    /// Loads a sink that is not a dynamic library.
     /// Using one of the extension configured within the loader.
     ///
     /// # Errors
     /// This function can fail:
     /// - the extension is not known
-    /// - different version of zenoh flow used to build the extension
-    /// - different verion of rust compiler used to build the extension
+    /// - different versions of zenoh flow used to build the extension
+    /// - different versions of rust compiler used to build the extension
     /// - the extension library does not contain the symbols.
     /// - the URI is missing
     /// - the URI scheme is not known ( so far only `file://` is known).

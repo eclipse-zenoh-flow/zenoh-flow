@@ -28,6 +28,19 @@ To build Zenoh-Flow, just type the following command after having followed the p
 $ cargo build --release
 ```
 
+
+-----------
+## How to build the docs
+
+To build Zenoh-Flow documentation, just type the following command after having followed the previous instructions:
+
+```bash
+$ cargo doc
+```
+
+The HTML documentation can then be found under `./target/doc/zenoh_flow/index.html`.
+
+
 -----------
 ## How to run
 

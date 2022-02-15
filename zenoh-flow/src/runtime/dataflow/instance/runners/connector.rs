@@ -26,7 +26,7 @@ use async_trait::async_trait;
 use futures::prelude::*;
 use zenoh::publication::CongestionControl;
 
-/// The `ZenohSender` is the connector that send the data to Zenoh
+/// The `ZenohSender` is the connector that sends the data to Zenoh
 /// when nodes are running on different runtimes.
 #[derive(Clone)]
 pub struct ZenohSender {
@@ -41,7 +41,8 @@ impl ZenohSender {
     /// Creates a new `ZenohSender` with the given parameters.
     ///
     /// # Errors
-    /// An error variant is returned if the link is wrong.
+    /// An error variant is returned if the link is not supposed to be
+    /// connected to this node.
     pub fn try_new(
         context: InstanceContext,
         record: ZFConnectorRecord,
@@ -209,7 +210,8 @@ impl ZenohReceiver {
     /// Creates a new `ZenohReceiver` with the given parametes.
     ///
     /// # Errors
-    /// An error variant is returned if the link is wrong.
+    /// An error variant is returned if the link is not supposed to be
+    /// connected to this node.
     pub fn try_new(
         context: InstanceContext,
         record: ZFConnectorRecord,

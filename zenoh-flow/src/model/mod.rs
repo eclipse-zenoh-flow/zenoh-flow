@@ -66,8 +66,11 @@ impl fmt::Display for InputDescriptor {
     }
 }
 
-/// The kind of a node.
-/// This used in tools.
+/// The kind of a graph node.
+/// It is used as discriminant to understand the kind
+/// of a node in the graph. (e.g. it is a source, a sink or an operator?)
+/// It is used internally when all nodes are mixed inside some data structure.
+///
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NodeKind {
@@ -121,7 +124,9 @@ pub struct RegistryNode {
 }
 
 impl RegistryNode {
-    /// Adds a tag for this node.
+    /// Adds a the given [`RegistryNodeTag`](`RegistryNodeTag`) for this node.
+    /// This is like adding a version/flavor of that node, similar to
+    /// Docker's tag.
     pub fn add_tag(&mut self, tag: RegistryNodeTag) {
         let index = self.tags.iter().position(|t| t.name == tag.name);
         match index {
