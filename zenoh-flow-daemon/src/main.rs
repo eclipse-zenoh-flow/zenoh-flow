@@ -23,10 +23,13 @@ mod daemon;
 use daemon::Daemon;
 use zenoh_flow::runtime::RuntimeConfig;
 
+/// Default path for the runtime configuration file.
 static RUNTIME_CONFIG_FILE: &str = "/etc/zenoh-flow/runtime.yaml";
 
+/// Git version (commit id) for the runtime.
 const GIT_VERSION: &str = git_version::git_version!(prefix = "v", cargo_prefix = "v");
 
+/// The CLI parameters accepted by the runtime.
 #[derive(Debug, StructOpt)]
 #[structopt(name = "dpn")]
 struct RuntimeOpt {
@@ -38,16 +41,32 @@ struct RuntimeOpt {
     node_uuid: bool,
 }
 
+/// Helper function to read a file into a string.
+///
+/// # Panics
+/// It may panic when calling filesystem related functions.
 async fn read_file(path: &Path) -> String {
-    fs::read_to_string(path).await.unwrap()
+    fs::read_to_string(path).await.unwrap() //FIXME.
 }
 
+/// Helper function to write a file.
+///
+/// # Panics
+///
+/// It may panic when calling filesystem related functions.
 async fn _write_file(path: &Path, content: Vec<u8>) {
+    // FIXME.
     let mut file = fs::File::create(path).await.unwrap();
     file.write_all(&content).await.unwrap();
     file.sync_all().await.unwrap();
 }
 
+/// The runtime main function.
+///
+/// It initializes the `env_logger`, parses the arguments and then creates
+/// a runtime.
+///
+/// It is able to catch SIGINT for graceful termination.
 #[async_std::main]
 async fn main() {
     // Init logging

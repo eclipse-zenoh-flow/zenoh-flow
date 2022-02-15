@@ -26,6 +26,8 @@ use async_trait::async_trait;
 use futures::prelude::*;
 use zenoh::publication::CongestionControl;
 
+/// The `ZenohSender` is the connector that sends the data to Zenoh
+/// when nodes are running on different runtimes.
 #[derive(Clone)]
 pub struct ZenohSender {
     pub(crate) id: NodeId,
@@ -36,6 +38,11 @@ pub struct ZenohSender {
 }
 
 impl ZenohSender {
+    /// Creates a new `ZenohSender` with the given parameters.
+    ///
+    /// # Errors
+    /// An error variant is returned if the link is not supposed to be
+    /// connected to this node.
     pub fn try_new(
         context: InstanceContext,
         record: ZFConnectorRecord,
@@ -59,10 +66,18 @@ impl ZenohSender {
         })
     }
 
+    /// Starts the the sender.
     async fn start(&self) {
         *self.is_running.lock().await = true;
     }
 
+    /// A single sender iteration
+    ///
+    /// # Errors
+    /// An error variant is returned if:
+    /// - serialization fails
+    /// - zenoh put fails
+    /// - link recv fails
     async fn iteration(&self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.record.resource);
         if let Some(link) = &*self.link.lock().await {
@@ -180,6 +195,8 @@ impl Runner for ZenohSender {
     }
 }
 
+/// A `ZenohReceiver` receives the messages from Zenoh when nodes are running
+/// on different runtimes.
 #[derive(Clone)]
 pub struct ZenohReceiver {
     pub(crate) id: NodeId,
@@ -190,6 +207,11 @@ pub struct ZenohReceiver {
 }
 
 impl ZenohReceiver {
+    /// Creates a new `ZenohReceiver` with the given parametes.
+    ///
+    /// # Errors
+    /// An error variant is returned if the link is not supposed to be
+    /// connected to this node.
     pub fn try_new(
         context: InstanceContext,
         record: ZFConnectorRecord,
@@ -224,6 +246,7 @@ impl ZenohReceiver {
         })
     }
 
+    /// Starts the receiver.
     async fn start(&self) {
         *self.is_running.lock().await = true;
     }

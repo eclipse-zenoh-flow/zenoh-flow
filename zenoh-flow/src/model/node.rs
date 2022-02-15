@@ -21,6 +21,21 @@ use std::time::Duration;
 
 // Descriptors
 
+/// Describes a sink.
+///
+/// Example:
+///
+///
+/// ```yaml
+/// id : PrintSink
+/// uri: file://./target/release/libgeneric_sink.so
+/// configuration:
+///   file: /tmp/generic-sink.txt
+/// input:
+///   id: Data
+///   type: usize
+/// ```
+///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SinkDescriptor {
     pub id: NodeId,
@@ -36,6 +51,21 @@ impl std::fmt::Display for SinkDescriptor {
     }
 }
 
+/// Describes a source.
+///
+/// Example:
+///
+///
+/// ```yaml
+/// id : PrintSink
+/// uri: file://./target/release/libcounter_source.so
+/// configuration:
+///   start: 10
+/// output:
+///   id: Counter
+///   type: usize
+/// ```
+///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SourceDescriptor {
     pub id: NodeId,
@@ -52,6 +82,24 @@ impl std::fmt::Display for SourceDescriptor {
     }
 }
 
+/// Describes an operator.
+///
+/// Example:
+///
+///
+/// ```yaml
+/// id : PrintSink
+/// uri: file://./target/release/libmy_op.so
+/// configuration:
+///   by: 10
+/// inputs:
+///     - id: Number
+///       type: usize
+/// outputs:
+///   - id: Multiplied
+///     type: usize
+/// ```
+///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperatorDescriptor {
     pub id: NodeId,
@@ -71,6 +119,7 @@ impl std::fmt::Display for OperatorDescriptor {
 
 // Records
 
+/// A `SinkRecord` is an instance of a [`SinkDescriptor`](`SinkDescriptor`)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SinkRecord {
     pub id: NodeId,
@@ -87,6 +136,7 @@ impl std::fmt::Display for SinkRecord {
 }
 
 impl SinkRecord {
+    /// Returns the `PortType` for the input.
     pub fn get_input_type(&self, id: &str) -> Option<PortType> {
         if self.input.port_id.as_ref() == id {
             Some(self.input.port_type.clone())
@@ -96,6 +146,7 @@ impl SinkRecord {
     }
 }
 
+/// A `SourceRecord` is an instance of a [`SourceDescriptor`](`SourceDescriptor`)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SourceRecord {
     pub id: NodeId,
@@ -113,6 +164,7 @@ impl std::fmt::Display for SourceRecord {
 }
 
 impl SourceRecord {
+    /// Returns the `PortType` for the output.
     pub fn get_output_type(&self, id: &str) -> Option<PortType> {
         if self.output.port_id.as_ref() == id {
             Some(self.output.port_type.clone())
@@ -122,6 +174,7 @@ impl SourceRecord {
     }
 }
 
+/// An `OperatorRecord` is an instance of an [`OperatorDescriptor`](`OperatorDescriptor`)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperatorRecord {
     pub(crate) id: NodeId,
@@ -142,6 +195,7 @@ impl std::fmt::Display for OperatorRecord {
 }
 
 impl OperatorRecord {
+    /// Returns the `PortType` for the given output.
     pub fn get_output_type(&self, id: &str) -> Option<PortType> {
         self.outputs
             .iter()
@@ -149,6 +203,7 @@ impl OperatorRecord {
             .map(|lid| lid.port_type.clone())
     }
 
+    /// Return the `PortType` for the given input.
     pub fn get_input_type(&self, id: &str) -> Option<PortType> {
         self.inputs
             .iter()

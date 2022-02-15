@@ -12,6 +12,71 @@
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
 
+/// This macros should be used in order to provide the symbols
+/// for the dynamic load of an Operator. Along with a register function
+///
+/// Example:
+///
+/// ```no_run
+/// use std::collections::HashMap;
+/// use async_std::sync::Arc;
+/// use zenoh_flow::{ZFResult, Operator, export_operator, Node, zf_empty_state,
+///     State, Configuration, Context, DataMessage, default_input_rule,
+///     default_output_rule, PortId, InputToken, LocalDeadlineMiss,
+///     NodeOutput, Data};
+///
+/// pub struct MyOperator;
+///
+/// impl Node for MyOperator {
+///     fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+///         zf_empty_state!()
+///     }
+///
+///     fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+///         Ok(())
+///     }
+/// }
+///
+/// impl Operator for MyOperator {
+///     fn input_rule(
+///         &self,
+///         _context: &mut Context,
+///         state: &mut State,
+///         tokens: &mut HashMap<PortId, InputToken>
+///     ) -> ZFResult<bool> {
+///         default_input_rule(state, tokens)
+///     }
+///
+///     fn run(
+///         &self,
+///         context: &mut Context,
+///         state: &mut State,
+///         inputs: &mut HashMap<PortId, DataMessage>,
+///      ) -> ZFResult<HashMap<PortId, Data>> {
+///         panic!("Not implemented...")
+///      }
+///
+///     fn output_rule(
+///        &self,
+///        _context: &mut Context,
+///        state: &mut State,
+///        outputs: HashMap<PortId, Data>,
+///        _deadline_miss: Option<LocalDeadlineMiss>,
+///      ) -> ZFResult<HashMap<PortId, NodeOutput>> {
+///         default_output_rule(state, outputs)
+///      }
+/// }
+///
+/// export_operator!(register);
+///
+///
+///
+/// fn register() -> ZFResult<Arc<dyn Operator>> {
+///    Ok(Arc::new(MyOperator) as Arc<dyn Operator>)
+/// }
+///
+/// ```
+///
 #[macro_export]
 macro_rules! export_operator {
     ($register:expr) => {
@@ -26,6 +91,45 @@ macro_rules! export_operator {
     };
 }
 
+/// This macros should be used in order to provide the symbols
+/// for the dynamic load of an Source. Along with a register function
+///
+/// Example:
+///
+/// ```no_run
+/// use async_trait::async_trait;
+/// use async_std::sync::Arc;
+/// use zenoh_flow::{ZFResult, Source, export_source, Node, zf_empty_state,
+///     State, Configuration, Context, Data};
+///
+/// pub struct MySource;
+///
+/// impl Node for MySource {
+///     fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+///         zf_empty_state!()
+///     }
+///
+///     fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+///         Ok(())
+///     }
+/// }
+///
+/// #[async_trait]
+/// impl Source for MySource {
+///     async fn run(&self, _context: &mut Context, _state: &mut State) -> ZFResult<Data> {
+///         panic!("Not implemented...")
+///     }
+/// }
+///
+/// export_source!(register);
+///
+///
+/// fn register() -> ZFResult<Arc<dyn Source>> {
+///    Ok(Arc::new(MySource) as Arc<dyn Source>)
+/// }
+///
+/// ```
+///
 #[macro_export]
 macro_rules! export_source {
     ($register:expr) => {
@@ -40,6 +144,45 @@ macro_rules! export_source {
     };
 }
 
+/// This macros should be used in order to provide the symbols
+/// for the dynamic load of a Sink. Along with a register function
+///
+/// Example:
+///
+/// ```no_run
+/// use async_trait::async_trait;
+/// use async_std::sync::Arc;
+/// use zenoh_flow::{ZFResult, Sink, export_sink, Node, zf_empty_state,
+///     State, Configuration, Context, DataMessage};
+///
+/// pub struct MySink;
+///
+/// impl Node for MySink {
+///     fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+///         zf_empty_state!()
+///     }
+///
+///     fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+///         Ok(())
+///     }
+/// }
+///
+/// #[async_trait]
+/// impl Sink for MySink {
+///     async fn run(&self, _context: &mut Context, _state: &mut State, _input : DataMessage)  -> ZFResult<()> {
+///         Ok(())
+///     }
+/// }
+///
+/// export_sink!(register);
+///
+///
+/// fn register() -> ZFResult<Arc<dyn Sink>> {
+///    Ok(Arc::new(MySink) as Arc<dyn Sink>)
+/// }
+///
+/// ```
+///
 #[macro_export]
 macro_rules! export_sink {
     ($register:expr) => {
@@ -54,6 +197,8 @@ macro_rules! export_sink {
     };
 }
 
+/// Spin lock over an [`async_std::sync::Mutex`](`async_std::sync::Mutex`)
+/// Note: This is intended for internal usage.
 #[macro_export]
 macro_rules! zf_spin_lock {
     ($val : expr) => {
@@ -66,6 +211,28 @@ macro_rules! zf_spin_lock {
     };
 }
 
+/// This macro is a helper if your node does not need any state.
+/// It can be used inside your implementation of `Node::intialize`
+///
+/// Example:
+///
+/// ```no_run
+/// use zenoh_flow::{zf_empty_state, Node, ZFResult, State, Configuration};
+///
+/// struct MyOp;
+///
+///
+///  impl Node for MyOp {
+///     fn initialize(&self, _configuration: &Option<Configuration>) -> ZFResult<State> {
+///         zf_empty_state!()
+///     }
+///
+///     fn finalize(&self, _state: &mut State) -> ZFResult<()> {
+///         Ok(())
+///     }
+///  }
+///
+/// ```
 #[macro_export]
 macro_rules! zf_empty_state {
     () => {

@@ -36,11 +36,14 @@ use libloading::os::unix::Library;
 #[cfg(target_family = "windows")]
 use libloading::Library;
 
-// Do not reorder the fields in this struct.
-// Rust drops fields in a struct in the same order they are declared.
-// Ref: https://doc.rust-lang.org/reference/destructors.html
-// We need the state to be dropped before the source/lib, otherwise we
-// will have a SIGSEV.
+/// The `SourceRunner` is the component in charge of executing the source.
+/// It contains all the runtime information for the source, the graph instance.
+///
+/// Do not reorder the fields in this struct.
+/// Rust drops fields in a struct in the same order they are declared.
+/// Ref: <https://doc.rust-lang.org/reference/destructors.html>
+/// We need the state to be dropped before the source/lib, otherwise we
+/// will have a SIGSEV.
 #[derive(Clone)]
 pub struct SourceRunner {
     pub(crate) id: NodeId,
@@ -59,6 +62,12 @@ pub struct SourceRunner {
 }
 
 impl SourceRunner {
+    /// Tries to create a new `SourceRunner` using the given
+    /// [`InstanceContext`](`InstanceContext`), [`SourceLoaded`](`SourceLoaded`)
+    /// and [`OperatorIO`](`OperatorIO`).
+    ///
+    /// # Errors
+    /// If fails if the output is not connected.
     pub fn try_new(
         context: InstanceContext,
         source: SourceLoaded,
@@ -95,6 +104,12 @@ impl SourceRunner {
         })
     }
 
+    /// Records the given `message`.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - unable to put on zenoh
+    /// - serialization fails
     async fn record(&self, message: Arc<Message>) -> ZFResult<()> {
         log::debug!("ZenohLogger IN <= {:?} ", message);
         let recording = self.is_recording.lock().await;
@@ -122,6 +137,13 @@ impl SourceRunner {
         Ok(())
     }
 
+    /// A single iteration of the run loop.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - user returns an error
+    /// - record fails
+    /// - link send fails
     async fn iteration(&self, mut context: Context) -> ZFResult<Context> {
         let links = self.links.lock().await;
         let mut state = self.state.lock().await;
@@ -154,6 +176,7 @@ impl SourceRunner {
         Ok(context)
     }
 
+    /// Starts the source.
     async fn start(&self) {
         *self.is_running.lock().await = true;
     }

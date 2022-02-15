@@ -37,12 +37,15 @@ use libloading::os::unix::Library;
 #[cfg(target_family = "windows")]
 use libloading::Library;
 
+/// A struct that wraps the inputs and outputs
+/// of a node.
 #[derive(Default)]
 pub struct OperatorIO {
     inputs: HashMap<PortId, LinkReceiver<Message>>,
     outputs: HashMap<PortId, Vec<LinkSender<Message>>>,
 }
 
+/// Future of the `Receiver`
 type LinkRecvFut<'a> = std::pin::Pin<
     Box<dyn Future<Output = Result<(Arc<str>, Arc<Message>), ZFError>> + Send + Sync + 'a>,
 >;
@@ -59,10 +62,13 @@ impl OperatorIO {
     }
 }
 
+/// Type of Inputs
 pub type InputsLink = HashMap<PortId, LinkReceiver<Message>>;
+/// Type of Outputs
 pub type OutputsLinks = HashMap<PortId, Vec<LinkSender<Message>>>;
 
 impl OperatorIO {
+    /// Creates the `OperatorIO` from an [`OperatorRecord`](`OperatorRecord`)
     pub fn new(record: &OperatorRecord) -> Self {
         Self {
             inputs: HashMap::with_capacity(record.inputs.len()),
@@ -70,6 +76,10 @@ impl OperatorIO {
         }
     }
 
+    /// Tries to add the given `LinkReceiver<Message>`
+    ///
+    /// # Errors
+    /// It fails if the `PortId` is duplicated.
     pub fn try_add_input(&mut self, rx: LinkReceiver<Message>) -> ZFResult<()> {
         if self.inputs.contains_key(&rx.id()) {
             return Err(ZFError::DuplicatedPort((rx.id(), rx.id())));
@@ -80,6 +90,7 @@ impl OperatorIO {
         Ok(())
     }
 
+    /// Adds the given `LinkSender<Message>`
     pub fn add_output(&mut self, tx: LinkSender<Message>) {
         if let Some(vec_senders) = self.outputs.get_mut(&tx.id()) {
             vec_senders.push(tx);
@@ -88,24 +99,30 @@ impl OperatorIO {
         }
     }
 
+    /// Destroys and returns a tuple with the internal inputs and outputs.
     pub fn take(self) -> (InputsLink, OutputsLinks) {
         (self.inputs, self.outputs)
     }
 
+    /// Returns a copy of the inputs.
     pub fn get_inputs(&self) -> InputsLink {
         self.inputs.clone()
     }
 
+    /// Returns a copy of the outputs.
     pub fn get_outputs(&self) -> OutputsLinks {
         self.outputs.clone()
     }
 }
 
-// Do not reorder the fields in this struct.
-// Rust drops fields in a struct in the same order they are declared.
-// Ref: https://doc.rust-lang.org/reference/destructors.html
-// We need the state to be dropped before the operator/lib, otherwise we
-// will have a SIGSEV.
+/// The `OperatorRunner` is the component in charge of executing the operator.
+/// It contains all the runtime information for the operator, the graph instance.
+///
+/// Do not reorder the fields in this struct.
+/// Rust drops fields in a struct in the same order they are declared.
+/// Ref: <https://doc.rust-lang.org/reference/destructors.html>
+/// We need the state to be dropped before the operator/lib, otherwise we
+/// will have a SIGSEV.
 #[derive(Clone)]
 pub struct OperatorRunner {
     pub(crate) id: NodeId,
@@ -124,6 +141,12 @@ pub struct OperatorRunner {
 }
 
 impl OperatorRunner {
+    /// Tries to create a new `OperatorRunner` using the given
+    /// [`InstanceContext`](`InstanceContext`), [`OperatorLoaded`](`OperatorLoaded`)
+    /// and [`OperatorIO`](`OperatorIO`).
+    ///
+    /// # Errors
+    /// If fails if the output is not connected.
     pub fn try_new(
         context: InstanceContext,
         operator: OperatorLoaded,
@@ -146,10 +169,19 @@ impl OperatorRunner {
         })
     }
 
+    /// Starts the operator.
     async fn start(&self) {
         *self.is_running.lock().await = true;
     }
 
+    /// A single iteration of the run loop.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// -  user returns an error
+    /// - link recv fails
+    /// - link send fails
+    ///
     async fn iteration(
         &self,
         mut context: Context,

@@ -25,6 +25,15 @@ use crate::ZFError;
 use crate::{DurationDescriptor, NodeId, PortId};
 use std::fmt;
 
+/// Describes one output
+///
+/// Example:
+///
+/// ```yaml
+/// node : Counter
+/// output : Counter
+/// ```
+///
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OutputDescriptor {
     pub node: NodeId,
@@ -37,6 +46,14 @@ impl fmt::Display for OutputDescriptor {
     }
 }
 
+/// Describes one input
+///
+/// Example:
+///
+/// ```yaml
+/// node : SumOperator
+/// input : Number
+/// ```
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct InputDescriptor {
     pub node: NodeId,
@@ -49,6 +66,11 @@ impl fmt::Display for InputDescriptor {
     }
 }
 
+/// The kind of a graph node.
+/// It is used as discriminant to understand the kind
+/// of a node in the graph. (e.g. it is a source, a sink or an operator?)
+/// It is used internally when all nodes are mixed inside some data structure.
+///
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NodeKind {
@@ -89,6 +111,7 @@ impl Default for NodeKind {
 }
 // Registry metadata
 
+/// The metadata for a node stored in the registry.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RegistryNode {
     pub id: NodeId,
@@ -101,6 +124,9 @@ pub struct RegistryNode {
 }
 
 impl RegistryNode {
+    /// Adds a the given [`RegistryNodeTag`](`RegistryNodeTag`) for this node.
+    /// This is like adding a version/flavor of that node, similar to
+    /// Docker's tag.
     pub fn add_tag(&mut self, tag: RegistryNodeTag) {
         let index = self.tags.iter().position(|t| t.name == tag.name);
         match index {
@@ -118,6 +144,8 @@ impl RegistryNode {
     }
 }
 
+/// The tag of a node in the graph.
+/// A tag represents a version/flavor of a node.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RegistryNodeTag {
     pub name: String,
@@ -143,6 +171,7 @@ impl RegistryNodeTag {
     }
 }
 
+/// The information about the architecure/os for a node in the registry.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RegistryNodeArchitecture {
     pub arch: String,

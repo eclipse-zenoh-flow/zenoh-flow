@@ -16,6 +16,7 @@ use crate::model::link::PortDescriptor;
 use crate::serde::{Deserialize, Serialize};
 use crate::{NodeId, RuntimeId};
 
+/// The type of the connector.
 #[derive(PartialEq, Serialize, Deserialize, Debug, Clone)]
 pub enum ZFConnectorKind {
     Sender,
@@ -31,6 +32,9 @@ impl std::fmt::Display for ZFConnectorKind {
     }
 }
 
+/// The internal representation of a connector within a
+/// [`DataFlowRecord`](`DataFlowRecord`)
+///
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFConnectorRecord {
     pub kind: ZFConnectorKind,
