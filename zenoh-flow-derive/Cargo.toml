@@ -16,7 +16,7 @@ readme = "README.md"
 # To build with debug on macros: RUSTFLAGS="-Z macro-backtrace"
 
 [dependencies]
-async-std = { version = "=1.9.0", features = ["attributes"] }
+async-std = { version = "=1.10.0", features = ["attributes"] }
 futures = "0.3.5"
 syn-serde = { version = "0.2", features = ["json"] }
 syn = { version = "1.0.11", features = ["full"] }
