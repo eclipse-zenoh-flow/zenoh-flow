@@ -83,9 +83,7 @@ impl RunnerManager {
             self.runner.stop_recording().await?;
         }
         log::info!("RunnerManager triggering stop to {}", self.get_id());
-        // self.stopper.trigger();
         self.stopper.wait().await;
-        log::info!("RunnerManager sent trigger to {}", self.get_id());
         Ok(())
     }
 
@@ -244,7 +242,6 @@ impl NodeRunner {
 
             let my_id = self.get_id();
             let future_stop = async {
-                log::info!("NodeRunner {} waiting for stop trigger", my_id);
                 signal.wait().await;
                 log::info!("NodeRunner {} received stop trigger", my_id);
                 RunAction::Stop
@@ -280,6 +277,14 @@ impl NodeRunner {
 
     /// Starts the node, returning the `RunnerManager` to stop it.
     pub fn start(&self) -> RunnerManager {
+        // Using barrier to wait for the stop notification.
+        // A Barrier(N) block N-1 futures that call the wait().
+        // In this case the future we want to block is the one defined in
+        // line 244. That future will block when calling the wait().
+        // When the next future, the one defined in line 86, calls the wait()
+        // both gets unlocked and continue execution, winning the race
+        // in line 258 and stop the execution.
+        // This is why this is a Barrier(2).
         let signal = Arc::new(Barrier::new(2));
 
         let cloned_self = self.clone();
