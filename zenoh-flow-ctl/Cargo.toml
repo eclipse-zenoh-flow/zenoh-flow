@@ -20,7 +20,7 @@ zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" 
 zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
 zrpc = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
 znrpc-macros = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
-async-std = { version = "=1.9.0", features = ["attributes"] }
+async-std = { version = "=1.10.0", features = ["attributes"] }
 structopt = "0.3.13"
 clap = "2.33"
 exitfailure = "0.5.1"

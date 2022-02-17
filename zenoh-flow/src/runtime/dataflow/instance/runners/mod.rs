@@ -27,13 +27,13 @@ use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::types::{NodeId, ZFResult};
 use crate::{PortId, PortType, ZFError};
+use async_lock::Barrier;
 use async_trait::async_trait;
 use futures_lite::future::FutureExt;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use zenoh_sync::Signal;
 
 /// Type of the Runner.
 ///
@@ -50,7 +50,7 @@ pub enum RunnerKind {
 ///
 /// The runner manager is used to send commands to the runner.
 pub struct RunnerManager {
-    stopper: Signal,
+    stopper: Arc<Barrier>,
     handler: JoinHandle<ZFResult<()>>,
     runner: Arc<dyn Runner>,
     ctx: InstanceContext,
@@ -61,7 +61,7 @@ impl RunnerManager {
     ///
     /// It is able to communicate via the `stopper` and the `handler`.
     pub fn new(
-        stopper: Signal,
+        stopper: Arc<Barrier>,
         handler: JoinHandle<ZFResult<()>>,
         runner: Arc<dyn Runner>,
         ctx: InstanceContext,
@@ -82,7 +82,8 @@ impl RunnerManager {
         if self.runner.is_recording().await {
             self.runner.stop_recording().await?;
         }
-        self.stopper.trigger();
+        log::info!("RunnerManager triggering stop to {}", self.get_id());
+        self.stopper.wait().await;
         Ok(())
     }
 
@@ -235,50 +236,61 @@ impl NodeRunner {
     ///
     ///  # Errors
     /// An error variant is returned in case the run returns an error.
-    fn run_stoppable(&self, signal: Signal) -> ZFResult<()> {
-        async fn run(runner: &NodeRunner) -> RunAction {
-            match runner.run().await {
-                Ok(_) => RunAction::Stop,
-                Err(e) => RunAction::RestartRun(Some(e)),
-            }
-        }
+    async fn run_stoppable(&self, signal: Arc<Barrier>) -> ZFResult<()> {
+        loop {
+            log::info!("NodeRunner {} starting run!", self.get_id());
 
-        async fn stop(signal: Signal) -> RunAction {
-            signal.wait().await;
-            RunAction::Stop
-        }
-        async_std::task::block_on(async move {
-            loop {
-                let cloned_signal = signal.clone();
-                match stop(cloned_signal).race(run(self)).await {
-                    RunAction::RestartRun(e) => {
-                        log::error!(
-                            "[Node: {}] The run loop exited with {:?}, restarting…",
-                            self.get_id(),
-                            e
-                        );
-                    }
-                    RunAction::Stop => {
-                        log::trace!(
-                            "[Node: {}] Received kill command, killing runner",
-                            self.get_id()
-                        );
-                        self.stop().await;
-                        return Ok(());
-                    }
+            let my_id = self.get_id();
+            let future_stop = async {
+                signal.wait().await;
+                log::info!("NodeRunner {} received stop trigger", my_id);
+                RunAction::Stop
+            };
+
+            let future_run = async {
+                log::info!("NodeRunner {} running", self.get_id());
+                match self.run().await {
+                    Ok(_) => RunAction::Stop,
+                    Err(e) => RunAction::RestartRun(Some(e)),
+                }
+            };
+
+            match future_stop.race(future_run).await {
+                RunAction::RestartRun(e) => {
+                    log::error!(
+                        "[Node: {}] The run loop exited with {:?}, restarting…",
+                        self.get_id(),
+                        e
+                    );
+                }
+                RunAction::Stop => {
+                    log::trace!(
+                        "[Node: {}] Received kill command, killing runner",
+                        self.get_id()
+                    );
+                    self.stop().await;
+                    return Ok(());
                 }
             }
-        })
+        }
     }
 
     /// Starts the node, returning the `RunnerManager` to stop it.
     pub fn start(&self) -> RunnerManager {
-        let signal = Signal::new();
+        // Using barrier to wait for the stop notification.
+        // A Barrier(N) block N-1 futures that call the wait().
+        // In this case the future we want to block is the one defined in
+        // line 244. That future will block when calling the wait().
+        // When the next future, the one defined in line 86, calls the wait()
+        // both gets unlocked and continue execution, winning the race
+        // in line 258 and stop the execution.
+        // This is why this is a Barrier(2).
+        let signal = Arc::new(Barrier::new(2));
+
         let cloned_self = self.clone();
         let cloned_signal = signal.clone();
-
-        let h = async_std::task::spawn_blocking(move || cloned_self.run_stoppable(cloned_signal));
-
+        let h =
+            async_std::task::spawn(async move { cloned_self.run_stoppable(cloned_signal).await });
         RunnerManager::new(signal, h, self.inner.clone(), self.ctx.clone())
     }
 }

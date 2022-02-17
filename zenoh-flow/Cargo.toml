@@ -15,7 +15,8 @@ readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-std = { version = "=1.9.0", features = ["attributes"] }
+async-std = { version = "=1.10.0", features = ["attributes"] }
+async-lock = "2.4.0"
 async-trait = "0.1.50"
 base64 = "0.13.0"
 bincode = { version = "1.3"}
