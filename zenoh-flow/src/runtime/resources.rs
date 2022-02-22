@@ -35,6 +35,7 @@ use futures::StreamExt;
 use pin_project_lite::pin_project;
 use std::convert::TryFrom;
 use uuid::Uuid;
+use zenoh::net::protocol::io::SplitBuffer;
 use zenoh::prelude::*;
 use zenoh::query::Reply;
 
@@ -295,7 +296,7 @@ impl Stream for ZFRuntimeConfigStream {
                 SampleKind::Put | SampleKind::Patch => match sample.value.encoding {
                     e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
                         match deserialize_data::<crate::runtime::RuntimeConfig>(
-                            &sample.value.payload.to_vec(),
+                            &sample.value.payload.contiguous().to_vec(),
                         ) {
                             Ok(info) => Poll::Ready(Some(info)),
                             Err(_) => Poll::Pending,
@@ -677,7 +678,8 @@ impl DataStore {
                 match &kv.data.value.encoding {
                     //@FIXME This is workaround because zenoh apis are broken, it should just be &Encoding::APP_OCTET_STREAM
                     e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                        let ni = deserialize_data::<T>(&kv.data.value.payload.to_vec())?;
+                        let ni =
+                            deserialize_data::<T>(&kv.data.value.payload.contiguous().to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -706,7 +708,7 @@ impl DataStore {
             match &kv.data.value.encoding {
                 //@FIXME This is workaround because zenoh apis are broken, it should just be &Encoding::APP_OCTET_STREAM
                 e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                    let ni = deserialize_data::<T>(&kv.data.value.payload.to_vec())?;
+                    let ni = deserialize_data::<T>(&kv.data.value.payload.contiguous().to_vec())?;
                     zf_data.push(ni);
                 }
                 _ => return Err(ZFError::DeseralizationError),

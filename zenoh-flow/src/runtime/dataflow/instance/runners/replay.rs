@@ -22,6 +22,7 @@ use async_std::task;
 use async_trait::async_trait;
 use futures::prelude::*;
 use std::collections::HashMap;
+use zenoh::net::protocol::io::SplitBuffer;
 use zenoh::query::*;
 use zenoh::*;
 
