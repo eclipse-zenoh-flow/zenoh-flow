@@ -14,6 +14,7 @@
 use crate::serde::{Deserialize, Serialize};
 use crate::{NodeId, PortId, PortType};
 use std::convert::From;
+use std::error::Error;
 use uuid::Uuid;
 use zrpc::zrpcresult::ZRPCError;
 
@@ -143,3 +144,6 @@ impl std::fmt::Display for ZFError {
         write!(f, "{:?}", self)
     }
 }
+
+// This is needed to make clap happy.
+impl Error for ZFError {}

@@ -21,37 +21,37 @@ extern crate prettytable;
 extern crate base64;
 extern crate exitfailure;
 
+use clap::{Parser, Subcommand};
 use git_version::git_version;
 use prettytable::Table;
 use rand::seq::SliceRandom;
 use std::collections::HashSet;
 use std::fs::read_to_string;
-use structopt::StructOpt;
 use uuid::Uuid;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::RuntimeClient;
 const GIT_VERSION: &str = git_version!(prefix = "v", cargo_prefix = "v");
 
-#[derive(StructOpt, Debug)]
+#[derive(Subcommand, Debug)]
 pub enum AddKind {
     Flow {
-        #[structopt(parse(from_os_str), name = "Flow descriptor path")]
+        #[clap(parse(from_os_str), name = "Flow descriptor path")]
         descriptor_path: std::path::PathBuf,
     },
     // When registry will be in place the code below will be used
     // Instance {
     //     flow_id: String,
-    //     #[structopt(short = "r", long = "rt-id", name = "Runtime UUID")]
+    //     #[clap(short = 'r', long = "rt-id", name = "Runtime UUID")]
     //     rt_id: Option<Uuid>,
     // },
     Instance {
-        #[structopt(parse(from_os_str), name = "Flow descriptor path")]
+        #[clap(parse(from_os_str), name = "Flow descriptor path")]
         descriptor_path: std::path::PathBuf,
     },
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Subcommand, Debug)]
 pub enum StartKind {
     Node {
         instance_id: Uuid,
@@ -68,7 +68,7 @@ pub enum StartKind {
     },
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Subcommand, Debug)]
 pub enum StopKind {
     Node {
         instance_id: Uuid,
@@ -85,25 +85,30 @@ pub enum StopKind {
     },
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Subcommand, Debug)]
 pub enum GetKind {
     Flow { id: Option<String> },
     Instance { id: Option<Uuid> },
     Runtime { id: Option<Uuid> },
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Subcommand, Debug)]
 pub enum DeleteKind {
     Flow { id: String },
     Instance { id: Uuid },
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub enum ZFCtl {
+    #[clap(subcommand)]
     Add(AddKind),
+    #[clap(subcommand)]
     Get(GetKind),
+    #[clap(subcommand)]
     Delete(DeleteKind),
+    #[clap(subcommand)]
     Start(StartKind),
+    #[clap(subcommand)]
     Stop(StopKind),
 }
 
@@ -112,7 +117,7 @@ async fn main() {
     env_logger::init();
     log::debug!("Eclipse Zenoh-Flow Ctl {}", GIT_VERSION);
 
-    let args = ZFCtl::from_args();
+    let args = ZFCtl::parse();
     log::debug!("Args: {:?}", args);
 
     let zsession = Arc::new(zenoh::open(zenoh::config::Config::default()).await.unwrap());
