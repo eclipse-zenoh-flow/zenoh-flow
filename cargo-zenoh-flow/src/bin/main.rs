@@ -13,8 +13,8 @@
 //
 
 use async_std::process::exit;
+use clap::Parser;
 use colored::*;
-use structopt::StructOpt;
 
 use zenoh_flow::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use zenoh_flow::model::{NodeKind, RegistryNode, RegistryNodeArchitecture, RegistryNodeTag};
@@ -31,22 +31,22 @@ use zenoh_flow_registry::RegistryClient;
 #[cfg(feature = "local_registry")]
 use zenoh_flow_registry::RegistryFileClient;
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub enum ZFCtl {
     Build {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         package: Option<String>,
-        #[structopt(short = "m", long = "manifest-path", default_value = "Cargo.toml")]
+        #[clap(short = 'm', long = "manifest-path", default_value = "Cargo.toml")]
         manifest_path: std::path::PathBuf,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         release: bool,
-        #[structopt(short = "t", long = "tag", default_value = "latest")]
+        #[clap(short = 't', long = "tag", default_value = "latest")]
         version_tag: String,
         cargo_build_flags: Vec<String>,
     },
     New {
         name: String,
-        #[structopt(short = "k", long = "kind", default_value = "operator")]
+        #[clap(short = 'k', long = "kind", default_value = "operator")]
         kind: NodeKind,
     },
     List,
@@ -64,7 +64,7 @@ async fn main() {
     let mut args: Vec<String> = std::env::args().collect();
     args.remove(1);
 
-    let args = ZFCtl::from_iter(args.iter());
+    let args = ZFCtl::parse_from(args.iter());
 
     #[cfg(feature = "local_registry")]
     {

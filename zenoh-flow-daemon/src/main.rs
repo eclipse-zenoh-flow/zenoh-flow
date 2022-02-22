@@ -10,7 +10,7 @@
 // Contributors:
 //   ADLINK zenoh team, <zenoh@adlink-labs.tech>
 //
-use structopt::StructOpt;
+use clap::Parser;
 
 use async_ctrlc::CtrlC;
 use std::str;
@@ -30,14 +30,14 @@ static RUNTIME_CONFIG_FILE: &str = "/etc/zenoh-flow/runtime.yaml";
 const GIT_VERSION: &str = git_version::git_version!(prefix = "v", cargo_prefix = "v");
 
 /// The CLI parameters accepted by the runtime.
-#[derive(Debug, StructOpt)]
-#[structopt(name = "dpn")]
+#[derive(Debug, Parser)]
+#[clap(name = "dpn")]
 struct RuntimeOpt {
-    #[structopt(short = "c", long = "configuration", default_value = RUNTIME_CONFIG_FILE)]
+    #[clap(short = 'c', long = "configuration", default_value = RUNTIME_CONFIG_FILE)]
     config: String,
-    #[structopt(short = "v", long = "version")]
+    #[clap(short = 'v', long = "version")]
     print_version: bool,
-    #[structopt(short = "i", long = "node_uuid")]
+    #[clap(short = 'i', long = "node_uuid")]
     node_uuid: bool,
 }
 
@@ -74,7 +74,7 @@ async fn main() {
         env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
     );
 
-    let args = RuntimeOpt::from_args();
+    let args = RuntimeOpt::parse();
 
     if args.print_version {
         println!("Zenoh Flow runtime version: {}", GIT_VERSION);
