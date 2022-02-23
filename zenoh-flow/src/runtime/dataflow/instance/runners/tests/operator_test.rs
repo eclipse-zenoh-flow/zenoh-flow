@@ -188,7 +188,7 @@ fn input_rule_keep() {
     let runtime_context = RuntimeContext {
         session: Arc::new(session),
         hlc: hlc.clone(),
-        loader: Arc::new(Loader::new(LoaderConfig { extensions: vec![] })),
+        loader: Arc::new(Loader::new(LoaderConfig::new())),
         runtime_name: "test-runtime-input-rule-keep".into(),
         runtime_uuid: uuid,
     };

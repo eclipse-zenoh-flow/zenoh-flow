@@ -98,7 +98,7 @@ fn source_e2e_deadline() {
     let runtime_context = RuntimeContext {
         session: Arc::new(session),
         hlc,
-        loader: Arc::new(Loader::new(LoaderConfig { extensions: vec![] })),
+        loader: Arc::new(Loader::new(LoaderConfig::new())),
         runtime_name: "runtime--source-e2e-deadline-tests".into(),
         runtime_uuid: uuid,
     };

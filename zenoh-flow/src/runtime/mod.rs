@@ -211,13 +211,13 @@ pub struct ZenohConfig {
     pub locators: Vec<String>, // where to connect (eg. a router if the runtime is a client, or other peers/routers if the runtime is a peer)
 }
 
-/// The runtime configuration file struct.
+/// The runtime configuration.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RuntimeConfig {
     pub pid_file: String, //Where the PID file resides
     pub path: String,     //Where the libraries are downloaded/located
-    pub name: Option<String>,
-    pub uuid: Option<Uuid>,
+    pub name: String,
+    pub uuid: Uuid,
     pub zenoh: ZenohConfig,
     pub loader: LoaderConfig,
 }
