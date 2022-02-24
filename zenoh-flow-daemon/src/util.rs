@@ -26,12 +26,12 @@ pub(crate) fn read_file(path: &Path) -> ZFResult<String> {
 }
 
 /// Helper function to write a file.
+/// It is named `_write_file` because it is not yet used.
 ///
 /// # Errors
 ///
 /// It returns an error varian it unable to create or write the file.
 pub(crate) fn _write_file(path: &Path, content: Vec<u8>) -> ZFResult<()> {
-    // FIXME.
     let mut file = fs::File::create(path)?;
     file.write_all(&content)?;
     Ok(file.sync_all()?)

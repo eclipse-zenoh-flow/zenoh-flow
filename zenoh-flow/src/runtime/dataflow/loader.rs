@@ -152,44 +152,35 @@ impl LoaderConfig {
     }
 
     /// Removes the given extension.
-    ///
-    /// # Errors
-    /// It returns an error variant if the extension is not present.
-    pub fn try_remove_extension(&mut self, name: &str) -> ZFResult<()> {
+    pub fn try_remove_extension(&mut self, name: &str) -> Option<ExtensibleImplementation> {
         if let Some(index) = self.extensions.iter().position(|e| e.name == name) {
-            self.extensions.remove(index);
-            return Ok(());
+            let ext = self.extensions.remove(index);
+            return Some(ext);
         }
-        Err(ZFError::NotFound)
+        None
     }
 
     /// Gets the extension that matches the given `file_extension`.
-    ///
-    /// # Errors
-    /// It returns an error variant if no extension is found.
     pub fn try_get_extension_by_file_extension(
         &self,
         file_extension: &str,
-    ) -> ZFResult<&ExtensibleImplementation> {
+    ) -> Option<&ExtensibleImplementation> {
         if let Some(ext) = self
             .extensions
             .iter()
             .find(|e| e.file_extension == file_extension)
         {
-            return Ok(ext);
+            return Some(ext);
         }
-        Err(ZFError::NotFound)
+        None
     }
 
     /// Gets the extension that matches the given `name`.
-    ///
-    /// # Errors
-    /// It returns an error variant if no extension is found.
-    pub fn try_get_extension_by_name(&self, name: &str) -> ZFResult<&ExtensibleImplementation> {
+    pub fn try_get_extension_by_name(&self, name: &str) -> Option<&ExtensibleImplementation> {
         if let Some(ext) = self.extensions.iter().find(|e| e.name == name) {
-            return Ok(ext);
+            return Some(ext);
         }
-        Err(ZFError::NotFound)
+        None
     }
 }
 
@@ -498,7 +489,7 @@ impl Loader {
             .config
             .try_get_extension_by_file_extension(&file_extension)
         {
-            Ok(e) => {
+            Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.operator_lib)?;
                 record.configuration = Some(Self::generate_wrapper_config(
                     record.configuration,
@@ -542,7 +533,7 @@ impl Loader {
             .config
             .try_get_extension_by_file_extension(&file_extension)
         {
-            Ok(e) => {
+            Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.source_lib)?;
                 record.configuration = Some(Self::generate_wrapper_config(
                     record.configuration,
@@ -586,7 +577,7 @@ impl Loader {
             .config
             .try_get_extension_by_file_extension(&file_extension)
         {
-            Ok(e) => {
+            Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.sink_lib)?;
                 record.configuration = Some(Self::generate_wrapper_config(
                     record.configuration,

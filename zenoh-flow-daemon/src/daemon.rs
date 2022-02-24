@@ -345,76 +345,75 @@ impl TryFrom<DaemonConfig> for Daemon {
 
         // Loading extensions, if an error happens, we do not return
         // instead we log it.
-        match ext_dir.is_dir() {
-            false => log::error!(
-                "The extension parameter: {} is not a directory",
-                ext_dir.display()
-            ),
-            true => {
-                let ext_dir_entries = fs::read_dir(ext_dir)?;
-                for entry in ext_dir_entries {
-                    // This huge match is to not fail when we load, but instead
-                    // log what happens.
-                    match entry {
-                        Err(e) => log::error!("Error when accessing extension file: {}", e),
-                        Ok(entry) => {
-                            let entry_path = entry.path();
+        if ext_dir.is_dir() {
+            let ext_dir_entries = fs::read_dir(ext_dir)?;
+            for entry in ext_dir_entries {
+                match entry {
+                    Ok(entry) => {
+                        let entry_path = entry.path();
+                        if entry_path.is_file() {
+                            match entry_path.extension() {
+                                Some(entry_ext) => {
+                                    if entry_ext != EXT_FILE_EXTENSION {
+                                        log::warn!(
+                                            "Skipping {} as it does not match the extension {}",
+                                            entry_path.display(),
+                                            EXT_FILE_EXTENSION
+                                        );
+                                        continue;
+                                    }
 
-                            // Read only files.
-                            match entry_path.is_file() {
-                                false => log::warn!(
-                                    "Skipping {} as it is not a file",
-                                    entry_path.display()
-                                ),
-                                true => {
-                                    // Load only files with the right extension.
-                                    match entry_path.extension() {
-                                        None => log::warn!(
-                                            "Skipping {} as it as no extension",
-                                            entry_path.display()
-                                        ),
-                                        Some(entry_ext) => {
-                                            if entry_ext != EXT_FILE_EXTENSION {
-                                                log::warn!("Skipping {} as it does not match the extension {}", entry_path.display(), EXT_FILE_EXTENSION);
-                                                continue;
-                                            }
+                                    // Read the files.
 
-                                            // Read the files.
-
-                                            match read_file(&entry_path) {
-                                                Err(e) => log::error!(
-                                                    "Unable to read extension file {}: {}",
-                                                    entry_path.display(),
-                                                    e
-                                                ),
-                                                Ok(ext_file_content) => {
-                                                    match serde_yaml::from_str::<
-                                                        ExtensibleImplementation,
-                                                    >(
-                                                        &ext_file_content
-                                                    ) {
-                                                        Err(e) => log::error!(
-                                                            "Unable to parse extension file {}: {}",
+                                    match read_file(&entry_path) {
+                                        Ok(ext_file_content) => {
+                                            match serde_yaml::from_str::<ExtensibleImplementation>(
+                                                &ext_file_content,
+                                            ) {
+                                                Ok(ext) => {
+                                                    match extensions.try_add_extension(ext) {
+                                                        Ok(_) => log::info!(
+                                                            "Loaded extension {}",
+                                                            entry_path.display()
+                                                        ),
+                                                        Err(e) => log::warn!(
+                                                            "Unable to load extension {}: {}",
                                                             entry_path.display(),
                                                             e
                                                         ),
-                                                        Ok(ext) => {
-                                                            match extensions.try_add_extension(ext) {
-                                                                Err(e) => log::error!("Unable to load extension {}: {}",entry_path.display(), e),
-                                                                Ok(_) => log::info!("Loaded extension {}", entry_path.display()),
-                                                            }
-                                                        }
                                                     }
                                                 }
+                                                Err(e) => log::warn!(
+                                                    "Unable to parse extension file {}: {}",
+                                                    entry_path.display(),
+                                                    e
+                                                ),
                                             }
                                         }
+                                        Err(e) => log::warn!(
+                                            "Unable to read extension file {}: {}",
+                                            entry_path.display(),
+                                            e
+                                        ),
                                     }
                                 }
+                                None => log::warn!(
+                                    "Skipping {} as it as no extension",
+                                    entry_path.display()
+                                ),
                             }
+                        } else {
+                            log::warn!("Skipping {} as it is not a file", entry_path.display());
                         }
                     }
+                    Err(e) => log::warn!("Unable to access extension file: {}", e),
                 }
             }
+        } else {
+            log::warn!(
+                "The extension parameter: {} is not a directory",
+                ext_dir.display()
+            );
         }
 
         // Generates the RuntimeConfig
