@@ -82,11 +82,9 @@ impl Operator for OperatorIngressOuter {
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Data>> {
         let mut results: HashMap<PortId, Data> = HashMap::with_capacity(1);
-        let data: Data;
-
-        if let Some(mut source_input) = inputs.remove(SOURCE) {
+        let data: Data = if let Some(mut source_input) = inputs.remove(SOURCE) {
             let source_data = source_input.get_inner_data().try_get::<ZFUsize>()?;
-            data = Data::from::<ZFUsize>(ZFUsize(source_data.0));
+            Data::from::<ZFUsize>(ZFUsize(source_data.0))
         } else {
             let mut feedback_input = inputs.remove(FEEDBACK_OUTER).unwrap();
 
@@ -104,8 +102,8 @@ impl Operator for OperatorIngressOuter {
             );
 
             let feedback_data = feedback_input.get_inner_data().try_get::<ZFUsize>()?;
-            data = Data::from::<ZFUsize>(ZFUsize(feedback_data.0 * 2));
-        }
+            Data::from::<ZFUsize>(ZFUsize(feedback_data.0 * 2))
+        };
 
         results.insert(OPERATOR_INGRESS_INNER.into(), data);
 
@@ -169,16 +167,16 @@ impl Operator for OperatorIngressInner {
         inputs: &mut HashMap<PortId, zenoh_flow::runtime::message::DataMessage>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, Data>> {
         let mut results: HashMap<PortId, Data> = HashMap::with_capacity(1);
-        let data: Data;
-
-        if let Some(mut operator_ingress_outer_input) = inputs.remove(OPERATOR_INGRESS_OUTER) {
+        let data: Data = if let Some(mut operator_ingress_outer_input) =
+            inputs.remove(OPERATOR_INGRESS_OUTER)
+        {
             let loop_contexts = operator_ingress_outer_input.get_loop_contexts();
             assert_eq!(loop_contexts.len(), 1);
 
             let operator_ingress_outer_data = operator_ingress_outer_input
                 .get_inner_data()
                 .try_get::<ZFUsize>()?;
-            data = Data::from::<ZFUsize>(ZFUsize(operator_ingress_outer_data.0));
+            Data::from::<ZFUsize>(ZFUsize(operator_ingress_outer_data.0))
         } else {
             let mut feedback_input = inputs.remove(FEEDBACK_INNER).unwrap();
 
@@ -197,8 +195,8 @@ impl Operator for OperatorIngressInner {
             };
 
             let feedback_data = feedback_input.get_inner_data().try_get::<ZFUsize>()?;
-            data = Data::from::<ZFUsize>(ZFUsize(feedback_data.0 + increment as usize));
-        }
+            Data::from::<ZFUsize>(ZFUsize(feedback_data.0 + increment as usize))
+        };
 
         results.insert(OPERATOR_EGRESS_INNER.into(), data);
 
