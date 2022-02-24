@@ -152,7 +152,7 @@ impl LoaderConfig {
     }
 
     /// Removes the given extension.
-    pub fn try_remove_extension(&mut self, name: &str) -> Option<ExtensibleImplementation> {
+    pub fn remove_extension(&mut self, name: &str) -> Option<ExtensibleImplementation> {
         if let Some(index) = self.extensions.iter().position(|e| e.name == name) {
             let ext = self.extensions.remove(index);
             return Some(ext);
@@ -161,7 +161,7 @@ impl LoaderConfig {
     }
 
     /// Gets the extension that matches the given `file_extension`.
-    pub fn try_get_extension_by_file_extension(
+    pub fn get_extension_by_file_extension(
         &self,
         file_extension: &str,
     ) -> Option<&ExtensibleImplementation> {
@@ -176,7 +176,7 @@ impl LoaderConfig {
     }
 
     /// Gets the extension that matches the given `name`.
-    pub fn try_get_extension_by_name(&self, name: &str) -> Option<&ExtensibleImplementation> {
+    pub fn get_extension_by_name(&self, name: &str) -> Option<&ExtensibleImplementation> {
         if let Some(ext) = self.extensions.iter().find(|e| e.name == name) {
             return Some(ext);
         }
@@ -485,10 +485,7 @@ impl Loader {
             ))
         })?;
 
-        match self
-            .config
-            .try_get_extension_by_file_extension(&file_extension)
-        {
+        match self.config.get_extension_by_file_extension(&file_extension) {
             Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.operator_lib)?;
                 record.configuration = Some(Self::generate_wrapper_config(
@@ -529,10 +526,7 @@ impl Loader {
             ))
         })?;
 
-        match self
-            .config
-            .try_get_extension_by_file_extension(&file_extension)
-        {
+        match self.config.get_extension_by_file_extension(&file_extension) {
             Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.source_lib)?;
                 record.configuration = Some(Self::generate_wrapper_config(
@@ -573,10 +567,7 @@ impl Loader {
             ))
         })?;
 
-        match self
-            .config
-            .try_get_extension_by_file_extension(&file_extension)
-        {
+        match self.config.get_extension_by_file_extension(&file_extension) {
             Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.sink_lib)?;
                 record.configuration = Some(Self::generate_wrapper_config(
