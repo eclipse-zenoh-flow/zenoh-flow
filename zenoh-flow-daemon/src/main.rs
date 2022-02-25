@@ -13,15 +13,16 @@
 use clap::Parser;
 
 use async_ctrlc::CtrlC;
+use std::convert::TryFrom;
+use std::path::Path;
 use std::str;
-
-use async_std::fs;
-use async_std::path::Path;
-use async_std::prelude::*;
+use zenoh_flow::async_std::prelude::*;
 
 mod daemon;
+mod util;
 use daemon::Daemon;
-use zenoh_flow::runtime::RuntimeConfig;
+use daemon::DaemonConfig;
+use util::read_file;
 
 /// Default path for the runtime configuration file.
 static RUNTIME_CONFIG_FILE: &str = "/etc/zenoh-flow/runtime.yaml";
@@ -39,26 +40,6 @@ struct RuntimeOpt {
     print_version: bool,
     #[clap(short = 'i', long = "node_uuid")]
     node_uuid: bool,
-}
-
-/// Helper function to read a file into a string.
-///
-/// # Panics
-/// It may panic when calling filesystem related functions.
-async fn read_file(path: &Path) -> String {
-    fs::read_to_string(path).await.unwrap() //FIXME.
-}
-
-/// Helper function to write a file.
-///
-/// # Panics
-///
-/// It may panic when calling filesystem related functions.
-async fn _write_file(path: &Path, content: Vec<u8>) {
-    // FIXME.
-    let mut file = fs::File::create(path).await.unwrap();
-    file.write_all(&content).await.unwrap();
-    file.sync_all().await.unwrap();
 }
 
 /// The runtime main function.
@@ -87,9 +68,10 @@ async fn main() {
     }
 
     let conf_file_path = Path::new(&args.config);
-    let config = serde_yaml::from_str::<RuntimeConfig>(&(read_file(conf_file_path).await)).unwrap();
+    let config =
+        serde_yaml::from_str::<DaemonConfig>(&(read_file(conf_file_path).unwrap())).unwrap();
 
-    let rt = Daemon::from_config(config).unwrap();
+    let rt = Daemon::try_from(config).unwrap();
 
     let (s, h) = rt.start().await.unwrap();
 

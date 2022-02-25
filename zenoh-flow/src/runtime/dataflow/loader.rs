@@ -41,6 +41,8 @@ pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// this is to prevent (possibly cryptic) runtime errors.
 pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
+pub static EXT_FILE_EXTENSION: &str = "zfext";
+
 // OPERATOR
 /// Operator register function signature
 ///
@@ -95,12 +97,12 @@ pub struct SinkDeclaration {
 /// Example:
 ///
 /// ```yaml
-/// - name: python
-///   file_extension: py
-///   source_lib: ./target/release/libpy_source.so
-///   sink_lib: ./target/release/libpy_sink.so
-///   operator_lib: ./target/release/libpy_op.so
-///   config_lib_key: python-script
+/// name: python
+/// file_extension: py
+/// source_lib: ./target/release/libpy_source.so
+/// sink_lib: ./target/release/libpy_sink.so
+/// operator_lib: ./target/release/libpy_op.so
+/// config_lib_key: python-script
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtensibleImplementation {
@@ -128,7 +130,64 @@ pub struct ExtensibleImplementation {
 ///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoaderConfig {
-    pub extensions: Vec<ExtensibleImplementation>,
+    extensions: Vec<ExtensibleImplementation>,
+}
+
+impl LoaderConfig {
+    /// Creates an empty `LoaderConfig`.
+    pub fn new() -> Self {
+        Self { extensions: vec![] }
+    }
+
+    /// Adds the given extension.
+    ///
+    /// # Errors
+    /// It returns an error variant if the extension is already present.
+    pub fn try_add_extension(&mut self, ext: ExtensibleImplementation) -> ZFResult<()> {
+        if self.extensions.iter().any(|e| e.name == ext.name) {
+            return Err(ZFError::Duplicate);
+        }
+        self.extensions.push(ext);
+        Ok(())
+    }
+
+    /// Removes the given extension.
+    pub fn remove_extension(&mut self, name: &str) -> Option<ExtensibleImplementation> {
+        if let Some(index) = self.extensions.iter().position(|e| e.name == name) {
+            let ext = self.extensions.remove(index);
+            return Some(ext);
+        }
+        None
+    }
+
+    /// Gets the extension that matches the given `file_extension`.
+    pub fn get_extension_by_file_extension(
+        &self,
+        file_extension: &str,
+    ) -> Option<&ExtensibleImplementation> {
+        if let Some(ext) = self
+            .extensions
+            .iter()
+            .find(|e| e.file_extension == file_extension)
+        {
+            return Some(ext);
+        }
+        None
+    }
+
+    /// Gets the extension that matches the given `name`.
+    pub fn get_extension_by_name(&self, name: &str) -> Option<&ExtensibleImplementation> {
+        if let Some(ext) = self.extensions.iter().find(|e| e.name == name) {
+            return Some(ext);
+        }
+        None
+    }
+}
+
+impl Default for LoaderConfig {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// The dynamic library loader.
@@ -426,12 +485,7 @@ impl Loader {
             ))
         })?;
 
-        match self
-            .config
-            .extensions
-            .iter()
-            .find(|e| e.file_extension == file_extension)
-        {
+        match self.config.get_extension_by_file_extension(&file_extension) {
             Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.operator_lib)?;
                 record.configuration = Some(Self::generate_wrapper_config(
@@ -472,12 +526,7 @@ impl Loader {
             ))
         })?;
 
-        match self
-            .config
-            .extensions
-            .iter()
-            .find(|e| e.file_extension == file_extension)
-        {
+        match self.config.get_extension_by_file_extension(&file_extension) {
             Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.source_lib)?;
                 record.configuration = Some(Self::generate_wrapper_config(
@@ -518,12 +567,7 @@ impl Loader {
             ))
         })?;
 
-        match self
-            .config
-            .extensions
-            .iter()
-            .find(|e| e.file_extension == file_extension)
-        {
+        match self.config.get_extension_by_file_extension(&file_extension) {
             Some(e) => {
                 let wrapper_file_path = std::fs::canonicalize(&e.sink_lib)?;
                 record.configuration = Some(Self::generate_wrapper_config(

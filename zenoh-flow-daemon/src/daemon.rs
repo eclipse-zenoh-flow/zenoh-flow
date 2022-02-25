@@ -12,6 +12,9 @@
 //
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::fs;
+use std::path::Path;
+
 use uhlc::HLC;
 use uuid::Uuid;
 use zenoh::prelude::*;
@@ -22,17 +25,45 @@ use zenoh_flow::model::{
     node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
 };
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
-use zenoh_flow::runtime::dataflow::loader::Loader;
+use zenoh_flow::runtime::dataflow::loader::{
+    ExtensibleImplementation, Loader, LoaderConfig, EXT_FILE_EXTENSION,
+};
 use zenoh_flow::runtime::dataflow::Dataflow;
 use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::RuntimeClient;
 use zenoh_flow::runtime::RuntimeContext;
-use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
+use zenoh_flow::serde::{Deserialize, Serialize};
+
+use zenoh_flow::runtime::{
+    Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind, ZenohConfig,
+};
 use zenoh_flow::types::{ZFError, ZFResult};
 use zenoh_flow::NodeId;
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
+
+use crate::util::read_file;
+
+/// The daemon configuration file.
+/// The daemon loads this file and uses the informations it contains to
+/// generate a (`RuntimeConfig`)[`RuntimeConfig`]
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DaemonConfig {
+    /// Where the daemon PID file resides.
+    pub pid_file: String,
+    /// Where the libraries are downloaded/located
+    pub path: String,
+    /// Name of the runtime, if None the hostname will be used.
+    pub name: Option<String>,
+    /// Uuid of the runtime, if None the machine id will be used.
+    pub uuid: Option<Uuid>,
+    /// The Zenoh configuration
+    pub zenoh: ZenohConfig,
+    /// Where to locate the extension files.
+    pub extensions: String,
+}
 
 /// The internal runtime state.
 ///
@@ -67,81 +98,6 @@ impl Daemon {
             ctx,
             state,
         }
-    }
-
-    /// Creates a new `Daemon` from a configuration file.
-    ///
-    /// # Errors
-    /// This function can fail if:
-    /// - unable to configure zenoh.
-    /// - unable to get the machine hostname.
-    /// - unable to get the machine uuid.
-    /// - unable to open the zenoh session.
-    pub fn from_config(config: RuntimeConfig) -> ZFResult<Self> {
-        let uuid = match &config.uuid {
-            Some(u) => *u,
-            None => get_machine_uuid()?,
-        };
-
-        let name = match &config.name {
-            Some(n) => n.clone(),
-            None => String::from(hostname::get()?.to_str().ok_or(ZFError::GenericError)?),
-        };
-
-        let mut zconfig = zenoh::config::Config::default();
-
-        zconfig
-            .set_mode(Some(config.zenoh.kind.clone().into()))
-            .map_err(|_| {
-                ZFError::ZenohError(format!(
-                    "Unable to configure Zenoh mode {:?}",
-                    config.zenoh.locators
-                ))
-            })?;
-        zconfig
-            .set_peers(
-                config
-                    .zenoh
-                    .locators
-                    .iter()
-                    .filter_map(|l| l.parse().ok())
-                    .collect(),
-            )
-            .map_err(|_| {
-                ZFError::ZenohError(format!(
-                    "Unable to configure Zenoh peers {:?}",
-                    config.zenoh.locators
-                ))
-            })?;
-        zconfig
-            .set_listeners(
-                config
-                    .zenoh
-                    .listen
-                    .iter()
-                    .filter_map(|l| l.parse().ok())
-                    .collect(),
-            )
-            .map_err(|_| {
-                ZFError::ZenohError(format!(
-                    "Unable to configure Zenoh listeners {:?}",
-                    config.zenoh.listen
-                ))
-            })?;
-
-        let session = Arc::new(zenoh::open(zconfig).wait()?);
-        let hlc = Arc::new(HLC::default());
-        let loader = Arc::new(Loader::new(config.loader.clone()));
-
-        let ctx = RuntimeContext {
-            session: session.clone(),
-            hlc,
-            loader,
-            runtime_name: name.into(),
-            runtime_uuid: uuid,
-        };
-
-        Ok(Self::new(session, ctx, config))
     }
 
     /// The daemon run.
@@ -309,6 +265,186 @@ pub fn get_machine_uuid() -> ZFResult<Uuid> {
     let machine_id_raw = machine_uid::get().map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
     let node_str: &str = &machine_id_raw;
     Uuid::parse_str(node_str).map_err(|e| ZFError::ParsingError(format!("{}", e)))
+}
+
+/// Creates a new `Daemon` from a configuration file.
+///
+/// # Errors
+/// This function can fail if:
+/// - unable to configure zenoh.
+/// - unable to get the machine hostname.
+/// - unable to get the machine uuid.
+/// - unable to open the zenoh session.
+impl TryFrom<DaemonConfig> for Daemon {
+    type Error = ZFError;
+
+    fn try_from(config: DaemonConfig) -> Result<Self, Self::Error> {
+        // If Uuid is not specified uses machine id.
+        let uuid = match &config.uuid {
+            Some(u) => *u,
+            None => get_machine_uuid()?,
+        };
+
+        // If name is not specified uses hostname.
+        let name = match &config.name {
+            Some(n) => n.clone(),
+            None => String::from(hostname::get()?.to_str().ok_or(ZFError::GenericError)?),
+        };
+
+        // Departing from a default zenoh configuration
+        let mut zconfig = zenoh::config::Config::default();
+
+        // Sets zenoh mode, based on configuration.
+        zconfig
+            .set_mode(Some(config.zenoh.kind.clone().into()))
+            .map_err(|_| {
+                ZFError::ZenohError(format!(
+                    "Unable to configure Zenoh mode {:?}",
+                    config.zenoh.locators
+                ))
+            })?;
+
+        // Sets zenoh peers based on configuration.
+        zconfig
+            .set_peers(
+                config
+                    .zenoh
+                    .locators
+                    .iter()
+                    .filter_map(|l| l.parse().ok())
+                    .collect(),
+            )
+            .map_err(|_| {
+                ZFError::ZenohError(format!(
+                    "Unable to configure Zenoh peers {:?}",
+                    config.zenoh.locators
+                ))
+            })?;
+
+        // Sets zenoh listeners based on configuration.
+        zconfig
+            .set_listeners(
+                config
+                    .zenoh
+                    .listen
+                    .iter()
+                    .filter_map(|l| l.parse().ok())
+                    .collect(),
+            )
+            .map_err(|_| {
+                ZFError::ZenohError(format!(
+                    "Unable to configure Zenoh listeners {:?}",
+                    config.zenoh.listen
+                ))
+            })?;
+
+        // Generates the loader configuration.
+        let mut extensions = LoaderConfig::new();
+
+        let ext_dir = Path::new(&config.extensions);
+
+        // Loading extensions, if an error happens, we do not return
+        // instead we log it.
+        if ext_dir.is_dir() {
+            let ext_dir_entries = fs::read_dir(ext_dir)?;
+            for entry in ext_dir_entries {
+                match entry {
+                    Ok(entry) => {
+                        let entry_path = entry.path();
+                        if entry_path.is_file() {
+                            match entry_path.extension() {
+                                Some(entry_ext) => {
+                                    if entry_ext != EXT_FILE_EXTENSION {
+                                        log::warn!(
+                                            "Skipping {} as it does not match the extension {}",
+                                            entry_path.display(),
+                                            EXT_FILE_EXTENSION
+                                        );
+                                        continue;
+                                    }
+
+                                    // Read the files.
+
+                                    match read_file(&entry_path) {
+                                        Ok(ext_file_content) => {
+                                            match serde_yaml::from_str::<ExtensibleImplementation>(
+                                                &ext_file_content,
+                                            ) {
+                                                Ok(ext) => {
+                                                    match extensions.try_add_extension(ext) {
+                                                        Ok(_) => log::info!(
+                                                            "Loaded extension {}",
+                                                            entry_path.display()
+                                                        ),
+                                                        Err(e) => log::warn!(
+                                                            "Unable to load extension {}: {}",
+                                                            entry_path.display(),
+                                                            e
+                                                        ),
+                                                    }
+                                                }
+                                                Err(e) => log::warn!(
+                                                    "Unable to parse extension file {}: {}",
+                                                    entry_path.display(),
+                                                    e
+                                                ),
+                                            }
+                                        }
+                                        Err(e) => log::warn!(
+                                            "Unable to read extension file {}: {}",
+                                            entry_path.display(),
+                                            e
+                                        ),
+                                    }
+                                }
+                                None => log::warn!(
+                                    "Skipping {} as it as no extension",
+                                    entry_path.display()
+                                ),
+                            }
+                        } else {
+                            log::warn!("Skipping {} as it is not a file", entry_path.display());
+                        }
+                    }
+                    Err(e) => log::warn!("Unable to access extension file: {}", e),
+                }
+            }
+        } else {
+            log::warn!(
+                "The extension parameter: {} is not a directory",
+                ext_dir.display()
+            );
+        }
+
+        // Generates the RuntimeConfig
+        let rt_config = RuntimeConfig {
+            pid_file: config.pid_file,
+            path: config.path,
+            name,
+            uuid,
+            zenoh: config.zenoh,
+            loader: extensions.clone(),
+        };
+
+        // Creates the zenoh session.
+        let session = Arc::new(zenoh::open(zconfig).wait()?);
+
+        // Creates the HLC.
+        let hlc = Arc::new(HLC::default());
+
+        // Creates the loader.
+        let loader = Arc::new(Loader::new(extensions));
+
+        let ctx = RuntimeContext {
+            session: session.clone(),
+            hlc,
+            loader,
+            runtime_name: rt_config.name.clone().into(),
+            runtime_uuid: uuid,
+        };
+
+        Ok(Self::new(session, ctx, rt_config))
+    }
 }
 
 #[znserver]
