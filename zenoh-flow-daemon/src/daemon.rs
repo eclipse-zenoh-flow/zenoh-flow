@@ -634,6 +634,10 @@ impl Runtime for Daemon {
 
         let is_also_local = all_involved_runtimes.contains(&self.ctx.runtime_uuid);
 
+        let all_involved_runtimes = all_involved_runtimes
+            .into_iter()
+            .filter(|rt| *rt != self.ctx.runtime_uuid);
+
         for rt in all_involved_runtimes {
             let client = RuntimeClient::new(self.ctx.session.clone(), rt);
             rt_clients.push(client);
@@ -673,6 +677,10 @@ impl Runtime for Daemon {
         let all_involved_runtimes = self.store.get_flow_instance_runtimes(&record_id).await?;
 
         let is_also_local = all_involved_runtimes.contains(&self.ctx.runtime_uuid);
+
+        let all_involved_runtimes = all_involved_runtimes
+            .into_iter()
+            .filter(|rt| *rt != self.ctx.runtime_uuid);
 
         for rt in all_involved_runtimes {
             let client = RuntimeClient::new(self.ctx.session.clone(), rt);

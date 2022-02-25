@@ -119,12 +119,7 @@ pub enum StartKind {
     },
     #[clap(about = "Starts the given flow instance")]
     Instance {
-        #[clap(
-            short,
-            long,
-            name = "instance uuid",
-            help = "The instance to be started"
-        )]
+        #[clap(name = "instance uuid", help = "The instance to be started")]
         instance_id: Uuid,
     },
 }
@@ -174,12 +169,7 @@ pub enum StopKind {
     },
     #[clap(about = "Stops the given flow instance")]
     Instance {
-        #[clap(
-            short,
-            long,
-            name = "instance uuid",
-            help = "The instance to be stopped"
-        )]
+        #[clap(name = "instance uuid", help = "The instance to be stopped")]
         instance_id: Uuid,
     },
 }
@@ -189,32 +179,17 @@ pub enum StopKind {
 pub enum GetKind {
     #[clap(about = "Gets information about the given flow")]
     Flow {
-        #[clap(
-            short,
-            long,
-            name = "flow identifier",
-            help = "The flow you are interested in"
-        )]
+        #[clap(name = "flow identifier", help = "The flow you are interested in")]
         id: String,
     },
     #[clap(about = "Gets information about the given instance")]
     Instance {
-        #[clap(
-            short,
-            long,
-            name = "instance uuid",
-            help = "The instance you are interested in"
-        )]
+        #[clap(name = "instance uuid", help = "The instance you are interested in")]
         id: Uuid,
     },
     #[clap(about = "Gets information about the given runtime")]
     Runtime {
-        #[clap(
-            short,
-            long,
-            name = "runtime uuid",
-            help = "The runtime you are interested in"
-        )]
+        #[clap(name = "runtime uuid", help = "The runtime you are interested in")]
         id: Uuid,
     },
 }
@@ -240,12 +215,7 @@ pub enum DeleteKind {
     },
     #[clap(about = "Deletes the given instance")]
     Instance {
-        #[clap(
-            short,
-            long,
-            name = "instance uuid",
-            help = "The instance to be deleted"
-        )]
+        #[clap(name = "instance uuid", help = "The instance to be deleted")]
         id: Uuid,
     },
 }
@@ -277,12 +247,7 @@ pub enum ZFCtl {
     },
     #[clap(about = "Stops and deletes a flow instance")]
     Destroy {
-        #[clap(
-            short,
-            long,
-            name = "instance uuid",
-            help = "The instance to be destroyed"
-        )]
+        #[clap(name = "instance uuid", help = "The instance to be destroyed")]
         id: Uuid,
     },
 }
@@ -471,7 +436,10 @@ async fn main() {
                 table.printstd();
             }
             StartKind::Instance { instance_id } => {
-                println!("This is going to start the instance {:?}", instance_id);
+                log::debug!("This is going to start the instance {:?}", instance_id);
+                client.start_instance(instance_id).await.unwrap().unwrap();
+                log::debug!("Started: {:?}", instance_id);
+                println!("{}", instance_id);
             }
         },
         ZFCtl::Stop(sk) => match sk {
@@ -523,7 +491,10 @@ async fn main() {
                 table.printstd();
             }
             StopKind::Instance { instance_id } => {
-                println!("This is going to stop the instance {:?}", instance_id);
+                log::debug!("This is going to stop the instance {:?}", instance_id);
+                let record = client.stop_instance(instance_id).await.unwrap().unwrap();
+                log::debug!("stopeed: {:?}", record);
+                println!("{}", record.uuid);
             }
         },
         ZFCtl::List(lk) => {
