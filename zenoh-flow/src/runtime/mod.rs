@@ -256,6 +256,8 @@ pub trait Runtime {
     /// - unable to map
     /// - unable to prepare nodes
     async fn create_instance(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord>;
+    //TODO: workaround - it should just take the ID of the flow (when
+    // the registry will be in place)
 
     /// Deletes the given instance].
     /// This function:
@@ -285,7 +287,9 @@ pub trait Runtime {
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to instantiate
-    async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord>; //TODO: workaround - it should just take the ID of the flow...
+    async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord>;
+    //TODO: workaround - it should just take the ID of the flow (when
+    // the registry will be in place)
 
     /// Sends a teardown request for the given record identified by the [`Uuid`]
     /// Note the request is asynchronous, the runtime that receives the request will
@@ -322,7 +326,7 @@ pub trait Runtime {
 
     /// Starts the instance on all involved nodes.
     ///
-    /// It first stars all the nodes and then the sources.
+    /// It first starts all the nodes and then the sources.
     ///
     /// # Errors
     /// An error variant is returned in case of:

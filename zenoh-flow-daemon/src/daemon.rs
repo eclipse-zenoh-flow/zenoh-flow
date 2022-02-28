@@ -450,10 +450,16 @@ impl TryFrom<DaemonConfig> for Daemon {
 #[znserver]
 impl Runtime for Daemon {
     async fn create_instance(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
-        //TODO: workaround - it should just take the ID of the flow...
-        //TODO: this has to run asynchronously, almost immediately return the
-        // record Uuid and then process on another task.
-        // Errors should be logged as instance status
+        //TODO: workaround - it should just take the ID of the flow (when
+        // the registry will be in place)
+        //TODO: this has to run asynchronously, this means that it must
+        // create the record and return it, in order to not block the caller.
+        // Creating an instance can involved downloading nodes from different
+        // locations, communication towards others runtimes, therefore
+        // the caller should not be blocked.
+        // The status of an instance can be check asynchronously by the caller
+        // once it knows the Uuid.
+        // Therefore instantiation errors should be logged as instance status
 
         let record_uuid = Uuid::new_v4();
         let flow_name = flow.flow.clone();
@@ -548,6 +554,17 @@ impl Runtime for Daemon {
     }
 
     async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
+        //TODO: workaround - it should just take the ID of the flow (when
+        // the registry will be in place)
+        //TODO: this has to run asynchronously, this means that it must
+        // create the record and return it, in order to not block the caller.
+        // Creating an instance can involved downloading nodes from different
+        // locations, communication towards others runtimes, therefore
+        // the caller should not be blocked.
+        // The status of an instance can be check asynchronously by the caller
+        // once it knows the Uuid.
+        // Therefore instantiation errors should be logged as instance status
+
         log::info!("Instantiating: {}", flow.flow);
 
         // Creating
