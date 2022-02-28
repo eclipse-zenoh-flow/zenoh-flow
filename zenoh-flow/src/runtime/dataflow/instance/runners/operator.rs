@@ -620,6 +620,13 @@ impl Runner for OperatorRunner {
                     context = ctx;
                     tokens = tkn;
                     data = d;
+                    // As async_std scheduler is run to completion,
+                    // if the iteration is always ready there is a possibility
+                    // that other tasks are not scheduled (e.g. the stopping
+                    // task), therefore after the iteration we give back
+                    // the control to the scheduler, if no other tasks are
+                    // ready, then this one is scheduled again.
+                    async_std::task::yield_now().await;
                     continue;
                 }
                 Err(e) => {
