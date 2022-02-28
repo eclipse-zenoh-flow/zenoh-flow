@@ -449,28 +449,49 @@ impl TryFrom<DaemonConfig> for Daemon {
 
 #[znserver]
 impl Runtime for Daemon {
-    async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
-        //TODO: workaround - it should just take the ID of the flow...
+    async fn create_instance(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
+        //TODO: workaround - it should just take the ID of the flow (when
+        // the registry will be in place)
+        //TODO: this has to run asynchronously, this means that it must
+        // create the record and return it, in order to not block the caller.
+        // Creating an instance can involved downloading nodes from different
+        // locations, communication towards others runtimes, therefore
+        // the caller should not be blocked.
+        // The status of an instance can be check asynchronously by the caller
+        // once it knows the Uuid.
+        // Therefore instantiation errors should be logged as instance status
 
         let record_uuid = Uuid::new_v4();
         let flow_name = flow.flow.clone();
 
         log::info!(
-            "Instantiating Flow {} - Instance UUID: {}",
+            "Creating Flow {} - Instance UUID: {}",
             flow_name,
             record_uuid
         );
 
         let mut rt_clients = vec![];
 
+        // TODO: flatting of a descriptor, when the registry will be in place
+
+        // Mapping to infrastructure
         let mapped =
             zenoh_flow::runtime::map_to_infrastructure(flow, &self.ctx.runtime_name).await?;
 
+        // Getting runtime involved in this instance
         let involved_runtimes = mapped.get_runtimes();
         let involved_runtimes = involved_runtimes
             .into_iter()
             .filter(|rt| *rt != self.ctx.runtime_name);
 
+        // Creating the record
+        let mut dfr = DataFlowRecord::try_from((mapped, record_uuid))?;
+
+        self.store
+            .add_runtime_flow(&self.ctx.runtime_uuid, &dfr)
+            .await?;
+
+        // Creating clients to talk with other runtimes
         for rt in involved_runtimes {
             let rt_info = self.store.get_runtime_info_by_name(&rt).await?;
             let client = RuntimeClient::new(self.ctx.session.clone(), rt_info.id);
@@ -479,30 +500,14 @@ impl Runtime for Daemon {
 
         // remote prepare
         for client in rt_clients.iter() {
-            client.prepare(mapped.clone(), record_uuid).await??;
+            client.prepare(dfr.uuid).await??;
         }
 
         // self prepare
-        let dfr = Runtime::prepare(self, mapped.clone(), record_uuid).await?;
-
-        // remote start
-        for client in rt_clients.iter() {
-            client.start(record_uuid).await??;
-        }
-
-        // self start
-        Runtime::start(self, record_uuid).await?;
-
-        // remote start sources
-        for client in rt_clients.iter() {
-            client.start_sources(record_uuid).await??;
-        }
-
-        // self start sources
-        Runtime::start_sources(self, record_uuid).await?;
+        Runtime::prepare(self, dfr.uuid).await?;
 
         log::info!(
-            "Done Instantiating Flow {} - Instance UUID: {}",
+            "Created Flow {} - Instance UUID: {}",
             flow_name,
             record_uuid
         );
@@ -510,8 +515,8 @@ impl Runtime for Daemon {
         Ok(dfr)
     }
 
-    async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
-        log::info!("Tearing down Instance UUID: {}", record_id);
+    async fn delete_instance(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+        log::info!("Delete Instance UUID: {}", record_id);
         let record = self.store.get_flow_by_instance(&record_id).await?;
 
         let mut rt_clients = vec![];
@@ -529,27 +534,7 @@ impl Runtime for Daemon {
             rt_clients.push(client);
         }
 
-        // remote stop sources
-        for client in rt_clients.iter() {
-            client.stop_sources(record_id).await??;
-        }
-
-        // local stop sources
-        if is_also_local {
-            self.stop_sources(record_id).await?;
-        }
-
-        // remote stop
-        for client in rt_clients.iter() {
-            client.stop(record_id).await??;
-        }
-
-        // local stop
-        if is_also_local {
-            Runtime::stop(self, record_id).await?;
-        }
-
-        // remote stop clean
+        // remote clean
         for client in rt_clients.iter() {
             client.clean(record_id).await??;
         }
@@ -559,21 +544,65 @@ impl Runtime for Daemon {
             self.clean(record_id).await;
         }
 
-        log::info!("Done teardown down Instance UUID: {}", record_id);
+        self.store
+            .remove_runtime_flow_instance(&self.ctx.runtime_uuid, &record.flow, &record.uuid)
+            .await?;
+
+        log::info!("Done delete Instance UUID: {}", record_id);
 
         Ok(record)
     }
 
-    async fn prepare(&self, flow: DataFlowDescriptor, record_id: Uuid) -> ZFResult<DataFlowRecord> {
-        let flow_name = flow.flow.clone();
+    async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
+        //TODO: workaround - it should just take the ID of the flow (when
+        // the registry will be in place)
+        //TODO: this has to run asynchronously, this means that it must
+        // create the record and return it, in order to not block the caller.
+        // Creating an instance can involved downloading nodes from different
+        // locations, communication towards others runtimes, therefore
+        // the caller should not be blocked.
+        // The status of an instance can be check asynchronously by the caller
+        // once it knows the Uuid.
+        // Therefore instantiation errors should be logged as instance status
+
+        log::info!("Instantiating: {}", flow.flow);
+
+        // Creating
+        let dfr = Runtime::create_instance(self, flow.clone()).await?;
+
+        // Starting
+        Runtime::start_instance(self, dfr.uuid).await?;
 
         log::info!(
-            "Preparing for Flow {} Instance UUID: {}",
-            flow_name,
-            record_id
+            "Done Instantiation Flow {} - Instance UUID: {}",
+            flow.flow,
+            dfr.uuid,
         );
 
-        let mut dfr = DataFlowRecord::try_from((flow, record_id))?;
+        Ok(dfr)
+    }
+
+    async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+        log::info!("Tearing down Instance UUID: {}", record_id);
+
+        // Stopping
+        Runtime::stop_instance(self, record_id).await?;
+
+        // Clean-up
+        let dfr = Runtime::delete_instance(self, record_id).await?;
+
+        log::info!("Done teardown down Instance UUID: {}", record_id);
+
+        Ok(dfr)
+    }
+
+    async fn prepare(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+        log::info!("Preparing for Instance UUID: {}", record_id);
+
+        let dfr = self.store.get_flow_by_instance(&record_id).await?;
+        self.store
+            .add_runtime_flow(&self.ctx.runtime_uuid, &dfr)
+            .await?;
 
         let mut dataflow = Dataflow::try_new(self.ctx.clone(), dfr.clone())?;
         let mut instance = DataflowInstance::try_instantiate(dataflow)?;
@@ -581,15 +610,8 @@ impl Runtime for Daemon {
         let mut self_state = self.state.lock().await;
         self_state.graphs.insert(dfr.uuid, instance);
         drop(self_state);
-        self.store
-            .add_runtime_flow(&self.ctx.runtime_uuid, &dfr)
-            .await?;
 
-        log::info!(
-            "Done preparation for Flow {} Instance UUID: {}",
-            flow_name,
-            record_id
-        );
+        log::info!("Done preparation for Instance UUID: {}", record_id);
 
         Ok(dfr)
     }
@@ -618,6 +640,93 @@ impl Runtime for Daemon {
             }
             None => Err(ZFError::InstanceNotFound(record_id)),
         }
+    }
+
+    async fn start_instance(&self, record_id: Uuid) -> ZFResult<()> {
+        log::info!("Staring Instance UUID: {}", record_id);
+
+        let mut rt_clients = vec![];
+
+        let all_involved_runtimes = self.store.get_flow_instance_runtimes(&record_id).await?;
+
+        let is_also_local = all_involved_runtimes.contains(&self.ctx.runtime_uuid);
+
+        let all_involved_runtimes = all_involved_runtimes
+            .into_iter()
+            .filter(|rt| *rt != self.ctx.runtime_uuid);
+
+        for rt in all_involved_runtimes {
+            let client = RuntimeClient::new(self.ctx.session.clone(), rt);
+            rt_clients.push(client);
+        }
+
+        // remote start
+        for client in rt_clients.iter() {
+            client.start(record_id).await??;
+        }
+
+        if is_also_local {
+            // self start
+            Runtime::start(self, record_id).await?;
+        }
+
+        // remote start sources
+        for client in rt_clients.iter() {
+            client.start_sources(record_id).await??;
+        }
+
+        if is_also_local {
+            // self start sources
+            Runtime::start_sources(self, record_id).await?;
+        }
+
+        log::info!("Started Instance UUID: {}", record_id);
+
+        Ok(())
+    }
+
+    async fn stop_instance(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+        log::info!("Stopping Instance UUID: {}", record_id);
+        let record = self.store.get_flow_by_instance(&record_id).await?;
+
+        let mut rt_clients = vec![];
+
+        let all_involved_runtimes = self.store.get_flow_instance_runtimes(&record_id).await?;
+
+        let is_also_local = all_involved_runtimes.contains(&self.ctx.runtime_uuid);
+
+        let all_involved_runtimes = all_involved_runtimes
+            .into_iter()
+            .filter(|rt| *rt != self.ctx.runtime_uuid);
+
+        for rt in all_involved_runtimes {
+            let client = RuntimeClient::new(self.ctx.session.clone(), rt);
+            rt_clients.push(client);
+        }
+
+        // remote stop sources
+        for client in rt_clients.iter() {
+            client.stop_sources(record_id).await??;
+        }
+
+        // local stop sources
+        if is_also_local {
+            self.stop_sources(record_id).await?;
+        }
+
+        // remote stop
+        for client in rt_clients.iter() {
+            client.stop(record_id).await??;
+        }
+
+        // local stop
+        if is_also_local {
+            Runtime::stop(self, record_id).await?;
+        }
+
+        log::info!("Stopped Instance UUID: {}", record_id);
+
+        Ok(record)
     }
 
     async fn start(&self, record_id: Uuid) -> ZFResult<()> {

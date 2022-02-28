@@ -223,31 +223,79 @@ pub struct RuntimeConfig {
 }
 
 /// The interface the Runtime expose to a client
-/// (eg. another runtime, the cli, the mgmt API)
+/// (eg. another runtime, the cli, the mgmt API)[^note]
 /// The service is exposed using zenoh-rpc, the server and client
 /// are generated automatically.
+///
+/// [^note]: We may split this interface in the future.
 #[znservice(
     timeout_s = 60,
     prefix = "/zf/runtime",
     service_uuid = "00000000-0000-0000-0000-000000000001"
 )]
 pub trait Runtime {
-    /// Sends an initiation request for the given [`FlowId`]
-    /// Note the request is asynchronous, the runtime that receives the request
-    /// flattens the descriptor, maps it to the infrastructure,
+    /// Creates the instance (`DataFlowRecord`) from the
+    /// given [`DataFlowDescriptor`][^note].
+    ///
+    /// This function:
+    /// 1) Generates the instance `Uuid`
+    /// 2) Flattens the descriptor
+    /// 3) Maps the flow into the infrastructure
+    /// 4) Creates the associated record
+    /// 5) Stores the record in Zenoh
+    /// 6) Prepares all the involved runtimes to host the data flow instance
+    ///
+    /// Returns the `DataFlowRecord` associted with the instance
+    ///
+    /// [^note]: When the registry will be in place it will take
+    /// the Flow identifier as parameter
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - unable to map
+    /// - unable to prepare nodes
+    async fn create_instance(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord>;
+    //TODO: workaround - it should just take the ID of the flow (when
+    // the registry will be in place)
+
+    /// Deletes the given instance].
+    /// This function:
+    /// 1) Cleans the instance nodes from all the involved runtimes.
+    /// 2) Deletes the record from zenoh
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - instance not stopped
+    /// - unable to clean
+    /// - zenoh error
+    async fn delete_instance(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
+
+    /// Instantiates the given [`DataFlowDescriptor`][^note].
     /// and, creates the associated [`DataFlowRecord`].
     /// The record contains an [`Uuid`] that identifies the record.
     /// The actual instantiation process runs asynchronously in the runtime.
+    ///
+    /// It is equivalent to calling `create_instance` and
+    /// then `start_instance`.
+    ///
+    /// [^note]: When the registry will be in place it will take
+    /// the Flow identifier as parameter
     ///
     /// # Errors
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to instantiate
-    async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord>; //TODO: workaround - it should just take the ID of the flow...
+    async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord>;
+    //TODO: workaround - it should just take the ID of the flow (when
+    // the registry will be in place)
 
     /// Sends a teardown request for the given record identified by the [`Uuid`]
     /// Note the request is asynchronous, the runtime that receives the request will
     /// return immediately, but the teardown process will run asynchronously in the runtime.
+    ///
+    /// It is equivalent to calling `stop_instance` and then `delete_delete`.
     ///
     /// # Errors
     /// An error variant is returned in case of:
@@ -256,7 +304,7 @@ pub trait Runtime {
     /// - instance not found
     async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
 
-    /// Prepares the runtime host the instance identified [`Uuid`] for the Flow identified by [`FlowId`].
+    /// Prepares the runtime host the instance identified by the [`Uuid`].
     /// Preparing a runtime means, fetch the operators/source/sinks libraries,
     /// create the needed structures in memory, the links.
     /// Once everything is prepared the runtime should return the [`DataFlowRecord`]
@@ -265,7 +313,7 @@ pub trait Runtime {
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to prepare
-    async fn prepare(&self, flow: DataFlowDescriptor, record_id: Uuid) -> ZFResult<DataFlowRecord>; //TODO: workaround - it should just take the ID of the flow...
+    async fn prepare(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
 
     /// Cleans the runtime from the remains of the given record.
     /// Cleans means unload the libraries, drop data structures and destroy links.
@@ -275,6 +323,27 @@ pub trait Runtime {
     /// - error on zenoh-rpc
     /// - unable to clean
     async fn clean(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
+
+    /// Starts the instance on all involved nodes.
+    ///
+    /// It first starts all the nodes and then the sources.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - record already started
+    async fn start_instance(&self, record_id: Uuid) -> ZFResult<()>;
+
+    /// Stops the instance on all involved nodes.
+    ///
+    /// It first stops the sources then the other nodes.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - unable to clean
+    async fn stop_instance(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
 
     /// Starts the sinks, connectors, and operators for the given record.
     ///
