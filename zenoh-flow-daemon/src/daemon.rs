@@ -306,7 +306,8 @@ impl TryFrom<DaemonConfig> for Daemon {
 
         // Sets zenoh peers based on configuration.
         zconfig
-            .set_peers(
+            .connect
+            .set_endpoints(
                 config
                     .zenoh
                     .locators
@@ -323,7 +324,8 @@ impl TryFrom<DaemonConfig> for Daemon {
 
         // Sets zenoh listeners based on configuration.
         zconfig
-            .set_listeners(
+            .listen
+            .set_endpoints(
                 config
                     .zenoh
                     .listen
