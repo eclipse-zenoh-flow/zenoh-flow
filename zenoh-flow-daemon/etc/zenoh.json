@@ -1,6 +1,7 @@
 {
-    "listeners": ["tcp/0.0.0.0:7887"],
-    "link_state":true,
+    "listen":{
+        "endpoints":["tcp/0.0.0.0:7887"]
+    },
     "plugins_search_dirs":["/usr/lib/"],
     "plugins":{
         "storages":{
