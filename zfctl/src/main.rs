@@ -254,7 +254,7 @@ pub enum ZFCtl {
 
 #[async_std::main]
 async fn main() {
-    env_logger::init();
+    env_logger::try_init().unwrap_or_else(|_| log::warn!("`env_logger` already initialized"));
     log::debug!("Eclipse Zenoh-Flow Ctl {}", GIT_VERSION);
 
     let args = ZFCtl::parse();

@@ -51,9 +51,10 @@ struct RuntimeOpt {
 #[async_std::main]
 async fn main() {
     // Init logging
-    env_logger::init_from_env(
+    env_logger::try_init_from_env(
         env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
-    );
+    )
+    .unwrap_or_else(|_| log::warn!("`env_logger` already initialized"));
 
     let args = RuntimeOpt::parse();
 
