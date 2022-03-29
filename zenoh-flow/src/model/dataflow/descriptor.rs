@@ -19,25 +19,11 @@ use crate::model::loops::LoopDescriptor;
 use crate::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{NodeId, RuntimeId, ZFError, ZFResult};
-use std::collections::HashSet;
+use crate::Configuration;
+use itertools::Itertools;
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
-
-/// The mapping of a node into the infrastructure.
-///
-/// Example:
-///
-/// ```yaml
-/// id: SumOperator
-/// runtime: runtime1
-/// ```
-///
-///
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Mapping {
-    pub id: NodeId,
-    pub runtime: RuntimeId,
-}
 
 /// The description of a data flow graph.
 /// It contains all the information needed to instantiate a data flow graph.
@@ -100,9 +86,10 @@ pub struct DataFlowDescriptor {
     pub sources: Vec<SourceDescriptor>,
     pub sinks: Vec<SinkDescriptor>,
     pub links: Vec<LinkDescriptor>,
-    pub mapping: Option<Vec<Mapping>>,
+    pub mapping: Option<HashMap<NodeId, RuntimeId>>,
     pub deadlines: Option<Vec<E2EDeadlineDescriptor>>,
     pub loops: Option<Vec<LoopDescriptor>>,
+    pub global_configuration: Option<Configuration>,
 }
 
 impl DataFlowDescriptor {
@@ -144,38 +131,12 @@ impl DataFlowDescriptor {
         serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
     }
 
-    /// Returns the mapping of the given node, if any.
-    pub fn get_mapping(&self, id: &str) -> Option<RuntimeId> {
-        match &self.mapping {
-            Some(mapping) => mapping
-                .iter()
-                .find(|&o| o.id.as_ref() == id)
-                .map(|m| m.runtime.clone()),
-            None => None,
-        }
-    }
-
-    /// Adds a the given mapping to the `DataFlowDescriptor`.
-    pub fn add_mapping(&mut self, mapping: Mapping) {
-        match self.mapping.as_mut() {
-            Some(m) => m.push(mapping),
-            None => self.mapping = Some(vec![mapping]),
-        }
-    }
-
     /// Gets all the `RuntimeId` mapped to nodes of this `DataFlowDescriptor`.
     pub fn get_runtimes(&self) -> Vec<RuntimeId> {
-        let mut runtimes = HashSet::new();
-
         match &self.mapping {
-            Some(mapping) => {
-                for node_mapping in mapping.iter() {
-                    runtimes.insert(node_mapping.runtime.clone());
-                }
-            }
-            None => (),
+            Some(mapping) => mapping.values().cloned().unique().collect(),
+            None => vec![],
         }
-        runtimes.into_iter().collect()
     }
 
     /// This method checks that the dataflow graph is correct.
