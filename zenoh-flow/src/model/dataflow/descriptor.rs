@@ -89,6 +89,7 @@ pub struct DataFlowDescriptor {
     pub mapping: Option<HashMap<NodeId, RuntimeId>>,
     pub deadlines: Option<Vec<E2EDeadlineDescriptor>>,
     pub loops: Option<Vec<LoopDescriptor>>,
+    #[serde(alias = "configuration")]
     pub global_configuration: Option<Configuration>,
 }
 
