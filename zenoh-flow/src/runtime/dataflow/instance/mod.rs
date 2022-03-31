@@ -358,7 +358,7 @@ impl DataflowInstance {
     /// Finalizing a node means cleaning up its state.
     ///
     /// # Errors
-    /// If fails if the node is not found or it is not running.
+    /// If fails if the node is not found.
     pub async fn clean_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
         let runner = self
             .runners
