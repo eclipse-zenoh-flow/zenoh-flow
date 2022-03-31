@@ -622,9 +622,30 @@ impl Runtime for Daemon {
 
         let mut _state = self.state.lock().await;
         let data = _state.graphs.remove(&record_id);
-
         match data {
-            Some(dfg) => {
+            Some(mut dfg) => {
+                // Calling finalize on all nodes of a the graph.
+
+                let sources = dfg.get_sources();
+                for id in &sources {
+                    dfg.clean_node(id).await?;
+                }
+
+                let mut sinks = dfg.get_sinks();
+                for id in sinks.drain(..) {
+                    dfg.clean_node(&id).await?;
+                }
+
+                let mut operators = dfg.get_operators();
+                for id in operators.drain(..) {
+                    dfg.clean_node(&id).await?;
+                }
+
+                let mut connectors = dfg.get_connectors();
+                for id in connectors.drain(..) {
+                    dfg.clean_node(&id).await?;
+                }
+
                 let record = self
                     .store
                     .get_runtime_flow_by_instance(&self.ctx.runtime_uuid, &record_id)
