@@ -20,7 +20,7 @@ use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{RuntimeId, ZFError, ZFResult};
-use crate::{NodeId, PortType};
+use crate::{merge_configurations, NodeId, PortType};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -267,89 +267,80 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
     type Error = ZFError;
 
     fn try_from(d: (DataFlowDescriptor, Uuid)) -> Result<Self, Self::Error> {
-        let (mut d, id) = d;
+        let (dataflow, id) = d;
 
-        let deadlines = d
-            .deadlines
-            .clone()
+        let DataFlowDescriptor {
+            flow,
+            operators,
+            sources,
+            sinks,
+            mut links,
+            mapping,
+            deadlines,
+            loops,
+            global_configuration,
+        } = dataflow;
+
+        let mapping = mapping.map_or(HashMap::new(), |m| m);
+
+        let deadlines = deadlines
             .map(|deadlines_desc| deadlines_desc.into_iter().map(|desc| desc.into()).collect());
 
         let mut dfr = DataFlowRecord {
             uuid: id,
-            flow: d.flow.clone(),
-            operators: HashMap::new(),
-            sinks: HashMap::new(),
-            sources: HashMap::new(),
+            flow,
+            operators: HashMap::with_capacity(operators.len()),
+            sinks: HashMap::with_capacity(sinks.len()),
+            sources: HashMap::with_capacity(sources.len()),
             connectors: Vec::new(),
             links: Vec::new(),
             end_to_end_deadlines: deadlines,
         };
 
-        for o in &d.operators {
-            match d.get_mapping(&o.id) {
-                Some(m) => {
-                    let or = OperatorRecord {
-                        id: o.id.clone(),
-                        inputs: o.inputs.clone(),
-                        outputs: o.outputs.clone(),
-                        uri: o.uri.clone(),
-                        configuration: o.configuration.clone(),
-                        runtime: m,
-                        deadline: o.deadline.as_ref().map(|period| period.to_duration()),
-                        ciclo: None,
-                    };
-                    dfr.operators.insert(o.id.clone(), or);
-                }
-                None => {
-                    return Err(ZFError::Uncompleted(format!(
-                        "Missing mapping for {}",
-                        o.id.clone()
-                    )))
-                }
-            }
+        for o in operators {
+            let or = OperatorRecord {
+                id: o.id.clone(),
+                inputs: o.inputs,
+                outputs: o.outputs,
+                uri: o.uri,
+                configuration: merge_configurations(global_configuration.clone(), o.configuration),
+                runtime: mapping
+                    .get(&o.id)
+                    .ok_or(ZFError::MissingConfiguration)
+                    .cloned()?,
+                deadline: o.deadline.as_ref().map(|period| period.to_duration()),
+                ciclo: None,
+            };
+            dfr.operators.insert(o.id, or);
         }
 
-        for s in &d.sources {
-            match d.get_mapping(&s.id) {
-                Some(m) => {
-                    let sr = SourceRecord {
-                        id: s.id.clone(),
-                        period: s.period.clone(),
-                        output: s.output.clone(),
-                        uri: s.uri.clone(),
-                        configuration: s.configuration.clone(),
-                        runtime: m,
-                    };
-                    dfr.sources.insert(s.id.clone(), sr);
-                }
-                None => {
-                    return Err(ZFError::Uncompleted(format!(
-                        "Missing mapping for {}",
-                        s.id.clone()
-                    )))
-                }
-            }
+        for s in sources {
+            let sr = SourceRecord {
+                id: s.id.clone(),
+                period: s.period,
+                output: s.output,
+                uri: s.uri,
+                configuration: merge_configurations(global_configuration.clone(), s.configuration),
+                runtime: mapping
+                    .get(&s.id)
+                    .ok_or(ZFError::MissingConfiguration)
+                    .cloned()?,
+            };
+            dfr.sources.insert(s.id, sr);
         }
 
-        for s in &d.sinks {
-            match d.get_mapping(&s.id) {
-                Some(m) => {
-                    let sr = SinkRecord {
-                        id: s.id.clone(),
-                        input: s.input.clone(),
-                        uri: s.uri.clone(),
-                        configuration: s.configuration.clone(),
-                        runtime: m,
-                    };
-                    dfr.sinks.insert(s.id.clone(), sr);
-                }
-                None => {
-                    return Err(ZFError::Uncompleted(format!(
-                        "Missing mapping for {}",
-                        s.id.clone()
-                    )))
-                }
-            }
+        for s in sinks {
+            let sr = SinkRecord {
+                id: s.id.clone(),
+                input: s.input,
+                uri: s.uri,
+                configuration: merge_configurations(global_configuration.clone(), s.configuration),
+                runtime: mapping
+                    .get(&s.id)
+                    .ok_or(ZFError::MissingConfiguration)
+                    .cloned()?,
+            };
+            dfr.sinks.insert(s.id, sr);
         }
 
         // A Loop between two nodes is, in fact, a backward link.
@@ -360,7 +351,7 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
         // create.
         //
         // We finally add the loop information to the Ingress and Egress.
-        if let Some(loops) = d.loops {
+        if let Some(loops) = loops {
             // Ciclo is the italian word for "loop" — we cannot use "loop" as it’s a reserved
             // keyword.
             for ciclo in loops {
@@ -385,7 +376,7 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
                 });
                 egress.ciclo = Some(ciclo.clone());
 
-                d.links.push(LinkDescriptor {
+                links.push(LinkDescriptor {
                     from: OutputDescriptor {
                         node: ciclo.egress,
                         output: ciclo.feedback_port.clone(),
@@ -401,7 +392,7 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
             }
         }
 
-        dfr.add_links(&d.links)?;
+        dfr.add_links(&links)?;
 
         Ok(dfr)
     }

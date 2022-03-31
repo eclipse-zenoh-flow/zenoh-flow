@@ -13,9 +13,10 @@
 //
 
 #![allow(clippy::manual_async_fn)]
+use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use crate::model::dataflow::descriptor::{DataFlowDescriptor, Mapping};
+use crate::model::dataflow::descriptor::DataFlowDescriptor;
 use crate::{
     model::{
         dataflow::record::DataFlowRecord,
@@ -83,52 +84,27 @@ pub async fn map_to_infrastructure(
 
     // Initial "stupid" mapping, if an operator is not mapped, we map to the local runtime.
     // function is async because it could involve other nodes.
-
-    let mut mappings = Vec::new();
+    let mut mapping = descriptor.mapping.clone().map_or(HashMap::new(), |m| m);
 
     for o in &descriptor.operators {
-        match descriptor.get_mapping(&o.id) {
-            Some(_) => (),
-            None => {
-                let mapping = Mapping {
-                    id: o.id.clone(),
-                    runtime: runtime_id.clone(),
-                };
-                mappings.push(mapping);
-            }
-        }
+        mapping
+            .entry(o.id.clone())
+            .or_insert_with(|| runtime_id.clone());
     }
 
     for o in &descriptor.sources {
-        match descriptor.get_mapping(&o.id) {
-            Some(_) => (),
-            None => {
-                let mapping = Mapping {
-                    id: o.id.clone(),
-                    runtime: runtime_id.clone(),
-                };
-                mappings.push(mapping);
-            }
-        }
+        mapping
+            .entry(o.id.clone())
+            .or_insert_with(|| runtime_id.clone());
     }
 
     for o in &descriptor.sinks {
-        match descriptor.get_mapping(&o.id) {
-            Some(_) => (),
-            None => {
-                let mapping = Mapping {
-                    id: o.id.clone(),
-                    runtime: runtime_id.clone(),
-                };
-                mappings.push(mapping);
-            }
-        }
+        mapping
+            .entry(o.id.clone())
+            .or_insert_with(|| runtime_id.clone());
     }
 
-    for m in mappings {
-        descriptor.add_mapping(m)
-    }
-
+    descriptor.mapping = Some(mapping);
     Ok(descriptor)
 }
 
