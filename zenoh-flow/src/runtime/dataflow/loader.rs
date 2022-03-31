@@ -438,7 +438,8 @@ impl Loader {
             None => uri.path().to_string(),
         };
         path.push(file_path);
-        let path = std::fs::canonicalize(path)?;
+        let path = std::fs::canonicalize(&path)
+            .map_err(|e| ZFError::IOError(format!("{}: {}", e, &path.to_string_lossy())))?;
         Ok(path)
     }
 

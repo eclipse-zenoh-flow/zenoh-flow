@@ -30,7 +30,7 @@ use std::hash::{Hash, Hasher};
 /// ```yaml
 /// id: SumOperator
 /// runtime: runtime1
-//// ```
+/// ```
 ///
 ///
 #[derive(Serialize, Deserialize, Debug, Clone)]
