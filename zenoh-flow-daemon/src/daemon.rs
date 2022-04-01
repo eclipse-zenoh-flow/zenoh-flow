@@ -626,24 +626,44 @@ impl Runtime for Daemon {
             Some(mut dfg) => {
                 // Calling finalize on all nodes of a the graph.
 
-                let sources = dfg.get_sources();
-                for id in &sources {
-                    dfg.clean_node(id).await?;
+                let mut sources = dfg.get_sources();
+                for id in sources.drain(..) {
+                    dfg.clean_node(&id).await.map_or_else(
+                        |e| {
+                            log::error!("Unable to clean source {}, got error: {}", &id, e);
+                        },
+                        |_| (),
+                    );
                 }
 
                 let mut sinks = dfg.get_sinks();
                 for id in sinks.drain(..) {
-                    dfg.clean_node(&id).await?;
+                    dfg.clean_node(&id).await.map_or_else(
+                        |e| {
+                            log::error!("Unable to clean sink {}, got error: {}", &id, e);
+                        },
+                        |_| (),
+                    );
                 }
 
                 let mut operators = dfg.get_operators();
                 for id in operators.drain(..) {
-                    dfg.clean_node(&id).await?;
+                    dfg.clean_node(&id).await.map_or_else(
+                        |e| {
+                            log::error!("Unable to operator source {}, got error: {}", &id, e);
+                        },
+                        |_| (),
+                    );
                 }
 
                 let mut connectors = dfg.get_connectors();
                 for id in connectors.drain(..) {
-                    dfg.clean_node(&id).await?;
+                    dfg.clean_node(&id).await.map_or_else(
+                        |e| {
+                            log::error!("Unable to clean connector {}, got error: {}", &id, e);
+                        },
+                        |_| (),
+                    );
                 }
 
                 let record = self
