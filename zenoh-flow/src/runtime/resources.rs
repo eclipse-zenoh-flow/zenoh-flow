@@ -562,7 +562,7 @@ impl DataStore {
         let mut runtimes = Vec::new();
 
         for kv in data.into_iter() {
-            let path = String::from(kv.data.key_expr.as_str());
+            let path = String::from(kv.sample.key_expr.as_str());
             let id = path.split('/').collect::<Vec<&str>>()[3];
             runtimes.push(Uuid::parse_str(id).map_err(|_| ZFError::DeseralizationError)?);
         }
@@ -675,11 +675,11 @@ impl DataStore {
             0 => Err(ZFError::Empty),
             _ => {
                 let kv = &data[0];
-                match &kv.data.value.encoding {
+                match &kv.sample.value.encoding {
                     //@FIXME This is workaround because zenoh apis are broken, it should just be &Encoding::APP_OCTET_STREAM
                     e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
                         let ni =
-                            deserialize_data::<T>(&kv.data.value.payload.contiguous().to_vec())?;
+                            deserialize_data::<T>(&kv.sample.value.payload.contiguous().to_vec())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -705,10 +705,10 @@ impl DataStore {
         let mut zf_data: Vec<T> = Vec::new();
 
         for kv in data.into_iter() {
-            match &kv.data.value.encoding {
+            match &kv.sample.value.encoding {
                 //@FIXME This is workaround because zenoh apis are broken, it should just be &Encoding::APP_OCTET_STREAM
                 e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
-                    let ni = deserialize_data::<T>(&kv.data.value.payload.contiguous().to_vec())?;
+                    let ni = deserialize_data::<T>(&kv.sample.value.payload.contiguous().to_vec())?;
                     zf_data.push(ni);
                 }
                 _ => return Err(ZFError::DeseralizationError),

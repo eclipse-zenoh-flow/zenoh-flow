@@ -187,7 +187,7 @@ impl Runner for ZenohReplay {
             let mut zf_data: Vec<Message> = data
                 .iter()
                 .filter_map(|msg| {
-                    bincode::deserialize::<Message>(&msg.data.value.payload.contiguous()).ok()
+                    bincode::deserialize::<Message>(&msg.sample.value.payload.contiguous()).ok()
                 })
                 .collect();
             zf_data.sort();
