@@ -218,7 +218,7 @@ impl Runner for SinkRunner {
         loop {
             match self.iteration(context).await {
                 Ok(ctx) => {
-                    log::debug!(
+                    log::trace!(
                         "[Sink: {}] iteration ok with new context {:?}",
                         self.id,
                         ctx

@@ -83,10 +83,10 @@ impl ZenohSender {
         log::debug!("ZenohSender - {} - Started", self.record.resource);
         if let Some(link) = &*self.link.lock().await {
             while let Ok((_, message)) = link.recv().await {
-                log::debug!("ZenohSender IN <= {:?} ", message);
+                log::trace!("ZenohSender IN <= {:?} ", message);
 
                 let serialized = message.serialize_bincode()?;
-                log::debug!("ZenohSender - {}=>{:?} ", self.record.resource, serialized);
+                log::trace!("ZenohSender - {}=>{:?} ", self.record.resource, serialized);
                 self.context
                     .runtime
                     .session
@@ -118,7 +118,7 @@ impl Runner for ZenohSender {
         loop {
             match self.iteration().await {
                 Ok(_) => {
-                    log::debug!("[ZenohSender: {}] iteration ok", self.id);
+                    log::trace!("[ZenohSender: {}] iteration ok", self.id);
                     continue;
                 }
                 Err(e) => {
@@ -276,10 +276,10 @@ impl Runner for ZenohReceiver {
                     .await?;
 
                 while let Some(msg) = subscriber.receiver().next().await {
-                    log::debug!("ZenohSender - {}<={:?} ", self.record.resource, msg);
+                    log::trace!("ZenohSender - {}<={:?} ", self.record.resource, msg);
                     let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
                         .map_err(|_| ZFError::DeseralizationError)?;
-                    log::debug!("ZenohSender - OUT =>{:?} ", de);
+                    log::trace!("ZenohSender - OUT =>{:?} ", de);
                     link.send(Arc::new(de)).await?;
                 }
             }

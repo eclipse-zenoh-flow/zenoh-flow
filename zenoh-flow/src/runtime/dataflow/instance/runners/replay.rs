@@ -87,7 +87,7 @@ impl ZenohReplay {
         let links = self.links.lock().await;
         let msg = Arc::new(msg);
         for link in links.iter() {
-            log::debug!("ZenohReplay - OUT =>{:?} ", msg);
+            log::trace!("ZenohReplay - OUT =>{:?} ", msg);
             link.send(msg.clone()).await?;
         }
         Ok(())
@@ -191,18 +191,18 @@ impl Runner for ZenohReplay {
                 })
                 .collect();
             zf_data.sort();
-            log::debug!("ZenohReplay - Total samples {} ", zf_data.len());
+            log::trace!("ZenohReplay - Total samples {} ", zf_data.len());
 
             for de in zf_data {
-                log::debug!("ZenohReplay - {}<={:?} ", self.resource_name, de);
+                log::trace!("ZenohReplay - {}<={:?} ", self.resource_name, de);
                 match &de {
                     Message::Control(ref ctrl_msg) => match &ctrl_msg {
                         ControlMessage::RecordingStart(ref ts) => {
-                            log::debug!("ZenohReplay - Recording start {:?} ", ts);
+                            log::trace!("ZenohReplay - Recording start {:?} ", ts);
                             last_ts = ts.timestamp;
                         }
                         ControlMessage::RecordingStop(ref rs) => {
-                            log::debug!("ZenohReplay - Recording Stop {:?} ", rs);
+                            log::trace!("ZenohReplay - Recording Stop {:?} ", rs);
                         } // Commented because Control messages are not yet defined.
                           // _ => {
                           //     self.send_data(de).await?;
@@ -212,7 +212,7 @@ impl Runner for ZenohReplay {
                         let data_ts = data_msg.timestamp;
                         let wait_time = data_ts.get_diff_duration(&last_ts);
 
-                        log::debug!("ZenohReplay - Wait for {:?} ", wait_time);
+                        log::trace!("ZenohReplay - Wait for {:?} ", wait_time);
                         task::sleep(wait_time).await;
 
                         self.send_data(de).await?;

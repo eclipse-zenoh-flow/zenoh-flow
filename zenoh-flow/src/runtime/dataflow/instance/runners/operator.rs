@@ -292,11 +292,11 @@ impl OperatorRunner {
                 .input_rule(&mut context, &mut state, &mut tokens)
             {
                 Ok(true) => {
-                    log::debug!("[Operator: {}] Input Rule returned < true >.", self.id);
+                    log::trace!("[Operator: {}] Input Rule returned < true >.", self.id);
                     break 'input_rule;
                 }
                 Ok(false) => {
-                    log::debug!("[Operator: {}] Input Rule returned < false >.", self.id);
+                    log::trace!("[Operator: {}] Input Rule returned < false >.", self.id);
                 }
                 Err(e) => {
                     log::error!(
@@ -325,7 +325,7 @@ impl OperatorRunner {
         for (port_id, token) in tokens.iter_mut() {
             match token {
                 InputToken::Pending => {
-                    log::debug!(
+                    log::trace!(
                         "[Operator: {}] Removing < {} > from Data transmitted to `run`.",
                         self.id,
                         port_id
@@ -349,7 +349,7 @@ impl OperatorRunner {
                     // 1) Avoid considering the source_timestamp of a token that is dropped.
                     match data_token.action {
                         TokenAction::Consume | TokenAction::Keep => {
-                            log::debug!("[Operator: {}] Consuming < {} >.", self.id, port_id);
+                            log::trace!("[Operator: {}] Consuming < {} >.", self.id, port_id);
                             e2e_deadlines_to_propagate.extend(
                                 data_token
                                     .data
@@ -374,7 +374,7 @@ impl OperatorRunner {
                             }
                         }
                         TokenAction::Drop => {
-                            log::debug!("[Operator: {}] Dropping < {} >.", self.id, port_id);
+                            log::trace!("[Operator: {}] Dropping < {} >.", self.id, port_id);
                             data.remove(port_id);
                             *token = InputToken::Pending;
                         }
@@ -394,10 +394,10 @@ impl OperatorRunner {
             if ciclo.ingress == self.id {
                 let now = self.context.runtime.hlc.new_timestamp();
                 if !loop_feedback {
-                    log::debug!("[Operator: {}] Ingress, new loop detected", self.id);
+                    log::trace!("[Operator: {}] Ingress, new loop detected", self.id);
                     loop_contexts_to_propagate.push(LoopContext::new(ciclo, now));
                 } else {
-                    log::debug!("[Operator: {}] Ingress, updating LoopContext", self.id);
+                    log::trace!("[Operator: {}] Ingress, updating LoopContext", self.id);
                     let loop_ctx = loop_contexts_to_propagate
                         .iter_mut()
                         .find(|loop_ctx| loop_ctx.ingress == self.id);
@@ -420,7 +420,7 @@ impl OperatorRunner {
         let run_outputs = self.operator.run(&mut context, &mut state, &mut data)?;
         let elapsed = start.elapsed();
 
-        log::debug!(
+        log::trace!(
             "[Operator: {}] `run` executed in {} ms",
             self.id,
             elapsed.as_micros()
@@ -465,7 +465,7 @@ impl OperatorRunner {
                 None => continue,
             };
 
-            log::debug!("Sending on port < {} >…", port_id);
+            log::trace!("Sending on port < {} >…", port_id);
 
             if let Some(link_senders) = io.outputs.get(port_id) {
                 // Loop management: the node is an Egress, depending on which output the message
@@ -612,7 +612,7 @@ impl Runner for OperatorRunner {
         loop {
             match self.iteration(context, tokens, data).await {
                 Ok((ctx, tkn, d)) => {
-                    log::debug!(
+                    log::trace!(
                         "[Operator: {}] iteration ok with new context {:?}",
                         self.id,
                         ctx
