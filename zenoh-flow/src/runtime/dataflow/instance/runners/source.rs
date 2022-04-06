@@ -111,11 +111,11 @@ impl SourceRunner {
     /// - unable to put on zenoh
     /// - serialization fails
     async fn record(&self, message: Arc<Message>) -> ZFResult<()> {
-        log::debug!("ZenohLogger IN <= {:?} ", message);
+        log::trace!("ZenohLogger IN <= {:?} ", message);
         let recording = self.is_recording.lock().await;
 
         if !(*recording) {
-            log::debug!("ZenohLogger Dropping!");
+            log::trace!("ZenohLogger Dropping!");
             return Ok(());
         }
 
@@ -126,7 +126,7 @@ impl SourceRunner {
             .clone();
 
         let serialized = message.serialize_bincode()?;
-        log::debug!("ZenohLogger - {} => {:?} ", resource_name, serialized);
+        log::trace!("ZenohLogger - {} => {:?} ", resource_name, serialized);
         self.context
             .runtime
             .session
@@ -160,7 +160,7 @@ impl SourceRunner {
             .collect();
 
         // Send to Links
-        log::debug!("Sending on {:?} data: {:?}", self.output.port_id, output);
+        log::trace!("Sending on {:?} data: {:?}", self.output.port_id, output);
 
         let zf_message = Arc::new(Message::from_serdedata(
             output,
@@ -169,7 +169,7 @@ impl SourceRunner {
             vec![],
         ));
         for link in links.iter() {
-            log::debug!("\tSending on: {:?}", link);
+            log::trace!("\tSending on: {:?}", link);
             link.send(zf_message.clone()).await?;
         }
         self.record(zf_message).await?;
@@ -246,7 +246,7 @@ impl Runner for SourceRunner {
 
             let message = Message::Control(ControlMessage::RecordingStart(recording_metadata));
             let serialized = message.serialize_bincode()?;
-            log::debug!(
+            log::trace!(
                 "ZenohLogger - {} - Started recording at {:?}",
                 resource_name,
                 ts_recording_start
@@ -315,7 +315,7 @@ impl Runner for SourceRunner {
         loop {
             match self.iteration(context).await {
                 Ok(ctx) => {
-                    log::debug!(
+                    log::trace!(
                         "[Source: {}] iteration ok with new context {:?}",
                         self.id,
                         ctx

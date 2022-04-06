@@ -278,7 +278,7 @@ async fn main() {
                 );
             }
             CreateKind::Instance { descriptor_path } => {
-                log::debug!(
+                log::trace!(
                     "This is going to store the flow described in {:?}",
                     descriptor_path
                 );
