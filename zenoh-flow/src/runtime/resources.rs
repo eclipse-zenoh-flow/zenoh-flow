@@ -294,7 +294,7 @@ impl Stream for ZFRuntimeConfigStream {
         {
             Poll::Ready(Some(sample)) => match sample.kind {
                 SampleKind::Put | SampleKind::Patch => match sample.value.encoding {
-                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                    Encoding::APP_OCTET_STREAM => {
                         match deserialize_data::<crate::runtime::RuntimeConfig>(
                             &sample.value.payload.contiguous().to_vec(),
                         ) {
@@ -676,8 +676,7 @@ impl DataStore {
             _ => {
                 let kv = &data[0];
                 match &kv.sample.value.encoding {
-                    //@FIXME This is workaround because zenoh apis are broken, it should just be &Encoding::APP_OCTET_STREAM
-                    e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                    &Encoding::APP_OCTET_STREAM => {
                         let ni =
                             deserialize_data::<T>(&kv.sample.value.payload.contiguous().to_vec())?;
                         Ok(ni)
@@ -706,8 +705,7 @@ impl DataStore {
 
         for kv in data.into_iter() {
             match &kv.sample.value.encoding {
-                //@FIXME This is workaround because zenoh apis are broken, it should just be &Encoding::APP_OCTET_STREAM
-                e if e.starts_with(&Encoding::APP_OCTET_STREAM) => {
+                &Encoding::APP_OCTET_STREAM => {
                     let ni = deserialize_data::<T>(&kv.sample.value.payload.contiguous().to_vec())?;
                     zf_data.push(ni);
                 }
