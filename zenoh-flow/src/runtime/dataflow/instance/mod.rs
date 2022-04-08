@@ -351,7 +351,7 @@ impl DataflowInstance {
             .remove(node_id)
             .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
         manager.kill().await?;
-        Ok(manager.await?)
+        manager.await
     }
 
     /// Finalized the given node.

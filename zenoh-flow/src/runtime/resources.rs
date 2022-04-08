@@ -562,8 +562,19 @@ impl DataStore {
         let mut runtimes = Vec::new();
 
         for kv in data.into_iter() {
-            let path = String::from(kv.sample.key_expr.as_str());
-            let id = path.split('/').collect::<Vec<&str>>()[3];
+            let id = kv
+                .sample
+                .key_expr
+                .as_str()
+                .split('/')
+                .nth(3) // The way the key_expr are built, the 3rd "token" is the instance id
+                .ok_or_else(|| {
+                    log::error!(
+                        "Could not extract the instance id from key expression: {}",
+                        kv.sample.key_expr.as_str()
+                    );
+                    ZFError::DeseralizationError
+                })?;
             runtimes.push(Uuid::parse_str(id).map_err(|_| ZFError::DeseralizationError)?);
         }
 

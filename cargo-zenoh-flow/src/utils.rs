@@ -214,9 +214,9 @@ pub async fn write_string_to_file(filename: &Path, content: &str) -> CZFResult<(
         CZFError::GenericError(format!("Error when creating file {:?} {:?}", filename, e))
     })?;
 
-    Ok(file.write_all(content.as_bytes()).await.map_err(|e| {
+    file.write_all(content.as_bytes()).await.map_err(|e| {
         CZFError::GenericError(format!("Error when writing to file {:?} {:?}", filename, e))
-    })?)
+    })
 }
 
 pub fn cargo_build(flags: &[String], release: bool, manifest_dir: &Path) -> CZFResult<()> {
