@@ -27,7 +27,6 @@ use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::types::{NodeId, ZFResult};
 use crate::{PortId, PortType, ZFError};
-use async_lock::Barrier;
 use async_trait::async_trait;
 use futures_lite::future::FutureExt;
 use std::collections::HashMap;
@@ -50,7 +49,7 @@ pub enum RunnerKind {
 ///
 /// The runner manager is used to send commands to the runner.
 pub struct RunnerManager {
-    stopper: Arc<Barrier>,
+    stopper: flume::Sender<bool>,
     handler: JoinHandle<ZFResult<()>>,
     runner: Arc<dyn Runner>,
     ctx: InstanceContext,
@@ -61,7 +60,7 @@ impl RunnerManager {
     ///
     /// It is able to communicate via the `stopper` and the `handler`.
     pub fn new(
-        stopper: Arc<Barrier>,
+        stopper: flume::Sender<bool>,
         handler: JoinHandle<ZFResult<()>>,
         runner: Arc<dyn Runner>,
         ctx: InstanceContext,
@@ -83,8 +82,11 @@ impl RunnerManager {
             self.runner.stop_recording().await?;
         }
         log::info!("RunnerManager triggering stop to {}", self.get_id());
-        self.stopper.wait().await;
-        Ok(())
+
+        self.stopper.send_async(true).await.map_err(|e| {
+            log::error!("Could not send stop signal: {}", &e);
+            ZFError::InvalidState
+        })
     }
 
     /// Returns a reference to the handler.
@@ -236,13 +238,15 @@ impl NodeRunner {
     ///
     ///  # Errors
     /// An error variant is returned in case the run returns an error.
-    async fn run_stoppable(&self, signal: Arc<Barrier>) -> ZFResult<()> {
+    async fn run_stoppable(&self, rx: flume::Receiver<bool>) -> ZFResult<()> {
         loop {
             log::info!("NodeRunner {} starting run!", self.get_id());
 
             let my_id = self.get_id();
             let future_stop = async {
-                signal.wait().await;
+                if let Err(err) = rx.recv_async().await {
+                    log::error!("Receiver channel error: {}", err);
+                }
                 log::info!("NodeRunner {} received stop trigger", my_id);
                 RunAction::Stop
             };
@@ -285,13 +289,11 @@ impl NodeRunner {
         // both gets unlocked and continue execution, winning the race
         // in line 258 and stop the execution.
         // This is why this is a Barrier(2).
-        let signal = Arc::new(Barrier::new(2));
+        let (tx, rx) = flume::bounded::<bool>(1);
 
         let cloned_self = self.clone();
-        let cloned_signal = signal.clone();
-        let h =
-            async_std::task::spawn(async move { cloned_self.run_stoppable(cloned_signal).await });
-        RunnerManager::new(signal, h, self.inner.clone(), self.ctx.clone())
+        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(rx).await });
+        RunnerManager::new(tx, h, self.inner.clone(), self.ctx.clone())
     }
 }
 
