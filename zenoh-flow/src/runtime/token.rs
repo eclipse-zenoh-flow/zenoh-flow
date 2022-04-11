@@ -75,6 +75,11 @@ pub struct DataToken {
 }
 
 impl DataToken {
+    /// Creates a new `DataToken` with the given `TokenAction` and `DataMessage`
+    pub fn new(action: TokenAction, data: DataMessage) -> Self {
+        Self { action, data }
+    }
+
     /// Gets the current action for this token.
     pub fn get_action(&self) -> &TokenAction {
         &self.action
@@ -166,9 +171,6 @@ impl InputToken {
 
 impl From<DataMessage> for InputToken {
     fn from(data_message: DataMessage) -> Self {
-        Self::Ready(DataToken {
-            data: data_message,
-            action: TokenAction::Consume,
-        })
+        Self::Ready(DataToken::new(TokenAction::Consume, data_message))
     }
 }
