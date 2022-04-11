@@ -1,6 +1,6 @@
 # Eclipse Zenoh-Flow
 
-[![Join the chat at https://gitter.im/atolab/zenoh-flow](https://badges.gitter.im/atolab/zenoh-flow.svg)](https://gitter.im/atolab/zenoh-flow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Discord](https://img.shields.io/badge/chat-on%20discord-blue)](https://discord.gg/vSDSpqnbkm)
 
 Zenoh-Flow provides a zenoh-based dataflow programming framework for computations that span from the cloud to the device.
 
