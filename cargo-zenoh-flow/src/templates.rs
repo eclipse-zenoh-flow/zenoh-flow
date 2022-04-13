@@ -225,12 +225,83 @@ fn register() -> ZFResult<Arc<dyn Sink>> \{
 
 "#;
 
+static PY_SINK_TEMPLATE: &str = r#"
+from zenoh_flow.interfaces import Sink
+from zenoh_flow.types import Context, DataMessage
+from typing import Any
+
+class {name}(Sink):
+    def initialize(self, configuration = dict) -> Any:
+        raise NotImplementedError("Please implement your own method")
+
+    def finalize(self, state: Any) -> None:
+        raise NotImplementedError("Please implement your own method")
+
+    def run(self, ctx : Context, state: Any, input: DataMessage) -> None:
+        raise NotImplementedError("Please implement your own method")
+
+
+def register():
+    return {name}
+
+"#;
+
+static PY_SRC_TEMPATE: &str = r#"
+from zenoh_flow.interface import Source
+from zenoh_flow.types import Context
+from typing import Any
+
+class {name}(Source):
+
+    def initialize(self, configuration: dict) -> Any:
+        raise NotImplementedError("Please implement your own method")
+
+    def finalize(self, state: Any) -> None:
+        raise NotImplementedError("Please implement your own method")
+
+    def run(self, context: Context, state: Any) -> bytes:
+        raise NotImplementedError("Please implement your own method")
+
+
+
+def register():
+    return {name}
+"#;
+
+static PY_OP_TEMPLATE: &str = r#"
+from zenoh_flow.interfaces import Operator
+from zenoh_flow.types import Context, InputToken, LocalDeadlineMiss, DataMessage
+from typing import Dict, Optional, Any
+
+class {name}(Operator):
+
+    def input_rule(self, context: Context, state : Any, tokens: Dict[str, InputToken]) -> bool:
+        raise NotImplementedError("Please implement your own method")
+
+    def output_rule(self, context: Context, state : Any, outputs : Dict[str, bytes] , deadline_miss: Optional[LocalDeadlineMiss] = None) -> Dict[str, bytes]:
+        raise NotImplementedError("Please implement your own method")
+
+    def run(self, context: Context, state : Any, inputs: Dict[str, DataMessage]) -> Dict[str, bytes]:
+        raise NotImplementedError("Please implement your own method")
+
+    def initialize(self, configuration: dict) -> Any:
+        raise NotImplementedError("Please implement your own method")
+
+    def finalize(self, state : Any) -> None:
+        raise NotImplementedError("Please implement your own method")
+
+
+def register():
+    return {name}
+"#;
+
 #[derive(Serialize)]
 struct OperatorContext {
     name: String,
 }
 
 fn some_kind_of_uppercase_first_letter(s: &str) -> String {
+    let s = str::replace(s, "-", "_");
     let mut c = s.chars();
     match c.next() {
         None => String::new(),
@@ -307,5 +378,44 @@ pub fn sink_template_cargo(name: String) -> CZFResult<String> {
     let ctx = OperatorContext { name };
 
     tt.render("sink", &ctx)
+        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+}
+
+pub fn source_template_py(name: &str) -> CZFResult<String> {
+    let mut tt = TinyTemplate::new();
+    tt.add_template("source", PY_SRC_TEMPATE)
+        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+
+    let ctx = OperatorContext {
+        name: some_kind_of_uppercase_first_letter(name),
+    };
+
+    tt.render("source", &ctx)
+        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+}
+
+pub fn operator_template_py(name: &str) -> CZFResult<String> {
+    let mut tt = TinyTemplate::new();
+    tt.add_template("source", PY_OP_TEMPLATE)
+        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+
+    let ctx = OperatorContext {
+        name: some_kind_of_uppercase_first_letter(name),
+    };
+
+    tt.render("source", &ctx)
+        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+}
+
+pub fn sink_template_py(name: &str) -> CZFResult<String> {
+    let mut tt = TinyTemplate::new();
+    tt.add_template("source", PY_SINK_TEMPLATE)
+        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+
+    let ctx = OperatorContext {
+        name: some_kind_of_uppercase_first_letter(name),
+    };
+
+    tt.render("source", &ctx)
         .map_err(|e| CZFError::GenericError(format!("{}", e)))
 }

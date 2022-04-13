@@ -209,6 +209,22 @@ pub async fn create_crate(name: &str, kind: NodeKind) -> CZFResult<()> {
     Ok(())
 }
 
+pub async fn create_python_module(name: &str, kind: NodeKind) -> CZFResult<()> {
+    async_std::fs::create_dir(name).await.map_err(|e| {
+        CZFError::GenericError(format!("Error when creating directory {:?} {:?}", name, e))
+    })?;
+
+    let node_template = match kind {
+        NodeKind::Operator => crate::templates::operator_template_py(name)?,
+        NodeKind::Sink => crate::templates::sink_template_py(name)?,
+        NodeKind::Source => crate::templates::source_template_py(name)?,
+    };
+
+    let filename = Path::new(name).join(format!("{name}.py"));
+
+    write_string_to_file(&filename, &node_template).await
+}
+
 pub async fn write_string_to_file(filename: &Path, content: &str) -> CZFResult<()> {
     let mut file = async_std::fs::File::create(filename).await.map_err(|e| {
         CZFError::GenericError(format!("Error when creating file {:?} {:?}", filename, e))

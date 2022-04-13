@@ -16,6 +16,7 @@ use async_std::process::exit;
 use clap::Parser;
 use colored::*;
 
+use cargo_zenoh_flow::error::CZFError;
 use zenoh_flow::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use zenoh_flow::model::{NodeKind, RegistryNode, RegistryNodeArchitecture, RegistryNodeTag};
 use zenoh_flow::NodeId;
@@ -30,6 +31,40 @@ use zenoh::*;
 use zenoh_flow_registry::RegistryClient;
 #[cfg(feature = "local_registry")]
 use zenoh_flow_registry::RegistryFileClient;
+
+#[derive(Debug)]
+pub enum Languages {
+    Rust,
+    Python,
+    Cpp,
+}
+
+impl std::str::FromStr for Languages {
+    type Err = CZFError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "rust" => Ok(Self::Rust),
+            "python" => Ok(Self::Python),
+            "py" => Ok(Self::Python),
+            "cpp" => Ok(Self::Cpp),
+            "c++" => Ok(Self::Cpp),
+            _ => Err(CZFError::LanguageNotCompatible(format!(
+                "Language {s} is not supported. Supported languages are: rust, python, cpp"
+            ))),
+        }
+    }
+}
+
+impl std::string::ToString for Languages {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Rust => String::from("rust"),
+            Self::Python => String::from("python"),
+            Self::Cpp => String::from("c++"),
+        }
+    }
+}
 
 #[derive(Parser, Debug)]
 pub enum ZFCtl {
@@ -48,6 +83,8 @@ pub enum ZFCtl {
         name: String,
         #[clap(short = 'k', long = "kind", default_value = "operator")]
         kind: NodeKind,
+        #[clap(short = 'l', long = "l", default_value = "rust")]
+        language: Languages,
     },
     List,
     Push {
@@ -473,7 +510,7 @@ async fn main() {
                 node_info.id
             );
         }
-        ZFCtl::New { name, kind } => {
+        ZFCtl::New { name, kind, .. } => {
             match cargo_zenoh_flow::utils::create_crate(&name, kind.clone()).await {
                 Ok(_) => {
                     println!(
