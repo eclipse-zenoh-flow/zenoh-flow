@@ -105,6 +105,8 @@ jobs:
           case ${{ matrix.job.container }} in
             *fedora*) cargo install cargo-rpm ;;
           esac
+      - name: Trust this directory
+        run: git config --global --add safe.directory /__w/zenoh-flow/zenoh-flow
       - name: Checkout source code
         uses: actions/checkout@v2
       - name: Build
@@ -188,6 +190,8 @@ jobs:
           # - { target: x86_64-pc-windows-msvc, arch: win64, os: windows-2019 }
           # - { target: x86_64-pc-windows-gnu         , arch: win64 , os: windows-2019                  }
     steps:
+      - name: Trust this directory
+        run: git config --global --add safe.directory /__w/zenoh-flow/zenoh-flow
       - name: Checkout source code
         uses: actions/checkout@v2
         with:
