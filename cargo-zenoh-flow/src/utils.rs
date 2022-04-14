@@ -243,15 +243,17 @@ pub async fn create_cpp_node(name: &str, kind: NodeKind) -> CZFResult<()> {
     drop(repo);
 
     // Removing .git directory;
-    async_std::fs::remove_dir(format!("{name}/.git")).await?;
+    async_std::fs::remove_dir_all(format!("{name}/.git")).await?;
 
     match kind {
         NodeKind::Operator => {
-            // Removing useless files
+            // Removing useless files and directories
             async_std::fs::remove_file(format!("{name}/src/sink.cpp")).await?;
             async_std::fs::remove_file(format!("{name}/src/source.cpp")).await?;
             async_std::fs::remove_file(format!("{name}/include/sink.hpp")).await?;
             async_std::fs::remove_file(format!("{name}/include/source.hpp")).await?;
+            async_std::fs::remove_dir_all(format!("{name}/vendor/source")).await?;
+            async_std::fs::remove_dir_all(format!("{name}/vendor/sink")).await?;
 
             // Creating cmake build directory
             async_std::fs::create_dir(format!("{name}/build"))
@@ -287,6 +289,8 @@ pub async fn create_cpp_node(name: &str, kind: NodeKind) -> CZFResult<()> {
             async_std::fs::remove_file(format!("{name}/src/operator.cpp")).await?;
             async_std::fs::remove_file(format!("{name}/include/sink.hpp")).await?;
             async_std::fs::remove_file(format!("{name}/include/operator.hpp")).await?;
+            async_std::fs::remove_dir_all(format!("{name}/vendor/operator")).await?;
+            async_std::fs::remove_dir_all(format!("{name}/vendor/sink")).await?;
 
             // Creating cmake build directory
             async_std::fs::create_dir(format!("{name}/build"))
@@ -322,6 +326,8 @@ pub async fn create_cpp_node(name: &str, kind: NodeKind) -> CZFResult<()> {
             async_std::fs::remove_file(format!("{name}/src/operator.cpp")).await?;
             async_std::fs::remove_file(format!("{name}/include/source.hpp")).await?;
             async_std::fs::remove_file(format!("{name}/include/operator.hpp")).await?;
+            async_std::fs::remove_dir_all(format!("{name}/vendor/source")).await?;
+            async_std::fs::remove_dir_all(format!("{name}/vendor/operator")).await?;
 
             // Creating cmake build directory
             async_std::fs::create_dir(format!("{name}/build"))

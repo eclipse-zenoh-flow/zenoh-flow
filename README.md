@@ -1,7 +1,11 @@
 <img src="https://raw.githubusercontent.com/eclipse-zenoh/zenoh/master/zenoh-dragon.png" height="150">
 
+
+[![Eclipse CI](https://ci.eclipse.org/zenoh/buildStatus/icon?job=zenoh-flow-nightly&subject=Eclipse%20CI)](https://ci.eclipse.org/zenoh/view/Zenoh%20Flow/job/zenoh-flow-nightly/)
+[![CI](https://github.com/eclipse-zenoh/zenoh-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/eclipse-zenoh/zenoh-flow/actions/workflows/ci.yml)
 [![Discussion](https://img.shields.io/badge/discussion-on%20github-blue)](https://github.com/eclipse-zenoh/roadmap/discussions)
 [![Discord](https://img.shields.io/badge/chat-on%20discord-blue)](https://discord.gg/vSDSpqnbkm)
+
 
 # Eclipse Zenoh-Flow
 

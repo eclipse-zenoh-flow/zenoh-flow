@@ -525,12 +525,13 @@ async fn main() {
                             name.bold()
                         );
                     }
-                    Err(_) => {
+                    Err(e) => {
                         println!(
-                            "{}: failed to create boilerplate for {} {}",
+                            "{}: failed to create boilerplate for {} {}: {}",
                             "error".red().bold(),
                             kind.to_string(),
                             name.bold(),
+                            e
                         );
                     }
                 }
@@ -545,12 +546,13 @@ async fn main() {
                             name.bold()
                         );
                     }
-                    Err(_) => {
+                    Err(e) => {
                         println!(
-                            "{}: failed to create boilerplate for {} {}",
+                            "{}: failed to create boilerplate for {} {}: {}",
                             "error".red().bold(),
                             kind.to_string(),
                             name.bold(),
+                            e
                         );
                     }
                 }
@@ -565,12 +567,13 @@ async fn main() {
                             name.bold()
                         );
                     }
-                    Err(_) => {
+                    Err(e) => {
                         println!(
-                            "{}: failed to create boilerplate for {} {}",
+                            "{}: failed to create boilerplate for {} {}: {}",
                             "error".red().bold(),
                             kind.to_string(),
                             name.bold(),
+                            e
                         );
                     }
                 }
