@@ -79,7 +79,7 @@ jobs:
           case ${{ matrix.job.container }} in
             *fedora*)
               dnf update -y
-              dnf install -y git curl
+              dnf install -y git curl openssl-devel
               dnf groupinstall "Development Tools" "Development Libraries" -y
               case ${{ matrix.job.target }} in
               aarch64-unknown-linux-gnu)
