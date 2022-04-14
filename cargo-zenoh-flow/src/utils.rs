@@ -17,12 +17,14 @@ use std::path::{Path, PathBuf};
 
 use crate::{CZFError, CZFResult};
 use async_std::prelude::*;
+use git2::Repository;
 use serde::Deserialize;
 use std::process::Command;
 use zenoh_flow::model::link::PortDescriptor;
 use zenoh_flow::model::{NodeKind, RegistryNode};
 
 pub static ZF_OUTPUT_DIRECTORY: &str = "zenoh-flow";
+static ZF_CPP_REPO: &str = "https://github.com/ZettaScaleLabs/zenoh-flow-cxx";
 
 #[derive(Deserialize, Debug)]
 pub struct CargoMetadata {
@@ -223,6 +225,135 @@ pub async fn create_python_module(name: &str, kind: NodeKind) -> CZFResult<()> {
     let filename = Path::new(name).join(format!("{name}.py"));
 
     write_string_to_file(&filename, &node_template).await
+}
+
+pub async fn create_cpp_node(name: &str, kind: NodeKind) -> CZFResult<()> {
+    async_std::fs::create_dir(name).await.map_err(|e| {
+        CZFError::GenericError(format!("Error when creating directory {:?} {:?}", name, e))
+    })?;
+
+    // Cloning zenoh-flow-cxx repo
+    let repo = Repository::clone(ZF_CPP_REPO, name).map_err(|e| {
+        CZFError::GenericError(format!(
+            "Unable to clone Zenoh Flow C++ boiler plate into {:?} {:?}",
+            name, e
+        ))
+    })?;
+
+    drop(repo);
+
+    // Removing .git directory;
+    async_std::fs::remove_dir(format!("{name}/.git")).await?;
+
+    match kind {
+        NodeKind::Operator => {
+            // Removing useless files
+            async_std::fs::remove_file(format!("{name}/src/sink.cpp")).await?;
+            async_std::fs::remove_file(format!("{name}/src/source.cpp")).await?;
+            async_std::fs::remove_file(format!("{name}/include/sink.hpp")).await?;
+            async_std::fs::remove_file(format!("{name}/include/source.hpp")).await?;
+
+            // Creating cmake build directory
+            async_std::fs::create_dir(format!("{name}/build"))
+                .await
+                .map_err(|e| {
+                    CZFError::GenericError(format!(
+                        "Error when creating directory {:?} {:?}",
+                        format!("{name}/build"),
+                        e
+                    ))
+                })?;
+
+            // Calling Cmake to generate necessary header and source files
+            let mut cmd = Command::new("cmake");
+            cmd.current_dir(format!("{name}/build"));
+            cmd.arg("..");
+            cmd.arg("-DOPERATOR=ON");
+
+            let output = cmd
+                .output()
+                .map_err(|e| CZFError::CommandFailed(e, "cmake (is it in your PATH?)"))?;
+            if !output.status.success() {
+                return Err(CZFError::CommandError(
+                    "cmake",
+                    ".. -DOPERATOR=ON".to_owned(),
+                    output.stderr,
+                ));
+            }
+        }
+        NodeKind::Source => {
+            // Removing useless files
+            async_std::fs::remove_file(format!("{name}/src/sink.cpp")).await?;
+            async_std::fs::remove_file(format!("{name}/src/operator.cpp")).await?;
+            async_std::fs::remove_file(format!("{name}/include/sink.hpp")).await?;
+            async_std::fs::remove_file(format!("{name}/include/operator.hpp")).await?;
+
+            // Creating cmake build directory
+            async_std::fs::create_dir(format!("{name}/build"))
+                .await
+                .map_err(|e| {
+                    CZFError::GenericError(format!(
+                        "Error when creating directory {:?} {:?}",
+                        format!("{name}/build"),
+                        e
+                    ))
+                })?;
+
+            // Calling Cmake to generate necessary header and source files
+            let mut cmd = Command::new("cmake");
+            cmd.current_dir(format!("{name}/build"));
+            cmd.arg("..");
+            cmd.arg("-DSOURCE=ON");
+
+            let output = cmd
+                .output()
+                .map_err(|e| CZFError::CommandFailed(e, "cmake (is it in your PATH?)"))?;
+            if !output.status.success() {
+                return Err(CZFError::CommandError(
+                    "cmake",
+                    ".. -DSOURCE=ON".to_owned(),
+                    output.stderr,
+                ));
+            }
+        }
+        NodeKind::Sink => {
+            // Removing useless files
+            async_std::fs::remove_file(format!("{name}/src/source.cpp")).await?;
+            async_std::fs::remove_file(format!("{name}/src/operator.cpp")).await?;
+            async_std::fs::remove_file(format!("{name}/include/source.hpp")).await?;
+            async_std::fs::remove_file(format!("{name}/include/operator.hpp")).await?;
+
+            // Creating cmake build directory
+            async_std::fs::create_dir(format!("{name}/build"))
+                .await
+                .map_err(|e| {
+                    CZFError::GenericError(format!(
+                        "Error when creating directory {:?} {:?}",
+                        format!("{name}/build"),
+                        e
+                    ))
+                })?;
+
+            // Calling Cmake to generate necessary header and source files
+            let mut cmd = Command::new("cmake");
+            cmd.current_dir(format!("{name}/build"));
+            cmd.arg("..");
+            cmd.arg("-DSINK=ON");
+
+            let output = cmd
+                .output()
+                .map_err(|e| CZFError::CommandFailed(e, "cmake (is it in your PATH?)"))?;
+            if !output.status.success() {
+                return Err(CZFError::CommandError(
+                    "cmake",
+                    ".. -DSINK=ON".to_owned(),
+                    output.stderr,
+                ));
+            }
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn write_string_to_file(filename: &Path, content: &str) -> CZFResult<()> {

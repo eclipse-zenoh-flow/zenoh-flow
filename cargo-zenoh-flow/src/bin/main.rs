@@ -510,26 +510,72 @@ async fn main() {
                 node_info.id
             );
         }
-        ZFCtl::New { name, kind, .. } => {
-            match cargo_zenoh_flow::utils::create_crate(&name, kind.clone()).await {
-                Ok(_) => {
-                    println!(
-                        "{} boilerplate for {} {} ",
-                        "Created".green().bold(),
-                        kind.to_string(),
-                        name.bold()
-                    );
-                }
-                Err(_) => {
-                    println!(
-                        "{}: failed to create boilerplate for {} {}",
-                        "error".red().bold(),
-                        kind.to_string(),
-                        name.bold(),
-                    );
+        ZFCtl::New {
+            name,
+            kind,
+            language,
+        } => match language {
+            Languages::Rust => {
+                match cargo_zenoh_flow::utils::create_crate(&name, kind.clone()).await {
+                    Ok(_) => {
+                        println!(
+                            "{} boilerplate for {} {} ",
+                            "Created".green().bold(),
+                            kind.to_string(),
+                            name.bold()
+                        );
+                    }
+                    Err(_) => {
+                        println!(
+                            "{}: failed to create boilerplate for {} {}",
+                            "error".red().bold(),
+                            kind.to_string(),
+                            name.bold(),
+                        );
+                    }
                 }
             }
-        }
+            Languages::Python => {
+                match cargo_zenoh_flow::utils::create_python_module(&name, kind.clone()).await {
+                    Ok(_) => {
+                        println!(
+                            "{} boilerplate for {} {} ",
+                            "Created".green().bold(),
+                            kind.to_string(),
+                            name.bold()
+                        );
+                    }
+                    Err(_) => {
+                        println!(
+                            "{}: failed to create boilerplate for {} {}",
+                            "error".red().bold(),
+                            kind.to_string(),
+                            name.bold(),
+                        );
+                    }
+                }
+            }
+            Languages::Cpp => {
+                match cargo_zenoh_flow::utils::create_cpp_node(&name, kind.clone()).await {
+                    Ok(_) => {
+                        println!(
+                            "{} boilerplate for {} {} ",
+                            "Created".green().bold(),
+                            kind.to_string(),
+                            name.bold()
+                        );
+                    }
+                    Err(_) => {
+                        println!(
+                            "{}: failed to create boilerplate for {} {}",
+                            "error".red().bold(),
+                            kind.to_string(),
+                            name.bold(),
+                        );
+                    }
+                }
+            }
+        },
         ZFCtl::List => {
             #[cfg(feature = "local_registry")]
             match client {
