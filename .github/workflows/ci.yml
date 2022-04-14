@@ -89,7 +89,7 @@ jobs:
               ;;
             *alpine*)
               apk update
-              apk add git curl build-base
+              apk add git curl build-base libressl-dev
               ;;
           esac
 
@@ -208,15 +208,15 @@ jobs:
           case ${{ matrix.job.target }} in
             arm-unknown-linux-gnueabi)
               sudo apt-get -y update
-              sudo apt-get -y install gcc-arm-linux-gnueabi
+              sudo apt-get -y install gcc-arm-linux-gnueabi libssl-dev
               ;;
             arm*-unknown-linux-gnueabihf)
               sudo apt-get -y update
-              sudo apt-get -y install gcc-arm-linux-gnueabihf
+              sudo apt-get -y install gcc-arm-linux-gnueabihf libssl-dev
               ;;
             aarch64-unknown-linux-gnu)
               sudo apt-get -y update
-              sudo apt-get -y install gcc-aarch64-linux-gnu
+              sudo apt-get -y install gcc-aarch64-linux-gnu libssl-dev
               ;;
           esac
       - name: Install Rust toolchain
