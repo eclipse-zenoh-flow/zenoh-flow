@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{CZFError, CZFResult};
 use async_std::prelude::*;
-use git2::Repository;
+// use git2::Repository;
 use serde::Deserialize;
 use std::process::Command;
 use zenoh_flow::model::link::PortDescriptor;
@@ -228,19 +228,22 @@ pub async fn create_python_module(name: &str, kind: NodeKind) -> CZFResult<()> {
 }
 
 pub async fn create_cpp_node(name: &str, kind: NodeKind) -> CZFResult<()> {
-    async_std::fs::create_dir(name).await.map_err(|e| {
-        CZFError::GenericError(format!("Error when creating directory {:?} {:?}", name, e))
-    })?;
+    // Calling git to clone the tempalte
+    let mut cmd = Command::new("git");
+    cmd.arg("clone");
+    cmd.arg(ZF_CPP_REPO);
+    cmd.arg(name);
 
-    // Cloning zenoh-flow-cxx repo
-    let repo = Repository::clone(ZF_CPP_REPO, name).map_err(|e| {
-        CZFError::GenericError(format!(
-            "Unable to clone Zenoh Flow C++ boiler plate into {:?} {:?}",
-            name, e
-        ))
-    })?;
-
-    drop(repo);
+    let output = cmd
+        .output()
+        .map_err(|e| CZFError::CommandFailed(e, "git (is it in your PATH?)"))?;
+    if !output.status.success() {
+        return Err(CZFError::CommandError(
+            "git",
+            "clone".to_owned(),
+            output.stderr,
+        ));
+    }
 
     // Removing .git directory;
     async_std::fs::remove_dir_all(format!("{name}/.git")).await?;
