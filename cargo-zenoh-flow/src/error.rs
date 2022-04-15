@@ -12,11 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::error::Error;
+
 #[derive(Debug)]
 pub enum CZFError {
     PackageNotFoundInWorkspace(String, String),
     NoRootFoundInWorkspace(String),
     CrateTypeNotCompatible(String),
+    LanguageNotCompatible(String),
     CommandFailed(std::io::Error, &'static str),
     CommandError(&'static str, String, Vec<u8>),
     ParseTOML(toml::de::Error),
@@ -75,5 +78,8 @@ impl std::fmt::Display for CZFError {
         write!(f, "{:?}", self)
     }
 }
+
+// This is needed to make clap happy.
+impl Error for CZFError {}
 
 pub type CZFResult<T> = Result<T, CZFError>;
