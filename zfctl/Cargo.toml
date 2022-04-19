@@ -65,7 +65,7 @@ assets = [
     # binary
     ["target/release/zfctl", "/usr/bin/zfctl", "755"],
     # config
-    [".config/zfclt-zenoh.json", "~/.config/zenoh-flow/zfclt-zenoh.json", "644"]
+    [".config/zfctl-zenoh.json", "~/.config/zenoh-flow/zfctl-zenoh.json", "644"]
 ]
 
 # RPM package configuration
@@ -81,4 +81,4 @@ zfctl = { path = "/usr/bin/zfctl" }
 
 
 [package.metadata.rpm.files]
-"../.config/zfclt-zenoh.json" = { path = "~/.config/zenoh-flow/zfclt-zenoh.json", mode = "644" }
+"../.config/zfctl-zenoh.json" = { path = "~/.config/zenoh-flow/zfctl-zenoh.json", mode = "644" }

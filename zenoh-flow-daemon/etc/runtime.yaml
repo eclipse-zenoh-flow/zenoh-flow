@@ -16,4 +16,4 @@
     pid_file : /var/zenoh-flow/runtime.pid
     path : /etc/zenoh-flow
     extensions: /etc/zenoh-flow/extensions.d
-    zenoh_config: /etc/zenoh-flow/daemon-zenoh.json
+    zenoh_config: /etc/zenoh-flow/zenoh-daemon.json
