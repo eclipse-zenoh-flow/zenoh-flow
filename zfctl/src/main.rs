@@ -27,12 +27,17 @@ use git_version::git_version;
 use prettytable::Table;
 use rand::seq::SliceRandom;
 use std::collections::HashSet;
+use std::error::Error;
 use std::fs::read_to_string;
 use uuid::Uuid;
+use zenoh::Session;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::RuntimeClient;
 const GIT_VERSION: &str = git_version!(prefix = "v", cargo_prefix = "v");
+
+const DEFAULT_ZENOH_CFG: &str = "~/.config/zenoh-flow/zfclt-zenoh.json";
+const ENV_ZENOH_CFG: &str = "ZFCTL_CFG";
 
 #[derive(Subcommand, Debug)]
 #[clap(about = "Creates new entities in Zenoh Flow")]
@@ -261,12 +266,7 @@ async fn main() {
     let args = ZFCtl::parse();
     log::debug!("Args: {:?}", args);
 
-    let zsession = Arc::new(zenoh::open(zenoh::config::Config::default()).await.unwrap());
-
-    let servers = RuntimeClient::find_servers(zsession.clone()).await.unwrap();
-    let entry_point = servers.choose(&mut rand::thread_rng()).unwrap();
-    log::debug!("Selected entrypoint runtime: {:?}", entry_point);
-    let client = RuntimeClient::new(zsession.clone(), *entry_point);
+    let zsession = Arc::new(get_zenoh().await.unwrap());
 
     let store = DataStore::new(zsession.clone());
 
@@ -288,6 +288,7 @@ async fn main() {
                     &yaml_df,
                 )
                 .unwrap();
+                let client = get_client(zsession.clone()).await;
                 let record = client.create_instance(df).await.unwrap().unwrap();
                 log::debug!("Created: {:?}", record);
                 println!("{}", record.uuid);
@@ -386,6 +387,7 @@ async fn main() {
             }
             DeleteKind::Instance { id } => {
                 log::debug!("This is going to delete the instance {:?}", id);
+                let client = get_client(zsession.clone()).await;
                 let record = client.delete_instance(id).await.unwrap().unwrap();
 
                 log::debug!("Deleted: {:?}", record);
@@ -398,6 +400,7 @@ async fn main() {
                 node_id,
             } => {
                 let mut table = Table::new();
+                let client = get_client(zsession.clone()).await;
                 table.add_row(row!["UUID", "Name", "Status",]);
                 client
                     .start_node(instance_id, node_id.clone())
@@ -412,6 +415,7 @@ async fn main() {
                 source_id,
             } => {
                 let mut table = Table::new();
+                let client = get_client(zsession.clone()).await;
                 table.add_row(row!["UUID", "Name", "Key Expression",]);
                 let key_expr = client
                     .start_record(instance_id, source_id.clone().into())
@@ -427,6 +431,7 @@ async fn main() {
                 key_expr,
             } => {
                 let mut table = Table::new();
+                let client = get_client(zsession.clone()).await;
                 table.add_row(row!["UUID", "Name", "Replay Id",]);
                 let replay_id = client
                     .start_replay(instance_id, source_id.clone().into(), key_expr)
@@ -438,6 +443,7 @@ async fn main() {
             }
             StartKind::Instance { instance_id } => {
                 log::debug!("This is going to start the instance {:?}", instance_id);
+                let client = get_client(zsession.clone()).await;
                 client.start_instance(instance_id).await.unwrap().unwrap();
                 log::debug!("Started: {:?}", instance_id);
                 println!("{}", instance_id);
@@ -449,6 +455,7 @@ async fn main() {
                 node_id,
             } => {
                 let mut table = Table::new();
+                let client = get_client(zsession.clone()).await;
                 table.add_row(row!["UUID", "Name", "Status",]);
                 client
                     .stop_node(instance_id, node_id.clone())
@@ -463,6 +470,7 @@ async fn main() {
                 node_id,
             } => {
                 let mut table = Table::new();
+                let client = get_client(zsession.clone()).await;
                 table.add_row(row!["UUID", "Name", "Key Expression",]);
                 let key_expr = client
                     .stop_record(instance_id, node_id.clone().into())
@@ -479,6 +487,7 @@ async fn main() {
             } => {
                 let mut table = Table::new();
                 table.add_row(row!["UUID", "Name", "Replay Id",]);
+                let client = get_client(zsession.clone()).await;
                 let replay_id = client
                     .stop_replay(
                         instance_id,
@@ -493,6 +502,7 @@ async fn main() {
             }
             StopKind::Instance { instance_id } => {
                 log::debug!("This is going to stop the instance {:?}", instance_id);
+                let client = get_client(zsession.clone()).await;
                 let record = client.stop_instance(instance_id).await.unwrap().unwrap();
                 log::debug!("stopeed: {:?}", record);
                 println!("{}", record.uuid);
@@ -547,15 +557,33 @@ async fn main() {
             let df =
                 zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor::from_yaml(&yaml_df)
                     .unwrap();
+            let client = get_client(zsession.clone()).await;
             let record = client.instantiate(df).await.unwrap().unwrap();
             log::debug!("Launched: {:?}", record);
             println!("{}", record.uuid);
         }
         ZFCtl::Destroy { id } => {
             log::debug!("This is going to destroy the instance {}", id);
+            let client = get_client(zsession.clone()).await;
             let record = client.teardown(id).await.unwrap().unwrap();
             log::debug!("Destroyed: {:?}", record);
             println!("{}", record.uuid);
         }
     }
+}
+
+async fn get_zenoh() -> Result<Session, Box<dyn Error + Send + Sync + 'static>> {
+    let z_config_file = std::env::var(ENV_ZENOH_CFG)
+        .ok()
+        .unwrap_or_else(|| DEFAULT_ZENOH_CFG.to_string());
+    let zconfig = zenoh::config::Config::from_file(z_config_file)?;
+
+    Ok(zenoh::open(zconfig).await.unwrap())
+}
+
+async fn get_client(zsession: Arc<Session>) -> RuntimeClient {
+    let servers = RuntimeClient::find_servers(zsession.clone()).await.unwrap();
+    let entry_point = servers.choose(&mut rand::thread_rng()).unwrap();
+    log::debug!("Selected entrypoint runtime: {:?}", entry_point);
+    RuntimeClient::new(zsession.clone(), *entry_point)
 }

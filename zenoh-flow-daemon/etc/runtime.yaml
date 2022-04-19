@@ -16,7 +16,4 @@
     pid_file : /var/zenoh-flow/runtime.pid
     path : /etc/zenoh-flow
     extensions: /etc/zenoh-flow/extensions.d
-    zenoh :
-      kind: peer
-      listen: ["tcp/0.0.0.0:7997"]
-      locators: []
+    zenoh_config: /etc/zenoh-flow/daemon-zenoh.json

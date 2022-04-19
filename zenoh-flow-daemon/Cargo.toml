@@ -67,6 +67,8 @@ assets = [
     ["target/release/zenoh-flow-daemon", "/usr/bin/zenoh-flow-daemon", "755"],
     # assets
     ["etc/runtime.yaml", "/etc/zenoh-flow/runtime.yaml", "644"],
+    ["etc/daemon-zenoh.json","/etc/zenoh-flow/daemon-zenoh.json","644"],
+    ["etc/zenoh-router.json","/etc/zenoh-flow/zenoh-router.json","644"],
     ["etc/extensions.d/placeholder", "/etc/zenoh-flow/extensions.d/placeholder", "644"],
     ["var/*", "/var/zenoh-flow", "644"],
 ]
@@ -90,6 +92,8 @@ zenoh-flow-daemon = { path = "/usr/bin/zenoh-flow-daemon" }
 
 [package.metadata.rpm.files]
 "../etc/runtime.yaml" = { path = "/etc/zenoh-flow/runtime.yaml", mode = "644" }
+"../etc/daemon-zenoh.json" = { path = "/etc/zenoh-flow/daemon-zenoh.json", mode = "644" }
+"../etc/zenoh-router.json" = { path = "/etc/zenoh-flow/zenoh-router.json", mode = "644" }
 "../etc/extensions.d/placeholder" = { path = "/etc/zenoh-flow/extensions.d/placeholder", mode = "644" }
 "../var/placeholder" = { path = "/var/zenoh-flow/placeholder" }
 "../resources/zenoh-flow.service" = { path = "/lib/systemd/system/zenoh-flow.service" }

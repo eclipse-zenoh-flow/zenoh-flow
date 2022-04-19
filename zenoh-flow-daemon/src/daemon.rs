@@ -37,15 +37,13 @@ use zenoh_flow::runtime::RuntimeClient;
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::serde::{Deserialize, Serialize};
 
-use zenoh_flow::runtime::{
-    Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind, ZenohConfig,
-};
+use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
 use zenoh_flow::types::{ZFError, ZFResult};
 use zenoh_flow::NodeId;
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
 
-use crate::util::read_file;
+use crate::util::{get_zenoh_config, read_file};
 
 /// The daemon configuration file.
 /// The daemon loads this file and uses the informations it contains to
@@ -61,8 +59,8 @@ pub struct DaemonConfig {
     pub name: Option<String>,
     /// Uuid of the runtime, if None the machine id will be used.
     pub uuid: Option<Uuid>,
-    /// The Zenoh configuration
-    pub zenoh: ZenohConfig,
+    /// Where to find the Zenoh configuration file
+    pub zenoh_config: String,
     /// Where to locate the extension files.
     pub extensions: String,
 }
@@ -293,54 +291,8 @@ impl TryFrom<DaemonConfig> for Daemon {
             None => String::from(hostname::get()?.to_str().ok_or(ZFError::GenericError)?),
         };
 
-        // Departing from a default zenoh configuration
-        let mut zconfig = zenoh::config::Config::default();
-
-        // Sets zenoh mode, based on configuration.
-        zconfig
-            .set_mode(Some(config.zenoh.kind.clone().into()))
-            .map_err(|_| {
-                ZFError::ZenohError(format!(
-                    "Unable to configure Zenoh mode {:?}",
-                    config.zenoh.locators
-                ))
-            })?;
-
-        // Sets zenoh peers based on configuration.
-        zconfig
-            .connect
-            .set_endpoints(
-                config
-                    .zenoh
-                    .locators
-                    .iter()
-                    .filter_map(|l| l.parse().ok())
-                    .collect(),
-            )
-            .map_err(|_| {
-                ZFError::ZenohError(format!(
-                    "Unable to configure Zenoh peers {:?}",
-                    config.zenoh.locators
-                ))
-            })?;
-
-        // Sets zenoh listeners based on configuration.
-        zconfig
-            .listen
-            .set_endpoints(
-                config
-                    .zenoh
-                    .listen
-                    .iter()
-                    .filter_map(|l| l.parse().ok())
-                    .collect(),
-            )
-            .map_err(|_| {
-                ZFError::ZenohError(format!(
-                    "Unable to configure Zenoh listeners {:?}",
-                    config.zenoh.listen
-                ))
-            })?;
+        // Loading Zenoh configuration
+        let zconfig = get_zenoh_config(&config.zenoh_config)?;
 
         // Generates the loader configuration.
         let mut extensions = LoaderConfig::new();
@@ -426,7 +378,7 @@ impl TryFrom<DaemonConfig> for Daemon {
             path: config.path,
             name,
             uuid,
-            zenoh: config.zenoh,
+            zenoh: zconfig.clone(),
             loader: extensions.clone(),
         };
 
