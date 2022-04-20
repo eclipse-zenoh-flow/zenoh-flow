@@ -28,15 +28,15 @@ use crate::{
 use async_std::sync::Arc;
 use uuid::Uuid;
 
+use self::dataflow::loader::LoaderConfig;
 use crate::runtime::dataflow::loader::Loader;
 use crate::runtime::message::ControlMessage;
 use crate::{NodeId, RuntimeId, ZFError, ZFResult};
 use uhlc::HLC;
+use zenoh::config::Config as ZenohConfig;
 use zenoh::Session;
 use znrpc_macros::znservice;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
-
-use self::dataflow::loader::LoaderConfig;
 
 pub mod dataflow;
 pub mod deadline;
@@ -177,14 +177,6 @@ impl Into<zenoh::config::whatami::WhatAmI> for ZenohConfigKind {
             Self::Client => zenoh::config::whatami::WhatAmI::Client,
         }
     }
-}
-
-/// Wrapper for Zenoh config in the runtime configuration file.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ZenohConfig {
-    pub kind: ZenohConfigKind, // whether the runtime is a peer or a client
-    pub listen: Vec<String>,   // if the runtime is a peer, where it listens
-    pub locators: Vec<String>, // where to connect (eg. a router if the runtime is a client, or other peers/routers if the runtime is a peer)
 }
 
 /// The runtime configuration.

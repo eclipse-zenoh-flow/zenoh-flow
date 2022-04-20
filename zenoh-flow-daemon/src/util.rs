@@ -15,6 +15,7 @@
 use std::fs;
 use std::io::Write;
 use std::path::Path;
+use zenoh::config::Config;
 use zenoh_flow::ZFResult;
 
 /// Helper function to read a file into a string.
@@ -35,4 +36,8 @@ pub(crate) fn _write_file(path: &Path, content: Vec<u8>) -> ZFResult<()> {
     let mut file = fs::File::create(path)?;
     file.write_all(&content)?;
     Ok(file.sync_all()?)
+}
+
+pub(crate) fn get_zenoh_config(path: &str) -> ZFResult<Config> {
+    Ok(zenoh::config::Config::from_file(path)?)
 }
