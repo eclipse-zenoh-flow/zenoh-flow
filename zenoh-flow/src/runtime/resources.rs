@@ -369,8 +369,13 @@ impl DataStore {
     /// - fails to deserialize
     pub async fn get_runtime_info_by_name(&self, rtid: &str) -> ZFResult<RuntimeInfo> {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, "*");
-
-        self.get_from_zenoh::<RuntimeInfo>(&selector).await
+        let rts = self.get_vec_from_zenoh::<RuntimeInfo>(&selector).await?;
+        for rt in &rts {
+            if *rt.name == *rtid {
+                return Ok(rt.clone());
+            }
+        }
+        Err(ZFError::NotFound)
     }
 
     /// Removes the information for the given runtime `rtid`.
