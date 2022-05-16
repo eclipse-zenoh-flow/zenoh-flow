@@ -9,37 +9,32 @@
 
 # Eclipse Zenoh-Flow
 
-Zenoh-Flow provides a zenoh-based dataflow programming framework for computations that span from the cloud to the device.
+Zenoh-Flow is the union of Zenoh and data flow programming: a declarative framework for computations that span from the _Cloud_ to the _Thing_.
 
-:warning: **This software is still in alpha status and should _not_ be used in production. Breaking changes are likely to happen and the API is not stable.**
+:warning: **This software is still in alpha status and should _not_ be used in production. Breaking changes are likely to happen and the API is not yet stable.**
+:warning: **The documentation is still scarce. Do not hesitate to contact us on Discord.**
 
------------
 ## Description
 
-Zenoh-Flow allow users to declare a dataflow graph, via a YAML file, and use tags to express location affinity and requirements for the operators that makeup the graph. When deploying the dataflow graph, Zenoh-Flow automatically deals with distribution by linking remote operators through zenoh.
+Zenoh-Flow aims at simplifying and structuring (i) the _declaration_, (ii) the _deployment_ and (iii) the _writing_ of "complex" applications that can span from the Cloud to the Thing (or close to it).
 
-A dataflow is composed of set of _nodes_: _sources_ — producing data, _operators_ — computing over the data, and _sinks_ — consuming the resulting data. These nodes are _dynamically_ loaded at runtime.
+To these ends, Zenoh-Flow leverages the _data flow programming model_ --- where applications are viewed as a directed graph of computing units, and _Zenoh_ --- an Edge-native, data-centric, location transparent, communication middleware.
 
-Remote source, operators, and sinks leverage zenoh to communicate in a transparent manner. In other terms, the dataflow the dafalow graph retails location transparency and could be deployed in different ways depending on specific needs.
-
-Zenoh-Flow provides several working examples that illustrate how to define operators, sources and sinks as well as how to declaratively define they dataflow graph by means of a YAML file.
-
------------
-## How to build it
-
-Install [Cargo and Rust](https://doc.rust-lang.org/cargo/getting-started/installation.html). Zenoh Flow can be successfully compiled with Rust stable (>= 1.5.1), so no special configuration is required — except for certain examples.
-
-To build Zenoh-Flow, just type the following command after having followed the previous instructions:
-
-```bash
-$ cargo build --release
-```
+This makes for a powerful combination as Zenoh offers flexibility and extensibility while data flow programming structures computations. The main benefit of this approach is that this allows us to decorrelate applications from the underlying infrastructure: data are published and subscribed to (_automatically_ with Zenoh-Flow) without the need to know where they are actually located.
 
 
------------
-## How to build the docs
+## Core principles
 
-To build Zenoh-Flow documentation, just type the following command after having followed the previous instructions:
+Zenoh-Flow centers the definition of an application around a **description file**. This file acts as a contract that Zenoh-Flow will enforce.
+
+In it, developers specify the different computation units --- the _nodes_, how they are connected --- the _links_, and how they should be deployed --- the _mapping_.
+
+After validating these specifications, Zenoh-Flow will first create the necessary connections and then load each node. The types of connections created as well as the way nodes are loaded are discussed in more details [here](). The most notable aspect is that Zenoh-Flow optimizes the connections: data will go through the network only if nodes are located on different machines.
+
+
+## Documentation
+
+To build the documentation:
 
 ```bash
 $ cargo doc
@@ -48,50 +43,100 @@ $ cargo doc
 The HTML documentation can then be found under `./target/doc/zenoh_flow/index.html`.
 
 
------------
-## How to run
+## How to use
 
-Assuming that the previous steps completed successfully, you'll find the Zenoh-Flow runtime under `target/release/runtime`. This executable expects the following arguments:
+A working [Cargo and Rust](https://doc.rust-lang.org/cargo/getting-started/installation.html) installation is a pre-requisite.
 
-- the path of the dataflow graph to execute: `--graph-file zenoh-flow-examples/graphs/fizz_buzz_pipeline.yaml`,
-- a name for the runtime: `--runtime foo`.
-
-The graph describes the different nodes composing the dataflow. Although mandatory, the name of the runtime is used to "deploy" the graph on different "runtime instances" (see the related examples).
-
-
------------
-## Creating your nodes
-
-Assuming that the build steps completed successfully, you'll be able to use the `cargo zenoh-flow` subcommand to create a boilerplate for your nodes.
-First let's ensure to have the `cargo-zenoh-flow` binary in the Cargo path.
+Then download the repository:
 
 ```bash
-$ ln -s $(pwd)/target/release/cargo-zenoh-flow ~/.cargo/bin/
+git clone https://github.com/eclipse-zenoh/zenoh-flow && cd zenoh-flow
 ```
 
-Then you can create your own node with:
+We assume in the following that `./` points to the root of this repository.
+
+
+### Start Zenoh
+
+As its name indicates, Zenoh-Flow relies on Zenoh. So you first need to install and start a Zenoh router on your device.
+
+The instructions to install Zenoh are located [here](https://zenoh.io/docs/getting-started/installation/).
+
+Once installed, you need to start a `zenohd` with the configuration we provide:
 
 ```bash
-$ cd ~
-$ cargo zenoh-flow new myoperator
+zenohd -c ./zenoh-flow-daemon/etc/zenoh-zf-router.json
 ```
 
-By default `cargo zenoh-flow` generates the template for an operator. In order to create a source or a sink you need to add either `--kind source` or `--kind sink`.\
-The `Cargo.toml` will contain metadata information (eg. the inputs/outputs) used during the build process to generate the descriptor.
+With this configuration, Zenoh will start storages for specific keys that are used internally by Zenoh-Flow. These keys are notably what allow Zenoh-Flow daemons to discover each other (as long as the routers, to which the daemons are attached, can communicate).
 
 
-More information about the `cargo zenoh-flow` can be obtained using `cargo zenoh-flow --help`.\
-You can now modify the `src/lib.rs` file with your business logic and update the `Cargo.toml` according to the `inputs/outputs` that you need.
+### Start Zenoh-Flow
 
-Once you are done you can build it:
+Build Zenoh-Flow in release:
 
 ```bash
-$ cargo zenoh-flow build
+cd zenoh-flow && cargo build --release
 ```
 
-It will provide you the path of the descriptor for the new node, that can be used inside a flow descriptor.
+This will produce the following executables under the `target/release` directory: `zenoh-flow-daemon`, `zfctl` and `cargo-zenoh-flow`.
 
------------
-## Examples
+- `zenoh-flow-daemon` is what will take care of starting and stopping nodes, as well as deploying a Zenoh-Flow application.
+- `zfctl` is what we use to interact (using Zenoh) with all the `zenoh-flow-daemon` discovered.
+- `cargo-zenoh-flow` is a help tool that produces boilerplate code for Zenoh-Flow nodes.
 
-Examples can be found in our [example repository](https://github.com/atolab/zenoh-flow-examples).
+To launch an application we need to: 1) start a daemon and 2) interact with it through `zfctl`.
+
+A Zenoh-Flow daemon relies on some configurations and variables. For this to work, we need to move few files:
+
+```bash
+sudo mkdir -p /etc/zenoh-flow/extensions.d
+sudo cp ./zenoh-flow-daemon/etc/runtime.yaml /etc/zenoh-flow
+sudo cp ./zenoh-flow-daemon/etc/zenoh-daemon.json /etc/zenoh-flow
+```
+
+We can then start the daemon:
+
+```bash
+./target/release/zenoh-flow-daemon
+```
+
+Next, `zfctl`. We also need to copy a configuration file:
+
+```bash
+mkdir -p ~/.config/zenoh-flow
+cp ./zfctl/.config/zfctl-zenoh.json ~/.config/zenoh-flow
+```
+
+To check that the Zenoh-Flow daemon is correctly running and `zfctl` is set up, you can do:
+
+```bash
+./target/release/zfctl list runtimes
+```
+
+This should return a list just like this one:
+
+```
++--------------------------------------+---------------------------+--------+
+| UUID                                 | Name                      | Status |
++--------------------------------------+---------------------------+--------+
+| 49936f69-2c87-55f0-9df4-d1fba2fadd38 | Juliens-MacBook-Pro.local | Ready  |
++--------------------------------------+---------------------------+--------+
+```
+
+If you see this, you can now launch applications!
+Assuming your application is described in `app.yaml`, you would launch it via:
+
+```bash
+./target/release/zfctl launch app.yaml > app.uuid
+```
+
+:book: The redirection of the standard output is to "capture" the unique identifier associated to this instance of your application.
+
+And you can stop everything via:
+
+```bash
+./target/release/zfctl destroy "$(cat app.uuid)"
+```
+
+We encourage you to look at the examples available in our [examples repository](https://github.com/ZettaScaleLabs/zenoh-flow-examples) for more!
