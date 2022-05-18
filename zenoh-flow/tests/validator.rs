@@ -1864,3 +1864,163 @@ fn validate_ko_egress_reused_as_ingress() {
         r
     )
 }
+
+/*
+ *
+ * Flags
+ *
+ */
+
+static DESCRIPTOR_OK_FLAGS: &str = r#"
+flow: DESCRIPTOR_OK_FLAGS
+
+flags:
+- id: flag-A
+  toggle: true
+  nodes:
+    - A
+- id: flag-B-C
+  toggle: false
+  nodes:
+    - B
+    - C
+
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+- id : B
+  uri: file://./B.dylib
+  inputs:
+    - id: in-B
+      type: any
+  outputs:
+    - id: out-B
+      type: any
+- id : C
+  uri: file://./C.dylib
+  inputs:
+    - id: in-C
+      type: any
+  outputs:
+    - id: out-C
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+# Flag: A
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : Sink
+    input : in-Sink
+# Flag: B-C
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : B
+    input : in-B
+- from:
+    node : B
+    output : out-B
+  to:
+    node : C
+    input : in-C
+- from:
+    node : C
+    output : out-C
+  to:
+    node : Sink
+    input : in-Sink
+"#;
+
+#[test]
+fn validate_ok_flags() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_OK_FLAGS);
+    assert!(r.is_ok(), "Expecting no error, have: {:?}", r)
+}
+
+static DESCRIPTOR_KO_FLAGS_NODE_NOT_FOUND: &str = r#"
+flow: DESCRIPTOR_KO_FLAGS_NODE_NOT_FOUND
+
+flags:
+- id: flag-A
+  toggle: true
+  nodes:
+    - A
+    - D
+
+sources:
+- id : Source
+  uri: file://./source.dylib
+  output:
+    id: out-Source
+    type: any
+
+operators:
+- id : A
+  uri: file://./A.dylib
+  inputs:
+    - id: in-A
+      type: any
+  outputs:
+    - id: out-A
+      type: any
+
+sinks:
+  - id : Sink
+    uri: file://./sink.dylib
+    input:
+      id: in-Sink
+      type: any
+
+links:
+- from:
+    node : Source
+    output : out-Source
+  to:
+    node : A
+    input : in-A
+- from:
+    node : A
+    output : out-A
+  to:
+    node : Sink
+    input : in-Sink
+"#;
+
+#[test]
+fn validate_ko_flags_node_not_found() {
+    let r = DataFlowDescriptor::from_yaml(DESCRIPTOR_KO_FLAGS_NODE_NOT_FOUND);
+    assert!(
+        r.is_err(),
+        "Expecting error 'Err(NodeNotFound(D))', have: {:?}",
+        r
+    )
+}

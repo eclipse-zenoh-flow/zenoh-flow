@@ -13,5 +13,6 @@
 //
 
 pub mod descriptor;
+pub mod flag;
 pub mod record;
 pub mod validator;

@@ -12,6 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::model::dataflow::flag::Flag;
 use crate::model::dataflow::validator::DataflowValidator;
 use crate::model::deadline::E2EDeadlineDescriptor;
 use crate::model::link::LinkDescriptor;
@@ -91,6 +92,7 @@ pub struct DataFlowDescriptor {
     pub loops: Option<Vec<LoopDescriptor>>,
     #[serde(alias = "configuration")]
     pub global_configuration: Option<Configuration>,
+    pub flags: Option<Vec<Flag>>,
 }
 
 impl DataFlowDescriptor {
