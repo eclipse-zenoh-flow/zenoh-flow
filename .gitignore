@@ -20,3 +20,7 @@
 # Output files
 outfile.png
 output.dot
+
+**/Makefile
+**/*.zfext
+**/.rustfmt.toml

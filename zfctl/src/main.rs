@@ -36,7 +36,7 @@ use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::RuntimeClient;
 const GIT_VERSION: &str = git_version!(prefix = "v", cargo_prefix = "v");
 
-const DEFAULT_ZENOH_CFG: &str = "~/.config/zenoh-flow/zfctl-zenoh.json";
+const DEFAULT_ZENOH_CFG: &str = ".config/zenoh-flow/zfctl-zenoh.json";
 const ENV_ZENOH_CFG: &str = "ZFCTL_CFG";
 
 #[derive(Subcommand, Debug)]
@@ -573,9 +573,14 @@ async fn main() {
 }
 
 async fn get_zenoh() -> Result<Session, Box<dyn Error + Send + Sync + 'static>> {
-    let z_config_file = std::env::var(ENV_ZENOH_CFG)
-        .ok()
-        .unwrap_or_else(|| DEFAULT_ZENOH_CFG.to_string());
+    let z_config_file = std::env::var(ENV_ZENOH_CFG).ok().unwrap_or_else(|| {
+        let mut config_path = dirs::home_dir().expect("Could not get $HOME directory, aborting.");
+        config_path.push(DEFAULT_ZENOH_CFG);
+        config_path
+            .into_os_string()
+            .into_string()
+            .expect("Invalid unicode data found while trying to get `zftcl-zenoh.json`")
+    });
     let zconfig = zenoh::config::Config::from_file(z_config_file)?;
 
     Ok(zenoh::open(zconfig).await.unwrap())
