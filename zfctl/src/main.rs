@@ -574,6 +574,7 @@ async fn main() {
 
 async fn get_zenoh() -> Result<Session, Box<dyn Error + Send + Sync + 'static>> {
     let z_config_file = std::env::var(ENV_ZENOH_CFG).ok().unwrap_or_else(|| {
+        // FIXME: Replace with `std::env::home_dir` when it gets fixed + remove dependency to dirs.
         let mut config_path = dirs::home_dir().expect("Could not get $HOME directory, aborting.");
         config_path.push(DEFAULT_ZENOH_CFG);
         config_path
