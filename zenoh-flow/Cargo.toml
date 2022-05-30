@@ -14,12 +14,12 @@
 
 [package]
 name = "zenoh-flow"
-version = "0.2.0"
+version = "0.3.0"
 repository = "https://github.com/eclipse-zenoh/zenoh-flow"
 homepage = "http://zenoh.io"
 authors = ["kydos <angelo@icorsaro.net>",
            "gabrik <gabriele.baldoni@gmail.com>",
-           "Julien Loudet <julien.loudet@adlinktech.com>",]
+           "Julien Loudet <julien.loudet@zettascale.tech>",]
 edition = "2018"
 license = " EPL-2.0 OR Apache-2.0"
 categories = ["network-programming"]
