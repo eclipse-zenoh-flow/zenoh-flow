@@ -45,7 +45,7 @@ pub struct SinkRunner {
     pub(crate) id: NodeId,
     pub(crate) context: InstanceContext,
     pub(crate) input: PortDescriptor,
-    pub(crate) link: Arc<Mutex<Option<LinkReceiver<Message>>>>,
+    pub(crate) link: Arc<Mutex<Option<LinkReceiver>>>,
     pub(crate) _end_to_end_deadlines: Vec<E2EDeadlineRecord>, //FIXME
     pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) state: Arc<Mutex<State>>,
@@ -148,12 +148,12 @@ impl Runner for SinkRunner {
     fn get_kind(&self) -> RunnerKind {
         RunnerKind::Sink
     }
-    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
+    async fn add_input(&self, input: LinkReceiver) -> ZFResult<()> {
         (*self.link.lock().await) = Some(input);
         Ok(())
     }
 
-    async fn add_output(&self, _output: LinkSender<Message>) -> ZFResult<()> {
+    async fn add_output(&self, _output: LinkSender) -> ZFResult<()> {
         Err(ZFError::SinkDoNotHaveOutputs)
     }
 
@@ -172,11 +172,11 @@ impl Runner for SinkRunner {
         HashMap::with_capacity(0)
     }
 
-    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>> {
         HashMap::with_capacity(0)
     }
 
-    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver> {
         let mut link_guard = self.link.lock().await;
         if let Some(link) = &*link_guard {
             let mut inputs = HashMap::with_capacity(1);

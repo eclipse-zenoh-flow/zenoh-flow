@@ -118,11 +118,11 @@ fn sink_e2e_deadline() {
 
     let input: PortId = "INPUT".into();
     let (tx_input, rx_input) = flume::unbounded::<Arc<Message>>();
-    let receiver_input: LinkReceiver<Message> = LinkReceiver {
+    let receiver_input: LinkReceiver = LinkReceiver {
         id: input.clone(),
         receiver: rx_input,
     };
-    let sender_input: LinkSender<Message> = LinkSender {
+    let sender_input: LinkSender = LinkSender {
         id: input.clone(),
         sender: tx_input,
     };

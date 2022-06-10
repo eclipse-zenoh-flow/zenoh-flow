@@ -159,7 +159,7 @@ impl Operator for TestOperator {
     }
 }
 
-async fn send_usize(hlc: &Arc<HLC>, sender: &LinkSender<Message>, number: usize) {
+async fn send_usize(hlc: &Arc<HLC>, sender: &LinkSender, number: usize) {
     sender
         .send(Arc::new(Message::Data(DataMessage::new(
             Data::from::<ZFUsize>(ZFUsize(number)),
@@ -170,7 +170,7 @@ async fn send_usize(hlc: &Arc<HLC>, sender: &LinkSender<Message>, number: usize)
         .unwrap();
 }
 
-async fn recv_usize(receiver: &LinkReceiver<Message>) -> usize {
+async fn recv_usize(receiver: &LinkReceiver) -> usize {
     let (_, message) = receiver.recv().await.unwrap();
     if let Message::Data(mut data_message) = message.as_ref().clone() {
         return data_message.data.try_get::<ZFUsize>().unwrap().0;
@@ -202,26 +202,26 @@ fn input_rule_keep() {
     // Creating inputs.
     let input_1: PortId = "INPUT-1".into();
     let (tx_input_1, rx_input_1) = flume::unbounded::<Arc<Message>>();
-    let receiver_input_1: LinkReceiver<Message> = LinkReceiver {
+    let receiver_input_1: LinkReceiver = LinkReceiver {
         id: input_1.clone(),
         receiver: rx_input_1,
     };
-    let sender_input_1: LinkSender<Message> = LinkSender {
+    let sender_input_1: LinkSender = LinkSender {
         id: input_1.clone(),
         sender: tx_input_1,
     };
 
     let input_2: PortId = "INPUT-2".into();
     let (tx_input_2, rx_input_2) = flume::unbounded::<Arc<Message>>();
-    let receiver_input_2: LinkReceiver<Message> = LinkReceiver {
+    let receiver_input_2: LinkReceiver = LinkReceiver {
         id: input_2.clone(),
         receiver: rx_input_2,
     };
-    let sender_input_2: LinkSender<Message> = LinkSender {
+    let sender_input_2: LinkSender = LinkSender {
         id: input_2.clone(),
         sender: tx_input_2,
     };
-    let mut io_inputs: HashMap<PortId, LinkReceiver<Message>> = HashMap::with_capacity(2);
+    let mut io_inputs: HashMap<PortId, LinkReceiver> = HashMap::with_capacity(2);
     io_inputs.insert(input_1.clone(), receiver_input_1);
     io_inputs.insert(input_2.clone(), receiver_input_2);
     let mut inputs: HashMap<PortId, PortType> = HashMap::with_capacity(2);
@@ -231,15 +231,15 @@ fn input_rule_keep() {
     // Creating output.
     let output: PortId = "OUTPUT".into();
     let (tx_output, rx_output) = flume::unbounded::<Arc<Message>>();
-    let receiver_output: LinkReceiver<Message> = LinkReceiver {
+    let receiver_output: LinkReceiver = LinkReceiver {
         id: output.clone(),
         receiver: rx_output,
     };
-    let sender_output: LinkSender<Message> = LinkSender {
+    let sender_output: LinkSender = LinkSender {
         id: output.clone(),
         sender: tx_output,
     };
-    let mut io_outputs: HashMap<PortId, Vec<LinkSender<Message>>> = HashMap::with_capacity(1);
+    let mut io_outputs: HashMap<PortId, Vec<LinkSender>> = HashMap::with_capacity(1);
     io_outputs.insert(output.clone(), vec![sender_output]);
     let mut outputs: HashMap<PortId, PortType> = HashMap::with_capacity(1);
     outputs.insert(output.clone(), "usize".into());

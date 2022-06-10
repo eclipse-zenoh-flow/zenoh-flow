@@ -36,7 +36,7 @@ pub struct ZenohReplay {
     pub(crate) port_type: PortType,
     pub(crate) resource_name: String,
     pub(crate) is_running: Arc<Mutex<bool>>,
-    pub(crate) links: Arc<Mutex<Vec<LinkSender<Message>>>>,
+    pub(crate) links: Arc<Mutex<Vec<LinkSender>>>,
 }
 
 impl ZenohReplay {
@@ -51,7 +51,7 @@ impl ZenohReplay {
         node_id: NodeId,
         port_id: PortId,
         port_type: PortType,
-        links: Vec<LinkSender<Message>>,
+        links: Vec<LinkSender>,
         resource_name: String,
     ) -> ZFResult<Self> {
         if links.len() != 1 {
@@ -107,12 +107,12 @@ impl Runner for ZenohReplay {
     fn get_kind(&self) -> RunnerKind {
         RunnerKind::Source
     }
-    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
+    async fn add_output(&self, output: LinkSender) -> ZFResult<()> {
         (*self.links.lock().await).push(output);
         Ok(())
     }
 
-    async fn add_input(&self, _input: LinkReceiver<Message>) -> ZFResult<()> {
+    async fn add_input(&self, _input: LinkReceiver) -> ZFResult<()> {
         Err(ZFError::SourceDoNotHaveInputs)
     }
 
@@ -130,13 +130,13 @@ impl Runner for ZenohReplay {
         HashMap::with_capacity(0)
     }
 
-    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>> {
         let mut outputs = HashMap::with_capacity(1);
         outputs.insert(self.port_id.clone(), self.links.lock().await.clone());
         outputs
     }
 
-    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver> {
         HashMap::with_capacity(0)
     }
 

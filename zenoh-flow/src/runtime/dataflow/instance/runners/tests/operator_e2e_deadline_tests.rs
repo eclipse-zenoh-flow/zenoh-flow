@@ -64,7 +64,7 @@ impl Deserializable for ZFUsize {
 
 async fn send_usize(
     hlc: &Arc<HLC>,
-    sender: &LinkSender<Message>,
+    sender: &LinkSender,
     number: usize,
     deadlines: Vec<E2EDeadline>,
 ) {
@@ -182,11 +182,11 @@ fn e2e_deadline() {
     let input1: PortId = "INPUT-1".into();
     let (tx_input1, rx_input1): (flume::Sender<Arc<Message>>, flume::Receiver<Arc<Message>>) =
         flume::unbounded::<Arc<Message>>();
-    let receiver_input1: LinkReceiver<Message> = LinkReceiver {
+    let receiver_input1: LinkReceiver = LinkReceiver {
         id: input1.clone(),
         receiver: rx_input1,
     };
-    let sender_input1: LinkSender<Message> = LinkSender {
+    let sender_input1: LinkSender = LinkSender {
         id: input1.clone(),
         sender: tx_input1,
     };
@@ -194,12 +194,12 @@ fn e2e_deadline() {
     let input2: PortId = "INPUT-2".into();
     let (_tx_input2, rx_input2): (flume::Sender<Arc<Message>>, flume::Receiver<Arc<Message>>) =
         flume::unbounded::<Arc<Message>>();
-    let receiver_input2: LinkReceiver<Message> = LinkReceiver {
+    let receiver_input2: LinkReceiver = LinkReceiver {
         id: input2.clone(),
         receiver: rx_input2,
     };
 
-    let mut io_inputs: HashMap<PortId, LinkReceiver<Message>> = HashMap::with_capacity(2);
+    let mut io_inputs: HashMap<PortId, LinkReceiver> = HashMap::with_capacity(2);
     io_inputs.insert(input1.clone(), receiver_input1);
     io_inputs.insert(input2.clone(), receiver_input2);
     let mut inputs: HashMap<PortId, PortType> = HashMap::with_capacity(2);
@@ -209,15 +209,15 @@ fn e2e_deadline() {
     // Creating output.
     let output: PortId = "OUTPUT".into();
     let (tx_output, rx_output) = flume::unbounded::<Arc<Message>>();
-    let receiver_output: LinkReceiver<Message> = LinkReceiver {
+    let receiver_output: LinkReceiver = LinkReceiver {
         id: output.clone(),
         receiver: rx_output,
     };
-    let sender_output: LinkSender<Message> = LinkSender {
+    let sender_output: LinkSender = LinkSender {
         id: output.clone(),
         sender: tx_output,
     };
-    let mut io_outputs: HashMap<PortId, Vec<LinkSender<Message>>> = HashMap::with_capacity(1);
+    let mut io_outputs: HashMap<PortId, Vec<LinkSender>> = HashMap::with_capacity(1);
     io_outputs.insert(output.clone(), vec![sender_output]);
     let mut outputs: HashMap<PortId, PortType> = HashMap::with_capacity(1);
     outputs.insert(output.clone(), "usize".into());

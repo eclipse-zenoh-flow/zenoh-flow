@@ -50,7 +50,7 @@ pub struct SourceRunner {
     pub(crate) context: InstanceContext,
     pub(crate) period: Option<Duration>,
     pub(crate) output: PortDescriptor,
-    pub(crate) links: Arc<Mutex<Vec<LinkSender<Message>>>>,
+    pub(crate) links: Arc<Mutex<Vec<LinkSender>>>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
     pub(crate) base_resource_name: String,
@@ -190,12 +190,12 @@ impl Runner for SourceRunner {
     fn get_kind(&self) -> RunnerKind {
         RunnerKind::Source
     }
-    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
+    async fn add_output(&self, output: LinkSender) -> ZFResult<()> {
         (*self.links.lock().await).push(output);
         Ok(())
     }
 
-    async fn add_input(&self, _input: LinkReceiver<Message>) -> ZFResult<()> {
+    async fn add_input(&self, _input: LinkReceiver) -> ZFResult<()> {
         Err(ZFError::SourceDoNotHaveInputs)
     }
 
@@ -214,13 +214,13 @@ impl Runner for SourceRunner {
         HashMap::with_capacity(0)
     }
 
-    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>> {
         let mut outputs = HashMap::with_capacity(1);
         outputs.insert(self.output.port_id.clone(), self.links.lock().await.clone());
         outputs
     }
 
-    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver> {
         HashMap::with_capacity(0)
     }
 

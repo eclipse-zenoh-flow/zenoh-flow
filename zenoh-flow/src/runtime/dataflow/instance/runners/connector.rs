@@ -35,7 +35,7 @@ pub struct ZenohSender {
     pub(crate) context: InstanceContext,
     pub(crate) record: ZFConnectorRecord,
     pub(crate) is_running: Arc<Mutex<bool>>,
-    pub(crate) link: Arc<Mutex<Option<LinkReceiver<Message>>>>,
+    pub(crate) link: Arc<Mutex<Option<LinkReceiver>>>,
 }
 
 impl ZenohSender {
@@ -147,20 +147,20 @@ impl Runner for ZenohSender {
         HashMap::with_capacity(0)
     }
 
-    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()> {
+    async fn add_input(&self, input: LinkReceiver) -> ZFResult<()> {
         *(self.link.lock().await) = Some(input);
         Ok(())
     }
 
-    async fn add_output(&self, _output: LinkSender<Message>) -> ZFResult<()> {
+    async fn add_output(&self, _output: LinkSender) -> ZFResult<()> {
         Err(ZFError::SenderDoNotHaveOutputs)
     }
 
-    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>> {
         HashMap::with_capacity(0)
     }
 
-    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver> {
         let mut link_guard = self.link.lock().await;
         if let Some(link) = &*link_guard {
             let mut inputs = HashMap::with_capacity(1);
@@ -204,7 +204,7 @@ pub struct ZenohReceiver {
     pub(crate) context: InstanceContext,
     pub(crate) record: ZFConnectorRecord,
     pub(crate) is_running: Arc<Mutex<bool>>,
-    pub(crate) link: Arc<Mutex<Option<LinkSender<Message>>>>,
+    pub(crate) link: Arc<Mutex<Option<LinkSender>>>,
 }
 
 impl ZenohReceiver {
@@ -303,16 +303,16 @@ impl Runner for ZenohReceiver {
         );
         inputs
     }
-    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()> {
+    async fn add_output(&self, output: LinkSender) -> ZFResult<()> {
         (*self.link.lock().await) = Some(output);
         Ok(())
     }
 
-    async fn add_input(&self, _input: LinkReceiver<Message>) -> ZFResult<()> {
+    async fn add_input(&self, _input: LinkReceiver) -> ZFResult<()> {
         Err(ZFError::ReceiverDoNotHaveInputs)
     }
 
-    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>> {
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>> {
         let link_guard = self.link.lock().await;
         if let Some(link) = &*link_guard {
             let mut outputs = HashMap::with_capacity(1);
@@ -322,7 +322,7 @@ impl Runner for ZenohReceiver {
         HashMap::with_capacity(0)
     }
 
-    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>> {
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver> {
         HashMap::with_capacity(0)
     }
 

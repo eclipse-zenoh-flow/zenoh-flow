@@ -110,11 +110,11 @@ fn source_e2e_deadline() {
 
     let output: PortId = "OUTPUT".into();
     let (tx_output, rx_output) = flume::unbounded::<Arc<Message>>();
-    let receiver_output: LinkReceiver<Message> = LinkReceiver {
+    let receiver_output: LinkReceiver = LinkReceiver {
         id: output.clone(),
         receiver: rx_output,
     };
-    let sender_output: LinkSender<Message> = LinkSender {
+    let sender_output: LinkSender = LinkSender {
         id: output.clone(),
         sender: tx_output,
     };

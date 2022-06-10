@@ -26,7 +26,7 @@ use crate::runtime::dataflow::instance::runners::source::SourceRunner;
 use crate::runtime::dataflow::instance::runners::{NodeRunner, RunnerKind};
 use crate::runtime::dataflow::Dataflow;
 use crate::runtime::InstanceContext;
-use crate::{Message, NodeId, PortId, PortType, ZFError, ZFResult};
+use crate::{NodeId, PortId, PortType, ZFError, ZFResult};
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -63,7 +63,7 @@ fn create_links(
             continue;
         }
 
-        let (tx, rx) = link::<Message>(
+        let (tx, rx) = link(
             None,
             link_desc.from.output.clone(),
             link_desc.to.input.clone(),

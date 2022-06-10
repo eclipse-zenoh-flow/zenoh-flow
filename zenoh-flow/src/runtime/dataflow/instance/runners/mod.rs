@@ -23,7 +23,6 @@ use crate::async_std::sync::Arc;
 use crate::async_std::task::JoinHandle;
 
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
-use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::types::{NodeId, ZFResult};
 use crate::{PortId, PortType, ZFError};
@@ -162,14 +161,14 @@ pub trait Runner: Send + Sync {
     /// # Errors
     /// It may fail if the runner is not supposed to have that input or
     /// if it does not expect any input (eg. Source)
-    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()>;
+    async fn add_input(&self, input: LinkReceiver) -> ZFResult<()>;
 
     /// Adds an output to the runner.
     ///
     /// # Errors
     /// It may fail if the runner is not supposed to have that output or
     /// if it does not expect any outputs (e.g.  Sink)
-    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()>;
+    async fn add_output(&self, output: LinkSender) -> ZFResult<()>;
 
     /// Finalizes the node
     ///
@@ -190,10 +189,10 @@ pub trait Runner: Send + Sync {
     fn get_outputs(&self) -> HashMap<PortId, PortType>;
 
     /// Returns the output link of the `Runner.
-    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>>;
+    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>>;
 
     /// Returns the input link of the `Runner`.
-    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>>;
+    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver>;
 
     /// Starts the recording of the `Runner`
     ///
