@@ -25,6 +25,7 @@ use crate::{NodeId, PortId, PortType, ZFError, ZFResult};
 use async_trait::async_trait;
 use futures::prelude::*;
 use zenoh::net::protocol::io::SplitBuffer;
+use zenoh::prelude::*;
 use zenoh::publication::CongestionControl;
 
 /// The `ZenohSender` is the connector that sends the data to Zenoh
@@ -36,6 +37,7 @@ pub struct ZenohSender {
     pub(crate) record: ZFConnectorRecord,
     pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) link: Arc<Mutex<Option<LinkReceiver>>>,
+    pub(crate) key_expr: ExprId,
 }
 
 impl ZenohSender {
@@ -44,6 +46,7 @@ impl ZenohSender {
     /// # Errors
     /// An error variant is returned if the link is not supposed to be
     /// connected to this node.
+    /// Or if the resource declaration in Zenoh fails.
     pub fn try_new(
         context: InstanceContext,
         record: ZFConnectorRecord,
@@ -58,12 +61,20 @@ impl ZenohSender {
             ))
         })?;
 
+        // Declaring the resource to reduce network overhead.
+        let key_expr = context
+            .runtime
+            .session
+            .declare_expr(&record.resource)
+            .wait()?;
+
         Ok(Self {
             id: record.id.clone(),
             context,
             record,
             is_running: Arc::new(Mutex::new(false)),
             link: Arc::new(Mutex::new(Some(link))),
+            key_expr,
         })
     }
 
@@ -90,7 +101,7 @@ impl ZenohSender {
                 self.context
                     .runtime
                     .session
-                    .put(&self.record.resource, serialized)
+                    .put(&self.key_expr, serialized)
                     .congestion_control(CongestionControl::Block)
                     .await?;
             }
@@ -188,6 +199,13 @@ impl Runner for ZenohSender {
     }
 
     async fn stop(&self) {
+        self.context
+            .runtime
+            .session
+            .undeclare_expr(self.key_expr)
+            .await
+            .unwrap_or_else(|e| log::warn!("Error when undeclaring expression: {e}"));
+
         *self.is_running.lock().await = false;
     }
 
@@ -204,6 +222,7 @@ pub struct ZenohReceiver {
     pub(crate) context: InstanceContext,
     pub(crate) record: ZFConnectorRecord,
     pub(crate) is_running: Arc<Mutex<bool>>,
+    pub(crate) key_expr: ExprId,
     pub(crate) link: Arc<Mutex<Option<LinkSender>>>,
 }
 
@@ -238,10 +257,17 @@ impl ZenohReceiver {
 
         let link = Some(links.remove(0));
 
+        let key_expr = context
+            .runtime
+            .session
+            .declare_expr(&record.resource)
+            .wait()?;
+
         Ok(Self {
             id: record.id.clone(),
             context,
             record,
+            key_expr,
             is_running: Arc::new(Mutex::new(false)),
             link: Arc::new(Mutex::new(link)),
         })
@@ -272,7 +298,7 @@ impl Runner for ZenohReceiver {
                     .context
                     .runtime
                     .session
-                    .subscribe(&self.record.resource)
+                    .subscribe(&self.key_expr)
                     .await?;
 
                 while let Some(msg) = subscriber.receiver().next().await {
@@ -347,6 +373,13 @@ impl Runner for ZenohReceiver {
     }
 
     async fn stop(&self) {
+        self.context
+            .runtime
+            .session
+            .undeclare_expr(self.key_expr)
+            .await
+            .unwrap_or_else(|e| log::warn!("Error when undeclaring expression: {e}"));
+
         *self.is_running.lock().await = false;
     }
 }

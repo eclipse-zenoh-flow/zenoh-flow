@@ -29,6 +29,7 @@ use crate::{
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::time::Duration;
+use zenoh::prelude::*;
 use zenoh::publication::CongestionControl;
 
 #[cfg(target_family = "unix")]
@@ -54,6 +55,7 @@ pub struct SourceRunner {
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
     pub(crate) base_resource_name: String,
+    pub(crate) current_recording_resource_id: Arc<Mutex<Option<ExprId>>>,
     pub(crate) current_recording_resource: Arc<Mutex<Option<String>>>,
     pub(crate) is_recording: Arc<Mutex<bool>>,
     pub(crate) is_running: Arc<Mutex<bool>>,
@@ -87,6 +89,13 @@ impl SourceRunner {
             &context.flow_id, &context.instance_id, source.id, port_id
         );
 
+        // Declaring the recording resource to reduce network overhead.
+        let base_resource_id = context
+            .runtime
+            .session
+            .declare_expr(&base_resource_name)
+            .wait()?;
+
         Ok(Self {
             id: source.id,
             context,
@@ -98,6 +107,7 @@ impl SourceRunner {
             source: source.source,
             _library: source.library,
             base_resource_name,
+            current_recording_resource_id: Arc::new(Mutex::new(None)),
             is_recording: Arc::new(Mutex::new(false)),
             is_running: Arc::new(Mutex::new(false)),
             current_recording_resource: Arc::new(Mutex::new(None)),
@@ -120,17 +130,22 @@ impl SourceRunner {
         }
 
         let resource_name_guard = self.current_recording_resource.lock().await;
-        let resource_name = resource_name_guard
+        let resource_id_guard = self.current_recording_resource_id.lock().await;
+        let resource_id = resource_id_guard
             .as_ref()
             .ok_or(ZFError::Unimplemented)?
             .clone();
 
         let serialized = message.serialize_bincode()?;
-        log::trace!("ZenohLogger - {} => {:?} ", resource_name, serialized);
+        log::trace!(
+            "ZenohLogger - {:?} => {:?} ",
+            resource_name_guard,
+            serialized
+        );
         self.context
             .runtime
             .session
-            .put(&resource_name, serialized)
+            .put(&resource_id, serialized)
             .congestion_control(CongestionControl::Block)
             .await?;
 
@@ -234,6 +249,14 @@ impl Runner for SourceRunner {
                 ts_recording_start.get_time()
             );
 
+            let recording_id = self
+                .context
+                .runtime
+                .session
+                .declare_expr(&resource_name)
+                .await?;
+
+            *(self.current_recording_resource_id.lock().await) = Some(recording_id.clone());
             *(self.current_recording_resource.lock().await) = Some(resource_name.clone());
 
             let recording_metadata = RecordingMetadata {
@@ -272,6 +295,12 @@ impl Runner for SourceRunner {
                 .ok_or(ZFError::Unimplemented)?
                 .clone();
 
+            let mut resource_id_guard = self.current_recording_resource_id.lock().await;
+            let resource_id = resource_id_guard
+                .as_ref()
+                .ok_or(ZFError::Unimplemented)?
+                .clone();
+
             let ts_recording_stop = self.context.runtime.hlc.new_timestamp();
             let message = Message::Control(ControlMessage::RecordingStop(ts_recording_stop));
             let serialized = message.serialize_bincode()?;
@@ -283,11 +312,19 @@ impl Runner for SourceRunner {
             self.context
                 .runtime
                 .session
-                .put(&resource_name, serialized)
+                .put(resource_id, serialized)
                 .await?;
 
             *is_recording_guard = false;
             *resource_name_guard = None;
+            *resource_id_guard = None;
+
+            self.context
+                .runtime
+                .session
+                .undeclare_expr(resource_id)
+                .await?;
+
             return Ok(resource_name);
         }
         return Err(ZFError::NotRecording);
