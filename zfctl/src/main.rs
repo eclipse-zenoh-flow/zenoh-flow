@@ -288,6 +288,10 @@ async fn main() {
                     &yaml_df,
                 )
                 .unwrap();
+                let df = df.flatten().await.unwrap();
+
+                df.validate().unwrap();
+
                 let client = get_client(zsession.clone()).await;
                 let record = client.create_instance(df).await.unwrap().unwrap();
                 log::debug!("Created: {:?}", record);
@@ -557,6 +561,10 @@ async fn main() {
             let df =
                 zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor::from_yaml(&yaml_df)
                     .unwrap();
+            let df = df.flatten().await.unwrap();
+
+            df.validate().unwrap();
+
             let client = get_client(zsession.clone()).await;
             let record = client.instantiate(df).await.unwrap().unwrap();
             log::debug!("Launched: {:?}", record);

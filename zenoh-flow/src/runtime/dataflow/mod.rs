@@ -18,21 +18,17 @@ pub mod node;
 
 use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
-use std::time::Duration;
 use uuid::Uuid;
 
 use crate::model::connector::ZFConnectorRecord;
 use crate::model::dataflow::record::DataFlowRecord;
 use crate::model::dataflow::validator::DataflowValidator;
-use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::{LinkDescriptor, PortDescriptor};
-use crate::model::loops::LoopDescriptor;
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
 use crate::{
-    DurationDescriptor, FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFError,
-    ZFResult,
+    DurationDescriptor, FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult,
 };
 
 /// The data flow struct.
@@ -132,7 +128,7 @@ impl Dataflow {
             .map(|connector| (connector.id.clone(), connector))
             .collect();
 
-        let mut dataflow = Self {
+        Ok(Self {
             uuid: record.uuid,
             flow_id: record.flow.into(),
             context,
@@ -142,15 +138,7 @@ impl Dataflow {
             connectors,
             links: record.links,
             validator: DataflowValidator::new(),
-        };
-
-        if let Some(e2e_deadlines) = record.end_to_end_deadlines {
-            e2e_deadlines
-                .into_iter()
-                .for_each(|deadline| dataflow.add_end_to_end_deadline(deadline))
-        }
-
-        Ok(dataflow)
+        })
     }
 
     /// Tries to add a static source to the data flow.
@@ -181,7 +169,6 @@ impl Dataflow {
                 period: period.map(|dur_desc| dur_desc.to_duration()),
                 source,
                 library: None,
-                end_to_end_deadlines: vec![],
             },
         );
 
@@ -202,7 +189,6 @@ impl Dataflow {
         id: NodeId,
         inputs: Vec<PortDescriptor>,
         outputs: Vec<PortDescriptor>,
-        local_deadline: Option<Duration>,
         state: State,
         operator: Arc<dyn Operator>,
     ) -> ZFResult<()> {
@@ -223,13 +209,10 @@ impl Dataflow {
             OperatorLoaded {
                 id,
                 inputs,
+                state,
                 outputs,
-                local_deadline,
-                state: Arc::new(Mutex::new(state)),
                 operator,
                 library: None,
-                end_to_end_deadlines: vec![],
-                ciclo: None,
             },
         );
 
@@ -262,7 +245,6 @@ impl Dataflow {
                 state: Arc::new(Mutex::new(state)),
                 sink,
                 library: None,
-                end_to_end_deadlines: vec![],
             },
         );
 
@@ -297,131 +279,6 @@ impl Dataflow {
             queueing_policy,
             priority,
         });
-
-        Ok(())
-    }
-
-    /// Tries to add a deadline within the dataflow
-    ///
-    /// If the validation fails the deadline cannot be added.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - validation fails
-    pub fn try_add_deadline(
-        &mut self,
-        from: OutputDescriptor,
-        to: InputDescriptor,
-        duration: Duration,
-    ) -> ZFResult<()> {
-        self.validator.validate_deadline(&from, &to)?;
-        let deadline = E2EDeadlineRecord { from, to, duration };
-        self.add_end_to_end_deadline(deadline);
-
-        Ok(())
-    }
-
-    /// Adds a deadline within the dataflow.
-    fn add_end_to_end_deadline(&mut self, deadline: E2EDeadlineRecord) {
-        // Look for the "from" node in either Sources and Operators.
-        if let Some(source) = self.sources.get_mut(&deadline.from.node) {
-            source.end_to_end_deadlines.push(deadline.clone());
-        }
-
-        if let Some(operator) = self.operators.get_mut(&deadline.from.node) {
-            operator.end_to_end_deadlines.push(deadline.clone());
-        }
-
-        // Look for the "to" node in either Operators and Sinks.
-        if let Some(operator) = self.operators.get_mut(&deadline.to.node) {
-            operator.end_to_end_deadlines.push(deadline.clone());
-        }
-
-        if let Some(sink) = self.sinks.get_mut(&deadline.to.node) {
-            sink.end_to_end_deadlines.push(deadline);
-        }
-    }
-
-    /// Tries to add a loop within the dataflow
-    ///
-    /// If the validation fails the loop cannot be added.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - validation fails
-    pub fn try_add_loop(
-        &mut self,
-        ingress: NodeId,
-        egress: NodeId,
-        feedback_port: PortId,
-        port_type: PortType,
-        is_infinite: bool,
-    ) -> ZFResult<()> {
-        log::debug!("Validating loop…");
-        self.validator
-            .validate_loop(&ingress, &egress, &feedback_port)?;
-        log::debug!("Validating loop… OK.");
-
-        let loop_descriptor = LoopDescriptor {
-            ingress: ingress.clone(),
-            egress: egress.clone(),
-            feedback_port: feedback_port.clone(),
-            is_infinite,
-            port_type: port_type.clone(),
-        };
-
-        log::debug!("Updating Ingress node < {} >…", &ingress);
-        let ingress_op = self
-            .operators
-            .get_mut(&ingress)
-            .ok_or(ZFError::GenericError)?;
-        ingress_op
-            .inputs
-            .insert(feedback_port.clone(), port_type.clone());
-        ingress_op.ciclo = Some(loop_descriptor.clone());
-        self.validator.try_add_input(
-            ingress.clone(),
-            PortDescriptor {
-                port_id: feedback_port.clone(),
-                port_type: port_type.clone(),
-            },
-        )?;
-        log::debug!("Updating Ingress node < {} >… OK.", &ingress);
-
-        log::debug!("Updating Egress node < {} >…", &egress);
-        let egress_op = self
-            .operators
-            .get_mut(&egress)
-            .ok_or(ZFError::GenericError)?;
-        egress_op
-            .outputs
-            .insert(feedback_port.clone(), port_type.clone());
-        egress_op.ciclo = Some(loop_descriptor);
-        self.validator.try_add_output(
-            egress.clone(),
-            PortDescriptor {
-                port_id: feedback_port.clone(),
-                port_type,
-            },
-        )?;
-        log::debug!("Updating Egress node < {} >… OK.", &egress);
-
-        log::debug!("Adding feedback link…");
-        self.try_add_link(
-            OutputDescriptor {
-                node: egress.clone(),
-                output: feedback_port.clone(),
-            },
-            InputDescriptor {
-                node: ingress.clone(),
-                input: feedback_port.clone(),
-            },
-            None,
-            None,
-            None,
-        )?;
-
-        log::debug!("Adding feedback link… OK.");
 
         Ok(())
     }

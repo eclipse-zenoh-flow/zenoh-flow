@@ -15,7 +15,6 @@
 use std::collections::HashMap;
 
 use crate::async_std::sync::{Arc, Mutex};
-use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::PortDescriptor;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
@@ -46,7 +45,6 @@ pub struct SinkRunner {
     pub(crate) context: InstanceContext,
     pub(crate) input: PortDescriptor,
     pub(crate) link: Arc<Mutex<Option<LinkReceiver>>>,
-    pub(crate) _end_to_end_deadlines: Vec<E2EDeadlineRecord>, //FIXME
     pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) sink: Arc<dyn Sink>,
@@ -75,7 +73,6 @@ impl SinkRunner {
             context,
             input: sink.input,
             link: Arc::new(Mutex::new(Some(link))),
-            _end_to_end_deadlines: sink.end_to_end_deadlines,
             is_running: Arc::new(Mutex::new(false)),
             state: sink.state,
             sink: sink.sink,
@@ -100,7 +97,7 @@ impl SinkRunner {
         if let Some(link) = &*self.link.lock().await {
             let mut state = self.state.lock().await;
 
-            let (port_id, message) = link.recv().await?;
+            let (_port_id, message) = link.recv().await?;
             let input = match message.as_ref() {
                 Message::Data(data_message) => {
                     if let Err(error) = self
@@ -116,19 +113,7 @@ impl SinkRunner {
                             error
                         );
                     }
-                    let now = self.context.runtime.hlc.new_timestamp();
-                    let mut input = data_message.clone();
-
-                    data_message
-                        .end_to_end_deadlines
-                        .iter()
-                        .for_each(|e2e_deadline| {
-                            if let Some(miss) = e2e_deadline.check(&self.id, &port_id, &now) {
-                                input.missed_end_to_end_deadlines.push(miss);
-                            }
-                        });
-
-                    input
+                    data_message.clone()
                 }
 
                 Message::Control(_) => return Err(ZFError::Unimplemented),
@@ -242,7 +227,3 @@ impl Runner for SinkRunner {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./tests/sink_e2e_deadline_tests.rs"]
-mod e2e_deadline_tests;

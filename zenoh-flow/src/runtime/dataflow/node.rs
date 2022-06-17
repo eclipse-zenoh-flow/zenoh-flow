@@ -12,9 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::deadline::E2EDeadlineRecord;
 use crate::model::link::PortDescriptor;
-use crate::model::loops::LoopDescriptor;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
 use async_std::sync::{Arc, Mutex};
@@ -36,7 +34,6 @@ pub struct SourceLoaded {
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) library: Option<Arc<Library>>,
-    pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
 }
 
 impl SourceLoaded {
@@ -61,7 +58,6 @@ impl SourceLoaded {
             period: record.period.map(|dur_desc| dur_desc.to_duration()),
             source,
             library: lib,
-            end_to_end_deadlines: vec![],
         })
     }
 }
@@ -73,12 +69,9 @@ pub struct OperatorLoaded {
     pub(crate) id: NodeId,
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
-    pub(crate) local_deadline: Option<Duration>,
-    pub(crate) ciclo: Option<LoopDescriptor>,
-    pub(crate) state: Arc<Mutex<State>>,
+    pub(crate) state: State,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
-    pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
 }
 
 impl OperatorLoaded {
@@ -110,14 +103,11 @@ impl OperatorLoaded {
 
         Ok(Self {
             id: record.id,
+            state,
             inputs,
             outputs,
-            local_deadline: record.deadline,
-            state: Arc::new(Mutex::new(state)),
             operator,
             library: lib,
-            end_to_end_deadlines: vec![],
-            ciclo: record.ciclo,
         })
     }
 }
@@ -131,7 +121,6 @@ pub struct SinkLoaded {
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) library: Option<Arc<Library>>,
-    pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
 }
 
 impl SinkLoaded {
@@ -155,7 +144,6 @@ impl SinkLoaded {
             state: Arc::new(Mutex::new(state)),
             sink,
             library: lib,
-            end_to_end_deadlines: vec![],
         })
     }
 }

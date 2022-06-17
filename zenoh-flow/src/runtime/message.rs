@@ -14,8 +14,6 @@
 
 extern crate serde;
 
-use crate::runtime::deadline::{E2EDeadline, E2EDeadlineMiss};
-use crate::runtime::loops::LoopContext;
 use crate::{Data, FlowId, NodeId, NodeOutput, PortId, ZFData, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
@@ -30,22 +28,13 @@ use uuid::Uuid;
 pub struct DataMessage {
     pub(crate) data: Data,
     pub(crate) timestamp: Timestamp,
-    pub(crate) end_to_end_deadlines: Vec<E2EDeadline>,
-    pub(crate) missed_end_to_end_deadlines: Vec<E2EDeadlineMiss>,
-    pub(crate) loop_contexts: Vec<LoopContext>,
 }
 
 impl DataMessage {
     /// Creates a new [`DataMessage`](`DataMessage`) with given `Data`,
     ///  `Timestamp` and `Vec<E2EDeadline>`.
-    pub fn new(data: Data, timestamp: Timestamp, end_to_end_deadlines: Vec<E2EDeadline>) -> Self {
-        Self {
-            data,
-            timestamp,
-            end_to_end_deadlines,
-            missed_end_to_end_deadlines: vec![],
-            loop_contexts: vec![],
-        }
+    pub fn new(data: Data, timestamp: Timestamp) -> Self {
+        Self { data, timestamp }
     }
 
     /// Returns a mutable reference over the Data representation (i.e. `Bytes` or `Typed`).
@@ -66,50 +55,22 @@ impl DataMessage {
         &self.timestamp
     }
 
-    /// Returns the slice of [`E2EDeadlineMiss`](`E2EDeadlineMiss`) associated
-    /// with the message.
-    pub fn get_missed_end_to_end_deadlines(&self) -> &[E2EDeadlineMiss] {
-        self.missed_end_to_end_deadlines.as_slice()
-    }
-
-    /// Returns the slice of [`LoopContext`](`LoopContext`) associated
-    /// with the message.
-    pub fn get_loop_contexts(&self) -> &[LoopContext] {
-        self.loop_contexts.as_slice()
-    }
-
     /// Creates a new message from serialized data.
     /// This is used when the message is coming from Zenoh or from a non-rust
     /// node.
-    pub fn new_serialized(
-        data: Arc<Vec<u8>>,
-        timestamp: Timestamp,
-        end_to_end_deadlines: Vec<E2EDeadline>,
-        loop_contexts: Vec<LoopContext>,
-    ) -> Self {
+    pub fn new_serialized(data: Arc<Vec<u8>>, timestamp: Timestamp) -> Self {
         Self {
             data: Data::Bytes(data),
             timestamp,
-            end_to_end_deadlines,
-            missed_end_to_end_deadlines: vec![],
-            loop_contexts,
         }
     }
 
     /// Creates a messages from `Typed` data.
     /// This is used when the data is generated from rust nodes.
-    pub fn new_deserialized(
-        data: Arc<dyn ZFData>,
-        timestamp: Timestamp,
-        end_to_end_deadlines: Vec<E2EDeadline>,
-        loop_contexts: Vec<LoopContext>,
-    ) -> Self {
+    pub fn new_deserialized(data: Arc<dyn ZFData>, timestamp: Timestamp) -> Self {
         Self {
             data: Data::Typed(data),
             timestamp,
-            end_to_end_deadlines,
-            missed_end_to_end_deadlines: vec![],
-            loop_contexts,
         }
     }
 }
@@ -154,40 +115,18 @@ pub enum Message {
 impl Message {
     /// Creates a `Message` from a [`NodeOutput`](`NodeOutput`)
     ///
-    pub fn from_node_output(
-        output: NodeOutput,
-        timestamp: Timestamp,
-        end_to_end_deadlines: Vec<E2EDeadline>,
-        loop_contexts: Vec<LoopContext>,
-    ) -> Self {
+    pub fn from_node_output(output: NodeOutput, timestamp: Timestamp) -> Self {
         match output {
             NodeOutput::Control(c) => Self::Control(c),
-            NodeOutput::Data(d) => {
-                Self::from_serdedata(d, timestamp, end_to_end_deadlines, loop_contexts)
-            }
+            NodeOutput::Data(d) => Self::from_serdedata(d, timestamp),
         }
     }
 
     /// Creates a `Message::Data` from [`Data`](`Data`).
-    pub fn from_serdedata(
-        output: Data,
-        timestamp: Timestamp,
-        end_to_end_deadlines: Vec<E2EDeadline>,
-        loop_contexts: Vec<LoopContext>,
-    ) -> Self {
+    pub fn from_serdedata(output: Data, timestamp: Timestamp) -> Self {
         match output {
-            Data::Typed(data) => Self::Data(DataMessage::new_deserialized(
-                data,
-                timestamp,
-                end_to_end_deadlines,
-                loop_contexts,
-            )),
-            Data::Bytes(data) => Self::Data(DataMessage::new_serialized(
-                data,
-                timestamp,
-                end_to_end_deadlines,
-                loop_contexts,
-            )),
+            Data::Typed(data) => Self::Data(DataMessage::new_deserialized(data, timestamp)),
+            Data::Bytes(data) => Self::Data(DataMessage::new_serialized(data, timestamp)),
         }
     }
 
@@ -210,8 +149,6 @@ impl Message {
                     let serialized_message = Message::Data(DataMessage::new_serialized(
                         serialized_data,
                         data_message.timestamp,
-                        data_message.end_to_end_deadlines.clone(),
-                        data_message.loop_contexts.clone(),
                     ));
 
                     bincode::serialize(&serialized_message).map_err(|_| ZFError::SerializationError)

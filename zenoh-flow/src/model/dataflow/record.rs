@@ -13,8 +13,7 @@
 //
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
-use crate::model::dataflow::descriptor::DataFlowDescriptor;
-use crate::model::deadline::E2EDeadlineRecord;
+use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use crate::model::link::{LinkDescriptor, PortDescriptor};
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::{InputDescriptor, OutputDescriptor};
@@ -26,8 +25,7 @@ use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 use uuid::Uuid;
 
-///A `DataFlowRecord` is an instance of a [`DataFlowDescriptor`](`DataFlowDescriptor`).
-///
+/// A `DataFlowRecord` is an instance of a [`FlattenDataFlowDescriptor`](`FlattenDataFlowDescriptor`).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DataFlowRecord {
     pub uuid: Uuid,
@@ -37,7 +35,6 @@ pub struct DataFlowRecord {
     pub sources: HashMap<NodeId, SourceRecord>,
     pub connectors: Vec<ZFConnectorRecord>,
     pub links: Vec<LinkDescriptor>,
-    pub end_to_end_deadlines: Option<Vec<E2EDeadlineRecord>>,
 }
 
 impl DataFlowRecord {
@@ -269,21 +266,19 @@ impl DataFlowRecord {
     }
 }
 
-impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
+impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
     type Error = ZFError;
 
-    fn try_from(d: (DataFlowDescriptor, Uuid)) -> Result<Self, Self::Error> {
+    fn try_from(d: (FlattenDataFlowDescriptor, Uuid)) -> Result<Self, Self::Error> {
         let (dataflow, id) = d;
 
-        let DataFlowDescriptor {
+        let FlattenDataFlowDescriptor {
             flow,
             operators,
             sources,
             sinks,
-            mut links,
+            links,
             mapping,
-            deadlines,
-            loops,
             global_configuration,
             flags,
         } = dataflow;
@@ -296,9 +291,6 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
             HashSet::new()
         };
 
-        let deadlines = deadlines
-            .map(|deadlines_desc| deadlines_desc.into_iter().map(|desc| desc.into()).collect());
-
         let mut dfr = DataFlowRecord {
             uuid: id,
             flow,
@@ -307,7 +299,6 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
             sources: HashMap::with_capacity(sources.len()),
             connectors: Vec::new(),
             links: Vec::new(),
-            end_to_end_deadlines: deadlines,
         };
 
         for o in operators
@@ -324,8 +315,6 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
                     .get(&o.id)
                     .ok_or(ZFError::MissingConfiguration)
                     .cloned()?,
-                deadline: o.deadline.as_ref().map(|period| period.to_duration()),
-                ciclo: None,
             };
             dfr.operators.insert(o.id, or);
         }
@@ -363,55 +352,6 @@ impl TryFrom<(DataFlowDescriptor, Uuid)> for DataFlowRecord {
                     .cloned()?,
             };
             dfr.sinks.insert(s.id, sr);
-        }
-
-        // A Loop between two nodes is, in fact, a backward link.
-        //
-        // To add a link we first need to add an input to the Ingress and an output to the Egress
-        // (as these ports were not declared by the user). We also must perform these additions to
-        // the `validator` as it will check that everything is alright on the link we are about to
-        // create.
-        //
-        // We finally add the loop information to the Ingress and Egress.
-        if let Some(loops) = loops {
-            // Ciclo is the italian word for "loop" — we cannot use "loop" as it’s a reserved
-            // keyword.
-            for ciclo in loops {
-                // Update the ingress / egress.
-                let ingress = dfr
-                    .operators
-                    .get_mut(&ciclo.ingress)
-                    .ok_or(ZFError::GenericError)?;
-                ingress.inputs.push(PortDescriptor {
-                    port_id: ciclo.feedback_port.clone(),
-                    port_type: ciclo.port_type.clone(),
-                });
-                ingress.ciclo = Some(ciclo.clone());
-
-                let egress = dfr
-                    .operators
-                    .get_mut(&ciclo.egress)
-                    .ok_or(ZFError::GenericError)?;
-                egress.outputs.push(PortDescriptor {
-                    port_id: ciclo.feedback_port.clone(),
-                    port_type: ciclo.port_type.clone(),
-                });
-                egress.ciclo = Some(ciclo.clone());
-
-                links.push(LinkDescriptor {
-                    from: OutputDescriptor {
-                        node: ciclo.egress,
-                        output: ciclo.feedback_port.clone(),
-                    },
-                    to: InputDescriptor {
-                        node: ciclo.ingress,
-                        input: ciclo.feedback_port,
-                    },
-                    size: None,
-                    queueing_policy: None,
-                    priority: None,
-                });
-            }
         }
 
         dfr.add_links(&links, &nodes_to_remove)?;

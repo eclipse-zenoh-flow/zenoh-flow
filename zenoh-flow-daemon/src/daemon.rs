@@ -21,10 +21,10 @@ use uhlc::HLC;
 use uuid::Uuid;
 use zenoh::prelude::*;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
-use zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor;
+use zenoh_flow::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use zenoh_flow::model::{
     dataflow::record::DataFlowRecord,
-    node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor},
+    node::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor},
 };
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{
@@ -404,7 +404,7 @@ impl TryFrom<DaemonConfig> for Daemon {
 
 #[znserver]
 impl Runtime for Daemon {
-    async fn create_instance(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
+    async fn create_instance(&self, flow: FlattenDataFlowDescriptor) -> ZFResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow (when
         // the registry will be in place)
         //TODO: this has to run asynchronously, this means that it must
@@ -508,7 +508,7 @@ impl Runtime for Daemon {
         Ok(record)
     }
 
-    async fn instantiate(&self, flow: DataFlowDescriptor) -> ZFResult<DataFlowRecord> {
+    async fn instantiate(&self, flow: FlattenDataFlowDescriptor) -> ZFResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow (when
         // the registry will be in place)
         //TODO: this has to run asynchronously, this means that it must
@@ -977,7 +977,10 @@ impl Runtime for Daemon {
     ) -> ZFResult<()> {
         Err(ZFError::Unimplemented)
     }
-    async fn check_operator_compatibility(&self, operator: OperatorDescriptor) -> ZFResult<bool> {
+    async fn check_operator_compatibility(
+        &self,
+        operator: SimpleOperatorDescriptor,
+    ) -> ZFResult<bool> {
         Err(ZFError::Unimplemented)
     }
     async fn check_source_compatibility(&self, source: SourceDescriptor) -> ZFResult<bool> {

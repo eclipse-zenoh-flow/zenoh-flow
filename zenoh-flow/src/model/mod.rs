@@ -14,9 +14,7 @@
 
 pub mod connector;
 pub mod dataflow;
-pub mod deadline;
 pub mod link;
-pub mod loops;
 pub mod node;
 
 use crate::model::link::PortDescriptor;

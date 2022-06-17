@@ -33,8 +33,8 @@ use crate::{
         InstanceContext, RuntimeContext,
     },
     Configuration, Context, Data, DataMessage, Deserializable, DowncastAny, EmptyState, InputToken,
-    LocalDeadlineMiss, Message, Node, NodeOutput, Operator, PortId, PortType, State, TokenAction,
-    ZFData, ZFError, ZFResult,
+    Message, Node, NodeOutput, Operator, PortId, PortType, State, TokenAction, ZFData, ZFError,
+    ZFResult,
 };
 
 // ZFUsize implements Data.
@@ -149,12 +149,7 @@ impl Operator for TestOperator {
         _context: &mut Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
-        deadline_miss: Option<LocalDeadlineMiss>,
     ) -> ZFResult<HashMap<PortId, NodeOutput>> {
-        assert!(
-            deadline_miss.is_none(),
-            "Expected `deadline_miss` to be `None`."
-        );
         default_output_rule(state, outputs)
     }
 }
@@ -164,7 +159,6 @@ async fn send_usize(hlc: &Arc<HLC>, sender: &LinkSender, number: usize) {
         .send(Arc::new(Message::Data(DataMessage::new(
             Data::from::<ZFUsize>(ZFUsize(number)),
             hlc.new_timestamp(),
-            vec![],
         ))))
         .await
         .unwrap();
@@ -261,13 +255,10 @@ fn input_rule_keep() {
         io: Arc::new(Mutex::new(operator_io)),
         inputs,
         outputs,
-        local_deadline: None,
         state: Arc::new(Mutex::new(operator.initialize(&None).unwrap())),
         is_running: Arc::new(Mutex::new(false)),
         operator: Arc::new(operator),
         _library: None,
-        end_to_end_deadlines: vec![],
-        ciclo: None,
     };
 
     let runner = NodeRunner::new(Arc::new(operator_runner), instance_context);

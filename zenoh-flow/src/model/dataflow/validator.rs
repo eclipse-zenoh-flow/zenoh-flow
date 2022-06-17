@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::dataflow::descriptor::DataFlowDescriptor;
+use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use crate::model::dataflow::flag::{get_nodes_to_remove, Flag};
 use crate::model::link::PortDescriptor;
 use crate::model::{InputDescriptor, OutputDescriptor};
@@ -66,7 +66,6 @@ pub(crate) struct DataflowValidator {
     map_id_to_node_checker_idx: HashMap<PortUniqueId, NodeIndex>,
     map_id_to_type: HashMap<PortUniqueId, PortType>,
     map_id_to_graph_checker_idx: HashMap<NodeId, (NodeKind, NodeIndex)>,
-    loops_node_ids: HashSet<NodeId>,
 }
 
 /// Type of a Port, either Input or Output.
@@ -92,10 +91,10 @@ struct PortUniqueId {
     kind: PortKind,
 }
 
-impl TryFrom<&DataFlowDescriptor> for DataflowValidator {
+impl TryFrom<&FlattenDataFlowDescriptor> for DataflowValidator {
     type Error = ZFError;
 
-    fn try_from(descriptor: &DataFlowDescriptor) -> Result<Self, Self::Error> {
+    fn try_from(descriptor: &FlattenDataFlowDescriptor) -> Result<Self, Self::Error> {
         let mut validator = DataflowValidator::new();
 
         let mut all_node_ids = vec![];
@@ -157,7 +156,6 @@ impl DataflowValidator {
             map_id_to_node_checker_idx: HashMap::new(),
             map_id_to_type: HashMap::new(),
             map_id_to_graph_checker_idx: HashMap::new(),
-            loops_node_ids: HashSet::new(),
         }
     }
 
@@ -415,220 +413,6 @@ impl DataflowValidator {
             )),
             false => Ok(()),
         }
-    }
-
-    /// Validate that the deadline can be enforced.
-    ///
-    /// In particular, we check that there is a path between the "from.output" and "to.input" nodes.
-    /// we cannot just check that there is a path between "from" and "to" as we have to take
-    /// into consideration the ports the user provided
-    ///
-    /// To perform that check we:
-    /// 1) Isolate the incoming edge (singular!) that ends at the "to" node,
-    /// 2) Get the index, in `graph_checker`, of the node that is at the origin of edge that we
-    ///    isolated in step 1). This node is the node *before* the "to" node.
-    /// 3) Isolate the outgoing edges that start at the "from" node.
-    /// 4) For all the nodes that are at the end of all the edges isolated in step 3) (i.e. all
-    ///    nodes that are *after* the "from" node for the provided port) check that there is a path
-    ///    connecting them. If there is a path then the deadline is valid.
-    ///
-    /// # Errors
-    /// A variant error is returned if validation fails.
-    pub(crate) fn validate_deadline(
-        &self,
-        from: &OutputDescriptor,
-        to: &InputDescriptor,
-    ) -> ZFResult<()> {
-        let (_, to_idx) = self
-            .map_id_to_graph_checker_idx
-            .get(&to.node)
-            .ok_or_else(|| ZFError::NodeNotFound(to.node.clone()))?;
-        let all_to_edges = self
-            .graph_checker
-            .edges_directed(*to_idx, petgraph::Incoming);
-        let to_edges: Vec<_> = all_to_edges
-            .filter(|edge| {
-                let (_, input_port, _) = edge.weight();
-                *input_port == to.input
-            })
-            .collect();
-
-        // By construction, there should only be one "incoming edge".
-        assert!(to_edges.len() == 1);
-        let (_, _, edge_idx) = to_edges[0].weight();
-        let (to_prev_idx, _) = self.graph_checker.edge_endpoints(*edge_idx).unwrap();
-
-        let (_, from_idx) = self
-            .map_id_to_graph_checker_idx
-            .get(&from.node)
-            .ok_or_else(|| ZFError::NodeNotFound(from.node.clone()))?;
-        let all_from_edges = self
-            .graph_checker
-            .edges_directed(*from_idx, petgraph::Outgoing);
-        let from_edges: Vec<_> = all_from_edges
-            .filter(|edge| {
-                let (output_port, _, _) = edge.weight();
-                *output_port == from.output
-            })
-            .collect();
-
-        let mut has_path = false;
-
-        // `for` instead of `for_each` to be able to break early.
-        for edge in from_edges.iter() {
-            let (_, _, edge_idx) = edge.weight();
-            let (_, from_next_idx) = self.graph_checker.edge_endpoints(*edge_idx).unwrap();
-
-            if petgraph::algo::has_path_connecting(
-                &self.graph_checker,
-                from_next_idx,
-                to_prev_idx,
-                None,
-            ) {
-                has_path = true;
-                break;
-            }
-        }
-
-        if has_path {
-            Ok(())
-        } else {
-            Err(ZFError::NoPathBetweenNodes((
-                (from.node.clone(), from.output.clone()),
-                (to.node.clone(), to.input.clone()),
-            )))
-        }
-    }
-
-    /// Validate that the Loop respects the constraints we impose.
-    ///
-    /// 1. The Ingress should have only one output.
-    /// 2. The Egress should have only one input.
-    /// 3. The `feedback_port` should not already exist for the Ingress and the Egress.
-    /// 4. The Ingress should be an Operator.
-    /// 5. The Egress should be an Operator.
-    /// 6. No path should exist between the Ingress and Egress — excluding other loops.
-    /// 7. The Ingress should not be involved in another loop as Ingress or Egress.
-    /// 8. The Egress should not be involved in another loop as Ingress or Egress.
-    ///
-    ///  # Errors
-    /// A variant error is returned if validation fails.
-    pub(crate) fn validate_loop(
-        &mut self,
-        ingress: &NodeId,
-        egress: &NodeId,
-        feedback_port: &PortId,
-    ) -> ZFResult<()> {
-        // Feedback port should not exist for both ingress and egress.
-        let ingress_port_id = PortUniqueId {
-            node_id: ingress.clone(),
-            port_id: feedback_port.clone(),
-            kind: PortKind::Input,
-        };
-
-        if self
-            .map_id_to_node_checker_idx
-            .contains_key(&ingress_port_id)
-        {
-            return Err(ZFError::InvalidData(format!(
-                "Port < {} > already exists for Ingress < {} >",
-                feedback_port, ingress
-            )));
-        }
-
-        let egress_port_id = PortUniqueId {
-            node_id: egress.clone(),
-            port_id: feedback_port.clone(),
-            kind: PortKind::Output,
-        };
-
-        if self
-            .map_id_to_node_checker_idx
-            .contains_key(&egress_port_id)
-        {
-            return Err(ZFError::InvalidData(format!(
-                "Port < {} > already exists for Egress < {} >",
-                feedback_port, egress
-            )));
-        }
-
-        // Ingress must be an Operator and must have a single output.
-        let (ingress_kind, ingress_idx) = self
-            .map_id_to_graph_checker_idx
-            .get(ingress)
-            .ok_or_else(|| ZFError::NodeNotFound(ingress.clone()))?;
-
-        if *ingress_kind != NodeKind::Operator {
-            return Err(ZFError::InvalidData(format!(
-                "Ingress < {} > is not an Operator, found: {:?}",
-                ingress, ingress_kind
-            )));
-        }
-
-        if self
-            .graph_checker
-            .edges_directed(*ingress_idx, petgraph::Outgoing)
-            .count()
-            > 1
-        {
-            return Err(ZFError::InvalidData(format!(
-                "Ingress < {} > has more than one output",
-                ingress
-            )));
-        }
-
-        // Egress must be an Operator and must have a single input.
-        let (egress_kind, egress_idx) = self
-            .map_id_to_graph_checker_idx
-            .get(egress)
-            .ok_or_else(|| ZFError::NodeNotFound(egress.clone()))?;
-
-        if *egress_kind != NodeKind::Operator {
-            return Err(ZFError::InvalidData(format!(
-                "Egress < {} > is not an Operator, found: {:?}",
-                egress, egress_kind
-            )));
-        }
-
-        if self
-            .graph_checker
-            .edges_directed(*egress_idx, petgraph::Incoming)
-            .count()
-            > 1
-        {
-            return Err(ZFError::InvalidData(format!(
-                "Egress < {} > has more than one output",
-                egress
-            )));
-        }
-
-        // No path should exist going from the Egress to the Ingress.
-        if petgraph::algo::has_path_connecting(&self.graph_checker, *egress_idx, *ingress_idx, None)
-        {
-            return Err(ZFError::InvalidData(format!(
-                "The loop between < {} > and < {} > is not backward, please create a link instead",
-                ingress, egress
-            )));
-        }
-
-        // We only authorize a single loop per Ingress / Egress.
-        if !self.loops_node_ids.insert(ingress.clone()) {
-            return Err(ZFError::InvalidData(format!(
-                "Ingress < {} > is already used in another loop",
-                ingress
-            )));
-        }
-
-        if !self.loops_node_ids.insert(egress.clone()) {
-            // Remove the ingress from the HashSet as we are about to return an Error.
-            self.loops_node_ids.remove(ingress);
-            return Err(ZFError::InvalidData(format!(
-                "Egress < {} > is already used in another loop",
-                egress
-            )));
-        }
-
-        Ok(())
     }
 
     /// Validate flag.

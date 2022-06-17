@@ -239,7 +239,7 @@ impl AsyncCallbackSender {
         let ts = uhlc::Timestamp::new(uhlc::NTP64(0u64), uhlc::ID::new(1, [0u8; 16]));
 
         // FIXME
-        let msg = Message::from_node_output(crate::NodeOutput::Data(data), ts, vec![], vec![]);
+        let msg = Message::from_node_output(crate::NodeOutput::Data(data), ts);
         self.tx.send(Arc::new(msg)).await
     }
 }

@@ -25,8 +25,8 @@ use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::{
-    default_output_rule, zf_empty_state, Configuration, Context, Data, InputToken,
-    LocalDeadlineMiss, Node, NodeOutput, Operator, PortId, Sink, Source, State, ZFError, ZFResult,
+    default_output_rule, zf_empty_state, Configuration, Context, Data, InputToken, Node,
+    NodeOutput, Operator, PortId, Sink, Source, State, ZFError, ZFResult,
 };
 
 static SOURCE: &str = "Source";
@@ -154,12 +154,7 @@ impl Operator for DropOdd {
         _context: &mut zenoh_flow::Context,
         state: &mut State,
         outputs: HashMap<PortId, Data>,
-        deadline_miss: Option<LocalDeadlineMiss>,
     ) -> zenoh_flow::ZFResult<HashMap<zenoh_flow::PortId, NodeOutput>> {
-        assert!(
-            deadline_miss.is_none(),
-            "Expected `deadline_miss` to be `None`."
-        );
         default_output_rule(state, outputs)
     }
 }
@@ -234,7 +229,6 @@ async fn single_runtime() {
                 port_id: DESTINATION.into(),
                 port_type: "int".into(),
             }],
-            None,
             operator.initialize(&None).unwrap(),
             operator,
         )

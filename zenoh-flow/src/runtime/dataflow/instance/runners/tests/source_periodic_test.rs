@@ -134,12 +134,12 @@ fn source_periodic() {
         links: Arc::new(Mutex::new(vec![sender_output])),
         is_running: Arc::new(Mutex::new(false)),
         state: Arc::new(Mutex::new(source.initialize(&None).unwrap())),
-        end_to_end_deadlines: vec![],
         base_resource_name: "test".into(),
         current_recording_resource: Arc::new(Mutex::new(None)),
         is_recording: Arc::new(Mutex::new(false)),
         source: Arc::new(source),
         _library: None,
+        current_recording_resource_id: Arc::new(Mutex::new(None)),
     };
 
     let runner = NodeRunner::new(Arc::new(source_runner), instance_context);
