@@ -23,13 +23,11 @@ use uuid::Uuid;
 use crate::model::connector::ZFConnectorRecord;
 use crate::model::dataflow::record::DataFlowRecord;
 use crate::model::dataflow::validator::DataflowValidator;
-use crate::model::link::{LinkDescriptor, PortDescriptor};
+use crate::model::link::{LinkRecord, PortDescriptor};
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
-use crate::{
-    DurationDescriptor, FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult,
-};
+use crate::{FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
 
 /// The data flow struct.
 /// This struct contains all the information needed to instantiate a data flow.
@@ -45,8 +43,9 @@ pub struct Dataflow {
     pub(crate) operators: HashMap<NodeId, OperatorLoaded>,
     pub(crate) sinks: HashMap<NodeId, SinkLoaded>,
     pub(crate) connectors: HashMap<NodeId, ZFConnectorRecord>,
-    pub(crate) links: Vec<LinkDescriptor>,
+    pub(crate) links: Vec<LinkRecord>,
     validator: DataflowValidator,
+    counter: u32,
 }
 
 impl Dataflow {
@@ -73,6 +72,7 @@ impl Dataflow {
             connectors: HashMap::default(),
             links: Vec::default(),
             validator: DataflowValidator::new(),
+            counter: 0u32,
         }
     }
 
@@ -138,6 +138,7 @@ impl Dataflow {
             connectors,
             links: record.links,
             validator: DataflowValidator::new(),
+            counter: record.counter,
         })
     }
 
@@ -153,7 +154,6 @@ impl Dataflow {
     pub fn try_add_static_source(
         &mut self,
         id: NodeId,
-        period: Option<DurationDescriptor>,
         output: PortDescriptor,
         state: State,
         source: Arc<dyn Source>,
@@ -164,13 +164,13 @@ impl Dataflow {
             id.clone(),
             SourceLoaded {
                 id,
-                output,
+                output: (output, self.counter).into(),
                 state: Arc::new(Mutex::new(state)),
-                period: period.map(|dur_desc| dur_desc.to_duration()),
                 source,
                 library: None,
             },
         );
+        self.counter += 1;
 
         Ok(())
     }
@@ -241,13 +241,13 @@ impl Dataflow {
             id.clone(),
             SinkLoaded {
                 id,
-                input,
+                input: (input, self.counter).into(),
                 state: Arc::new(Mutex::new(state)),
                 sink,
                 library: None,
             },
         );
-
+        self.counter += 1;
         Ok(())
     }
 
@@ -272,13 +272,15 @@ impl Dataflow {
     ) -> ZFResult<()> {
         self.validator.try_add_link(&from, &to)?;
 
-        self.links.push(LinkDescriptor {
+        self.links.push(LinkRecord {
+            uid: self.counter,
             from,
             to,
             size,
             queueing_policy,
             priority,
         });
+        self.counter += 1;
 
         Ok(())
     }

@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::link::PortDescriptor;
+use super::link::PortRecord;
 use crate::serde::{Deserialize, Serialize};
 use crate::{NodeId, RuntimeId};
 
@@ -40,7 +40,7 @@ pub struct ZFConnectorRecord {
     pub kind: ZFConnectorKind,
     pub id: NodeId,
     pub resource: String,
-    pub link_id: PortDescriptor,
+    pub link_id: PortRecord,
     pub runtime: RuntimeId,
 }
 

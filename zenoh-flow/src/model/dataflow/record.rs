@@ -14,12 +14,12 @@
 
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
-use crate::model::link::{LinkDescriptor, PortDescriptor};
+use crate::model::link::{LinkDescriptor, LinkRecord, PortRecord};
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{RuntimeId, ZFError, ZFResult};
-use crate::{merge_configurations, NodeId, PortType};
+use crate::{merge_configurations, NodeId, PortId, PortType};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -34,7 +34,8 @@ pub struct DataFlowRecord {
     pub sinks: HashMap<NodeId, SinkRecord>,
     pub sources: HashMap<NodeId, SourceRecord>,
     pub connectors: Vec<ZFConnectorRecord>,
-    pub links: Vec<LinkDescriptor>,
+    pub links: Vec<LinkRecord>,
+    pub counter: u32,
 }
 
 impl DataFlowRecord {
@@ -107,6 +108,44 @@ impl DataFlowRecord {
         }
     }
 
+    /// Finds the uid of the given node.
+    fn find_node_uid_by_id(&self, id: &NodeId) -> Option<u32> {
+        if let Some(o) = self.operators.get(id) {
+            return Some(o.uid);
+        }
+        if let Some(s) = self.sources.get(id) {
+            return Some(s.uid);
+        }
+        if let Some(s) = self.sinks.get(id) {
+            return Some(s.uid);
+        }
+        None
+    }
+
+    /// Find the port uid for the given couple of node, port.
+    fn find_port_id_in_node(&self, node_id: &NodeId, port_id: &PortId) -> Option<u32> {
+        if let Some(o) = self.operators.get(node_id) {
+            if let Some(l) = o.inputs.iter().find(|&i| i.port_id == *port_id) {
+                return Some(l.uid);
+            }
+            if let Some(l) = o.outputs.iter().find(|&o| o.port_id == *port_id) {
+                return Some(l.uid);
+            }
+            return None;
+        }
+        if let Some(s) = self.sources.get(node_id) {
+            if s.output.port_id == *port_id {
+                return Some(s.output.uid);
+            }
+        }
+        if let Some(s) = self.sinks.get(node_id) {
+            if s.input.port_id == *port_id {
+                return Some(s.input.uid);
+            }
+        }
+        None
+    }
+
     /// Adds the links.
     ///
     /// If the nodes are mapped to different machines it adds the couple of
@@ -173,16 +212,24 @@ impl DataFlowRecord {
             if from_runtime == to_runtime {
                 log::debug!("Adding link: {:?}… OK", l);
                 // link between nodes on the same runtime
-                self.links.push(l.clone())
+                self.links.push((l.clone(), self.counter).into());
+                self.counter += 1;
             } else {
                 // link between node on different runtime
                 // here we have to create the connectors information
                 // and add the new links
 
+                let from_uid = self
+                    .find_node_uid_by_id(&l.from.node)
+                    .ok_or(ZFError::NotFound)?;
+                let from_port_uid = self
+                    .find_port_id_in_node(&l.from.node, &l.from.output)
+                    .ok_or(ZFError::NotFound)?;
+
                 // creating zenoh resource name
                 let z_resource_name = format!(
                     "/zf/data/{}/{}/{}/{}",
-                    &self.flow, &self.uuid, &l.from.node, &l.from.output
+                    &self.flow, &self.uuid, &from_uid, &from_port_uid
                 );
 
                 // We only create a sender if none was created for the same resource. The rationale
@@ -202,13 +249,15 @@ impl DataFlowRecord {
                         kind: ZFConnectorKind::Sender,
                         id: sender_id.clone().into(),
                         resource: z_resource_name.clone(),
-                        link_id: PortDescriptor {
+                        link_id: PortRecord {
+                            uid: self.counter,
                             port_id: l.from.output.clone(),
                             port_type: from_type,
                         },
 
                         runtime: from_runtime,
                     };
+                    self.counter += 1;
 
                     // creating link between node and sender
                     let link_sender = LinkDescriptor {
@@ -224,7 +273,8 @@ impl DataFlowRecord {
 
                     // storing info in the dataflow record
                     self.connectors.push(sender);
-                    self.links.push(link_sender);
+                    self.links.push((link_sender, self.counter).into());
+                    self.counter += 1;
                 }
 
                 // creating receiver
@@ -236,13 +286,15 @@ impl DataFlowRecord {
                     kind: ZFConnectorKind::Receiver,
                     id: receiver_id.clone().into(),
                     resource: z_resource_name.clone(),
-                    link_id: PortDescriptor {
+                    link_id: PortRecord {
+                        uid: self.counter,
                         port_id: l.to.input.clone(),
                         port_type: to_type,
                     },
 
                     runtime: to_runtime,
                 };
+                self.counter += 1;
 
                 // Creating link between receiver and node
                 let link_receiver = LinkDescriptor {
@@ -258,7 +310,8 @@ impl DataFlowRecord {
 
                 // storing info in the data flow record
                 self.connectors.push(receiver);
-                self.links.push(link_receiver);
+                self.links.push((link_receiver, self.counter).into());
+                self.counter += 1;
             }
         }
 
@@ -299,16 +352,32 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
             sources: HashMap::with_capacity(sources.len()),
             connectors: Vec::new(),
             links: Vec::new(),
+            counter: 0u32,
         };
 
         for o in operators
             .into_iter()
             .filter(|o| !nodes_to_remove.contains(&o.id))
         {
+            // Converting inputs
+            let mut inputs: Vec<PortRecord> = vec![];
+            for i in o.inputs {
+                inputs.push((i, dfr.counter).into());
+                dfr.counter += 1;
+            }
+
+            // Converting outputs
+            let mut outputs: Vec<PortRecord> = vec![];
+            for o in o.outputs {
+                outputs.push((o, dfr.counter).into());
+                dfr.counter += 1;
+            }
+
             let or = OperatorRecord {
                 id: o.id.clone(),
-                inputs: o.inputs,
-                outputs: o.outputs,
+                uid: dfr.counter,
+                inputs,
+                outputs,
                 uri: o.uri,
                 configuration: merge_configurations(global_configuration.clone(), o.configuration),
                 runtime: mapping
@@ -317,16 +386,21 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                     .cloned()?,
             };
             dfr.operators.insert(o.id, or);
+            dfr.counter += 1;
         }
 
         for s in sources
             .into_iter()
             .filter(|s| !nodes_to_remove.contains(&s.id))
         {
+            // converting output
+            let output = (s.output, dfr.counter).into();
+            dfr.counter += 1;
+
             let sr = SourceRecord {
                 id: s.id.clone(),
-                period: s.period,
-                output: s.output,
+                uid: dfr.counter,
+                output,
                 uri: s.uri,
                 configuration: merge_configurations(global_configuration.clone(), s.configuration),
                 runtime: mapping
@@ -335,15 +409,21 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                     .cloned()?,
             };
             dfr.sources.insert(s.id, sr);
+            dfr.counter += 1;
         }
 
         for s in sinks
             .into_iter()
             .filter(|s| !nodes_to_remove.contains(&s.id))
         {
+            // converting input
+            let input = (s.input, dfr.counter).into();
+            dfr.counter += 1;
+
             let sr = SinkRecord {
                 id: s.id.clone(),
-                input: s.input,
+                uid: dfr.counter,
+                input,
                 uri: s.uri,
                 configuration: merge_configurations(global_configuration.clone(), s.configuration),
                 runtime: mapping
@@ -352,6 +432,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                     .cloned()?,
             };
             dfr.sinks.insert(s.id, sr);
+            dfr.counter += 1;
         }
 
         dfr.add_links(&links, &nodes_to_remove)?;

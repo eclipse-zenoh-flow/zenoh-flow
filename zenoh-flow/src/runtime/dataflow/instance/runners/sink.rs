@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 
 use crate::async_std::sync::{Arc, Mutex};
-use crate::model::link::PortDescriptor;
+use crate::model::link::PortRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
@@ -43,7 +43,7 @@ use libloading::Library;
 pub struct SinkRunner {
     pub(crate) id: NodeId,
     pub(crate) context: InstanceContext,
-    pub(crate) input: PortDescriptor,
+    pub(crate) input: PortRecord,
     pub(crate) link: Arc<Mutex<Option<LinkReceiver>>>,
     pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) state: Arc<Mutex<State>>,

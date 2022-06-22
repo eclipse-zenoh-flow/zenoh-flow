@@ -14,7 +14,7 @@
 
 use super::operator::OperatorIO;
 use crate::async_std::sync::{Arc, Mutex};
-use crate::model::link::PortDescriptor;
+use crate::model::link::PortRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SourceLoaded;
@@ -26,7 +26,6 @@ use crate::{
 };
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::time::Duration;
 use zenoh::prelude::*;
 use zenoh::publication::CongestionControl;
 
@@ -47,8 +46,7 @@ use libloading::Library;
 pub struct SourceRunner {
     pub(crate) id: NodeId,
     pub(crate) context: InstanceContext,
-    pub(crate) period: Option<Duration>,
-    pub(crate) output: PortDescriptor,
+    pub(crate) output: PortRecord,
     pub(crate) links: Arc<Mutex<Vec<LinkSender>>>,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) base_resource_name: String,
@@ -96,7 +94,6 @@ impl SourceRunner {
         Ok(Self {
             id: source.id,
             context,
-            period: source.period,
             state: source.state,
             output: source.output,
             links: Arc::new(Mutex::new(links)),
@@ -337,9 +334,6 @@ impl Runner for SourceRunner {
                         ctx
                     );
                     context = ctx;
-                    if let Some(p) = self.period {
-                        async_std::task::sleep(p).await;
-                    }
                     // As async_std scheduler is run to completion,
                     // if the iteration is always ready there is a possibility
                     // that other tasks are not scheduled (e.g. the stopping
@@ -358,7 +352,3 @@ impl Runner for SourceRunner {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "./tests/source_periodic_test.rs"]
-mod periodic_tests;

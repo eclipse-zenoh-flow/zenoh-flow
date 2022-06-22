@@ -196,7 +196,6 @@ async fn single_runtime() {
     dataflow
         .try_add_static_source(
             SOURCE.into(),
-            None,
             PortDescriptor {
                 port_id: SOURCE.into(),
                 port_type: "int".into(),

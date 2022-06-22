@@ -12,12 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::link::PortDescriptor;
+use crate::model::link::PortRecord;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
 use async_std::sync::{Arc, Mutex};
 use std::collections::HashMap;
-use std::time::Duration;
 
 #[cfg(target_family = "unix")]
 use libloading::os::unix::Library;
@@ -29,8 +28,7 @@ use libloading::Library;
 /// This struct is then used within a `Runner` to actually run the source.
 pub struct SourceLoaded {
     pub(crate) id: NodeId,
-    pub(crate) output: PortDescriptor,
-    pub(crate) period: Option<Duration>,
+    pub(crate) output: PortRecord,
     pub(crate) state: Arc<Mutex<State>>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) library: Option<Arc<Library>>,
@@ -55,7 +53,6 @@ impl SourceLoaded {
             id: record.id,
             output: record.output,
             state: Arc::new(Mutex::new(state)),
-            period: record.period.map(|dur_desc| dur_desc.to_duration()),
             source,
             library: lib,
         })
@@ -117,8 +114,8 @@ impl OperatorLoaded {
 /// This struct is then used within a `Runner` to actually run the sink.
 pub struct SinkLoaded {
     pub(crate) id: NodeId,
-    pub(crate) input: PortDescriptor,
     pub(crate) state: Arc<Mutex<State>>,
+    pub(crate) input: PortRecord,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) library: Option<Arc<Library>>,
 }

@@ -16,7 +16,7 @@ pub mod link;
 pub mod runners;
 
 use crate::model::connector::ZFConnectorKind;
-use crate::model::link::LinkDescriptor;
+use crate::model::link::LinkRecord;
 use crate::runtime::dataflow::instance::link::link;
 use crate::runtime::dataflow::instance::runners::connector::{ZenohReceiver, ZenohSender};
 use crate::runtime::dataflow::instance::runners::operator::{OperatorIO, OperatorRunner};
@@ -47,10 +47,7 @@ pub struct DataflowInstance {
 /// # Errors
 /// An error variant is returned in case of:
 /// -  port id is duplicated.
-fn create_links(
-    nodes: &[NodeId],
-    links: &[LinkDescriptor],
-) -> ZFResult<HashMap<NodeId, OperatorIO>> {
+fn create_links(nodes: &[NodeId], links: &[LinkRecord]) -> ZFResult<HashMap<NodeId, OperatorIO>> {
     let mut io: HashMap<NodeId, OperatorIO> = HashMap::with_capacity(nodes.len());
 
     for link_desc in links {
