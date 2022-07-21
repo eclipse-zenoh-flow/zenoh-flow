@@ -243,5 +243,3 @@ impl AsyncCallbackSender {
         self.tx.send(Arc::new(msg)).await
     }
 }
-
-//

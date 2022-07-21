@@ -23,7 +23,7 @@ use crate::runtime::dataflow::instance::runners::operator::{OperatorIO, Operator
 use crate::runtime::dataflow::instance::runners::replay::ZenohReplay;
 use crate::runtime::dataflow::instance::runners::sink::SinkRunner;
 use crate::runtime::dataflow::instance::runners::source::SourceRunner;
-use crate::runtime::dataflow::instance::runners::{NodeRunner, RunnerKind};
+use crate::runtime::dataflow::instance::runners::RunnerKind;
 use crate::runtime::dataflow::Dataflow;
 use crate::runtime::InstanceContext;
 use crate::{NodeId, PortId, PortType, ZFError, ZFResult};
@@ -31,15 +31,14 @@ use async_std::sync::Arc;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use self::runners::RunnerManager;
+use self::runners::Runner;
 
 /// The instance of a data flow graph.
 /// It contains runtime information for the instance
 /// and the [`InstanceContext`](`InstanceContext`)
 pub struct DataflowInstance {
     pub(crate) context: InstanceContext,
-    pub(crate) runners: HashMap<NodeId, NodeRunner>,
-    pub(crate) managers: HashMap<NodeId, RunnerManager>,
+    pub(crate) runners: HashMap<NodeId, Box<dyn Runner>>,
 }
 
 /// Creates the [`Link`](`Link`) between the `nodes` using `links`.
@@ -122,7 +121,7 @@ impl DataflowInstance {
         };
 
         // The links were created, we can generate the Runners.
-        let mut runners: HashMap<NodeId, NodeRunner> = HashMap::with_capacity(node_ids.len());
+        let mut runners: HashMap<NodeId, Box<dyn Runner>> = HashMap::with_capacity(node_ids.len());
 
         for (id, source) in dataflow.sources.into_iter() {
             let io = links.remove(&id).ok_or_else(|| {
@@ -133,10 +132,7 @@ impl DataflowInstance {
             })?;
             runners.insert(
                 id,
-                NodeRunner::new(
-                    Arc::new(SourceRunner::try_new(context.clone(), source, io)?),
-                    context.clone(),
-                ),
+                Box::new(SourceRunner::try_new(context.clone(), source, io)?),
             );
         }
 
@@ -149,10 +145,7 @@ impl DataflowInstance {
             })?;
             runners.insert(
                 id,
-                NodeRunner::new(
-                    Arc::new(OperatorRunner::try_new(context.clone(), operator, io)?),
-                    context.clone(),
-                ),
+                Box::new(OperatorRunner::try_new(context.clone(), operator, io)?),
             );
         }
 
@@ -162,10 +155,7 @@ impl DataflowInstance {
             })?;
             runners.insert(
                 id,
-                NodeRunner::new(
-                    Arc::new(SinkRunner::try_new(context.clone(), sink, io)?),
-                    context.clone(),
-                ),
+                Box::new(SinkRunner::try_new(context.clone(), sink, io)?),
             );
         }
 
@@ -180,29 +170,19 @@ impl DataflowInstance {
                 ZFConnectorKind::Sender => {
                     runners.insert(
                         id,
-                        NodeRunner::new(
-                            Arc::new(ZenohSender::try_new(context.clone(), connector, io)?),
-                            context.clone(),
-                        ),
+                        Box::new(ZenohSender::try_new(context.clone(), connector, io)?),
                     );
                 }
                 ZFConnectorKind::Receiver => {
                     runners.insert(
                         id,
-                        NodeRunner::new(
-                            Arc::new(ZenohReceiver::try_new(context.clone(), connector, io)?),
-                            context.clone(),
-                        ),
+                        Box::new(ZenohReceiver::try_new(context.clone(), connector, io)?),
                     );
                 }
             }
         }
 
-        Ok(Self {
-            context,
-            runners,
-            managers: HashMap::with_capacity(node_ids.len()),
-        })
+        Ok(Self { context, runners })
     }
 
     /// Returns the instance's `Uuid`.
@@ -314,14 +294,11 @@ impl DataflowInstance {
     /// # Errors
     /// If fails if the node is not found.
     pub async fn is_node_running(&self, node_id: &NodeId) -> ZFResult<bool> {
-        self.runners
-            .get(node_id)
-            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-
-        match self.managers.get(node_id) {
-            Some(manager) => Ok(manager.is_running().await),
-            None => Ok(false),
+        if let Some(runner) = self.runners.get(node_id) {
+            return Ok(runner.is_running().await);
         }
+
+        Err(ZFError::NodeNotFound(node_id.clone()))
     }
 
     /// Starts the given node.
@@ -329,13 +306,11 @@ impl DataflowInstance {
     /// # Errors
     /// If fails if the node is not found.
     pub async fn start_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
-        let runner = self
-            .runners
-            .get(node_id)
-            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-        let manager = runner.start();
-        self.managers.insert(node_id.clone(), manager);
-        Ok(())
+        if let Some(runner) = self.runners.get_mut(node_id) {
+            return runner.start();
+        }
+
+        Err(ZFError::NodeNotFound(node_id.clone()))
     }
 
     /// Stops the given node.
@@ -343,12 +318,12 @@ impl DataflowInstance {
     /// # Errors
     /// If fails if the node is not found or it is not running.
     pub async fn stop_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
-        let manager = self
-            .managers
-            .remove(node_id)
-            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-        manager.kill().await?;
-        manager.await
+        if let Some(runner) = self.runners.get_mut(node_id) {
+            runner.stop();
+            return Ok(());
+        }
+
+        Err(ZFError::NodeNotFound(node_id.clone()))
     }
 
     /// Finalized the given node.
@@ -371,11 +346,11 @@ impl DataflowInstance {
     /// # Errors
     /// If fails if the node is not found.
     pub async fn start_recording(&self, node_id: &NodeId) -> ZFResult<String> {
-        let manager = self
-            .managers
-            .get(node_id)
-            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-        manager.start_recording().await
+        if let Some(runner) = self.runners.get(node_id) {
+            return runner.start_recording().await;
+        }
+
+        Err(ZFError::NodeNotFound(node_id.clone()))
     }
 
     /// Stops the recording for the given source.
@@ -385,11 +360,11 @@ impl DataflowInstance {
     /// # Errors
     /// If fails if the node is not found.
     pub async fn stop_recording(&self, node_id: &NodeId) -> ZFResult<String> {
-        let manager = self
-            .managers
-            .get(node_id)
-            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-        manager.stop_recording().await
+        if let Some(runner) = self.runners.get(node_id) {
+            return runner.stop_recording().await;
+        }
+
+        Err(ZFError::NodeNotFound(node_id.clone()))
     }
 
     /// Assumes the source is already stopped before calling the start replay!
@@ -441,11 +416,8 @@ impl DataflowInstance {
             resource,
         )?;
 
-        let replay_runner = NodeRunner::new(Arc::new(replay_node), self.context.clone());
-        let replay_manager = replay_runner.start();
-
-        self.runners.insert(replay_id.clone(), replay_runner);
-        self.managers.insert(replay_id.clone(), replay_manager);
+        self.runners
+            .insert(replay_id.clone(), Box::new(replay_node));
         Ok(replay_id)
     }
 

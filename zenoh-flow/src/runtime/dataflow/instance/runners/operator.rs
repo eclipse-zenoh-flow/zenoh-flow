@@ -431,8 +431,11 @@ impl Runner for OperatorRunner {
         false
     }
 
-    async fn stop(&self) {
-        *self.is_running.lock().await = false;
+    fn stop(&mut self) -> ZFResult<()> {
+        // *self.is_running.lock().await = false;
+
+        // FIXME
+        unimplemented!()
     }
 
     async fn is_running(&self) -> bool {
@@ -444,47 +447,50 @@ impl Runner for OperatorRunner {
         self.operator.finalize(&mut state)
     }
 
-    async fn run(&self) -> ZFResult<()> {
-        self.start().await;
+    fn start(&mut self) -> ZFResult<()> {
+        // self.start().await;
 
-        let mut context = Context::default();
-        let mut tokens: HashMap<PortId, InputToken> = self
-            .inputs
-            .keys()
-            .map(|input_id| (input_id.clone(), InputToken::Pending))
-            .collect();
-        let mut data: HashMap<PortId, DataMessage> = HashMap::with_capacity(tokens.len());
+        // let mut context = Context::default();
+        // let mut tokens: HashMap<PortId, InputToken> = self
+        //     .inputs
+        //     .keys()
+        //     .map(|input_id| (input_id.clone(), InputToken::Pending))
+        //     .collect();
+        // let mut data: HashMap<PortId, DataMessage> = HashMap::with_capacity(tokens.len());
 
-        // Looping on iteration, each iteration is a single
-        // run of the source, as a run can fail in case of error it
-        // stops and returns the error to the caller (the RunnerManager)
-        loop {
-            match self.iteration(context, tokens, data).await {
-                Ok((ctx, tkn, d)) => {
-                    log::trace!(
-                        "[Operator: {}] iteration ok with new context {:?}",
-                        self.id,
-                        ctx
-                    );
-                    context = ctx;
-                    tokens = tkn;
-                    data = d;
-                    // As async_std scheduler is run to completion,
-                    // if the iteration is always ready there is a possibility
-                    // that other tasks are not scheduled (e.g. the stopping
-                    // task), therefore after the iteration we give back
-                    // the control to the scheduler, if no other tasks are
-                    // ready, then this one is scheduled again.
-                    async_std::task::yield_now().await;
-                    continue;
-                }
-                Err(e) => {
-                    log::error!("[Operator: {}] iteration failed with error: {}", self.id, e);
-                    self.stop().await;
-                    break Err(e);
-                }
-            }
-        }
+        // // Looping on iteration, each iteration is a single
+        // // run of the source, as a run can fail in case of error it
+        // // stops and returns the error to the caller (the RunnerManager)
+        // loop {
+        //     match self.iteration(context, tokens, data).await {
+        //         Ok((ctx, tkn, d)) => {
+        //             log::trace!(
+        //                 "[Operator: {}] iteration ok with new context {:?}",
+        //                 self.id,
+        //                 ctx
+        //             );
+        //             context = ctx;
+        //             tokens = tkn;
+        //             data = d;
+        //             // As async_std scheduler is run to completion,
+        //             // if the iteration is always ready there is a possibility
+        //             // that other tasks are not scheduled (e.g. the stopping
+        //             // task), therefore after the iteration we give back
+        //             // the control to the scheduler, if no other tasks are
+        //             // ready, then this one is scheduled again.
+        //             async_std::task::yield_now().await;
+        //             continue;
+        //         }
+        //         Err(e) => {
+        //             log::error!("[Operator: {}] iteration failed with error: {}", self.id, e);
+        //             self.stop().await;
+        //             break Err(e);
+        //         }
+        //     }
+        // }
+
+        // FIXME
+        unimplemented!()
     }
 }
 

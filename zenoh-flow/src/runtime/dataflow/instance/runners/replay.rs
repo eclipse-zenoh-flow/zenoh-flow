@@ -17,14 +17,9 @@ use crate::async_std::sync::{Arc, Mutex};
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
-use crate::{ControlMessage, NodeId, PortId, PortType, ZFError, ZFResult};
-use async_std::task;
+use crate::{NodeId, PortId, PortType, ZFError, ZFResult};
 use async_trait::async_trait;
-use futures::prelude::*;
 use std::collections::HashMap;
-use zenoh::net::protocol::io::SplitBuffer;
-use zenoh::query::*;
-use zenoh::*;
 
 /// The Replay node.
 #[derive(Clone)]
@@ -156,76 +151,82 @@ impl Runner for ZenohReplay {
         *self.is_running.lock().await
     }
 
-    async fn stop(&self) {
-        *self.is_running.lock().await = false;
+    fn stop(&mut self) -> ZFResult<()> {
+        // *self.is_running.lock().await = false;
+
+        // FIXME
+        unimplemented!()
     }
 
-    async fn run(&self) -> ZFResult<()> {
-        self.start().await;
+    fn start(&mut self) -> ZFResult<()> {
+        // self.start().await;
 
-        let res = {
-            log::debug!("ZenohReplay - {} - Started", self.resource_name);
-            let query_target = QueryTarget {
-                kind: queryable::STORAGE,
-                target: Target::default(),
-            };
-            let res_name = format!("{}?(starttime=0)", self.resource_name);
-            let replies = self
-                .context
-                .runtime
-                .session
-                .get(&res_name)
-                .target(query_target)
-                .consolidation(QueryConsolidation::none())
-                .await?;
+        // let res = {
+        //     log::debug!("ZenohReplay - {} - Started", self.resource_name);
+        //     let query_target = QueryTarget {
+        //         kind: queryable::STORAGE,
+        //         target: Target::default(),
+        //     };
+        //     let res_name = format!("{}?(starttime=0)", self.resource_name);
+        //     let replies = self
+        //         .context
+        //         .runtime
+        //         .session
+        //         .get(&res_name)
+        //         .target(query_target)
+        //         .consolidation(QueryConsolidation::none())
+        //         .await?;
 
-            // Placeholder
-            let mut last_ts = self.context.runtime.hlc.new_timestamp();
+        //     // Placeholder
+        //     let mut last_ts = self.context.runtime.hlc.new_timestamp();
 
-            // Here we need to get all the data and then order it.
-            let data = replies.collect::<Vec<Reply>>().await;
-            let mut zf_data: Vec<Message> = data
-                .iter()
-                .filter_map(|msg| {
-                    bincode::deserialize::<Message>(&msg.sample.value.payload.contiguous()).ok()
-                })
-                .collect();
-            zf_data.sort();
-            log::trace!("ZenohReplay - Total samples {} ", zf_data.len());
+        //     // Here we need to get all the data and then order it.
+        //     let data = replies.collect::<Vec<Reply>>().await;
+        //     let mut zf_data: Vec<Message> = data
+        //         .iter()
+        //         .filter_map(|msg| {
+        //             bincode::deserialize::<Message>(&msg.sample.value.payload.contiguous()).ok()
+        //         })
+        //         .collect();
+        //     zf_data.sort();
+        //     log::trace!("ZenohReplay - Total samples {} ", zf_data.len());
 
-            for de in zf_data {
-                log::trace!("ZenohReplay - {}<={:?} ", self.resource_name, de);
-                match &de {
-                    Message::Control(ref ctrl_msg) => match &ctrl_msg {
-                        ControlMessage::RecordingStart(ref ts) => {
-                            log::trace!("ZenohReplay - Recording start {:?} ", ts);
-                            last_ts = ts.timestamp;
-                        }
-                        ControlMessage::RecordingStop(ref rs) => {
-                            log::trace!("ZenohReplay - Recording Stop {:?} ", rs);
-                        } // Commented because Control messages are not yet defined.
-                          // _ => {
-                          //     self.send_data(de).await?;
-                          // }
-                    },
-                    Message::Data(ref data_msg) => {
-                        let data_ts = data_msg.timestamp;
-                        let wait_time = data_ts.get_diff_duration(&last_ts);
+        //     for de in zf_data {
+        //         log::trace!("ZenohReplay - {}<={:?} ", self.resource_name, de);
+        //         match &de {
+        //             Message::Control(ref ctrl_msg) => match &ctrl_msg {
+        //                 ControlMessage::RecordingStart(ref ts) => {
+        //                     log::trace!("ZenohReplay - Recording start {:?} ", ts);
+        //                     last_ts = ts.timestamp;
+        //                 }
+        //                 ControlMessage::RecordingStop(ref rs) => {
+        //                     log::trace!("ZenohReplay - Recording Stop {:?} ", rs);
+        //                 } // Commented because Control messages are not yet defined.
+        //                   // _ => {
+        //                   //     self.send_data(de).await?;
+        //                   // }
+        //             },
+        //             Message::Data(ref data_msg) => {
+        //                 let data_ts = data_msg.timestamp;
+        //                 let wait_time = data_ts.get_diff_duration(&last_ts);
 
-                        log::trace!("ZenohReplay - Wait for {:?} ", wait_time);
-                        task::sleep(wait_time).await;
+        //                 log::trace!("ZenohReplay - Wait for {:?} ", wait_time);
+        //                 task::sleep(wait_time).await;
 
-                        self.send_data(de).await?;
+        //                 self.send_data(de).await?;
 
-                        // Updating last sent timestamp
-                        last_ts = data_ts;
-                    }
-                }
-            }
-        };
+        //                 // Updating last sent timestamp
+        //                 last_ts = data_ts;
+        //             }
+        //         }
+        //     }
+        // };
 
-        self.stop().await;
+        // self.stop().await;
 
-        Ok(res)
+        // Ok(res)
+
+        // FIXME
+        unimplemented!()
     }
 }

@@ -19,12 +19,9 @@ use crate::model::connector::ZFConnectorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
-use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::{NodeId, PortId, PortType, ZFError, ZFResult};
 use async_trait::async_trait;
-use futures::prelude::*;
-use zenoh::net::protocol::io::SplitBuffer;
 use zenoh::prelude::*;
 use zenoh::publication::CongestionControl;
 
@@ -111,38 +108,44 @@ impl ZenohSender {
         Ok(())
     }
 }
+
 #[async_trait]
 impl Runner for ZenohSender {
     fn get_id(&self) -> NodeId {
         self.id.clone()
     }
+
     fn get_kind(&self) -> RunnerKind {
         RunnerKind::Connector
     }
-    async fn run(&self) -> ZFResult<()> {
-        self.start().await;
 
-        // Looping on iteration, each iteration is a single
-        // run of the source, as a run can fail in case of error it
-        // stops and returns the error to the caller (the RunnerManager)
+    fn start(&mut self) -> ZFResult<()> {
+        // self.start().await;
 
-        loop {
-            match self.iteration().await {
-                Ok(_) => {
-                    log::trace!("[ZenohSender: {}] iteration ok", self.id);
-                    continue;
-                }
-                Err(e) => {
-                    log::error!(
-                        "[ZenohSender: {}] iteration failed with error: {}",
-                        self.id,
-                        e
-                    );
-                    self.stop().await;
-                    break Err(e);
-                }
-            }
-        }
+        // // Looping on iteration, each iteration is a single
+        // // run of the source, as a run can fail in case of error it
+        // // stops and returns the error to the caller (the RunnerManager)
+
+        // loop {
+        //     match self.iteration().await {
+        //         Ok(_) => {
+        //             log::trace!("[ZenohSender: {}] iteration ok", self.id);
+        //             continue;
+        //         }
+        //         Err(e) => {
+        //             log::error!(
+        //                 "[ZenohSender: {}] iteration failed with error: {}",
+        //                 self.id,
+        //                 e
+        //             );
+        //             self.stop().await;
+        //             break Err(e);
+        //         }
+        //     }
+        // }
+
+        // FIXME
+        unimplemented!()
     }
 
     fn get_outputs(&self) -> HashMap<PortId, PortType> {
@@ -198,15 +201,18 @@ impl Runner for ZenohSender {
         *self.is_running.lock().await
     }
 
-    async fn stop(&self) {
-        self.context
-            .runtime
-            .session
-            .undeclare_expr(self.key_expr)
-            .await
-            .unwrap_or_else(|e| log::warn!("Error when undeclaring expression: {e}"));
+    fn stop(&mut self) -> ZFResult<()> {
+        // self.context
+        //     .runtime
+        //     .session
+        //     .undeclare_expr(self.key_expr)
+        //     .await
+        //     .unwrap_or_else(|e| log::warn!("Error when undeclaring expression: {e}"));
 
-        *self.is_running.lock().await = false;
+        // *self.is_running.lock().await = false;
+
+        // FIXME
+        unimplemented!()
     }
 
     async fn clean(&self) -> ZFResult<()> {
@@ -284,37 +290,41 @@ impl Runner for ZenohReceiver {
     fn get_id(&self) -> NodeId {
         self.id.clone()
     }
+
     fn get_kind(&self) -> RunnerKind {
         RunnerKind::Connector
     }
 
-    async fn run(&self) -> ZFResult<()> {
-        self.start().await;
+    fn start(&mut self) -> ZFResult<()> {
+        // self.start().await;
 
-        let res = {
-            log::debug!("ZenohReceiver - {} - Started", self.record.resource);
-            if let Some(link) = &*self.link.lock().await {
-                let mut subscriber = self
-                    .context
-                    .runtime
-                    .session
-                    .subscribe(&self.key_expr)
-                    .await?;
+        // let res = {
+        //     log::debug!("ZenohReceiver - {} - Started", self.record.resource);
+        //     if let Some(link) = &*self.link.lock().await {
+        //         let mut subscriber = self
+        //             .context
+        //             .runtime
+        //             .session
+        //             .subscribe(&self.key_expr)
+        //             .await?;
 
-                while let Some(msg) = subscriber.receiver().next().await {
-                    log::trace!("ZenohSender - {}<={:?} ", self.record.resource, msg);
-                    let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
-                        .map_err(|_| ZFError::DeseralizationError)?;
-                    log::trace!("ZenohSender - OUT =>{:?} ", de);
-                    link.send(Arc::new(de)).await?;
-                }
-            }
+        //         while let Some(msg) = subscriber.receiver().next().await {
+        //             log::trace!("ZenohSender - {}<={:?} ", self.record.resource, msg);
+        //             let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
+        //                 .map_err(|_| ZFError::DeseralizationError)?;
+        //             log::trace!("ZenohSender - OUT =>{:?} ", de);
+        //             link.send(Arc::new(de)).await?;
+        //         }
+        //     }
 
-            Err(ZFError::Disconnected)
-        };
+        //     Err(ZFError::Disconnected)
+        // };
 
-        self.stop().await;
-        res
+        // self.stop().await;
+        // res
+
+        // FIXME
+        unimplemented!()
     }
 
     fn get_inputs(&self) -> HashMap<PortId, PortType> {
@@ -372,14 +382,17 @@ impl Runner for ZenohReceiver {
         *self.is_running.lock().await
     }
 
-    async fn stop(&self) {
-        self.context
-            .runtime
-            .session
-            .undeclare_expr(self.key_expr)
-            .await
-            .unwrap_or_else(|e| log::warn!("Error when undeclaring expression: {e}"));
+    fn stop(&mut self) -> ZFResult<()> {
+        // self.context
+        //     .runtime
+        //     .session
+        //     .undeclare_expr(self.key_expr)
+        //     .await
+        //     .unwrap_or_else(|e| log::warn!("Error when undeclaring expression: {e}"));
 
-        *self.is_running.lock().await = false;
+        // *self.is_running.lock().await = false;
+
+        // FIXME
+        unimplemented!()
     }
 }
