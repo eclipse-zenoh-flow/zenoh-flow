@@ -13,8 +13,9 @@
 //
 
 use crate::async_std::sync::Arc;
+use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::serde::{Deserialize, Serialize};
-use crate::{ControlMessage, DataMessage, InputToken, ZFData, ZFState};
+use crate::{ControlMessage, InputToken, ZFData, ZFState};
 use std::collections::HashMap;
 use std::time::Duration;
 /// A NodeId identifies a node inside a Zenoh Flow graph
@@ -203,50 +204,6 @@ pub enum NodeOutput {
     Control(ControlMessage),
 }
 
-/// The inputs provided to operator's run function.
-/// Inputs are indexed by [`PortId`](`PortId`)
-/// *NOTE:* Not yet used.
-/// It will be used instead of the `HashMap<PortId,DataMessage>` in
-/// `Operator::run` function.
-#[derive(Debug, Clone)]
-pub struct Inputs(HashMap<PortId, DataMessage>);
-
-impl Default for Inputs {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Inputs {
-    /// Creates an empty set of `Inputs`.
-    pub fn new() -> Self {
-        Self(HashMap::new())
-    }
-
-    /// Inserts the given `data` with the given `id`.
-    pub fn insert(&mut self, id: PortId, data: DataMessage) -> Option<DataMessage> {
-        self.0.insert(id, data)
-    }
-
-    /// Gets a reference to the data identified by the `id`.
-    pub fn get(&self, id: &PortId) -> Option<&DataMessage> {
-        self.0.get(id)
-    }
-    /// Gets a mutable reference to the data idenfitied by the `id`.
-    pub fn get_mut(&mut self, id: &PortId) -> Option<&mut DataMessage> {
-        self.0.get_mut(id)
-    }
-}
-
-impl<'a> IntoIterator for &'a Inputs {
-    type Item = (&'a PortId, &'a DataMessage);
-    type IntoIter = std::collections::hash_map::Iter<'a, PortId, DataMessage>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.iter()
-    }
-}
-
 /// The empty state is a commodity struct provided to user that do not
 /// need any state for they operators.
 #[derive(Debug, Clone)]
@@ -378,6 +335,68 @@ impl DurationDescriptor {
             DurationUnit::Second => Duration::from_secs(self.length),
             DurationUnit::Millisecond => Duration::from_millis(self.length),
             DurationUnit::Microsecond => Duration::from_micros(self.length),
+        }
+    }
+}
+
+// TODO Implement iterator?
+#[derive(Clone, Debug)]
+pub struct Inputs {
+    pub(crate) hmap: HashMap<PortId, Vec<LinkReceiver>>,
+}
+
+impl Inputs {
+    pub(crate) fn new() -> Self {
+        Self {
+            hmap: HashMap::new(),
+        }
+    }
+
+    pub fn get(&self, port_id: &str) -> Option<&Vec<LinkReceiver>> {
+        self.hmap.get(port_id)
+    }
+
+    pub fn remove(&mut self, port_id: &str) -> Option<Vec<LinkReceiver>> {
+        self.hmap.remove(port_id)
+    }
+
+    pub(crate) fn add(&mut self, rx: LinkReceiver) {
+        let port_id = rx.id();
+        if let Some(receivers) = self.hmap.get_mut(&port_id) {
+            receivers.push(rx);
+        } else {
+            self.hmap.insert(port_id, vec![rx]);
+        }
+    }
+}
+
+// TODO Implement iterator?
+#[derive(Clone)]
+pub struct Outputs {
+    pub(crate) hmap: HashMap<PortId, Vec<LinkSender>>,
+}
+
+impl Outputs {
+    pub(crate) fn new() -> Self {
+        Self {
+            hmap: HashMap::new(),
+        }
+    }
+
+    pub fn get(&self, port_id: &str) -> Option<&Vec<LinkSender>> {
+        self.hmap.get(port_id)
+    }
+
+    pub fn remove(&mut self, port_id: &str) -> Option<Vec<LinkSender>> {
+        self.hmap.remove(port_id)
+    }
+
+    pub(crate) fn add(&mut self, tx: LinkSender) {
+        let port_id = tx.id();
+        if let Some(senders) = self.hmap.get_mut(&port_id) {
+            senders.push(tx);
+        } else {
+            self.hmap.insert(port_id, vec![tx]);
         }
     }
 }

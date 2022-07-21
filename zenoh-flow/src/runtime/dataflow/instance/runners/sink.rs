@@ -20,10 +20,9 @@ use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorIO;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SinkLoaded;
-use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
-use crate::{Context, NodeId, PortId, PortType, Sink, State, ZFError};
+use crate::{NodeId, PortId, PortType, Sink, ZFError};
 use async_trait::async_trait;
 
 #[cfg(target_family = "unix")]
@@ -46,7 +45,6 @@ pub struct SinkRunner {
     pub(crate) input: PortRecord,
     pub(crate) link: Arc<Mutex<Option<LinkReceiver>>>,
     pub(crate) is_running: Arc<Mutex<bool>>,
-    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) _library: Option<Arc<Library>>,
 }
@@ -74,55 +72,54 @@ impl SinkRunner {
             input: sink.input,
             link: Arc::new(Mutex::new(Some(link))),
             is_running: Arc::new(Mutex::new(false)),
-            state: sink.state,
             sink: sink.sink,
             _library: sink.library,
         })
     }
 
-    /// Starts the sink.
-    async fn start(&self) {
-        *self.is_running.lock().await = true;
-    }
+    // /// Starts the sink.
+    // async fn start(&self) {
+    //     *self.is_running.lock().await = true;
+    // }
 
-    /// A single iteration of the run loop.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// -  user returns an error
-    /// - link recv fails
-    ///
-    async fn iteration(&self, mut context: Context) -> ZFResult<Context> {
-        // Guards are taken at the beginning of each iteration to allow interleaving.
-        if let Some(link) = &*self.link.lock().await {
-            let mut state = self.state.lock().await;
+    // /// A single iteration of the run loop.
+    // ///
+    // /// # Errors
+    // /// An error variant is returned in case of:
+    // /// -  user returns an error
+    // /// - link recv fails
+    // ///
+    // async fn iteration(&self, mut context: Context) -> ZFResult<Context> {
+    //     // Guards are taken at the beginning of each iteration to allow interleaving.
+    //     if let Some(link) = &*self.link.lock().await {
+    //         let mut state = self.state.lock().await;
 
-            let (_port_id, message) = link.recv().await?;
-            let input = match message.as_ref() {
-                Message::Data(data_message) => {
-                    if let Err(error) = self
-                        .context
-                        .runtime
-                        .hlc
-                        .update_with_timestamp(&data_message.timestamp)
-                    {
-                        log::error!(
-                            "[Sink: {}][HLC] Could not update HLC with timestamp {:?}: {:?}",
-                            self.id,
-                            data_message.timestamp,
-                            error
-                        );
-                    }
-                    data_message.clone()
-                }
+    //         let (_port_id, message) = link.recv().await?;
+    //         let input = match message.as_ref() {
+    //             Message::Data(data_message) => {
+    //                 if let Err(error) = self
+    //                     .context
+    //                     .runtime
+    //                     .hlc
+    //                     .update_with_timestamp(&data_message.timestamp)
+    //                 {
+    //                     log::error!(
+    //                         "[Sink: {}][HLC] Could not update HLC with timestamp {:?}: {:?}",
+    //                         self.id,
+    //                         data_message.timestamp,
+    //                         error
+    //                     );
+    //                 }
+    //                 data_message.clone()
+    //             }
 
-                Message::Control(_) => return Err(ZFError::Unimplemented),
-            };
+    //             Message::Control(_) => return Err(ZFError::Unimplemented),
+    //         };
 
-            self.sink.run(&mut context, &mut state, input).await?;
-        }
-        Ok(context)
-    }
+    //         self.sink.run(&mut context, &mut state, input).await?;
+    //     }
+    //     Ok(context)
+    // }
 }
 
 #[async_trait]
@@ -143,8 +140,7 @@ impl Runner for SinkRunner {
     }
 
     async fn clean(&self) -> ZFResult<()> {
-        let mut state = self.state.lock().await;
-        self.sink.finalize(&mut state)
+        self.sink.finalize().await
     }
 
     fn get_inputs(&self) -> HashMap<PortId, PortType> {

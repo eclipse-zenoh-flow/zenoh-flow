@@ -14,8 +14,8 @@
 
 use crate::model::link::PortRecord;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
-use async_std::sync::{Arc, Mutex};
+use crate::{NodeId, Operator, PortId, PortType, Sink, Source, ZFResult};
+use async_std::sync::Arc;
 use std::collections::HashMap;
 
 #[cfg(target_family = "unix")]
@@ -29,7 +29,6 @@ use libloading::Library;
 pub struct SourceLoaded {
     pub(crate) id: NodeId,
     pub(crate) output: PortRecord,
-    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -47,12 +46,9 @@ impl SourceLoaded {
         lib: Option<Arc<Library>>,
         source: Arc<dyn Source>,
     ) -> ZFResult<Self> {
-        let state = source.initialize(&record.configuration)?;
-
         Ok(Self {
             id: record.id,
             output: record.output,
-            state: Arc::new(Mutex::new(state)),
             source,
             library: lib,
         })
@@ -66,7 +62,6 @@ pub struct OperatorLoaded {
     pub(crate) id: NodeId,
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
-    pub(crate) state: State,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -84,8 +79,6 @@ impl OperatorLoaded {
         lib: Option<Arc<Library>>,
         operator: Arc<dyn Operator>,
     ) -> ZFResult<Self> {
-        let state = operator.initialize(&record.configuration)?;
-
         let inputs: HashMap<PortId, PortType> = record
             .inputs
             .into_iter()
@@ -100,7 +93,6 @@ impl OperatorLoaded {
 
         Ok(Self {
             id: record.id,
-            state,
             inputs,
             outputs,
             operator,
@@ -114,7 +106,6 @@ impl OperatorLoaded {
 /// This struct is then used within a `Runner` to actually run the sink.
 pub struct SinkLoaded {
     pub(crate) id: NodeId,
-    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) input: PortRecord,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) library: Option<Arc<Library>>,
@@ -133,12 +124,9 @@ impl SinkLoaded {
         lib: Option<Arc<Library>>,
         sink: Arc<dyn Sink>,
     ) -> ZFResult<Self> {
-        let state = sink.initialize(&record.configuration)?;
-
         Ok(Self {
             id: record.id,
             input: record.input,
-            state: Arc::new(Mutex::new(state)),
             sink,
             library: lib,
         })

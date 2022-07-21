@@ -17,16 +17,10 @@ use crate::model::node::OperatorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
-use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
-use crate::{
-    Context, DataMessage, InputToken, NodeId, Operator, PortId, PortType, State, TokenAction,
-    ZFError, ZFResult,
-};
+use crate::{NodeId, Operator, PortId, PortType, ZFError, ZFResult};
 use async_trait::async_trait;
-use futures::{future, Future};
 use std::collections::HashMap;
-use std::time::Instant;
 
 #[cfg(target_family = "unix")]
 use libloading::os::unix::Library;
@@ -41,22 +35,22 @@ pub struct OperatorIO {
     outputs: HashMap<PortId, Vec<LinkSender>>,
 }
 
-/// Future of the `Receiver`
-type LinkRecvFut<'a> = std::pin::Pin<
-    Box<dyn Future<Output = Result<(Arc<str>, Arc<Message>), ZFError>> + Send + Sync + 'a>,
->;
+// /// Future of the `Receiver`
+// type LinkRecvFut<'a> = std::pin::Pin<
+//     Box<dyn Future<Output = Result<(Arc<str>, Arc<Message>), ZFError>> + Send + Sync + 'a>,
+// >;
 
-impl OperatorIO {
-    fn poll_input(&self, node_id: &NodeId, port_id: &PortId) -> ZFResult<LinkRecvFut> {
-        let rx = self.inputs.get(port_id).ok_or_else(|| {
-            ZFError::IOError(format!(
-                "[Operator: {}] Link < {} > no longer exists.",
-                node_id, port_id
-            ))
-        })?;
-        Ok(rx.recv())
-    }
-}
+// impl OperatorIO {
+//     fn poll_input(&self, node_id: &NodeId, port_id: &PortId) -> ZFResult<LinkRecvFut> {
+//         let rx = self.inputs.get(port_id).ok_or_else(|| {
+//             ZFError::IOError(format!(
+//                 "[Operator: {}] Link < {} > no longer exists.",
+//                 node_id, port_id
+//             ))
+//         })?;
+//         Ok(rx.recv())
+//     }
+// }
 
 /// Type of Inputs
 pub type InputsLink = HashMap<PortId, LinkReceiver>;
@@ -127,7 +121,6 @@ pub struct OperatorRunner {
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
     pub(crate) is_running: Arc<Mutex<bool>>,
-    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) _library: Option<Arc<Library>>,
 }
@@ -151,225 +144,224 @@ impl OperatorRunner {
             io: Arc::new(Mutex::new(operator_io)),
             inputs: operator.inputs,
             outputs: operator.outputs,
-            state: Arc::new(Mutex::new(operator.state)),
             is_running: Arc::new(Mutex::new(false)),
             operator: operator.operator,
             _library: operator.library,
         })
     }
 
-    /// Starts the operator.
-    async fn start(&self) {
-        *self.is_running.lock().await = true;
-    }
+    // /// Starts the operator.
+    // async fn start(&self) {
+    //     *self.is_running.lock().await = true;
+    // }
 
-    /// A single iteration of the run loop.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// -  user returns an error
-    /// - link recv fails
-    /// - link send fails
-    ///
-    async fn iteration(
-        &self,
-        mut context: Context,
-        mut tokens: HashMap<PortId, InputToken>,
-        mut data: HashMap<PortId, DataMessage>,
-    ) -> ZFResult<(
-        Context,
-        HashMap<PortId, InputToken>,
-        HashMap<PortId, DataMessage>,
-    )> {
-        // Guards are taken at the beginning of each iteration to allow interleaving.
-        let io = self.io.lock().await;
-        let mut state = self.state.lock().await;
+    // /// A single iteration of the run loop.
+    // ///
+    // /// # Errors
+    // /// An error variant is returned in case of:
+    // /// -  user returns an error
+    // /// - link recv fails
+    // /// - link send fails
+    // ///
+    // async fn iteration(
+    //     &self,
+    //     mut context: Context,
+    //     mut tokens: HashMap<PortId, InputToken>,
+    //     mut data: HashMap<PortId, DataMessage>,
+    // ) -> ZFResult<(
+    //     Context,
+    //     HashMap<PortId, InputToken>,
+    //     HashMap<PortId, DataMessage>,
+    // )> {
+    //     // Guards are taken at the beginning of each iteration to allow interleaving.
+    //     let io = self.io.lock().await;
+    //     let mut state = self.state.lock().await;
 
-        let mut links = Vec::with_capacity(tokens.len());
+    //     let mut links = Vec::with_capacity(tokens.len());
 
-        // Only call `recv` on links where the corresponding Token is `Pending`. If a
-        // `ReadyToken` has its action set to `Keep` then it will stay as a `ReadyToken` (i.e.
-        // it won’t be resetted later on) and we should not poll data.
-        for (port_id, token) in tokens.iter() {
-            if let InputToken::Pending = token {
-                links.push(io.poll_input(&self.id, port_id)?);
-            }
-        }
+    //     // Only call `recv` on links where the corresponding Token is `Pending`. If a
+    //     // `ReadyToken` has its action set to `Keep` then it will stay as a `ReadyToken` (i.e.
+    //     // it won’t be resetted later on) and we should not poll data.
+    //     for (port_id, token) in tokens.iter() {
+    //         if let InputToken::Pending = token {
+    //             links.push(io.poll_input(&self.id, port_id)?);
+    //         }
+    //     }
 
-        'input_rule: loop {
-            if !links.is_empty() {
-                match future::select_all(links).await {
-                    (Ok((port_id, message)), _index, remaining) => {
-                        match message.as_ref() {
-                            Message::Data(data_message) => {
-                                // In order to check for E2EDeadlines we first have to update
-                                // the HLC. There is indeed a possibility that the timestamp
-                                // associated with the data is "ahead" of the hlc on this
-                                // runtime — which would cause problems when computing the time
-                                // difference.
-                                if let Err(error) = self
-                                    .context
-                                    .runtime
-                                    .hlc
-                                    .update_with_timestamp(&data_message.timestamp)
-                                {
-                                    log::error!(
-                                        "[Operator: {}][HLC] Could not update HLC with \
-                                             timestamp {:?}: {:?}",
-                                        self.id,
-                                        data_message.timestamp,
-                                        error
-                                    );
-                                }
+    //     'input_rule: loop {
+    //         if !links.is_empty() {
+    //             match future::select_all(links).await {
+    //                 (Ok((port_id, message)), _index, remaining) => {
+    //                     match message.as_ref() {
+    //                         Message::Data(data_message) => {
+    //                             // In order to check for E2EDeadlines we first have to update
+    //                             // the HLC. There is indeed a possibility that the timestamp
+    //                             // associated with the data is "ahead" of the hlc on this
+    //                             // runtime — which would cause problems when computing the time
+    //                             // difference.
+    //                             if let Err(error) = self
+    //                                 .context
+    //                                 .runtime
+    //                                 .hlc
+    //                                 .update_with_timestamp(&data_message.timestamp)
+    //                             {
+    //                                 log::error!(
+    //                                     "[Operator: {}][HLC] Could not update HLC with \
+    //                                          timestamp {:?}: {:?}",
+    //                                     self.id,
+    //                                     data_message.timestamp,
+    //                                     error
+    //                                 );
+    //                             }
 
-                                tokens.insert(port_id, InputToken::from(data_message.clone()));
-                            }
+    //                             tokens.insert(port_id, InputToken::from(data_message.clone()));
+    //                         }
 
-                            Message::Control(_) => {
-                                return Err(ZFError::Unimplemented);
-                            }
-                        }
+    //                         Message::Control(_) => {
+    //                             return Err(ZFError::Unimplemented);
+    //                         }
+    //                     }
 
-                        links = remaining;
-                    }
+    //                     links = remaining;
+    //                 }
 
-                    (Err(e), _index, _remaining) => {
-                        let err_msg =
-                            format!("[Operator: {}] Link returned an error: {:?}", self.id, e);
-                        log::error!("{}", &err_msg);
-                        return Err(ZFError::IOError(err_msg));
-                    }
-                }
-            }
+    //                 (Err(e), _index, _remaining) => {
+    //                     let err_msg =
+    //                         format!("[Operator: {}] Link returned an error: {:?}", self.id, e);
+    //                     log::error!("{}", &err_msg);
+    //                     return Err(ZFError::IOError(err_msg));
+    //                 }
+    //             }
+    //         }
 
-            match self
-                .operator
-                .input_rule(&mut context, &mut state, &mut tokens)
-            {
-                Ok(true) => {
-                    log::trace!("[Operator: {}] Input Rule returned < true >.", self.id);
-                    break 'input_rule;
-                }
-                Ok(false) => {
-                    log::trace!("[Operator: {}] Input Rule returned < false >.", self.id);
-                }
-                Err(e) => {
-                    log::error!(
-                        "[Operator: {}] Input Rule returned an error: {:?}",
-                        self.id,
-                        e
-                    );
-                    return Err(ZFError::IOError(e.to_string()));
-                }
-            }
+    //         match self
+    //             .operator
+    //             .input_rule(&mut context, &mut state, &mut tokens)
+    //         {
+    //             Ok(true) => {
+    //                 log::trace!("[Operator: {}] Input Rule returned < true >.", self.id);
+    //                 break 'input_rule;
+    //             }
+    //             Ok(false) => {
+    //                 log::trace!("[Operator: {}] Input Rule returned < false >.", self.id);
+    //             }
+    //             Err(e) => {
+    //                 log::error!(
+    //                     "[Operator: {}] Input Rule returned an error: {:?}",
+    //                     self.id,
+    //                     e
+    //                 );
+    //                 return Err(ZFError::IOError(e.to_string()));
+    //             }
+    //         }
 
-            // Poll on the links where the action of the `Token` was set to `drop`.
-            for (port_id, token) in tokens.iter_mut() {
-                if token.should_drop() {
-                    *token = InputToken::Pending;
-                    links.push(io.poll_input(&self.id, port_id)?);
-                }
-            }
-        } // end < 'input_rule: loop >
+    //         // Poll on the links where the action of the `Token` was set to `drop`.
+    //         for (port_id, token) in tokens.iter_mut() {
+    //             if token.should_drop() {
+    //                 *token = InputToken::Pending;
+    //                 links.push(io.poll_input(&self.id, port_id)?);
+    //             }
+    //         }
+    //     } // end < 'input_rule: loop >
 
-        let mut earliest_source_timestamp = None;
+    //     let mut earliest_source_timestamp = None;
 
-        for (port_id, token) in tokens.iter_mut() {
-            match token {
-                InputToken::Pending => {
-                    log::trace!(
-                        "[Operator: {}] Removing < {} > from Data transmitted to `run`.",
-                        self.id,
-                        port_id
-                    );
-                    data.remove(port_id);
-                    continue;
-                }
-                InputToken::Ready(data_token) => {
-                    earliest_source_timestamp = match earliest_source_timestamp {
-                        None => Some(data_token.data.timestamp),
-                        Some(timestamp) => {
-                            if data_token.data.timestamp > timestamp {
-                                Some(data_token.data.timestamp)
-                            } else {
-                                Some(timestamp)
-                            }
-                        }
-                    };
+    //     for (port_id, token) in tokens.iter_mut() {
+    //         match token {
+    //             InputToken::Pending => {
+    //                 log::trace!(
+    //                     "[Operator: {}] Removing < {} > from Data transmitted to `run`.",
+    //                     self.id,
+    //                     port_id
+    //                 );
+    //                 data.remove(port_id);
+    //                 continue;
+    //             }
+    //             InputToken::Ready(data_token) => {
+    //                 earliest_source_timestamp = match earliest_source_timestamp {
+    //                     None => Some(data_token.data.timestamp),
+    //                     Some(timestamp) => {
+    //                         if data_token.data.timestamp > timestamp {
+    //                             Some(data_token.data.timestamp)
+    //                         } else {
+    //                             Some(timestamp)
+    //                         }
+    //                     }
+    //                 };
 
-                    // TODO: Refactor this code to:
-                    // 1) Avoid considering the source_timestamp of a token that is dropped.
-                    match data_token.action {
-                        TokenAction::Consume | TokenAction::Keep => {
-                            log::trace!("[Operator: {}] Consuming < {} >.", self.id, port_id);
-                            data.insert(port_id.clone(), data_token.data.clone());
-                            if data_token.action == TokenAction::Consume {
-                                *token = InputToken::Pending;
-                            }
-                        }
-                        TokenAction::Drop => {
-                            log::trace!("[Operator: {}] Dropping < {} >.", self.id, port_id);
-                            data.remove(port_id);
-                            *token = InputToken::Pending;
-                        }
-                    }
-                }
-            }
-        }
+    //                 // TODO: Refactor this code to:
+    //                 // 1) Avoid considering the source_timestamp of a token that is dropped.
+    //                 match data_token.action {
+    //                     TokenAction::Consume | TokenAction::Keep => {
+    //                         log::trace!("[Operator: {}] Consuming < {} >.", self.id, port_id);
+    //                         data.insert(port_id.clone(), data_token.data.clone());
+    //                         if data_token.action == TokenAction::Consume {
+    //                             *token = InputToken::Pending;
+    //                         }
+    //                     }
+    //                     TokenAction::Drop => {
+    //                         log::trace!("[Operator: {}] Dropping < {} >.", self.id, port_id);
+    //                         data.remove(port_id);
+    //                         *token = InputToken::Pending;
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
 
-        let timestamp = {
-            match earliest_source_timestamp {
-                Some(max_timestamp) => max_timestamp,
-                None => self.context.runtime.hlc.new_timestamp(),
-            }
-        };
+    //     let timestamp = {
+    //         match earliest_source_timestamp {
+    //             Some(max_timestamp) => max_timestamp,
+    //             None => self.context.runtime.hlc.new_timestamp(),
+    //         }
+    //     };
 
-        // Running
-        let start = Instant::now();
-        let run_outputs = self.operator.run(&mut context, &mut state, &mut data)?;
-        let elapsed = start.elapsed();
+    //     // Running
+    //     let start = Instant::now();
+    //     let run_outputs = self.operator.run(&mut context, &mut state, &mut data)?;
+    //     let elapsed = start.elapsed();
 
-        log::trace!(
-            "[Operator: {}] `run` executed in {} ms",
-            self.id,
-            elapsed.as_micros()
-        );
+    //     log::trace!(
+    //         "[Operator: {}] `run` executed in {} ms",
+    //         self.id,
+    //         elapsed.as_micros()
+    //     );
 
-        // Output rules
-        let mut outputs = self
-            .operator
-            .output_rule(&mut context, &mut state, run_outputs)?;
+    //     // Output rules
+    //     let mut outputs = self
+    //         .operator
+    //         .output_rule(&mut context, &mut state, run_outputs)?;
 
-        // Send to Links
-        for port_id in self.outputs.keys() {
-            let output = match outputs.remove(port_id) {
-                Some(output) => output,
-                None => continue,
-            };
+    //     // Send to Links
+    //     for port_id in self.outputs.keys() {
+    //         let output = match outputs.remove(port_id) {
+    //             Some(output) => output,
+    //             None => continue,
+    //         };
 
-            log::trace!("Sending on port < {} >…", port_id);
+    //         log::trace!("Sending on port < {} >…", port_id);
 
-            if let Some(link_senders) = io.outputs.get(port_id) {
-                let zf_message = Arc::new(Message::from_node_output(output, timestamp));
+    //         if let Some(link_senders) = io.outputs.get(port_id) {
+    //             let zf_message = Arc::new(Message::from_node_output(output, timestamp));
 
-                for link_sender in link_senders {
-                    let res = link_sender.send(zf_message.clone()).await;
+    //             for link_sender in link_senders {
+    //                 let res = link_sender.send(zf_message.clone()).await;
 
-                    // TODO: Maybe we want to process somehow the error, not simply log it.
-                    if let Err(e) = res {
-                        log::error!(
-                            "[Operator: {}] Could not send output < {} > on link < {} >: {:?}",
-                            self.id,
-                            port_id,
-                            link_sender.id,
-                            e
-                        );
-                    }
-                }
-            }
-        }
-        Ok((context, tokens, data))
-    }
+    //                 // TODO: Maybe we want to process somehow the error, not simply log it.
+    //                 if let Err(e) = res {
+    //                     log::error!(
+    //                         "[Operator: {}] Could not send output < {} > on link < {} >: {:?}",
+    //                         self.id,
+    //                         port_id,
+    //                         link_sender.id,
+    //                         e
+    //                     );
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     Ok((context, tokens, data))
+    // }
 }
 
 #[async_trait]
@@ -443,8 +435,7 @@ impl Runner for OperatorRunner {
     }
 
     async fn clean(&self) -> ZFResult<()> {
-        let mut state = self.state.lock().await;
-        self.operator.finalize(&mut state)
+        self.operator.finalize().await
     }
 
     fn start(&mut self) -> ZFResult<()> {
@@ -494,6 +485,6 @@ impl Runner for OperatorRunner {
     }
 }
 
-#[cfg(test)]
-#[path = "./tests/operator_test.rs"]
-mod tests;
+// #[cfg(test)]
+// #[path = "./tests/operator_test.rs"]
+// mod tests;

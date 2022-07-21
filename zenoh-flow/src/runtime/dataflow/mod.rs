@@ -16,7 +16,7 @@ pub mod instance;
 pub mod loader;
 pub mod node;
 
-use async_std::sync::{Arc, Mutex};
+use async_std::sync::Arc;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -27,7 +27,7 @@ use crate::model::link::{LinkRecord, PortDescriptor};
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
-use crate::{FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
+use crate::{FlowId, NodeId, Operator, PortId, PortType, Sink, Source, ZFResult};
 
 /// The data flow struct.
 /// This struct contains all the information needed to instantiate a data flow.
@@ -155,7 +155,6 @@ impl Dataflow {
         &mut self,
         id: NodeId,
         output: PortDescriptor,
-        state: State,
         source: Arc<dyn Source>,
     ) -> ZFResult<()> {
         self.validator.try_add_source(id.clone(), output.clone())?;
@@ -165,7 +164,6 @@ impl Dataflow {
             SourceLoaded {
                 id,
                 output: (output, self.counter).into(),
-                state: Arc::new(Mutex::new(state)),
                 source,
                 library: None,
             },
@@ -189,7 +187,6 @@ impl Dataflow {
         id: NodeId,
         inputs: Vec<PortDescriptor>,
         outputs: Vec<PortDescriptor>,
-        state: State,
         operator: Arc<dyn Operator>,
     ) -> ZFResult<()> {
         self.validator
@@ -209,7 +206,6 @@ impl Dataflow {
             OperatorLoaded {
                 id,
                 inputs,
-                state,
                 outputs,
                 operator,
                 library: None,
@@ -232,7 +228,6 @@ impl Dataflow {
         &mut self,
         id: NodeId,
         input: PortDescriptor,
-        state: State,
         sink: Arc<dyn Sink>,
     ) -> ZFResult<()> {
         self.validator.try_add_sink(id.clone(), input.clone())?;
@@ -242,7 +237,6 @@ impl Dataflow {
             SinkLoaded {
                 id,
                 input: (input, self.counter).into(),
-                state: Arc::new(Mutex::new(state)),
                 sink,
                 library: None,
             },

@@ -21,9 +21,7 @@ use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
-use crate::{
-    Context, ControlMessage, NodeId, PortId, PortType, RecordingMetadata, Source, State, ZFError,
-};
+use crate::{ControlMessage, NodeId, PortId, PortType, RecordingMetadata, Source, ZFError};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh::prelude::*;
@@ -47,7 +45,6 @@ pub struct SourceRunner {
     pub(crate) context: InstanceContext,
     pub(crate) output: PortRecord,
     pub(crate) links: Arc<Mutex<Vec<LinkSender>>>,
-    pub(crate) state: Arc<Mutex<State>>,
     pub(crate) base_resource_name: String,
     pub(crate) current_recording_resource_id: Arc<Mutex<Option<ExprId>>>,
     pub(crate) current_recording_resource: Arc<Mutex<Option<String>>>,
@@ -93,7 +90,6 @@ impl SourceRunner {
         Ok(Self {
             id: source.id,
             context,
-            state: source.state,
             output: source.output,
             links: Arc::new(Mutex::new(links)),
             source: source.source,
@@ -141,38 +137,38 @@ impl SourceRunner {
         Ok(())
     }
 
-    /// A single iteration of the run loop.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - user returns an error
-    /// - record fails
-    /// - link send fails
-    async fn iteration(&self, mut context: Context) -> ZFResult<Context> {
-        let links = self.links.lock().await;
-        let mut state = self.state.lock().await;
+    // /// A single iteration of the run loop.
+    // ///
+    // /// # Errors
+    // /// An error variant is returned in case of:
+    // /// - user returns an error
+    // /// - record fails
+    // /// - link send fails
+    // async fn iteration(&self, mut context: Context) -> ZFResult<Context> {
+    //     let links = self.links.lock().await;
+    //     let mut state = self.state.lock().await;
 
-        // Running
-        let output = self.source.run(&mut context, &mut state).await?;
+    //     // Running
+    //     let output = self.source.run(&mut context, &mut state).await?;
 
-        let timestamp = self.context.runtime.hlc.new_timestamp();
+    //     let timestamp = self.context.runtime.hlc.new_timestamp();
 
-        // Send to Links
-        log::trace!("Sending on {:?} data: {:?}", self.output.port_id, output);
+    //     // Send to Links
+    //     log::trace!("Sending on {:?} data: {:?}", self.output.port_id, output);
 
-        let zf_message = Arc::new(Message::from_serdedata(output, timestamp));
-        for link in links.iter() {
-            log::trace!("\tSending on: {:?}", link);
-            link.send(zf_message.clone()).await?;
-        }
-        self.record(zf_message).await?;
-        Ok(context)
-    }
+    //     let zf_message = Arc::new(Message::from_serdedata(output, timestamp));
+    //     for link in links.iter() {
+    //         log::trace!("\tSending on: {:?}", link);
+    //         link.send(zf_message.clone()).await?;
+    //     }
+    //     self.record(zf_message).await?;
+    //     Ok(context)
+    // }
 
-    /// Starts the source.
-    async fn start(&self) {
-        *self.is_running.lock().await = true;
-    }
+    // /// Starts the source.
+    // async fn start(&self) {
+    //     *self.is_running.lock().await = true;
+    // }
 }
 
 #[async_trait]
@@ -195,8 +191,7 @@ impl Runner for SourceRunner {
     }
 
     async fn clean(&self) -> ZFResult<()> {
-        let mut state = self.state.lock().await;
-        self.source.finalize(&mut state)
+        self.source.finalize().await
     }
 
     fn get_outputs(&self) -> HashMap<PortId, PortType> {
