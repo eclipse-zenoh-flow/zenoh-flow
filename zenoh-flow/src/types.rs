@@ -15,7 +15,7 @@
 use crate::async_std::sync::Arc;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::serde::{Deserialize, Serialize};
-use crate::{ControlMessage, InputToken, ZFData, ZFState};
+use crate::{ControlMessage, ZFData};
 use std::collections::HashMap;
 use std::time::Duration;
 /// A NodeId identifies a node inside a Zenoh Flow graph
@@ -145,49 +145,50 @@ impl Data {
     }
 }
 
-/// This structs stores a node state in the heap.
-pub struct State {
-    state: Box<dyn ZFState>,
-}
+// FIXME To remove?
+// /// This structs stores a node state in the heap.
+// pub struct State {
+//     state: Box<dyn ZFState>,
+// }
 
-impl State {
-    /// Creates a new `State`, from an already boxed state.
-    /// The state has to be an instance of [`ZFState`]`ZFState`
-    pub fn from_box<S>(boxed: Box<S>) -> Self
-    where
-        S: ZFState + 'static,
-    {
-        Self { state: boxed }
-    }
+// impl State {
+//     /// Creates a new `State`, from an already boxed state.
+//     /// The state has to be an instance of [`ZFState`]`ZFState`
+//     pub fn from_box<S>(boxed: Box<S>) -> Self
+//     where
+//         S: ZFState + 'static,
+//     {
+//         Self { state: boxed }
+//     }
 
-    /// Creates a new `State` from the provided state.
-    /// The state has to be an instance of [`ZFState`]`ZFState`
-    pub fn from<S>(state: S) -> Self
-    where
-        S: ZFState + 'static,
-    {
-        Self {
-            state: Box::new(state),
-        }
-    }
+//     /// Creates a new `State` from the provided state.
+//     /// The state has to be an instance of [`ZFState`]`ZFState`
+//     pub fn from<S>(state: S) -> Self
+//     where
+//         S: ZFState + 'static,
+//     {
+//         Self {
+//             state: Box::new(state),
+//         }
+//     }
 
-    /// Tries to cast the state to the given type.
-    /// It returns a mutable reference to the internal state, so user can
-    /// modify it.
-    ///
-    /// # Errors
-    /// If it fails to cast an error
-    /// variant will be returned.
-    pub fn try_get<S>(&mut self) -> ZFResult<&mut S>
-    where
-        S: ZFState + 'static,
-    {
-        self.state
-            .as_mut_any()
-            .downcast_mut::<S>()
-            .ok_or_else(|| ZFError::InvalidData("Could not downcast.".to_string()))
-    }
-}
+//     /// Tries to cast the state to the given type.
+//     /// It returns a mutable reference to the internal state, so user can
+//     /// modify it.
+//     ///
+//     /// # Errors
+//     /// If it fails to cast an error
+//     /// variant will be returned.
+//     pub fn try_get<S>(&mut self) -> ZFResult<&mut S>
+//     where
+//         S: ZFState + 'static,
+//     {
+//         self.state
+//             .as_mut_any()
+//             .downcast_mut::<S>()
+//             .ok_or_else(|| ZFError::InvalidData("Could not downcast.".to_string()))
+//     }
+// }
 
 /// Represents the output of a node.
 /// A node can either send `Data` or `Control`
@@ -204,53 +205,53 @@ pub enum NodeOutput {
     Control(ControlMessage),
 }
 
-/// The empty state is a commodity struct provided to user that do not
-/// need any state for they operators.
-#[derive(Debug, Clone)]
-pub struct EmptyState;
+// /// The empty state is a commodity struct provided to user that do not
+// /// need any state for they operators.
+// #[derive(Debug, Clone)]
+// pub struct EmptyState;
 
-impl ZFState for EmptyState {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
+// impl ZFState for EmptyState {
+//     fn as_any(&self) -> &dyn std::any::Any {
+//         self
+//     }
 
-    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-}
+//     fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
+//         self
+//     }
+// }
 
-/// Commodity function for users that do not need output
-/// rules in their operators.
-/// The data is simply converted to the
-/// expected [`NodeOutput`](`NodeOutput`) type.
-pub fn default_output_rule(
-    _state: &mut State,
-    outputs: HashMap<PortId, Data>,
-) -> ZFResult<HashMap<PortId, NodeOutput>> {
-    let mut results = HashMap::with_capacity(outputs.len());
-    for (k, v) in outputs {
-        results.insert(k, NodeOutput::Data(v));
-    }
+// /// Commodity function for users that do not need output
+// /// rules in their operators.
+// /// The data is simply converted to the
+// /// expected [`NodeOutput`](`NodeOutput`) type.
+// pub fn default_output_rule(
+//     _state: &mut State,
+//     outputs: HashMap<PortId, Data>,
+// ) -> ZFResult<HashMap<PortId, NodeOutput>> {
+//     let mut results = HashMap::with_capacity(outputs.len());
+//     for (k, v) in outputs {
+//         results.insert(k, NodeOutput::Data(v));
+//     }
 
-    Ok(results)
-}
+//     Ok(results)
+// }
 
-/// Commodity function for users that need their operators to behave
-/// in a KPN manner:
-/// all inputs must be present before a computation can be triggered.
-pub fn default_input_rule(
-    _state: &mut State,
-    tokens: &mut HashMap<PortId, InputToken>,
-) -> ZFResult<bool> {
-    for token in tokens.values() {
-        match token {
-            InputToken::Ready(_) => continue,
-            InputToken::Pending => return Ok(false),
-        }
-    }
+// /// Commodity function for users that need their operators to behave
+// /// in a KPN manner:
+// /// all inputs must be present before a computation can be triggered.
+// pub fn default_input_rule(
+//     _state: &mut State,
+//     tokens: &mut HashMap<PortId, InputToken>,
+// ) -> ZFResult<bool> {
+//     for token in tokens.values() {
+//         match token {
+//             InputToken::Ready(_) => continue,
+//             InputToken::Pending => return Ok(false),
+//         }
+//     }
 
-    Ok(true)
-}
+//     Ok(true)
+// }
 
 /// The generic configuration of a graph node.
 /// It is a re-export of `serde_json::Value`

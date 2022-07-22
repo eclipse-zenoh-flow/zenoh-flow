@@ -14,7 +14,7 @@
 
 use crate::model::link::PortRecord;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::{NodeId, Operator, PortId, PortType, Sink, Source, ZFResult};
+use crate::{Configuration, NodeId, Operator, PortId, PortType, Sink, Source, ZFResult};
 use async_std::sync::Arc;
 use std::collections::HashMap;
 
@@ -28,6 +28,7 @@ use libloading::Library;
 /// This struct is then used within a `Runner` to actually run the source.
 pub struct SourceLoaded {
     pub(crate) id: NodeId,
+    pub(crate) configuration: Option<Configuration>,
     pub(crate) output: PortRecord,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) library: Option<Arc<Library>>,
@@ -48,6 +49,7 @@ impl SourceLoaded {
     ) -> ZFResult<Self> {
         Ok(Self {
             id: record.id,
+            configuration: record.configuration,
             output: record.output,
             source,
             library: lib,
@@ -60,6 +62,7 @@ impl SourceLoaded {
 /// This struct is then used within a `Runner` to actually run the operator.
 pub struct OperatorLoaded {
     pub(crate) id: NodeId,
+    pub(crate) configuration: Option<Configuration>,
     pub(crate) inputs: HashMap<PortId, PortType>,
     pub(crate) outputs: HashMap<PortId, PortType>,
     pub(crate) operator: Arc<dyn Operator>,
@@ -93,6 +96,7 @@ impl OperatorLoaded {
 
         Ok(Self {
             id: record.id,
+            configuration: record.configuration,
             inputs,
             outputs,
             operator,
@@ -106,6 +110,7 @@ impl OperatorLoaded {
 /// This struct is then used within a `Runner` to actually run the sink.
 pub struct SinkLoaded {
     pub(crate) id: NodeId,
+    pub(crate) configuration: Option<Configuration>,
     pub(crate) input: PortRecord,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) library: Option<Arc<Library>>,
@@ -129,6 +134,7 @@ impl SinkLoaded {
             input: record.input,
             sink,
             library: lib,
+            configuration: record.configuration,
         })
     }
 }

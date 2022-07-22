@@ -18,20 +18,9 @@ pub mod replay;
 pub mod sink;
 pub mod source;
 
-use crate::async_std::prelude::*;
-use crate::async_std::sync::Arc;
-use crate::async_std::task::JoinHandle;
-
-use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
-use crate::runtime::InstanceContext;
 use crate::types::{NodeId, ZFResult};
-use crate::{PortId, PortType, ZFError};
+use crate::ZFError;
 use async_trait::async_trait;
-use futures_lite::future::FutureExt;
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 
 /// Type of the Runner.
 ///
@@ -153,21 +142,21 @@ pub trait Runner: Send + Sync {
     ///
     /// # Errors
     /// It can fail to indicate that something went wrong when executing the node.
-    fn start(&mut self) -> ZFResult<()>;
+    async fn start(&mut self) -> ZFResult<()>;
 
-    /// Adds an input to the runner.
-    ///
-    /// # Errors
-    /// It may fail if the runner is not supposed to have that input or
-    /// if it does not expect any input (eg. Source)
-    async fn add_input(&self, input: LinkReceiver) -> ZFResult<()>;
+    // /// Adds an input to the runner.
+    // ///
+    // /// # Errors
+    // /// It may fail if the runner is not supposed to have that input or
+    // /// if it does not expect any input (eg. Source)
+    // async fn add_input(&self, input: LinkReceiver) -> ZFResult<()>;
 
-    /// Adds an output to the runner.
-    ///
-    /// # Errors
-    /// It may fail if the runner is not supposed to have that output or
-    /// if it does not expect any outputs (e.g.  Sink)
-    async fn add_output(&self, output: LinkSender) -> ZFResult<()>;
+    // /// Adds an output to the runner.
+    // ///
+    // /// # Errors
+    // /// It may fail if the runner is not supposed to have that output or
+    // /// if it does not expect any outputs (e.g.  Sink)
+    // async fn add_output(&self, output: LinkSender) -> ZFResult<()>;
 
     /// Finalizes the node
     ///
@@ -181,41 +170,41 @@ pub trait Runner: Send + Sync {
     /// Returns the `NodeId` of the runner.
     fn get_id(&self) -> NodeId;
 
-    /// Returns the inputs of the `Runner`.
-    fn get_inputs(&self) -> HashMap<PortId, PortType>;
+    // /// Returns the inputs of the `Runner`.
+    // fn get_inputs(&self) -> HashMap<PortId, PortType>;
 
-    /// Returns the outputs of the `Runner`.
-    fn get_outputs(&self) -> HashMap<PortId, PortType>;
+    // /// Returns the outputs of the `Runner`.
+    // fn get_outputs(&self) -> HashMap<PortId, PortType>;
 
-    /// Returns the output link of the `Runner.
-    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>>;
+    // /// Returns the output link of the `Runner.
+    // async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>>;
 
-    /// Returns the input link of the `Runner`.
-    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver>;
+    // /// Returns the input link of the `Runner`.
+    // async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver>;
 
-    /// Starts the recording of the `Runner`
-    ///
-    /// # Errors
-    /// Fails if the `Runner` is not a source
-    async fn start_recording(&self) -> ZFResult<String>;
+    // /// Starts the recording of the `Runner`
+    // ///
+    // /// # Errors
+    // /// Fails if the `Runner` is not a source
+    // async fn start_recording(&self) -> ZFResult<String>;
 
-    /// Stops the recording of the `Runner`.
-    ///
-    /// # Errors
-    /// Fails it the `Runner` is not a source.
-    async fn stop_recording(&self) -> ZFResult<String>;
+    // /// Stops the recording of the `Runner`.
+    // ///
+    // /// # Errors
+    // /// Fails it the `Runner` is not a source.
+    // async fn stop_recording(&self) -> ZFResult<String>;
 
-    /// Checks if the `Runner` is recording.
-    ///
-    /// # Errors
-    /// Always `false` if the runner is not a source.
-    async fn is_recording(&self) -> bool;
+    // /// Checks if the `Runner` is recording.
+    // ///
+    // /// # Errors
+    // /// Always `false` if the runner is not a source.
+    // async fn is_recording(&self) -> bool;
 
     /// Checks if the `Runner` is running.
     async fn is_running(&self) -> bool;
 
     /// Stops the runner.
-    fn stop(&mut self) -> ZFResult<()>;
+    async fn stop(&mut self) -> ZFResult<()>;
 }
 
 // /// A `NodeRunner` wraps the `Runner and associates it

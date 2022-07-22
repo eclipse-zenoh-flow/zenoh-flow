@@ -121,7 +121,7 @@ impl From<(LinkDescriptor, u32)> for LinkRecord {
 /// uid: 3
 /// type: usize
 /// ```
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct PortRecord {
     pub uid: u32,
     #[serde(alias = "id")]

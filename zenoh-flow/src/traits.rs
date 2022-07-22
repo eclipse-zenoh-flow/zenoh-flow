@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{Configuration, Context, Inputs, Outputs, ZFResult};
+use crate::{Configuration, Inputs, Outputs, ZFResult};
 use async_trait::async_trait;
 use futures::Future;
 use std::any::Any;
@@ -394,7 +394,6 @@ pub trait Node {
 pub trait Source: Node + Send + Sync {
     async fn setup(
         &self,
-        context: &mut Context,
         configuration: &Option<Configuration>,
         outputs: Outputs,
     ) -> Arc<dyn AsyncIteration>;
@@ -405,7 +404,6 @@ pub trait Source: Node + Send + Sync {
 pub trait Operator: Node + Send + Sync {
     async fn setup(
         &self,
-        context: &mut Context,
         configuration: &Option<Configuration>,
         inputs: Inputs,
         outputs: Outputs,
@@ -417,7 +415,6 @@ pub trait Operator: Node + Send + Sync {
 pub trait Sink: Node + Send + Sync {
     async fn setup(
         &self,
-        context: &mut Context,
         configuration: &Option<Configuration>,
         inputs: Inputs,
     ) -> Arc<dyn AsyncIteration>;
@@ -429,7 +426,6 @@ pub trait Sink: Node + Send + Sync {
 pub trait SourceSink: Node + Send + Sync {
     async fn setup(
         &self,
-        context: &mut Context,
         configuration: &Option<Configuration>,
         inputs: Inputs,
         outputs: Outputs,

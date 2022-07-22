@@ -163,6 +163,7 @@ impl Dataflow {
             id.clone(),
             SourceLoaded {
                 id,
+                configuration: None,
                 output: (output, self.counter).into(),
                 source,
                 library: None,
@@ -205,6 +206,7 @@ impl Dataflow {
             id.clone(),
             OperatorLoaded {
                 id,
+                configuration: None,
                 inputs,
                 outputs,
                 operator,
@@ -236,6 +238,7 @@ impl Dataflow {
             id.clone(),
             SinkLoaded {
                 id,
+                configuration: None,
                 input: (input, self.counter).into(),
                 sink,
                 library: None,

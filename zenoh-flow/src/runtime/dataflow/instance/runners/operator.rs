@@ -12,13 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::async_std::sync::{Arc, Mutex};
+use crate::async_std::sync::Arc;
 use crate::model::node::OperatorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::InstanceContext;
-use crate::{NodeId, Operator, PortId, PortType, ZFError, ZFResult};
+use crate::{Configuration, Inputs, NodeId, Operator, Outputs, PortId, ZFError, ZFResult};
+use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use std::collections::HashMap;
 
@@ -113,16 +114,15 @@ impl OperatorIO {
 /// Ref: <https://doc.rust-lang.org/reference/destructors.html>
 /// We need the state to be dropped before the operator/lib, otherwise we
 /// will have a SIGSEV.
-#[derive(Clone)]
 pub struct OperatorRunner {
     pub(crate) id: NodeId,
     pub(crate) context: InstanceContext,
-    pub(crate) io: Arc<Mutex<OperatorIO>>,
-    pub(crate) inputs: HashMap<PortId, PortType>,
-    pub(crate) outputs: HashMap<PortId, PortType>,
-    pub(crate) is_running: Arc<Mutex<bool>>,
+    pub(crate) configuration: Option<Configuration>,
+    pub(crate) inputs: Inputs,
+    pub(crate) outputs: Outputs,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) _library: Option<Arc<Library>>,
+    pub(crate) handle: Option<JoinHandle<ZFError>>,
 }
 
 impl OperatorRunner {
@@ -132,22 +132,23 @@ impl OperatorRunner {
     ///
     /// # Errors
     /// If fails if the output is not connected.
-    pub fn try_new(
+    pub fn new(
         context: InstanceContext,
         operator: OperatorLoaded,
-        operator_io: OperatorIO,
-    ) -> ZFResult<Self> {
+        inputs: Inputs,
+        outputs: Outputs,
+    ) -> Self {
         // TODO Check that all ports are used.
-        Ok(Self {
+        Self {
             id: operator.id,
             context,
-            io: Arc::new(Mutex::new(operator_io)),
-            inputs: operator.inputs,
-            outputs: operator.outputs,
-            is_running: Arc::new(Mutex::new(false)),
+            configuration: operator.configuration,
+            inputs,
+            outputs,
             operator: operator.operator,
             _library: operator.library,
-        })
+            handle: None,
+        }
     }
 
     // /// Starts the operator.
@@ -373,115 +374,98 @@ impl Runner for OperatorRunner {
         RunnerKind::Operator
     }
 
-    async fn add_input(&self, input: LinkReceiver) -> ZFResult<()> {
-        let mut guard = self.io.lock().await;
-        let key = input.id();
-        guard.inputs.insert(key, input);
-        Ok(())
-    }
+    // async fn add_input(&self, input: LinkReceiver) -> ZFResult<()> {
+    //     let mut guard = self.io.lock().await;
+    //     let key = input.id();
+    //     guard.inputs.insert(key, input);
+    //     Ok(())
+    // }
 
-    async fn add_output(&self, output: LinkSender) -> ZFResult<()> {
-        let mut guard = self.io.lock().await;
-        let key = output.id();
-        if let Some(links) = guard.outputs.get_mut(key.as_ref()) {
-            links.push(output);
-        } else {
-            guard.outputs.insert(key, vec![output]);
+    // async fn add_output(&self, output: LinkSender) -> ZFResult<()> {
+    //     let mut guard = self.io.lock().await;
+    //     let key = output.id();
+    //     if let Some(links) = guard.outputs.get_mut(key.as_ref()) {
+    //         links.push(output);
+    //     } else {
+    //         guard.outputs.insert(key, vec![output]);
+    //     }
+    //     Ok(())
+    // }
+
+    // fn get_inputs(&self) -> HashMap<PortId, PortType> {
+    //     self.inputs.clone()
+    // }
+
+    // fn get_outputs(&self) -> HashMap<PortId, PortType> {
+    //     self.outputs.clone()
+    // }
+
+    // async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>> {
+    //     self.io.lock().await.get_outputs()
+    // }
+
+    // async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver> {
+    //     let inputs = HashMap::new();
+    //     let mut io_guard = self.io.lock().await;
+    //     let current_inputs = io_guard.get_inputs();
+    //     io_guard.inputs = inputs;
+    //     current_inputs
+    // }
+
+    // async fn start_recording(&self) -> ZFResult<String> {
+    //     Err(ZFError::Unsupported)
+    // }
+
+    // async fn stop_recording(&self) -> ZFResult<String> {
+    //     Err(ZFError::Unsupported)
+    // }
+
+    // async fn is_recording(&self) -> bool {
+    //     false
+    // }
+
+    async fn stop(&mut self) -> ZFResult<()> {
+        if let Some(handle) = self.handle.take() {
+            handle.cancel().await;
         }
+
         Ok(())
-    }
-
-    fn get_inputs(&self) -> HashMap<PortId, PortType> {
-        self.inputs.clone()
-    }
-
-    fn get_outputs(&self) -> HashMap<PortId, PortType> {
-        self.outputs.clone()
-    }
-
-    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>> {
-        self.io.lock().await.get_outputs()
-    }
-
-    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver> {
-        let inputs = HashMap::new();
-        let mut io_guard = self.io.lock().await;
-        let current_inputs = io_guard.get_inputs();
-        io_guard.inputs = inputs;
-        current_inputs
-    }
-
-    async fn start_recording(&self) -> ZFResult<String> {
-        Err(ZFError::Unsupported)
-    }
-
-    async fn stop_recording(&self) -> ZFResult<String> {
-        Err(ZFError::Unsupported)
-    }
-
-    async fn is_recording(&self) -> bool {
-        false
-    }
-
-    fn stop(&mut self) -> ZFResult<()> {
-        // *self.is_running.lock().await = false;
-
-        // FIXME
-        unimplemented!()
     }
 
     async fn is_running(&self) -> bool {
-        *self.is_running.lock().await
+        self.handle.is_some()
     }
 
     async fn clean(&self) -> ZFResult<()> {
         self.operator.finalize().await
     }
 
-    fn start(&mut self) -> ZFResult<()> {
-        // self.start().await;
+    async fn start(&mut self) -> ZFResult<()> {
+        let iteration = self
+            .operator
+            .setup(
+                &self.configuration,
+                self.inputs.clone(),
+                self.outputs.clone(),
+            )
+            .await;
 
-        // let mut context = Context::default();
-        // let mut tokens: HashMap<PortId, InputToken> = self
-        //     .inputs
-        //     .keys()
-        //     .map(|input_id| (input_id.clone(), InputToken::Pending))
-        //     .collect();
-        // let mut data: HashMap<PortId, DataMessage> = HashMap::with_capacity(tokens.len());
+        let c_id = self.id.clone();
+        let handle = async_std::task::spawn_blocking(move || {
+            async_std::task::block_on(async {
+                loop {
+                    if let Err(e) = iteration.call().await {
+                        log::error!("[Operator: {c_id}] {:?}", e);
+                        return e;
+                    }
 
-        // // Looping on iteration, each iteration is a single
-        // // run of the source, as a run can fail in case of error it
-        // // stops and returns the error to the caller (the RunnerManager)
-        // loop {
-        //     match self.iteration(context, tokens, data).await {
-        //         Ok((ctx, tkn, d)) => {
-        //             log::trace!(
-        //                 "[Operator: {}] iteration ok with new context {:?}",
-        //                 self.id,
-        //                 ctx
-        //             );
-        //             context = ctx;
-        //             tokens = tkn;
-        //             data = d;
-        //             // As async_std scheduler is run to completion,
-        //             // if the iteration is always ready there is a possibility
-        //             // that other tasks are not scheduled (e.g. the stopping
-        //             // task), therefore after the iteration we give back
-        //             // the control to the scheduler, if no other tasks are
-        //             // ready, then this one is scheduled again.
-        //             async_std::task::yield_now().await;
-        //             continue;
-        //         }
-        //         Err(e) => {
-        //             log::error!("[Operator: {}] iteration failed with error: {}", self.id, e);
-        //             self.stop().await;
-        //             break Err(e);
-        //         }
-        //     }
-        // }
+                    async_std::task::yield_now().await;
+                }
+            })
+        });
 
-        // FIXME
-        unimplemented!()
+        self.handle = Some(handle);
+        Ok(())
     }
 }
 

@@ -31,7 +31,7 @@ use uuid::Uuid;
 use self::dataflow::loader::LoaderConfig;
 use crate::runtime::dataflow::loader::Loader;
 use crate::runtime::message::ControlMessage;
-use crate::{NodeId, RuntimeId, ZFError, ZFResult};
+use crate::{RuntimeId, ZFError, ZFResult};
 use uhlc::HLC;
 use zenoh::config::Config as ZenohConfig;
 use zenoh::Session;
@@ -373,62 +373,64 @@ pub trait Runtime {
     /// - node not found
     async fn stop_node(&self, record_id: Uuid, node: String) -> ZFResult<()>;
 
-    /// Start a recording for the given source.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - error on zenoh-rpc
-    /// - record not found
-    /// - record already started
-    /// - source not found
-    /// - node is not a source
-    async fn start_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String>;
+    // FIXME A source now has several outputs.
 
-    /// Stops the recording for the given source.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - error on zenoh-rpc
-    /// - record not found
-    /// - record already stopped
-    /// - source not found
-    /// - node is not a source
-    async fn stop_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String>;
+    // /// Start a recording for the given source.
+    // ///
+    // /// # Errors
+    // /// An error variant is returned in case of:
+    // /// - error on zenoh-rpc
+    // /// - record not found
+    // /// - record already started
+    // /// - source not found
+    // /// - node is not a source
+    // async fn start_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String>;
 
-    /// Starts the replay for the given source.
-    /// The replay creates a new node that has the same port and links as the
-    /// source is replaying.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - error on zenoh-rpc
-    /// - record not found
-    /// - replay already started
-    /// - source not found
-    /// - node is not a source
-    async fn start_replay(
-        &self,
-        instance_id: Uuid,
-        source_id: NodeId,
-        key_expr: String,
-    ) -> ZFResult<NodeId>;
+    // /// Stops the recording for the given source.
+    // ///
+    // /// # Errors
+    // /// An error variant is returned in case of:
+    // /// - error on zenoh-rpc
+    // /// - record not found
+    // /// - record already stopped
+    // /// - source not found
+    // /// - node is not a source
+    // async fn stop_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String>;
 
-    /// Stops the replay for the given source.
-    /// This stops and removes the replay node from the graph.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - error on zenoh-rpc
-    /// - record not found
-    /// - replay already stopped
-    /// - source not found
-    /// - node is not a source
-    async fn stop_replay(
-        &self,
-        instance_id: Uuid,
-        source_id: NodeId,
-        replay_id: NodeId,
-    ) -> ZFResult<NodeId>;
+    // /// Starts the replay for the given source.
+    // /// The replay creates a new node that has the same port and links as the
+    // /// source is replaying.
+    // ///
+    // /// # Errors
+    // /// An error variant is returned in case of:
+    // /// - error on zenoh-rpc
+    // /// - record not found
+    // /// - replay already started
+    // /// - source not found
+    // /// - node is not a source
+    // async fn start_replay(
+    //     &self,
+    //     instance_id: Uuid,
+    //     source_id: NodeId,
+    //     key_expr: String,
+    // ) -> ZFResult<NodeId>;
+
+    // /// Stops the replay for the given source.
+    // /// This stops and removes the replay node from the graph.
+    // ///
+    // /// # Errors
+    // /// An error variant is returned in case of:
+    // /// - error on zenoh-rpc
+    // /// - record not found
+    // /// - replay already stopped
+    // /// - source not found
+    // /// - node is not a source
+    // async fn stop_replay(
+    //     &self,
+    //     instance_id: Uuid,
+    //     source_id: NodeId,
+    //     replay_id: NodeId,
+    // ) -> ZFResult<NodeId>;
 
     /// Gets the state of the given graph node for the given instance.
     /// A graph node can be a source, a sink, a connector, or an operator.
