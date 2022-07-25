@@ -27,7 +27,7 @@ use crate::model::link::{LinkRecord, PortDescriptor};
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
-use crate::{FlowId, NodeId, Operator, PortId, PortType, Sink, Source, ZFResult};
+use crate::{Configuration, FlowId, NodeId, Operator, PortId, PortType, Sink, Source, ZFResult};
 
 /// The data flow struct.
 /// This struct contains all the information needed to instantiate a data flow.
@@ -154,6 +154,7 @@ impl Dataflow {
     pub fn try_add_static_source(
         &mut self,
         id: NodeId,
+        configuration: Option<Configuration>,
         output: PortDescriptor,
         source: Arc<dyn Source>,
     ) -> ZFResult<()> {
@@ -163,7 +164,7 @@ impl Dataflow {
             id.clone(),
             SourceLoaded {
                 id,
-                configuration: None,
+                configuration,
                 output: (output, self.counter).into(),
                 source,
                 library: None,
@@ -186,6 +187,7 @@ impl Dataflow {
     pub fn try_add_static_operator(
         &mut self,
         id: NodeId,
+        configuration: Option<Configuration>,
         inputs: Vec<PortDescriptor>,
         outputs: Vec<PortDescriptor>,
         operator: Arc<dyn Operator>,
@@ -206,7 +208,7 @@ impl Dataflow {
             id.clone(),
             OperatorLoaded {
                 id,
-                configuration: None,
+                configuration,
                 inputs,
                 outputs,
                 operator,
@@ -229,6 +231,7 @@ impl Dataflow {
     pub fn try_add_static_sink(
         &mut self,
         id: NodeId,
+        configuration: Option<Configuration>,
         input: PortDescriptor,
         sink: Arc<dyn Sink>,
     ) -> ZFResult<()> {
@@ -238,7 +241,7 @@ impl Dataflow {
             id.clone(),
             SinkLoaded {
                 id,
-                configuration: None,
+                configuration,
                 input: (input, self.counter).into(),
                 sink,
                 library: None,
