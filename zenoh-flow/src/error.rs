@@ -16,6 +16,7 @@ use crate::serde::{Deserialize, Serialize};
 use crate::{NodeId, PortId, PortType};
 use std::convert::From;
 use std::error::Error;
+use uhlc::Timestamp;
 use uuid::Uuid;
 use zrpc::zrpcresult::ZRPCError;
 
@@ -70,6 +71,7 @@ pub enum ZFError {
     NotRecording,
     AlreadyRecording,
     NoPathBetweenNodes(((NodeId, PortId), (NodeId, PortId))),
+    BelowWatermarkTimestamp(Timestamp),
 }
 
 impl From<ZRPCError> for ZFError {

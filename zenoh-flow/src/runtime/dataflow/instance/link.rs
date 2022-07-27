@@ -12,7 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{Data, Message, PortId, ZFResult};
+use std::sync::atomic::{AtomicU64, Ordering};
+use crate::{Data, Message, PortId, ZFResult, ZFError};
 use async_std::sync::Arc;
 use futures::Future;
 use uhlc::{HLC, NTP64, Timestamp};
@@ -26,6 +27,7 @@ pub struct LinkSender {
     pub(crate) id: PortId,
     pub(crate) sender: flume::Sender<Message>,
     pub(crate) hlc: Arc<HLC>,
+    pub (crate) last_watermark: Arc<AtomicU64>,
 }
 
 impl std::fmt::Debug for LinkSender {
@@ -90,8 +92,7 @@ impl LinkReceiver {
 }
 
 impl LinkSender {
-    /// Wrapper over flume::Sender::send_async(),
-    /// it sends `Data`.
+    /// Sends `Data` to downstream operators
     ///
     /// # Errors
     /// It fails if the link is disconnected
@@ -103,14 +104,40 @@ impl LinkSender {
             None => self.hlc.new_timestamp()
         };
 
+        if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
+            return Err(ZFError::BelowWatermarkTimestamp(ts));
+        }
+
         let msg = Message::from_serdedata(data, ts);
 
         Ok(self.sender.send_async(msg).await?)
     }
 
+    /// Send a `Watermark` to downstream operators
+    ///
+    /// # Errors
+    /// It fails if the link is disconnected
+    pub async fn send_watermark(&self, timestamp: Option<u64>) -> ZFResult<()> {
+        let ts = match timestamp {
+            Some(timestamp) => {
+                Timestamp::new(NTP64(timestamp), *self.hlc.get_id())
+            },
+            None => self.hlc.new_timestamp()
+        };
 
-    /// Wrapper over flume::Sender::send_async(),
-    /// it sends `Message`.
+        if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
+            return Err(ZFError::BelowWatermarkTimestamp(ts));
+        }
+
+        self.last_watermark.store(ts.get_time().0 , Ordering::Relaxed);
+
+        let msg = Message::Watermark(ts);
+
+        Ok(self.sender.send_async(msg).await?)
+    }
+
+
+    /// Send a `Message` to downstream operators.
     ///
     /// # Note
     /// Internal use only
@@ -118,6 +145,8 @@ impl LinkSender {
     /// # Errors
     /// It fails if the link is disconnected
     pub(crate) async fn send_msg(&self, msg: Message) -> ZFResult<()> {
+        // This is internal, no need to check the watermark
+
         Ok(self.sender.send_async(msg).await?)
     }
 
@@ -164,6 +193,7 @@ pub fn link(
             id: send_id,
             sender,
             hlc,
+            last_watermark: Arc::new(AtomicU64::new(0)),
         },
         LinkReceiver {
             id: recv_id,

@@ -98,7 +98,6 @@ pub enum ControlMessage {
     // These messages are not yet defined, those are some ideas
     // ReadyToMigrate,
     // ChangeMode(u8, u128),
-    // Watermark,
     RecordingStart(RecordingMetadata),
     RecordingStop(Timestamp),
 }
@@ -110,6 +109,7 @@ pub enum ControlMessage {
 pub enum Message {
     Data(DataMessage),
     Control(ControlMessage),
+    Watermark(Timestamp),
 }
 
 impl Message {
@@ -137,9 +137,9 @@ impl Message {
     /// - fails to serialize
     pub fn serialize_bincode(&self) -> ZFResult<Vec<u8>> {
         match &self {
-            Message::Control(_) => {
+            Message::Control(_) | Message::Watermark(_) => {
                 bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
-            }
+            },
             Message::Data(data_message) => match &data_message.data {
                 Data::Bytes(_) => {
                     bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
@@ -167,6 +167,7 @@ impl Message {
                 // _ => Timestamp::new(NTP64(u64::MAX), Uuid::nil().into()),
             },
             Self::Data(data) => data.timestamp,
+            Self::Watermark(ref ts) => *ts,
         }
     }
 }
