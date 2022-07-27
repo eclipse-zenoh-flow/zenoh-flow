@@ -21,6 +21,7 @@ use crate::runtime::InstanceContext;
 use crate::{Configuration, Inputs, NodeId, Operator, Outputs, PortId, ZFError, ZFResult};
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
+use futures::future::{AbortHandle, Abortable, Aborted};
 use std::collections::HashMap;
 
 #[cfg(target_family = "unix")]
@@ -122,7 +123,8 @@ pub struct OperatorRunner {
     pub(crate) outputs: Outputs,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) _library: Option<Arc<Library>>,
-    pub(crate) handle: Option<JoinHandle<ZFError>>,
+    pub(crate) handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
+    pub(crate) abort_handle: Option<AbortHandle>,
 }
 
 impl OperatorRunner {
@@ -148,6 +150,7 @@ impl OperatorRunner {
             operator: operator.operator,
             _library: operator.library,
             handle: None,
+            abort_handle: None,
         }
     }
 
@@ -425,8 +428,12 @@ impl Runner for OperatorRunner {
     // }
 
     async fn stop(&mut self) -> ZFResult<()> {
+        if let Some(abort_handle) = self.abort_handle.take() {
+            abort_handle.abort()
+        }
+
         if let Some(handle) = self.handle.take() {
-            handle.cancel().await;
+            handle.await;
         }
 
         Ok(())
@@ -451,20 +458,25 @@ impl Runner for OperatorRunner {
             .await;
 
         let c_id = self.id.clone();
-        let handle = async_std::task::spawn_blocking(move || {
-            async_std::task::block_on(async {
-                loop {
-                    if let Err(e) = iteration.call().await {
-                        log::error!("[Operator: {c_id}] {:?}", e);
-                        return e;
-                    }
 
-                    async_std::task::yield_now().await;
+        let run_loop = async move {
+            loop {
+                if let Err(e) = iteration.call().await {
+                    log::error!("[Operator: {c_id}] {:?}", e);
+                    return e;
                 }
-            })
-        });
+
+                async_std::task::yield_now().await;
+            }
+        };
+
+        let (abort_handle, abort_registration) = AbortHandle::new_pair();
+
+        let handle = async_std::task::spawn(Abortable::new(run_loop, abort_registration));
 
         self.handle = Some(handle);
+        self.abort_handle = Some(abort_handle);
+
         Ok(())
     }
 }
