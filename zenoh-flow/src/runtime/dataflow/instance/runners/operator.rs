@@ -471,8 +471,11 @@ impl Runner for OperatorRunner {
         };
 
         let (abort_handle, abort_registration) = AbortHandle::new_pair();
-
-        let handle = async_std::task::spawn(Abortable::new(run_loop, abort_registration));
+        // spawn_blocking + block_on has proven to be faster in a throughput test
+        // 1.2M msg/s (spawn) vs 2.3M msg/s (spawn_blocking+block_on)
+        let handle = async_std::task::spawn_blocking(move || {
+            async_std::task::block_on(Abortable::new(run_loop, abort_registration))
+        });
 
         self.handle = Some(handle);
         self.abort_handle = Some(abort_handle);
