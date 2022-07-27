@@ -15,33 +15,41 @@
 use crate::{Data, Message, PortId, ZFResult};
 use async_std::sync::Arc;
 use futures::Future;
+use uhlc::{HLC, NTP64, Timestamp};
 use std::pin::Pin;
 
 /// The Zenoh Flow link sender.
-/// A wrapper over a flume Sender, that sends `Arc<Message>` and is associated
+/// A wrapper over a flume Sender, that sends `Message` and is associated
 /// with a `PortId`
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct LinkSender {
-    pub id: PortId,
-    pub sender: flume::Sender<Arc<Message>>,
+    pub(crate) id: PortId,
+    pub(crate) sender: flume::Sender<Message>,
+    pub(crate) hlc: Arc<HLC>,
+}
+
+impl std::fmt::Debug for LinkSender {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "id: {:?} sender: {:?}", self.id, self.sender)
+    }
 }
 
 /// The Zenoh Flow link receiver.
-/// A wrapper over a flume Receiver, that receives `Arc<Message>` and the associated
+/// A wrapper over a flume Receiver, that receives `Message` and the associated
 /// `PortId`
 #[derive(Clone, Debug)]
 pub struct LinkReceiver {
-    pub id: PortId,
-    pub receiver: flume::Receiver<Arc<Message>>,
+    pub(crate) id: PortId,
+    pub(crate) receiver: flume::Receiver<Message>,
 }
 
 /// The output of the [`LinkReceiver`](`LinkReceiver`), a tuple
-/// containing the `PortId` and `Arc<Message>`.
+/// containing the `PortId` and `Message`.
 ///
 /// In Zenoh Flow `T = Data`.
 ///
 ///
-pub type ZFLinkOutput = ZFResult<(PortId, Arc<Message>)>;
+pub type ZFLinkOutput = ZFResult<(PortId, Message)>;
 
 impl LinkReceiver {
     /// Wrapper over flume::Receiver::recv_async(),
@@ -53,7 +61,7 @@ impl LinkReceiver {
         &self,
     ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput> + '_ + Send + Sync>>
     {
-        async fn __recv(_self: &LinkReceiver) -> ZFResult<(PortId, Arc<Message>)> {
+        async fn __recv(_self: &LinkReceiver) -> ZFResult<(PortId, Message)> {
             Ok((_self.id.clone(), _self.receiver.recv_async().await?))
         }
 
@@ -83,12 +91,34 @@ impl LinkReceiver {
 
 impl LinkSender {
     /// Wrapper over flume::Sender::send_async(),
-    /// it sends `Arc<Message>`.
+    /// it sends `Data`.
     ///
     /// # Errors
     /// It fails if the link is disconnected
-    pub async fn send(&self, data: Arc<Message>) -> ZFResult<()> {
-        Ok(self.sender.send_async(data).await?)
+    pub async fn send(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
+        let ts = match timestamp {
+            Some(timestamp) => {
+                Timestamp::new(NTP64(timestamp), *self.hlc.get_id())
+            },
+            None => self.hlc.new_timestamp()
+        };
+
+        let msg = Message::from_serdedata(data, ts);
+
+        Ok(self.sender.send_async(msg).await?)
+    }
+
+
+    /// Wrapper over flume::Sender::send_async(),
+    /// it sends `Message`.
+    ///
+    /// # Note
+    /// Internal use only
+    ///
+    /// # Errors
+    /// It fails if the link is disconnected
+    pub(crate) async fn send_msg(&self, msg: Message) -> ZFResult<()> {
+        Ok(self.sender.send_async(msg).await?)
     }
 
     /// Returns the sender occupation.
@@ -122,6 +152,7 @@ pub fn link(
     capacity: Option<usize>,
     send_id: PortId,
     recv_id: PortId,
+    hlc: Arc<HLC>,
 ) -> (LinkSender, LinkReceiver) {
     let (sender, receiver) = match capacity {
         None => flume::unbounded(),
@@ -132,6 +163,7 @@ pub fn link(
         LinkSender {
             id: send_id,
             sender,
+            hlc,
         },
         LinkReceiver {
             id: recv_id,
@@ -149,24 +181,24 @@ pub fn link(
 pub trait AsyncCallbackRx: Send + Sync {
     fn call(
         &self,
-        arg: Arc<Message>,
+        arg: Message,
     ) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>>;
 }
 
 /// Implementation of AsyncCallbackRx for any async closure that takes
-/// `Arc<Message>` as parameter and returns `ZFResult<()>`.
+/// `Message` as parameter and returns `ZFResult<()>`.
 /// This "converts" any `async move |msg| { ... Ok() }` to `AsyncCallbackRx`
 ///
 /// *Note:* It takes an `FnOnce` because of the `move` keyword. The closure
 /// has to be `Clone` as we are going to call the closure more than once.
 impl<Fut, Fun> AsyncCallbackRx for Fun
 where
-    Fun: FnOnce(Arc<Message>) -> Fut + Sync + Send + Clone,
+    Fun: FnOnce(Message) -> Fut + Sync + Send + Clone,
     Fut: Future<Output = ZFResult<()>> + 'static + Send + Sync,
 {
     fn call(
         &self,
-        arg: Arc<Message>,
+        arg: Message,
     ) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>> {
         Box::pin(self.clone()(arg))
     }
@@ -236,10 +268,7 @@ impl AsyncCallbackSender {
     pub async fn trigger(&self) -> ZFResult<()> {
         let data = self.cb.call().await?;
         // FIXME
-        let ts = uhlc::Timestamp::new(uhlc::NTP64(0u64), uhlc::ID::new(1, [0u8; 16]));
 
-        // FIXME
-        let msg = Message::from_node_output(crate::NodeOutput::Data(data), ts);
-        self.tx.send(Arc::new(msg)).await
+        self.tx.send(data, None).await
     }
 }

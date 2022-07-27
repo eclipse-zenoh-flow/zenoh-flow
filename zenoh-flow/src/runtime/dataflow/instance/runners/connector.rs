@@ -309,7 +309,7 @@ impl Runner for ZenohReceiver {
                     let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
                         .map_err(|_| ZFError::DeseralizationError)?;
                     log::trace!("ZenohSender - OUT =>{:?} ", de);
-                    link.send(Arc::new(de)).await?;
+                    link.send_msg(de).await?;
                 }
             }
 

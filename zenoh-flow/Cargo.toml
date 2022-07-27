@@ -57,7 +57,7 @@ serde_derive = "1.0.55"
 serde_json = { version = "1.0", optional = true}
 serde_yaml = {version = "0.8.13"}
 typetag = "0.1"
-uhlc = "0.4"
+uhlc = "0.5"
 url = "2.2.2"
 uuid = { version = "0.8", features = ["serde", "v4"] }
 zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", rev = "45b7ad70bddf45dfcdcae80e9c9a7680c70ac289" }

@@ -2755,7 +2755,21 @@ dependencies = [
  "lazy_static",
  "log",
  "serde",
- "uuid",
+ "uuid 0.8.2",
+]
+
+[[package]]
+name = "uhlc"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7908438f98a5824af02b34c2b31fb369c5764ef835d26df0badbb9897fb28245"
+dependencies = [
+ "hex",
+ "humantime",
+ "lazy_static",
+ "log",
+ "serde",
+ "uuid 1.1.2",
 ]
 
 [[package]]
@@ -2828,6 +2842,15 @@ checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
  "getrandom 0.2.6",
  "serde",
+]
+
+[[package]]
+name = "uuid"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd6469f4314d5f1ffec476e05f17cc9a78bc7a27a6a857842170bdf8d6f98d2f"
+dependencies = [
+ "getrandom 0.2.6",
 ]
 
 [[package]]
@@ -3123,8 +3146,8 @@ dependencies = [
  "serde_json",
  "socket2",
  "stop-token",
- "uhlc",
- "uuid",
+ "uhlc 0.4.1",
+ "uuid 0.8.2",
  "vec_map",
  "zenoh-buffers",
  "zenoh-cfg-properties",
@@ -3252,9 +3275,9 @@ dependencies = [
  "serde_yaml",
  "tempdir",
  "typetag",
- "uhlc",
+ "uhlc 0.5.1",
  "url",
- "uuid",
+ "uuid 0.8.2",
  "zenoh",
  "zenoh-flow-derive",
  "zenoh-sync",
@@ -3280,8 +3303,8 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "serde_yaml",
- "uhlc",
- "uuid",
+ "uhlc 0.5.1",
+ "uuid 0.8.2",
  "zenoh",
  "zenoh-flow",
  "zenoh-util",
@@ -3425,7 +3448,7 @@ dependencies = [
  "futures",
  "log",
  "nix 0.23.1",
- "uuid",
+ "uuid 0.8.2",
  "zenoh-core",
  "zenoh-link-commons",
  "zenoh-protocol-core",
@@ -3463,7 +3486,7 @@ version = "0.6.0-dev.0"
 source = "git+https://github.com/eclipse-zenoh/zenoh.git?rev=45b7ad70bddf45dfcdcae80e9c9a7680c70ac289#45b7ad70bddf45dfcdcae80e9c9a7680c70ac289"
 dependencies = [
  "log",
- "uhlc",
+ "uhlc 0.4.1",
  "zenoh-buffers",
  "zenoh-core",
  "zenoh-protocol-core",
@@ -3477,8 +3500,8 @@ dependencies = [
  "hex",
  "lazy_static",
  "serde",
- "uhlc",
- "uuid",
+ "uhlc 0.4.1",
+ "uuid 0.8.2",
  "zenoh-core",
 ]
 
@@ -3590,7 +3613,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "serde_yaml",
- "uuid",
+ "uuid 0.8.2",
  "zenoh",
  "zenoh-flow",
  "zenoh-util",
@@ -3634,9 +3657,28 @@ dependencies = [
  "serde_derive",
  "syn",
  "syn-serde",
- "uhlc",
- "uuid",
+ "uhlc 0.4.1",
+ "uuid 0.8.2",
  "zenoh",
  "zenoh-util",
  "zrpc",
+]
+
+[[package]]
+name = "zrpc"
+version = "0.3.0-alpha1"
+source = "git+https://github.com/atolab/zenoh-rpc.git?branch=master#f6e73e5001248f385aaa9e03cea2f2d248a9cf6c"
+dependencies = [
+ "async-std",
+ "base64",
+ "futures",
+ "log",
+ "serde",
+ "serde_cbor",
+ "serde_derive",
+ "serde_json",
+ "thiserror",
+ "uuid 0.8.2",
+ "zenoh",
+ "zenoh-util",
 ]

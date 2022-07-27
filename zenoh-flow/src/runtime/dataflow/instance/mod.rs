@@ -27,6 +27,7 @@ use crate::runtime::dataflow::Dataflow;
 use crate::runtime::InstanceContext;
 use crate::{Inputs, NodeId, Outputs, ZFError, ZFResult};
 use async_std::sync::Arc;
+use uhlc::HLC;
 use std::collections::HashMap;
 use uuid::Uuid;
 
@@ -48,6 +49,7 @@ pub struct DataflowInstance {
 fn create_links(
     nodes: &[NodeId],
     links: &[LinkRecord],
+    hlc: Arc<HLC>,
 ) -> ZFResult<HashMap<NodeId, (Inputs, Outputs)>> {
     let mut io: HashMap<NodeId, (Inputs, Outputs)> = HashMap::with_capacity(nodes.len());
 
@@ -65,6 +67,7 @@ fn create_links(
             None,
             link_desc.from.output.clone(),
             link_desc.to.input.clone(),
+            hlc.clone(),
         );
 
         match io.get_mut(&upstream_node) {
@@ -101,7 +104,7 @@ impl DataflowInstance {
     /// An error variant is returned in case of:
     /// - validation fails
     /// - connectors cannot be created
-    pub fn try_instantiate(dataflow: Dataflow) -> ZFResult<Self> {
+    pub fn try_instantiate(dataflow: Dataflow, hlc: Arc<HLC>) -> ZFResult<Self> {
         // Gather all node ids to be able to generate (i) the links and (ii) the hash map containing
         // the runners.
         let mut node_ids: Vec<NodeId> = Vec::with_capacity(
@@ -116,7 +119,7 @@ impl DataflowInstance {
         node_ids.append(&mut dataflow.sinks.keys().cloned().collect::<Vec<_>>());
         node_ids.append(&mut dataflow.connectors.keys().cloned().collect::<Vec<_>>());
 
-        let mut links = create_links(&node_ids, &dataflow.links)?;
+        let mut links = create_links(&node_ids, &dataflow.links, hlc)?;
 
         let context = InstanceContext {
             flow_id: dataflow.flow_id,

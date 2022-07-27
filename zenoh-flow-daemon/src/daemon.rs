@@ -17,7 +17,7 @@ use std::convert::TryFrom;
 use std::fs;
 use std::path::Path;
 
-use uhlc::HLC;
+use uhlc::{HLCBuilder, ID};
 use uuid::Uuid;
 use zenoh::prelude::*;
 use zenoh_flow::async_std::sync::{Arc, Mutex};
@@ -375,7 +375,7 @@ impl TryFrom<DaemonConfig> for Daemon {
             pid_file: config.pid_file,
             path: config.path,
             name,
-            uuid,
+            uuid: uuid.clone(),
             zenoh: zconfig.clone(),
             loader: extensions.clone(),
         };
@@ -383,8 +383,11 @@ impl TryFrom<DaemonConfig> for Daemon {
         // Creates the zenoh session.
         let session = Arc::new(zenoh::open(zconfig).wait()?);
 
+
+
         // Creates the HLC.
-        let hlc = Arc::new(HLC::default());
+        let uhlc_id = ID::try_from(uuid.as_bytes()).map_err(|e| ZFError::InvalidData(format!("Unable to create ID {e:?}")))?;
+        let hlc = Arc::new(HLCBuilder::new().with_id(uhlc_id).build());
 
         // Creates the loader.
         let loader = Arc::new(Loader::new(extensions));
@@ -559,7 +562,7 @@ impl Runtime for Daemon {
             .await?;
 
         let mut dataflow = Dataflow::try_new(self.ctx.clone(), dfr.clone())?;
-        let mut instance = DataflowInstance::try_instantiate(dataflow)?;
+        let mut instance = DataflowInstance::try_instantiate(dataflow, self.ctx.hlc.clone())?;
 
         let mut self_state = self.state.lock().await;
         self_state.graphs.insert(dfr.uuid, instance);
