@@ -175,18 +175,27 @@ impl Runner for SinkRunner {
     }
 
     async fn stop(&mut self) -> ZFResult<()> {
+        // Stop is idempotent, if the node was already stopped,
+        // do nothing and return Ok(())
+
         if let Some(abort_handle) = self.abort_handle.take() {
             abort_handle.abort()
         }
 
         if let Some(handle) = self.handle.take() {
-            handle.await;
+            log::trace!("Sink handler finished with {:?}", handle.await);
         }
 
         Ok(())
     }
 
     async fn start(&mut self) -> ZFResult<()> {
+        // Start is idempotent, if the node was already started,
+        // do nothing and return Ok(())
+        if self.handle.is_some() && self.abort_handle.is_some() {
+            return Ok(());
+        }
+
         let iteration = self
             .sink
             .setup(&self.configuration, self.inputs.clone())

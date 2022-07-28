@@ -383,10 +383,9 @@ impl TryFrom<DaemonConfig> for Daemon {
         // Creates the zenoh session.
         let session = Arc::new(zenoh::open(zconfig).wait()?);
 
-
-
         // Creates the HLC.
-        let uhlc_id = ID::try_from(uuid.as_bytes()).map_err(|e| ZFError::InvalidData(format!("Unable to create ID {e:?}")))?;
+        let uhlc_id = ID::try_from(uuid.as_bytes())
+            .map_err(|e| ZFError::InvalidData(format!("Unable to create ID {e:?}")))?;
         let hlc = Arc::new(HLCBuilder::new().with_id(uhlc_id).build());
 
         // Creates the loader.

@@ -12,12 +12,12 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::sync::atomic::{AtomicU64, Ordering};
-use crate::{Data, Message, PortId, ZFResult, ZFError};
+use crate::{Data, Message, PortId, ZFError, ZFResult};
 use async_std::sync::Arc;
 use futures::Future;
-use uhlc::{HLC, NTP64, Timestamp};
 use std::pin::Pin;
+use std::sync::atomic::{AtomicU64, Ordering};
+use uhlc::{Timestamp, HLC, NTP64};
 
 /// The Zenoh Flow link sender.
 /// A wrapper over a flume Sender, that sends `Message` and is associated
@@ -27,7 +27,7 @@ pub struct LinkSender {
     pub(crate) id: PortId,
     pub(crate) sender: flume::Sender<Message>,
     pub(crate) hlc: Arc<HLC>,
-    pub (crate) last_watermark: Arc<AtomicU64>,
+    pub(crate) last_watermark: Arc<AtomicU64>,
 }
 
 impl std::fmt::Debug for LinkSender {
@@ -98,10 +98,8 @@ impl LinkSender {
     /// It fails if the link is disconnected
     pub async fn send(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
         let ts = match timestamp {
-            Some(timestamp) => {
-                Timestamp::new(NTP64(timestamp), *self.hlc.get_id())
-            },
-            None => self.hlc.new_timestamp()
+            Some(timestamp) => Timestamp::new(NTP64(timestamp), *self.hlc.get_id()),
+            None => self.hlc.new_timestamp(),
         };
 
         if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
@@ -119,23 +117,21 @@ impl LinkSender {
     /// It fails if the link is disconnected
     pub async fn send_watermark(&self, timestamp: Option<u64>) -> ZFResult<()> {
         let ts = match timestamp {
-            Some(timestamp) => {
-                Timestamp::new(NTP64(timestamp), *self.hlc.get_id())
-            },
-            None => self.hlc.new_timestamp()
+            Some(timestamp) => Timestamp::new(NTP64(timestamp), *self.hlc.get_id()),
+            None => self.hlc.new_timestamp(),
         };
 
         if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
             return Err(ZFError::BelowWatermarkTimestamp(ts));
         }
 
-        self.last_watermark.store(ts.get_time().0 , Ordering::Relaxed);
+        self.last_watermark
+            .store(ts.get_time().0, Ordering::Relaxed);
 
         let msg = Message::Watermark(ts);
 
         Ok(self.sender.send_async(msg).await?)
     }
-
 
     /// Send a `Message` to downstream operators.
     ///

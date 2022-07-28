@@ -27,8 +27,8 @@ use crate::runtime::dataflow::Dataflow;
 use crate::runtime::InstanceContext;
 use crate::{Inputs, NodeId, Outputs, ZFError, ZFResult};
 use async_std::sync::Arc;
-use uhlc::HLC;
 use std::collections::HashMap;
+use uhlc::HLC;
 use uuid::Uuid;
 
 use self::runners::Runner;

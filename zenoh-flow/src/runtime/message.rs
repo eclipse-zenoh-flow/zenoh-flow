@@ -139,7 +139,7 @@ impl Message {
         match &self {
             Message::Control(_) | Message::Watermark(_) => {
                 bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
-            },
+            }
             Message::Data(data_message) => match &data_message.data {
                 Data::Bytes(_) => {
                     bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
