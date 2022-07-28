@@ -66,6 +66,11 @@ impl Data {
         Self::Bytes(Arc::new(bytes))
     }
 
+    /// Creates a new `Data` from a `Arc<Vec<u8>>`.
+    pub fn from_arc_bytes(bytes: Arc<Vec<u8>>) -> Self {
+        Self::Bytes(bytes.clone())
+    }
+
     /// Tries to return a serialized representation of the data.
     /// It does not actually change the internal representation.
     /// The serialized representation in stored inside an `Arc`

@@ -137,9 +137,6 @@ impl Message {
     /// - fails to serialize
     pub fn serialize_bincode(&self) -> ZFResult<Vec<u8>> {
         match &self {
-            Message::Control(_) | Message::Watermark(_) => {
-                bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
-            }
             Message::Data(data_message) => match &data_message.data {
                 Data::Bytes(_) => {
                     bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
@@ -154,20 +151,23 @@ impl Message {
                     bincode::serialize(&serialized_message).map_err(|_| ZFError::SerializationError)
                 }
             },
+            Message::Control(_) | Message::Watermark(_) => {
+                bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
+            }
         }
     }
 
     /// Returns the `Timestamp` associated with the message.
     pub fn get_timestamp(&self) -> Timestamp {
         match self {
+            Self::Data(data) => data.timestamp,
+            Self::Watermark(ref ts) => *ts,
             Self::Control(ref ctrl) => match ctrl {
                 ControlMessage::RecordingStart(ref rs) => rs.timestamp,
                 ControlMessage::RecordingStop(ref ts) => *ts,
                 // Commented because Control messages are not yet defined.
                 // _ => Timestamp::new(NTP64(u64::MAX), Uuid::nil().into()),
             },
-            Self::Data(data) => data.timestamp,
-            Self::Watermark(ref ts) => *ts,
         }
     }
 }
