@@ -407,7 +407,7 @@ impl CompositeOperatorDescriptor {
                                             let matching_input = ins
                                                 .iter()
                                                 .find(|x| x.node.starts_with(&*new_id))
-                                                .ok_or(ZFError::NotFound)?;
+                                                .ok_or(ZFError::NodeNotFound(new_id.clone()))?;
                                             l.to.node = matching_input.node.clone();
                                         }
 
@@ -415,7 +415,7 @@ impl CompositeOperatorDescriptor {
                                             let matching_output = outs
                                                 .iter()
                                                 .find(|x| x.node.starts_with(&*new_id))
-                                                .ok_or(ZFError::NotFound)?;
+                                                .ok_or(ZFError::NodeNotFound(new_id.clone()))?;
                                             l.from.node = matching_output.node.clone();
                                         }
                                     }
