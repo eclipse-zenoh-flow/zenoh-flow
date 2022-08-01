@@ -166,7 +166,7 @@ impl DataFlowDescriptor {
                     let matching_input = ins
                         .iter()
                         .find(|x| x.node.starts_with(&*oid))
-                        .ok_or(ZFError::NotFound)?;
+                        .ok_or(ZFError::NodeNotFound(oid.clone()))?;
                     l.to.node = matching_input.node.clone();
                 }
 
@@ -174,7 +174,7 @@ impl DataFlowDescriptor {
                     let matching_output = outs
                         .iter()
                         .find(|x| x.node.starts_with(&*oid))
-                        .ok_or(ZFError::NotFound)?;
+                        .ok_or(ZFError::NodeNotFound(oid.clone()))?;
                     l.from.node = matching_output.node.clone();
                 }
             }
