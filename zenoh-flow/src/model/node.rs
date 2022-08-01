@@ -537,7 +537,9 @@ impl NodeDescriptor {
                 desc.id = id;
                 desc.configuration =
                     merge_configurations(desc.configuration, self.configuration.clone());
-                Ok((vec![desc], vec![], vec![], vec![]))
+                let ins = desc.inputs.iter().map(|e| InputDescriptor {node: desc.id.clone(), input: e.port_id.clone()}).collect();
+                let outs = desc.outputs.iter().map(|e| OutputDescriptor {node: desc.id.clone(), output: e.port_id.clone()}).collect();
+                Ok((vec![desc.clone()], vec![], ins, outs))
             }
             Err(_) => match CompositeOperatorDescriptor::from_yaml(&descriptor_path) {
                 Ok(desc) => desc.flatten(id).await,
