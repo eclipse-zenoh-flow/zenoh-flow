@@ -18,7 +18,7 @@ use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::InstanceContext;
-use crate::{Configuration, Inputs, NodeId, Operator, Outputs, PortId, ZFError, ZFResult};
+use crate::{Configuration, Input, NodeId, Operator, Output, PortId, ZFError, ZFResult};
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
@@ -119,8 +119,8 @@ pub struct OperatorRunner {
     pub(crate) id: NodeId,
     pub(crate) context: InstanceContext,
     pub(crate) configuration: Option<Configuration>,
-    pub(crate) inputs: Inputs,
-    pub(crate) outputs: Outputs,
+    pub(crate) inputs: HashMap<PortId, Input>,
+    pub(crate) outputs: HashMap<PortId, Output>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) _library: Option<Arc<Library>>,
     pub(crate) handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
@@ -137,8 +137,8 @@ impl OperatorRunner {
     pub fn new(
         context: InstanceContext,
         operator: OperatorLoaded,
-        inputs: Inputs,
-        outputs: Outputs,
+        inputs: HashMap<PortId, Input>,
+        outputs: HashMap<PortId, Output>,
     ) -> Self {
         // TODO Check that all ports are used.
         Self {

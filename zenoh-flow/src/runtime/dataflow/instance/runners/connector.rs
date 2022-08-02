@@ -12,12 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::collections::HashMap;
+
 use crate::async_std::sync::{Arc, Mutex};
 use crate::model::connector::ZFConnectorRecord;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::InstanceContext;
-use crate::{Inputs, Message, NodeId, Outputs, ZFError, ZFResult};
+use crate::{Input, Message, NodeId, Output, PortId, ZFError, ZFResult};
 use async_trait::async_trait;
 use futures::StreamExt;
 use zenoh::prelude::*;
@@ -45,7 +47,7 @@ impl ZenohSender {
     pub fn try_new(
         context: InstanceContext,
         record: ZFConnectorRecord,
-        mut inputs: Inputs,
+        mut inputs: HashMap<PortId, Input>,
     ) -> ZFResult<Self> {
         let port_id = record.link_id.port_id.clone();
         let mut links = inputs.remove(&port_id).ok_or_else(|| {
@@ -243,7 +245,7 @@ impl ZenohReceiver {
     pub fn try_new(
         context: InstanceContext,
         record: ZFConnectorRecord,
-        mut outputs: Outputs,
+        mut outputs: HashMap<PortId, Output>,
     ) -> ZFResult<Self> {
         let port_id = record.link_id.port_id.clone();
         let mut links = outputs.remove(&port_id).ok_or_else(|| {

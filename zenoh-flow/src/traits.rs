@@ -12,10 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{Configuration, Inputs, Outputs, ZFResult};
+use crate::{Configuration, Input, Output, PortId, ZFResult};
 use async_trait::async_trait;
 use futures::Future;
 use std::any::Any;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -395,7 +396,7 @@ pub trait Source: Node + Send + Sync {
     async fn setup(
         &self,
         configuration: &Option<Configuration>,
-        outputs: Outputs,
+        outputs: HashMap<PortId, Output>,
     ) -> Arc<dyn AsyncIteration>;
 }
 
@@ -405,8 +406,8 @@ pub trait Operator: Node + Send + Sync {
     async fn setup(
         &self,
         configuration: &Option<Configuration>,
-        inputs: Inputs,
-        outputs: Outputs,
+        inputs: HashMap<PortId, Input>,
+        outputs: HashMap<PortId, Output>,
     ) -> Arc<dyn AsyncIteration>;
 }
 
@@ -416,7 +417,7 @@ pub trait Sink: Node + Send + Sync {
     async fn setup(
         &self,
         configuration: &Option<Configuration>,
-        inputs: Inputs,
+        inputs: HashMap<PortId, Input>,
     ) -> Arc<dyn AsyncIteration>;
 }
 
@@ -427,8 +428,8 @@ pub trait SourceSink: Node + Send + Sync {
     async fn setup(
         &self,
         configuration: &Option<Configuration>,
-        inputs: Inputs,
-        outputs: Outputs,
+        inputs: HashMap<PortId, Input>,
+        outputs: HashMap<PortId, Output>,
     ) -> Arc<dyn AsyncIteration>;
 }
 

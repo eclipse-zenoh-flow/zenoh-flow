@@ -15,7 +15,7 @@
 use crate::async_std::sync::Arc;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::serde::{Deserialize, Serialize};
-use crate::{ControlMessage, ZFData};
+use crate::{ControlMessage, Message, ZFData};
 use std::collections::HashMap;
 use std::time::Duration;
 /// A NodeId identifies a node inside a Zenoh Flow graph
@@ -68,7 +68,7 @@ impl Data {
 
     /// Creates a new `Data` from a `Arc<Vec<u8>>`.
     pub fn from_arc_bytes(bytes: Arc<Vec<u8>>) -> Self {
-        Self::Bytes(bytes.clone())
+        Self::Bytes(bytes)
     }
 
     /// Tries to return a serialized representation of the data.
@@ -345,64 +345,78 @@ impl DurationDescriptor {
     }
 }
 
-// TODO Implement iterator?
+pub type Inputs = HashMap<PortId, Input>;
+pub type Outputs = HashMap<PortId, Output>;
+
 #[derive(Clone, Debug)]
-pub struct Inputs {
-    pub(crate) hmap: HashMap<PortId, Vec<LinkReceiver>>,
+pub struct Input {
+    pub(crate) receivers: Vec<LinkReceiver>,
 }
 
-impl Inputs {
+impl Input {
+    pub fn len(&self) -> usize {
+        self.receivers.len()
+    }
+
+    pub fn remove(&mut self, position: usize) -> LinkReceiver {
+        self.receivers.remove(position)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.receivers.is_empty()
+    }
+
+    pub async fn recv(&self) -> ZFResult<(PortId, Message)> {
+        let iter = self.receivers.iter().map(|link| link.recv());
+
+        // FIXME The remaining futures are not cancelled. Wouldn’t a `race` be better in that
+        // situation? Or maybe we can store the other futures in the struct and poll them once
+        // `recv` is called again?
+        let (res, _, _) = futures::future::select_all(iter).await;
+
+        res
+    }
+
     pub(crate) fn new() -> Self {
-        Self {
-            hmap: HashMap::new(),
-        }
+        Self { receivers: vec![] }
     }
 
-    pub fn get(&self, port_id: &str) -> Option<&Vec<LinkReceiver>> {
-        self.hmap.get(port_id)
-    }
-
-    pub fn remove(&mut self, port_id: &str) -> Option<Vec<LinkReceiver>> {
-        self.hmap.remove(port_id)
-    }
-
-    pub(crate) fn add(&mut self, rx: LinkReceiver) {
-        let port_id = rx.id();
-        if let Some(receivers) = self.hmap.get_mut(&port_id) {
-            receivers.push(rx);
-        } else {
-            self.hmap.insert(port_id, vec![rx]);
-        }
+    pub(crate) fn add(&mut self, receiver: LinkReceiver) {
+        self.receivers.push(receiver);
     }
 }
 
-// TODO Implement iterator?
-#[derive(Clone)]
-pub struct Outputs {
-    pub(crate) hmap: HashMap<PortId, Vec<LinkSender>>,
+#[derive(Clone, Debug)]
+pub struct Output {
+    pub(crate) senders: Vec<LinkSender>,
 }
 
-impl Outputs {
+impl Output {
     pub(crate) fn new() -> Self {
-        Self {
-            hmap: HashMap::new(),
-        }
-    }
-
-    pub fn get(&self, port_id: &str) -> Option<&Vec<LinkSender>> {
-        self.hmap.get(port_id)
-    }
-
-    pub fn remove(&mut self, port_id: &str) -> Option<Vec<LinkSender>> {
-        self.hmap.remove(port_id)
+        Self { senders: vec![] }
     }
 
     pub(crate) fn add(&mut self, tx: LinkSender) {
-        let port_id = tx.id();
-        if let Some(senders) = self.hmap.get_mut(&port_id) {
-            senders.push(tx);
-        } else {
-            self.hmap.insert(port_id, vec![tx]);
+        self.senders.push(tx);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.senders.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.senders.len()
+    }
+
+    pub fn remove(&mut self, position: usize) -> LinkSender {
+        self.senders.remove(position)
+    }
+
+    pub async fn send(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
+        for sender in &self.senders {
+            sender.send(data.clone(), timestamp).await?;
         }
+
+        Ok(())
     }
 }

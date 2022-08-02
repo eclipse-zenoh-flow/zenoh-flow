@@ -375,7 +375,7 @@ impl TryFrom<DaemonConfig> for Daemon {
             pid_file: config.pid_file,
             path: config.path,
             name,
-            uuid: uuid.clone(),
+            uuid,
             zenoh: zconfig.clone(),
             loader: extensions.clone(),
         };

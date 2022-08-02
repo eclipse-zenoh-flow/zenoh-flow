@@ -12,12 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::collections::HashMap;
+
 use crate::async_std::sync::Arc;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SinkLoaded;
 use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
-use crate::{Configuration, Inputs, NodeId, Sink, ZFError};
+use crate::{Configuration, Input, NodeId, PortId, Sink, ZFError};
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
@@ -39,7 +41,7 @@ pub struct SinkRunner {
     pub(crate) id: NodeId,
     pub(crate) configuration: Option<Configuration>,
     pub(crate) context: InstanceContext,
-    pub(crate) inputs: Inputs,
+    pub(crate) inputs: HashMap<PortId, Input>,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) _library: Option<Arc<Library>>,
     pub(crate) handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
@@ -53,7 +55,7 @@ impl SinkRunner {
     ///
     /// # Errors
     /// If fails if the input is not connected.
-    pub fn new(context: InstanceContext, sink: SinkLoaded, inputs: Inputs) -> Self {
+    pub fn new(context: InstanceContext, sink: SinkLoaded, inputs: HashMap<PortId, Input>) -> Self {
         Self {
             id: sink.id,
             configuration: sink.configuration,

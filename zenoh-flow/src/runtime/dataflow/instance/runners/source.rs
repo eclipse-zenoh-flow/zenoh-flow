@@ -17,10 +17,11 @@ use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
-use crate::{Configuration, NodeId, Outputs, Source, ZFError};
+use crate::{Configuration, NodeId, Output, PortId, Source, ZFError};
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
+use std::collections::HashMap;
 
 #[cfg(target_family = "unix")]
 use libloading::os::unix::Library;
@@ -39,7 +40,7 @@ pub struct SourceRunner {
     pub(crate) id: NodeId,
     pub(crate) configuration: Option<Configuration>,
     pub(crate) context: InstanceContext,
-    pub(crate) outputs: Outputs,
+    pub(crate) outputs: HashMap<PortId, Output>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) _library: Option<Arc<Library>>,
     pub(crate) handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
@@ -53,7 +54,11 @@ impl SourceRunner {
     ///
     /// # Errors
     /// If fails if the output is not connected.
-    pub fn new(context: InstanceContext, source: SourceLoaded, outputs: Outputs) -> Self {
+    pub fn new(
+        context: InstanceContext,
+        source: SourceLoaded,
+        outputs: HashMap<PortId, Output>,
+    ) -> Self {
         Self {
             id: source.id,
             context,

@@ -25,7 +25,7 @@ use crate::runtime::dataflow::instance::runners::source::SourceRunner;
 use crate::runtime::dataflow::instance::runners::RunnerKind;
 use crate::runtime::dataflow::Dataflow;
 use crate::runtime::InstanceContext;
-use crate::{Inputs, NodeId, Outputs, ZFError, ZFResult};
+use crate::{Input, Inputs, NodeId, Output, Outputs, ZFError, ZFResult};
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use uhlc::HLC;
@@ -71,21 +71,35 @@ fn create_links(
         );
 
         match io.get_mut(&upstream_node) {
-            Some((_, outputs)) => outputs.add(tx),
+            Some((_, outputs)) => {
+                outputs.entry(tx.id()).or_insert_with(Output::new).add(tx);
+            }
             None => {
-                let mut outputs = Outputs::new();
-                let inputs = Inputs::new();
-                outputs.add(tx);
+                let inputs = HashMap::new();
+
+                let mut output = Output::new();
+                let id = tx.id();
+                output.add(tx);
+
+                let outputs = HashMap::from([(id, output)]);
+
                 io.insert(upstream_node, (inputs, outputs));
             }
         }
 
         match io.get_mut(&downstream_node) {
-            Some((inputs, _)) => inputs.add(rx),
+            Some((inputs, _)) => {
+                inputs.entry(rx.id()).or_insert_with(Input::new).add(rx);
+            }
             None => {
-                let outputs = Outputs::new();
-                let mut inputs = Inputs::new();
-                inputs.add(rx);
+                let outputs = HashMap::new();
+
+                let mut input = Input::new();
+                let id = rx.id();
+                input.add(rx);
+
+                let inputs = HashMap::from([(id, input)]);
+
                 io.insert(downstream_node, (inputs, outputs));
             }
         }
