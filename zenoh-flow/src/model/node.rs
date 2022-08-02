@@ -407,7 +407,9 @@ impl CompositeOperatorDescriptor {
                                             let matching_input = ins
                                                 .iter()
                                                 .find(|x| x.node.starts_with(&*new_id))
-                                                .ok_or(ZFError::NodeNotFound(new_id.clone()))?;
+                                                .ok_or_else(|| {
+                                                    ZFError::NodeNotFound(new_id.clone())
+                                                })?;
                                             l.to.node = matching_input.node.clone();
                                         }
 
@@ -415,7 +417,9 @@ impl CompositeOperatorDescriptor {
                                             let matching_output = outs
                                                 .iter()
                                                 .find(|x| x.node.starts_with(&*new_id))
-                                                .ok_or(ZFError::NodeNotFound(new_id.clone()))?;
+                                                .ok_or_else(|| {
+                                                    ZFError::NodeNotFound(new_id.clone())
+                                                })?;
                                             l.from.node = matching_output.node.clone();
                                         }
                                     }
@@ -537,9 +541,23 @@ impl NodeDescriptor {
                 desc.id = id;
                 desc.configuration =
                     merge_configurations(desc.configuration, self.configuration.clone());
-                let ins = desc.inputs.iter().map(|e| InputDescriptor {node: desc.id.clone(), input: e.port_id.clone()}).collect();
-                let outs = desc.outputs.iter().map(|e| OutputDescriptor {node: desc.id.clone(), output: e.port_id.clone()}).collect();
-                Ok((vec![desc.clone()], vec![], ins, outs))
+                let ins = desc
+                    .inputs
+                    .iter()
+                    .map(|e| InputDescriptor {
+                        node: desc.id.clone(),
+                        input: e.port_id.clone(),
+                    })
+                    .collect();
+                let outs = desc
+                    .outputs
+                    .iter()
+                    .map(|e| OutputDescriptor {
+                        node: desc.id.clone(),
+                        output: e.port_id.clone(),
+                    })
+                    .collect();
+                Ok((vec![desc], vec![], ins, outs))
             }
             Err(_) => match CompositeOperatorDescriptor::from_yaml(&descriptor_path) {
                 Ok(desc) => desc.flatten(id).await,
