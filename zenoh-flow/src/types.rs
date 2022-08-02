@@ -12,6 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use flume::{RecvError, TryRecvError};
+
 use crate::async_std::sync::Arc;
 use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::serde::{Deserialize, Serialize};
@@ -366,7 +368,7 @@ impl Input {
         self.receivers.is_empty()
     }
 
-    pub async fn recv(&self) -> ZFResult<(PortId, Message)> {
+    pub async fn recv(&self) -> ZFResult<Message> {
         let iter = self.receivers.iter().map(|link| link.recv());
 
         // FIXME The remaining futures are not cancelled. Wouldn’t a `race` be better in that
@@ -374,7 +376,30 @@ impl Input {
         // `recv` is called again?
         let (res, _, _) = futures::future::select_all(iter).await;
 
-        res
+        res.map_err(|e| ZFError::RecvError(format!("{e:?}")))
+    }
+
+    pub fn recv_sync(&self) -> ZFResult<Message> {
+        let mut msg: Option<ZFResult<Message>> = None;
+
+        while msg.is_none() {
+            for receiver in &self.receivers {
+                match receiver.try_recv() {
+                    Ok(message) => {
+                        msg.replace(Ok(message));
+                    }
+                    Err(e) => match e {
+                        TryRecvError::Empty => (),
+                        TryRecvError::Disconnected => {
+                            msg.replace(Err(ZFError::Disconnected));
+                        }
+                    },
+                }
+            }
+        }
+
+        msg.ok_or(ZFError::Empty)?
+            .map_err(|e| ZFError::RecvError(format!("{e:?}")))
     }
 
     pub(crate) fn new() -> Self {
@@ -415,6 +440,14 @@ impl Output {
     pub async fn send(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
         for sender in &self.senders {
             sender.send(data.clone(), timestamp).await?;
+        }
+
+        Ok(())
+    }
+
+    pub fn send_sync(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
+        for sender in &self.senders {
+            sender.send_sync(data.clone(), timestamp)?;
         }
 
         Ok(())

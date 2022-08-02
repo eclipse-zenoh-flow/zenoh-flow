@@ -100,7 +100,7 @@ impl ZenohSender {
     async fn iteration(&self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.record.resource);
         if let Some(link) = &*self.link.lock().await {
-            while let Ok((_, message)) = link.recv().await {
+            while let Ok(message) = link.recv().await {
                 log::trace!("ZenohSender IN <= {:?} ", message);
 
                 let serialized = message.serialize_bincode()?;

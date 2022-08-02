@@ -14,6 +14,7 @@
 
 use crate::{Data, Message, PortId, ZFError, ZFResult};
 use async_std::sync::Arc;
+use flume::TryRecvError;
 use futures::Future;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -45,39 +46,34 @@ pub struct LinkReceiver {
     pub(crate) receiver: flume::Receiver<Message>,
 }
 
-/// The output of the [`LinkReceiver`](`LinkReceiver`), a tuple
-/// containing the `PortId` and `Message`.
-///
-/// In Zenoh Flow `T = Data`.
-///
-///
-pub type ZFLinkOutput = ZFResult<(PortId, Message)>;
-
 impl LinkReceiver {
     /// Wrapper over flume::Receiver::recv_async(),
-    /// it returns [`ZFLinkOutput`](`ZFLinkOutput`)
+    /// it returns [`ZFResult<Message>`](`ZFResult<Message>`)
     ///
     /// # Errors
     /// If fails if the link is disconnected
-    pub fn recv(
-        &self,
-    ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput> + '_ + Send + Sync>>
-    {
-        async fn __recv(_self: &LinkReceiver) -> ZFResult<(PortId, Message)> {
-            Ok((_self.id.clone(), _self.receiver.recv_async().await?))
-        }
-
-        Box::pin(__recv(self))
+    pub fn recv(&self) -> flume::r#async::RecvFut<'_, Message> {
+        self.receiver.recv_async()
     }
 
-    /// Discards the message
-    ///
-    /// *Note:* Not implemented.
+    /// Wrapper over flume::Receiver::recv(),
+    /// it returns [`ZFResult<Message>`](`ZFResult<Message>`)
     ///
     /// # Errors
-    /// It fails if the link is disconnected
-    pub async fn discard(&self) -> ZFResult<()> {
-        Ok(())
+    /// If fails if the link is disconnected
+    pub fn recv_sync(&self) -> ZFResult<Message> {
+        self.receiver
+            .recv()
+            .map_err(|e| ZFError::RecvError(format!("{e:?}")))
+    }
+
+    /// Wrapper over flume::Receiver::try_recv(),
+    /// it returns [`Result<Message, TryRecvError>`](`Result<Message, TryRecvError>`)
+    ///
+    /// # Errors
+    /// If fails if the link is disconnected
+    pub(crate) fn try_recv(&self) -> Result<Message, TryRecvError> {
+        self.receiver.try_recv()
     }
 
     /// Returns the `PortId` associated with the receiver.
@@ -109,6 +105,25 @@ impl LinkSender {
         let msg = Message::from_serdedata(data, ts);
 
         Ok(self.sender.send_async(msg).await?)
+    }
+
+    /// Sends `Data` to downstream operators
+    ///
+    /// # Errors
+    /// It fails if the link is disconnected
+    pub fn send_sync(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
+        let ts = match timestamp {
+            Some(timestamp) => Timestamp::new(NTP64(timestamp), *self.hlc.get_id()),
+            None => self.hlc.new_timestamp(),
+        };
+
+        if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
+            return Err(ZFError::BelowWatermarkTimestamp(ts));
+        }
+
+        let msg = Message::from_serdedata(data, ts);
+
+        Ok(self.sender.send(msg)?)
     }
 
     /// Send a `Watermark` to downstream operators
@@ -247,7 +262,7 @@ impl AsyncCallbackReceiver {
     }
 
     pub async fn run(&self) -> ZFResult<()> {
-        let (_id, msg) = self.rx.recv().await?;
+        let msg = self.rx.recv().await?;
         self.cb.call(msg).await
     }
 }
