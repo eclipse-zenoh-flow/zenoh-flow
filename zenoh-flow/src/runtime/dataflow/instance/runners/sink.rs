@@ -201,7 +201,7 @@ impl Runner for SinkRunner {
         let iteration = self
             .sink
             .setup(&self.configuration, self.inputs.clone())
-            .await;
+            .await?;
 
         let c_id = self.id.clone();
         let run_loop = async move {

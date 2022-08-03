@@ -304,7 +304,7 @@ impl Runner for SourceRunner {
         let iteration = self
             .source
             .setup(&self.configuration, self.outputs.clone())
-            .await;
+            .await?;
 
         let c_id = self.id.clone();
 

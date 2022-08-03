@@ -397,7 +397,7 @@ pub trait Source: Node + Send + Sync {
         &self,
         configuration: &Option<Configuration>,
         outputs: HashMap<PortId, Output>,
-    ) -> Arc<dyn AsyncIteration>;
+    ) -> ZFResult<Arc<dyn AsyncIteration>>;
 }
 
 /// The `Operator` trait represents an Operator inside Zenoh Flow.
@@ -408,7 +408,7 @@ pub trait Operator: Node + Send + Sync {
         configuration: &Option<Configuration>,
         inputs: HashMap<PortId, Input>,
         outputs: HashMap<PortId, Output>,
-    ) -> Arc<dyn AsyncIteration>;
+    ) -> ZFResult<Arc<dyn AsyncIteration>>;
 }
 
 /// The `Sink` trait represents a Sink inside Zenoh Flow.
@@ -418,7 +418,7 @@ pub trait Sink: Node + Send + Sync {
         &self,
         configuration: &Option<Configuration>,
         inputs: HashMap<PortId, Input>,
-    ) -> Arc<dyn AsyncIteration>;
+    ) -> ZFResult<Arc<dyn AsyncIteration>>;
 }
 
 /// A `SourceSink` represents Nodes that access the same physical interface to
@@ -430,7 +430,7 @@ pub trait SourceSink: Node + Send + Sync {
         configuration: &Option<Configuration>,
         inputs: HashMap<PortId, Input>,
         outputs: HashMap<PortId, Output>,
-    ) -> Arc<dyn AsyncIteration>;
+    ) -> ZFResult<Arc<dyn AsyncIteration>>;
 }
 
 /// Trait wrapping an async closures for node iteration, it requires rust-nightly because of

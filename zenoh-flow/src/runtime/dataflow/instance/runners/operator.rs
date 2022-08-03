@@ -464,7 +464,7 @@ impl Runner for OperatorRunner {
                 self.inputs.clone(),
                 self.outputs.clone(),
             )
-            .await;
+            .await?;
 
         let c_id = self.id.clone();
 
