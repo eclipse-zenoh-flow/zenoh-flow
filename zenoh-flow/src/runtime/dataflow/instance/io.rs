@@ -27,22 +27,22 @@ pub type Outputs = HashMap<PortId, Output>;
 pub trait Streams {
     type Item;
 
-    fn take(&mut self, port_id: &PortId) -> Option<Self::Item>;
+    fn take(&mut self, port_id: impl AsRef<str>) -> Option<Self::Item>;
 }
 
 impl Streams for Inputs {
     type Item = Input;
 
-    fn take(&mut self, port_id: &PortId) -> Option<Self::Item> {
-        self.remove(port_id)
+    fn take(&mut self, port_id: impl AsRef<str>) -> Option<Self::Item> {
+        self.remove(port_id.as_ref())
     }
 }
 
 impl Streams for Outputs {
     type Item = Output;
 
-    fn take(&mut self, port_id: &PortId) -> Option<Self::Item> {
-        self.remove(port_id)
+    fn take(&mut self, port_id: impl AsRef<str>) -> Option<Self::Item> {
+        self.remove(port_id.as_ref())
     }
 }
 
