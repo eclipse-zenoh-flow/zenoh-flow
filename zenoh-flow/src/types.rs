@@ -12,14 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use flume::{RecvError, TryRecvError};
-
 use crate::async_std::sync::Arc;
-use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::serde::{Deserialize, Serialize};
-use crate::{ControlMessage, Message, ZFData};
-use std::collections::HashMap;
+use crate::{ControlMessage, ZFData};
 use std::time::Duration;
+
 /// A NodeId identifies a node inside a Zenoh Flow graph
 pub type NodeId = Arc<str>;
 /// A PortId identifies a port within an node.
@@ -344,112 +341,5 @@ impl DurationDescriptor {
             DurationUnit::Millisecond => Duration::from_millis(self.length),
             DurationUnit::Microsecond => Duration::from_micros(self.length),
         }
-    }
-}
-
-pub type Inputs = HashMap<PortId, Input>;
-pub type Outputs = HashMap<PortId, Output>;
-
-#[derive(Clone, Debug)]
-pub struct Input {
-    pub(crate) receivers: Vec<LinkReceiver>,
-}
-
-impl Input {
-    pub fn len(&self) -> usize {
-        self.receivers.len()
-    }
-
-    pub fn remove(&mut self, position: usize) -> LinkReceiver {
-        self.receivers.remove(position)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.receivers.is_empty()
-    }
-
-    pub async fn recv(&self) -> ZFResult<Message> {
-        let iter = self.receivers.iter().map(|link| link.recv());
-
-        // FIXME The remaining futures are not cancelled. Wouldn’t a `race` be better in that
-        // situation? Or maybe we can store the other futures in the struct and poll them once
-        // `recv` is called again?
-        let (res, _, _) = futures::future::select_all(iter).await;
-
-        res.map_err(|e| ZFError::RecvError(format!("{e:?}")))
-    }
-
-    pub fn recv_sync(&self) -> ZFResult<Message> {
-        let mut msg: Option<ZFResult<Message>> = None;
-
-        while msg.is_none() {
-            for receiver in &self.receivers {
-                match receiver.try_recv() {
-                    Ok(message) => {
-                        msg.replace(Ok(message));
-                    }
-                    Err(e) => match e {
-                        TryRecvError::Empty => (),
-                        TryRecvError::Disconnected => {
-                            msg.replace(Err(ZFError::Disconnected));
-                        }
-                    },
-                }
-            }
-        }
-
-        msg.ok_or(ZFError::Empty)?
-            .map_err(|e| ZFError::RecvError(format!("{e:?}")))
-    }
-
-    pub(crate) fn new() -> Self {
-        Self { receivers: vec![] }
-    }
-
-    pub(crate) fn add(&mut self, receiver: LinkReceiver) {
-        self.receivers.push(receiver);
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Output {
-    pub(crate) senders: Vec<LinkSender>,
-}
-
-impl Output {
-    pub(crate) fn new() -> Self {
-        Self { senders: vec![] }
-    }
-
-    pub(crate) fn add(&mut self, tx: LinkSender) {
-        self.senders.push(tx);
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.senders.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.senders.len()
-    }
-
-    pub fn remove(&mut self, position: usize) -> LinkSender {
-        self.senders.remove(position)
-    }
-
-    pub async fn send(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
-        for sender in &self.senders {
-            sender.send(data.clone(), timestamp).await?;
-        }
-
-        Ok(())
-    }
-
-    pub fn send_sync(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
-        for sender in &self.senders {
-            sender.send_sync(data.clone(), timestamp)?;
-        }
-
-        Ok(())
     }
 }

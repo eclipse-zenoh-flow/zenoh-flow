@@ -12,12 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-pub mod link;
+pub mod io;
 pub mod runners;
 
 use crate::model::connector::ZFConnectorKind;
 use crate::model::link::LinkRecord;
-use crate::runtime::dataflow::instance::link::link;
 use crate::runtime::dataflow::instance::runners::connector::{ZenohReceiver, ZenohSender};
 use crate::runtime::dataflow::instance::runners::operator::OperatorRunner;
 use crate::runtime::dataflow::instance::runners::sink::SinkRunner;
@@ -63,25 +62,26 @@ fn create_links(
             continue;
         }
 
-        let (tx, rx) = link(
-            None,
-            link_desc.from.output.clone(),
-            link_desc.to.input.clone(),
-            hlc.clone(),
-        );
+        // FIXME Introduce a user-configurable maximum capacity on the links. This also requires
+        // implementing a dropping policy.
+        let (tx, rx) = flume::unbounded();
+        let from = link_desc.from.output.clone();
+        let to = link_desc.to.input.clone();
 
         match io.get_mut(&upstream_node) {
             Some((_, outputs)) => {
-                outputs.entry(tx.id()).or_insert_with(Output::new).add(tx);
+                outputs
+                    .entry(from.clone())
+                    .or_insert_with(|| Output::new(from, hlc.clone()))
+                    .add(tx);
             }
             None => {
                 let inputs = HashMap::new();
 
-                let mut output = Output::new();
-                let id = tx.id();
+                let mut output = Output::new(from.clone(), hlc.clone());
                 output.add(tx);
 
-                let outputs = HashMap::from([(id, output)]);
+                let outputs = HashMap::from([(from, output)]);
 
                 io.insert(upstream_node, (inputs, outputs));
             }
@@ -89,16 +89,18 @@ fn create_links(
 
         match io.get_mut(&downstream_node) {
             Some((inputs, _)) => {
-                inputs.entry(rx.id()).or_insert_with(Input::new).add(rx);
+                inputs
+                    .entry(to.clone())
+                    .or_insert_with(|| Input::new(to))
+                    .add(rx);
             }
             None => {
                 let outputs = HashMap::new();
 
-                let mut input = Input::new();
-                let id = rx.id();
+                let mut input = Input::new(to.clone());
                 input.add(rx);
 
-                let inputs = HashMap::from([(id, input)]);
+                let inputs = HashMap::from([(to, input)]);
 
                 io.insert(downstream_node, (inputs, outputs));
             }

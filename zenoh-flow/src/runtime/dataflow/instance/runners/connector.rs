@@ -12,16 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::collections::HashMap;
-
 use crate::async_std::sync::{Arc, Mutex};
 use crate::model::connector::ZFConnectorRecord;
-use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::InstanceContext;
 use crate::{Input, Message, NodeId, Output, PortId, ZFError, ZFResult};
 use async_trait::async_trait;
 use futures::StreamExt;
+use std::collections::HashMap;
 use zenoh::prelude::*;
 use zenoh::publication::CongestionControl;
 
@@ -33,7 +31,7 @@ pub struct ZenohSender {
     pub(crate) context: InstanceContext,
     pub(crate) record: ZFConnectorRecord,
     pub(crate) is_running: Arc<Mutex<bool>>,
-    pub(crate) link: Arc<Mutex<Option<LinkReceiver>>>,
+    pub(crate) link: Input,
     pub(crate) key_expr: ExprId,
 }
 
@@ -50,23 +48,12 @@ impl ZenohSender {
         mut inputs: HashMap<PortId, Input>,
     ) -> ZFResult<Self> {
         let port_id = record.link_id.port_id.clone();
-        let mut links = inputs.remove(&port_id).ok_or_else(|| {
+        let input = inputs.remove(&port_id).ok_or_else(|| {
             ZFError::IOError(format!(
                 "Link < {} > was not created for Connector < {} >.",
                 &port_id, &record.id
             ))
         })?;
-
-        if links.len() != 1 {
-            return Err(ZFError::IOError(format!(
-                "Expected exactly one link for port < {} > for Connector < {} >, found: {}",
-                &port_id,
-                &record.id,
-                links.len()
-            )));
-        }
-
-        let link = Some(links.remove(0));
 
         // Declaring the resource to reduce network overhead.
         let key_expr = context
@@ -80,7 +67,7 @@ impl ZenohSender {
             context,
             record,
             is_running: Arc::new(Mutex::new(false)),
-            link: Arc::new(Mutex::new(link)),
+            link: input,
             key_expr,
         })
     }
@@ -99,22 +86,22 @@ impl ZenohSender {
     /// - link recv fails
     async fn iteration(&self) -> ZFResult<()> {
         log::debug!("ZenohSender - {} - Started", self.record.resource);
-        if let Some(link) = &*self.link.lock().await {
-            while let Ok(message) = link.recv().await {
-                log::trace!("ZenohSender IN <= {:?} ", message);
+        // if let Some(link) = &*self.link.lock().await {
+        while let Ok(message) = self.link.recv_async().await {
+            log::trace!("ZenohSender IN <= {:?} ", message);
 
-                let serialized = message.serialize_bincode()?;
-                log::trace!("ZenohSender - {}=>{:?} ", self.record.resource, serialized);
-                self.context
-                    .runtime
-                    .session
-                    .put(&self.key_expr, serialized)
-                    .congestion_control(CongestionControl::Block)
-                    .await?;
-            }
-        } else {
-            return Err(ZFError::Disconnected);
+            let serialized = message.serialize_bincode()?;
+            log::trace!("ZenohSender - {}=>{:?} ", self.record.resource, serialized);
+            self.context
+                .runtime
+                .session
+                .put(&self.key_expr, serialized)
+                .congestion_control(CongestionControl::Block)
+                .await?;
         }
+        // } else {
+        //     return Err(ZFError::Disconnected);
+        // }
         Ok(())
     }
 }
@@ -233,7 +220,8 @@ pub struct ZenohReceiver {
     pub(crate) record: ZFConnectorRecord,
     pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) key_expr: ExprId,
-    pub(crate) link: Arc<Mutex<Option<LinkSender>>>,
+    // pub(crate) link: Arc<Mutex<Option<LinkSender>>>,
+    pub(crate) link: Output,
 }
 
 impl ZenohReceiver {
@@ -248,23 +236,12 @@ impl ZenohReceiver {
         mut outputs: HashMap<PortId, Output>,
     ) -> ZFResult<Self> {
         let port_id = record.link_id.port_id.clone();
-        let mut links = outputs.remove(&port_id).ok_or_else(|| {
+        let output = outputs.remove(&port_id).ok_or_else(|| {
             ZFError::IOError(format!(
                 "Link < {} > was not created for Connector < {} >.",
                 &port_id, &record.id
             ))
         })?;
-
-        if links.len() != 1 {
-            return Err(ZFError::IOError(format!(
-                "Expected exactly one link for port < {} > for Connector < {} >, found: {}",
-                &port_id,
-                &record.id,
-                links.len()
-            )));
-        }
-
-        let link = Some(links.remove(0));
 
         let key_expr = context
             .runtime
@@ -278,7 +255,7 @@ impl ZenohReceiver {
             record,
             key_expr,
             is_running: Arc::new(Mutex::new(false)),
-            link: Arc::new(Mutex::new(link)),
+            link: output,
         })
     }
 }
@@ -298,22 +275,22 @@ impl Runner for ZenohReceiver {
 
         let res = {
             log::debug!("ZenohReceiver - {} - Started", self.record.resource);
-            if let Some(link) = &*self.link.lock().await {
-                let mut subscriber = self
-                    .context
-                    .runtime
-                    .session
-                    .subscribe(&self.key_expr)
-                    .await?;
+            // if let Some(link) = &*self.link.lock().await {
+            let mut subscriber = self
+                .context
+                .runtime
+                .session
+                .subscribe(&self.key_expr)
+                .await?;
 
-                while let Some(msg) = subscriber.receiver().next().await {
-                    log::trace!("ZenohSender - {}<={:?} ", self.record.resource, msg);
-                    let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
-                        .map_err(|_| ZFError::DeseralizationError)?;
-                    log::trace!("ZenohSender - OUT =>{:?} ", de);
-                    link.send_msg(de).await?;
-                }
+            while let Some(msg) = subscriber.receiver().next().await {
+                log::trace!("ZenohSender - {}<={:?} ", self.record.resource, msg);
+                let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
+                    .map_err(|_| ZFError::DeseralizationError)?;
+                log::trace!("ZenohSender - OUT =>{:?} ", de);
+                self.link.send_to_all_async(de).await?;
             }
+            // }
 
             Err(ZFError::Disconnected)
         };

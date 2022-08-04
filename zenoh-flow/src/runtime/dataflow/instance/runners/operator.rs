@@ -13,8 +13,6 @@
 //
 
 use crate::async_std::sync::Arc;
-use crate::model::node::OperatorRecord;
-use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::InstanceContext;
@@ -29,84 +27,6 @@ use std::time::Instant;
 use libloading::os::unix::Library;
 #[cfg(target_family = "windows")]
 use libloading::Library;
-
-/// A struct that wraps the inputs and outputs
-/// of a node.
-#[derive(Default)]
-pub struct OperatorIO {
-    inputs: HashMap<PortId, LinkReceiver>,
-    outputs: HashMap<PortId, Vec<LinkSender>>,
-}
-
-// /// Future of the `Receiver`
-// type LinkRecvFut<'a> = std::pin::Pin<
-//     Box<dyn Future<Output = Result<(Arc<str>, Arc<Message>), ZFError>> + Send + Sync + 'a>,
-// >;
-
-// impl OperatorIO {
-//     fn poll_input(&self, node_id: &NodeId, port_id: &PortId) -> ZFResult<LinkRecvFut> {
-//         let rx = self.inputs.get(port_id).ok_or_else(|| {
-//             ZFError::IOError(format!(
-//                 "[Operator: {}] Link < {} > no longer exists.",
-//                 node_id, port_id
-//             ))
-//         })?;
-//         Ok(rx.recv())
-//     }
-// }
-
-/// Type of Inputs
-pub type InputsLink = HashMap<PortId, LinkReceiver>;
-/// Type of Outputs
-pub type OutputsLinks = HashMap<PortId, Vec<LinkSender>>;
-
-impl OperatorIO {
-    /// Creates the `OperatorIO` from an [`OperatorRecord`](`OperatorRecord`)
-    pub fn new(record: &OperatorRecord) -> Self {
-        Self {
-            inputs: HashMap::with_capacity(record.inputs.len()),
-            outputs: HashMap::with_capacity(record.outputs.len()),
-        }
-    }
-
-    /// Tries to add the given `LinkReceiver`
-    ///
-    /// # Errors
-    /// It fails if the `PortId` is duplicated.
-    pub fn try_add_input(&mut self, rx: LinkReceiver) -> ZFResult<()> {
-        if self.inputs.contains_key(&rx.id()) {
-            return Err(ZFError::DuplicatedPort((rx.id(), rx.id())));
-        }
-
-        self.inputs.insert(rx.id(), rx);
-
-        Ok(())
-    }
-
-    /// Adds the given `LinkSender`
-    pub fn add_output(&mut self, tx: LinkSender) {
-        if let Some(vec_senders) = self.outputs.get_mut(&tx.id()) {
-            vec_senders.push(tx);
-        } else {
-            self.outputs.insert(tx.id(), vec![tx]);
-        }
-    }
-
-    /// Destroys and returns a tuple with the internal inputs and outputs.
-    pub fn take(self) -> (InputsLink, OutputsLinks) {
-        (self.inputs, self.outputs)
-    }
-
-    /// Returns a copy of the inputs.
-    pub fn get_inputs(&self) -> InputsLink {
-        self.inputs.clone()
-    }
-
-    /// Returns a copy of the outputs.
-    pub fn get_outputs(&self) -> OutputsLinks {
-        self.outputs.clone()
-    }
-}
 
 /// The `OperatorRunner` is the component in charge of executing the operator.
 /// It contains all the runtime information for the operator, the graph instance.
