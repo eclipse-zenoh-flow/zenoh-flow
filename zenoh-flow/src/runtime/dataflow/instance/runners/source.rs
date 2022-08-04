@@ -22,6 +22,7 @@ use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
 use std::collections::HashMap;
+use std::time::Instant;
 
 #[cfg(target_family = "unix")]
 use libloading::os::unix::Library;
@@ -298,8 +299,14 @@ impl Runner for SourceRunner {
         // Start is idempotent, if the node was already started,
         // do nothing and return Ok(())
         if self.handle.is_some() && self.abort_handle.is_some() {
+            log::warn!(
+                "[Source: {}] Trying to start while it is already started, aborting",
+                self.id
+            );
             return Ok(());
         }
+
+        log::trace!("[Source: {}] Starting", self.id);
 
         let iteration = self
             .source
@@ -309,11 +316,18 @@ impl Runner for SourceRunner {
         let c_id = self.id.clone();
 
         let run_loop = async move {
+            let mut instant: Instant;
             loop {
+                instant = Instant::now();
                 if let Err(e) = iteration.call().await {
-                    log::error!("[Operator: {c_id}] {:?}", e);
+                    log::error!("[Source: {c_id}] {:?}", e);
                     return e;
                 }
+
+                log::trace!(
+                    "[Source: {c_id}] iteration took: {}ms",
+                    instant.elapsed().as_millis()
+                );
 
                 async_std::task::yield_now().await;
             }

@@ -13,6 +13,7 @@
 //
 
 use std::collections::HashMap;
+use std::time::Instant;
 
 use crate::async_std::sync::Arc;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
@@ -195,8 +196,14 @@ impl Runner for SinkRunner {
         // Start is idempotent, if the node was already started,
         // do nothing and return Ok(())
         if self.handle.is_some() && self.abort_handle.is_some() {
+            log::warn!(
+                "[Sink: {}] Trying to start while it is already started, aborting",
+                self.id
+            );
             return Ok(());
         }
+
+        log::trace!("[Sink: {}] Starting", self.id);
 
         let iteration = self
             .sink
@@ -205,11 +212,18 @@ impl Runner for SinkRunner {
 
         let c_id = self.id.clone();
         let run_loop = async move {
+            let mut instant: Instant;
             loop {
+                instant = Instant::now();
                 if let Err(e) = iteration.call().await {
-                    log::error!("[Operator: {c_id}] {:?}", e);
+                    log::error!("[Sink: {c_id}] {:?}", e);
                     return e;
                 }
+
+                log::trace!(
+                    "[Sink: {c_id}] iteration took: {}ms",
+                    instant.elapsed().as_millis()
+                );
 
                 async_std::task::yield_now().await;
             }
