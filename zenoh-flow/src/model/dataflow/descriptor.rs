@@ -144,18 +144,20 @@ impl DataFlowDescriptor {
 
         // loading sources
         for s in self.sources {
-            sources.push(s.load_source().await?);
+            sources.push(s.load_source(self.global_configuration.clone()).await?);
         }
 
         // loading sinks
         for s in self.sinks {
-            sinks.push(s.load_sink().await?);
+            sinks.push(s.load_sink(self.global_configuration.clone()).await?);
         }
 
         // loading operators
         for o in self.operators {
             let oid = o.id.clone();
-            let (ops, lnks, ins, outs) = o.flatten(oid.clone()).await?;
+            let (ops, lnks, ins, outs) = o
+                .flatten(oid.clone(), self.global_configuration.clone())
+                .await?;
 
             operators.extend(ops);
             links.extend(lnks);

@@ -333,6 +333,7 @@ impl CompositeOperatorDescriptor {
     pub async fn flatten(
         mut self,
         id: NodeId,
+        global_configuration: Option<Configuration>,
     ) -> ZFResult<(
         Vec<SimpleOperatorDescriptor>,
         Vec<LinkDescriptor>,
@@ -382,8 +383,10 @@ impl CompositeOperatorDescriptor {
                     // Updating the new id
                     desc.id = new_id;
 
-                    desc.configuration =
-                        merge_configurations(desc.configuration, self.configuration.clone());
+                    desc.configuration = merge_configurations(
+                        global_configuration.clone(),
+                        merge_configurations(desc.configuration, self.configuration.clone()),
+                    );
 
                     // Adding in the list of operators
                     simple_operators.push(desc);
@@ -394,7 +397,10 @@ impl CompositeOperatorDescriptor {
                         Ok(desc) => {
                             log::trace!("This is a composite operator");
                             let new_id: NodeId = format!("{}-{}", id, o.id).into();
-                            match desc.flatten(new_id.clone()).await {
+                            match desc
+                                .flatten(new_id.clone(), global_configuration.clone())
+                                .await
+                            {
                                 Ok((ds, ls, ins, outs)) => {
                                     // Adding the result in the list of operators
                                     // and links
@@ -526,6 +532,7 @@ impl NodeDescriptor {
     pub async fn flatten(
         self,
         id: NodeId,
+        global_configuration: Option<Configuration>,
     ) -> ZFResult<(
         Vec<SimpleOperatorDescriptor>,
         Vec<LinkDescriptor>,
@@ -539,8 +546,10 @@ impl NodeDescriptor {
         match SimpleOperatorDescriptor::from_yaml(&descriptor_path) {
             Ok(mut desc) => {
                 desc.id = id;
-                desc.configuration =
-                    merge_configurations(desc.configuration, self.configuration.clone());
+                desc.configuration = merge_configurations(
+                    global_configuration,
+                    merge_configurations(desc.configuration, self.configuration.clone()),
+                );
                 let ins = desc
                     .inputs
                     .iter()
@@ -560,7 +569,7 @@ impl NodeDescriptor {
                 Ok((vec![desc], vec![], ins, outs))
             }
             Err(_) => match CompositeOperatorDescriptor::from_yaml(&descriptor_path) {
-                Ok(desc) => desc.flatten(id).await,
+                Ok(desc) => desc.flatten(id, global_configuration).await,
                 Err(e) => {
                     log::warn!("Unable to flatten {}, error {}", self.id, e);
                     Err(e)
@@ -576,7 +585,10 @@ impl NodeDescriptor {
     ///  # Errors
     /// A variant error is returned if loading source fails. Or if the
     ///  node does not contains an source
-    pub async fn load_source(self) -> ZFResult<SourceDescriptor> {
+    pub async fn load_source(
+        self,
+        global_configuration: Option<Configuration>,
+    ) -> ZFResult<SourceDescriptor> {
         let descriptor_path = async_std::fs::read_to_string(&self.descriptor).await?;
         log::trace!("Loading source {}", self.descriptor);
         // We try to load the descriptor, first we try as simple one, if it fails
@@ -584,6 +596,7 @@ impl NodeDescriptor {
         match SourceDescriptor::from_yaml(&descriptor_path) {
             Ok(mut desc) => {
                 desc.id = self.id;
+                desc.configuration = merge_configurations(global_configuration, desc.configuration);
                 Ok(desc)
             }
             Err(e) => {
@@ -598,7 +611,10 @@ impl NodeDescriptor {
     ///  # Errors
     /// A variant error is returned if loading sink fails. Or if the
     ///  node does not contains an sink
-    pub async fn load_sink(self) -> ZFResult<SinkDescriptor> {
+    pub async fn load_sink(
+        self,
+        global_configuration: Option<Configuration>,
+    ) -> ZFResult<SinkDescriptor> {
         let descriptor_path = async_std::fs::read_to_string(&self.descriptor).await?;
         log::trace!("Loading sink {}", self.descriptor);
 
@@ -607,6 +623,7 @@ impl NodeDescriptor {
         match SinkDescriptor::from_yaml(&descriptor_path) {
             Ok(mut desc) => {
                 desc.id = self.id;
+                desc.configuration = merge_configurations(global_configuration, desc.configuration);
                 Ok(desc)
             }
             Err(e) => {
