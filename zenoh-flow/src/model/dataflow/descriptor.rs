@@ -20,7 +20,7 @@ use crate::model::node::{
 };
 use crate::serde::{Deserialize, Serialize};
 use crate::types::{NodeId, RuntimeId, ZFError, ZFResult};
-use crate::Configuration;
+use crate::{merge_configurations, Configuration};
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -144,20 +144,24 @@ impl DataFlowDescriptor {
 
         // loading sources
         for s in self.sources {
-            sources.push(s.load_source(self.global_configuration.clone()).await?);
+            let config =
+                merge_configurations(self.global_configuration.clone(), s.configuration.clone());
+            sources.push(s.load_source(config).await?);
         }
 
         // loading sinks
         for s in self.sinks {
-            sinks.push(s.load_sink(self.global_configuration.clone()).await?);
+            let config =
+                merge_configurations(self.global_configuration.clone(), s.configuration.clone());
+            sinks.push(s.load_sink(config).await?);
         }
 
         // loading operators
         for o in self.operators {
+            let config =
+                merge_configurations(self.global_configuration.clone(), o.configuration.clone());
             let oid = o.id.clone();
-            let (ops, lnks, ins, outs) = o
-                .flatten(oid.clone(), self.global_configuration.clone())
-                .await?;
+            let (ops, lnks, ins, outs) = o.flatten(oid.clone(), config).await?;
 
             operators.extend(ops);
             links.extend(lnks);
@@ -189,7 +193,7 @@ impl DataFlowDescriptor {
             sinks,
             links,
             mapping: None,
-            global_configuration: None,
+            global_configuration: self.global_configuration.clone(),
             flags: None,
         })
     }
