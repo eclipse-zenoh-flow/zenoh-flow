@@ -17,11 +17,10 @@ use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
-use crate::{AsyncCallbackSender, Configuration, Context, NodeId, Output, PortId, Source, ZFError};
+use crate::{Configuration, Context, NodeId, Output, PortId, Source, ZFError};
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
-use futures::Future;
 use std::collections::HashMap;
 use std::time::Instant;
 

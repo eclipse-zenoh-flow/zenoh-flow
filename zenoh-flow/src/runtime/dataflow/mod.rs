@@ -27,7 +27,7 @@ use crate::model::link::{LinkRecord, PortDescriptor};
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
-use crate::{Configuration, FlowId, NodeId, Operator, PortId, PortType, Sink, Source, ZFResult};
+use crate::{Configuration, FlowId, NodeId, Operator, Sink, Source, ZFResult};
 
 /// The data flow struct.
 /// This struct contains all the information needed to instantiate a data flow.
@@ -158,14 +158,15 @@ impl Dataflow {
         output: PortDescriptor,
         source: Arc<dyn Source>,
     ) -> ZFResult<()> {
-        self.validator.try_add_source(id.clone(), output.clone())?;
+        // self.validator.try_add_source(id.clone(), output.clone())?;
+        self.validator.try_add_source(id.clone(), output)?;
 
         self.sources.insert(
             id.clone(),
             SourceLoaded {
                 id,
                 configuration,
-                output: (output, self.counter).into(),
+                // output: (output, self.counter).into(),
                 source,
                 library: None,
             },
@@ -195,22 +196,22 @@ impl Dataflow {
         self.validator
             .try_add_operator(id.clone(), &inputs, &outputs)?;
 
-        let inputs: HashMap<PortId, PortType> = inputs
-            .into_iter()
-            .map(|desc| (desc.port_id, desc.port_type))
-            .collect();
-        let outputs: HashMap<PortId, PortType> = outputs
-            .into_iter()
-            .map(|desc| (desc.port_id, desc.port_type))
-            .collect();
+        // let inputs: HashMap<PortId, PortType> = inputs
+        //     .into_iter()
+        //     .map(|desc| (desc.port_id, desc.port_type))
+        //     .collect();
+        // let outputs: HashMap<PortId, PortType> = outputs
+        //     .into_iter()
+        //     .map(|desc| (desc.port_id, desc.port_type))
+        //     .collect();
 
         self.operators.insert(
             id.clone(),
             OperatorLoaded {
                 id,
                 configuration,
-                inputs,
-                outputs,
+                // inputs,
+                // outputs,
                 operator,
                 library: None,
             },
@@ -235,14 +236,15 @@ impl Dataflow {
         input: PortDescriptor,
         sink: Arc<dyn Sink>,
     ) -> ZFResult<()> {
-        self.validator.try_add_sink(id.clone(), input.clone())?;
+        // self.validator.try_add_sink(id.clone(), input.clone())?;
+        self.validator.try_add_sink(id.clone(), input)?;
 
         self.sinks.insert(
             id.clone(),
             SinkLoaded {
                 id,
                 configuration,
-                input: (input, self.counter).into(),
+                // input: (input, self.counter).into(),
                 sink,
                 library: None,
             },

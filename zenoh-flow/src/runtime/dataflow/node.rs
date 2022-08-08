@@ -12,11 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::link::PortRecord;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::{Configuration, NodeId, Operator, PortId, PortType, Sink, Source, ZFResult};
+use crate::{Configuration, NodeId, Operator, Sink, Source, ZFResult};
 use async_std::sync::Arc;
-use std::collections::HashMap;
 
 #[cfg(target_family = "unix")]
 use libloading::os::unix::Library;
@@ -29,7 +27,7 @@ use libloading::Library;
 pub struct SourceLoaded {
     pub(crate) id: NodeId,
     pub(crate) configuration: Option<Configuration>,
-    pub(crate) output: PortRecord,
+    // pub(crate) output: PortRecord,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -50,7 +48,7 @@ impl SourceLoaded {
         Ok(Self {
             id: record.id,
             configuration: record.configuration,
-            output: record.output,
+            // output: record.output,
             source,
             library: lib,
         })
@@ -63,8 +61,8 @@ impl SourceLoaded {
 pub struct OperatorLoaded {
     pub(crate) id: NodeId,
     pub(crate) configuration: Option<Configuration>,
-    pub(crate) inputs: HashMap<PortId, PortType>,
-    pub(crate) outputs: HashMap<PortId, PortType>,
+    // pub(crate) inputs: HashMap<PortId, PortType>,
+    // pub(crate) outputs: HashMap<PortId, PortType>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -82,23 +80,23 @@ impl OperatorLoaded {
         lib: Option<Arc<Library>>,
         operator: Arc<dyn Operator>,
     ) -> ZFResult<Self> {
-        let inputs: HashMap<PortId, PortType> = record
-            .inputs
-            .into_iter()
-            .map(|desc| (desc.port_id, desc.port_type))
-            .collect();
+        // let inputs: HashMap<PortId, PortType> = record
+        //     .inputs
+        //     .into_iter()
+        //     .map(|desc| (desc.port_id, desc.port_type))
+        //     .collect();
 
-        let outputs: HashMap<PortId, PortType> = record
-            .outputs
-            .into_iter()
-            .map(|desc| (desc.port_id, desc.port_type))
-            .collect();
+        // let outputs: HashMap<PortId, PortType> = record
+        //     .outputs
+        //     .into_iter()
+        //     .map(|desc| (desc.port_id, desc.port_type))
+        //     .collect();
 
         Ok(Self {
             id: record.id,
             configuration: record.configuration,
-            inputs,
-            outputs,
+            // inputs,
+            // outputs,
             operator,
             library: lib,
         })
@@ -111,7 +109,7 @@ impl OperatorLoaded {
 pub struct SinkLoaded {
     pub(crate) id: NodeId,
     pub(crate) configuration: Option<Configuration>,
-    pub(crate) input: PortRecord,
+    // pub(crate) input: PortRecord,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) library: Option<Arc<Library>>,
 }
@@ -131,7 +129,7 @@ impl SinkLoaded {
     ) -> ZFResult<Self> {
         Ok(Self {
             id: record.id,
-            input: record.input,
+            // input: record.input,
             sink,
             library: lib,
             configuration: record.configuration,
