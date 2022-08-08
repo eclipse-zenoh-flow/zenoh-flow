@@ -13,8 +13,10 @@
 //
 
 use crate::async_std::sync::Arc;
+use crate::runtime::InstanceContext;
 use crate::serde::{Deserialize, Serialize};
-use crate::{ControlMessage, ZFData};
+use crate::{AsyncCallbackReceiver, AsyncCallbackSender, ControlMessage, ZFData};
+use std::ops::Deref;
 use std::time::Duration;
 
 /// A NodeId identifies a node inside a Zenoh Flow graph
@@ -33,12 +35,30 @@ pub type ZFResult<T> = Result<T, ZFError>;
 
 pub use crate::ZFError;
 
-/// Context is a structure provided by Zenoh Flow to access
-/// the execution context directly from the nodes.
-/// It contains the `mode` as usize.
-#[derive(Default, Debug)]
+/// Context is a structure provided by Zenoh Flow to access the execution context directly from the
+/// nodes. It contains the `mode` as usize.
 pub struct Context {
-    pub mode: usize,
+    instance: Arc<InstanceContext>,
+    pub(crate) callback_receivers: Vec<AsyncCallbackReceiver>,
+    pub(crate) callback_senders: Vec<AsyncCallbackSender>,
+}
+
+impl Context {
+    pub(crate) fn new(instance_context: Arc<InstanceContext>) -> Self {
+        Self {
+            instance: instance_context,
+            callback_receivers: vec![],
+            callback_senders: vec![],
+        }
+    }
+}
+
+impl Deref for Context {
+    type Target = InstanceContext;
+
+    fn deref(&self) -> &Self::Target {
+        &self.instance
+    }
 }
 
 /// The Zenoh Flow data.

@@ -28,7 +28,7 @@ use zenoh::publication::CongestionControl;
 #[derive(Clone)]
 pub struct ZenohSender {
     pub(crate) id: NodeId,
-    pub(crate) context: InstanceContext,
+    pub(crate) instance_context: Arc<InstanceContext>,
     pub(crate) record: ZFConnectorRecord,
     pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) link: Input,
@@ -43,7 +43,7 @@ impl ZenohSender {
     /// connected to this node.
     /// Or if the resource declaration in Zenoh fails.
     pub fn try_new(
-        context: InstanceContext,
+        instance_context: Arc<InstanceContext>,
         record: ZFConnectorRecord,
         mut inputs: HashMap<PortId, Input>,
     ) -> ZFResult<Self> {
@@ -56,7 +56,7 @@ impl ZenohSender {
         })?;
 
         // Declaring the resource to reduce network overhead.
-        let key_expr = context
+        let key_expr = instance_context
             .runtime
             .session
             .declare_expr(&record.resource)
@@ -64,7 +64,7 @@ impl ZenohSender {
 
         Ok(Self {
             id: record.id.clone(),
-            context,
+            instance_context,
             record,
             is_running: Arc::new(Mutex::new(false)),
             link: input,
@@ -92,7 +92,7 @@ impl ZenohSender {
 
             let serialized = message.serialize_bincode()?;
             log::trace!("ZenohSender - {}=>{:?} ", self.record.resource, serialized);
-            self.context
+            self.instance_context
                 .runtime
                 .session
                 .put(&self.key_expr, serialized)
@@ -196,7 +196,7 @@ impl Runner for ZenohSender {
     }
 
     async fn stop(&mut self) -> ZFResult<()> {
-        self.context
+        self.instance_context
             .runtime
             .session
             .undeclare_expr(self.key_expr)
@@ -216,7 +216,7 @@ impl Runner for ZenohSender {
 #[derive(Clone)]
 pub struct ZenohReceiver {
     pub(crate) id: NodeId,
-    pub(crate) context: InstanceContext,
+    pub(crate) instance_context: Arc<InstanceContext>,
     pub(crate) record: ZFConnectorRecord,
     pub(crate) is_running: Arc<Mutex<bool>>,
     pub(crate) key_expr: ExprId,
@@ -231,7 +231,7 @@ impl ZenohReceiver {
     /// An error variant is returned if the link is not supposed to be
     /// connected to this node.
     pub fn try_new(
-        context: InstanceContext,
+        instance_context: Arc<InstanceContext>,
         record: ZFConnectorRecord,
         mut outputs: HashMap<PortId, Output>,
     ) -> ZFResult<Self> {
@@ -243,7 +243,7 @@ impl ZenohReceiver {
             ))
         })?;
 
-        let key_expr = context
+        let key_expr = instance_context
             .runtime
             .session
             .declare_expr(&record.resource)
@@ -251,7 +251,7 @@ impl ZenohReceiver {
 
         Ok(Self {
             id: record.id.clone(),
-            context,
+            instance_context,
             record,
             key_expr,
             is_running: Arc::new(Mutex::new(false)),
@@ -277,7 +277,7 @@ impl Runner for ZenohReceiver {
             log::debug!("ZenohReceiver - {} - Started", self.record.resource);
             // if let Some(link) = &*self.link.lock().await {
             let mut subscriber = self
-                .context
+                .instance_context
                 .runtime
                 .session
                 .subscribe(&self.key_expr)
@@ -355,7 +355,7 @@ impl Runner for ZenohReceiver {
     }
 
     async fn stop(&mut self) -> ZFResult<()> {
-        self.context
+        self.instance_context
             .runtime
             .session
             .undeclare_expr(self.key_expr)

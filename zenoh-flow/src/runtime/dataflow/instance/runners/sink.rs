@@ -20,7 +20,7 @@ use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SinkLoaded;
 use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
-use crate::{Configuration, Input, NodeId, PortId, Sink, ZFError};
+use crate::{Configuration, Context, Input, NodeId, PortId, Sink, ZFError};
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
@@ -40,13 +40,15 @@ use libloading::Library;
 /// will have a SIGSEV.
 pub struct SinkRunner {
     pub(crate) id: NodeId,
+    pub(crate) context: Context,
     pub(crate) configuration: Option<Configuration>,
-    pub(crate) context: InstanceContext,
     pub(crate) inputs: HashMap<PortId, Input>,
     pub(crate) sink: Arc<dyn Sink>,
     pub(crate) _library: Option<Arc<Library>>,
     pub(crate) handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
     pub(crate) abort_handle: Option<AbortHandle>,
+    pub(crate) callbacks_receivers_handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
+    pub(crate) callbacks_receivers_abort_handle: Option<AbortHandle>,
 }
 
 impl SinkRunner {
@@ -56,16 +58,22 @@ impl SinkRunner {
     ///
     /// # Errors
     /// If fails if the input is not connected.
-    pub fn new(context: InstanceContext, sink: SinkLoaded, inputs: HashMap<PortId, Input>) -> Self {
+    pub fn new(
+        instance_context: Arc<InstanceContext>,
+        sink: SinkLoaded,
+        inputs: HashMap<PortId, Input>,
+    ) -> Self {
         Self {
             id: sink.id,
             configuration: sink.configuration,
-            context,
+            context: Context::new(instance_context),
             inputs,
             sink: sink.sink,
             _library: sink.library,
             handle: None,
             abort_handle: None,
+            callbacks_receivers_handle: None,
+            callbacks_receivers_abort_handle: None,
         }
     }
 
@@ -207,9 +215,44 @@ impl Runner for SinkRunner {
 
         let iteration = self
             .sink
-            .setup(&self.configuration, self.inputs.clone())
+            .setup(&mut self.context, &self.configuration, self.inputs.clone())
             .await?;
 
+        /* Callbacks */
+        let c_id = Arc::clone(&self.id);
+        let cb_receivers = std::mem::take(&mut self.context.callback_receivers);
+        let callbacks_receivers_loop = async move {
+            let mut cbs: Vec<_> = cb_receivers
+                .iter()
+                .map(|callback| Box::pin(callback.run()))
+                .collect();
+
+            loop {
+                let (res, _, remainings) = futures::future::select_all(cbs).await;
+                cbs = remainings;
+                match res {
+                    Err(e) => {
+                        log::error!("[Source: {c_id}] {:?}", e);
+                        return e;
+                    }
+                    Ok(index) => {
+                        cbs.push(Box::pin(cb_receivers[index].run()));
+                    }
+                }
+
+                async_std::task::yield_now().await;
+            }
+        };
+
+        let (cb_abort_handle, cb_abort_registration) = AbortHandle::new_pair();
+        let cb_handle = async_std::task::spawn(Abortable::new(
+            callbacks_receivers_loop,
+            cb_abort_registration,
+        ));
+        self.callbacks_receivers_handle = Some(cb_handle);
+        self.callbacks_receivers_abort_handle = Some(cb_abort_handle);
+
+        /* Streams */
         let c_id = self.id.clone();
         let run_loop = async move {
             let mut instant: Instant;

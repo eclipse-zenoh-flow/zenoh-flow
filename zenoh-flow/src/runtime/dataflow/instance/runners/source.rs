@@ -17,10 +17,11 @@ use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::InstanceContext;
 use crate::types::ZFResult;
-use crate::{Configuration, NodeId, Output, PortId, Source, ZFError};
+use crate::{AsyncCallbackSender, Configuration, Context, NodeId, Output, PortId, Source, ZFError};
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
+use futures::Future;
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -40,12 +41,14 @@ use libloading::Library;
 pub struct SourceRunner {
     pub(crate) id: NodeId,
     pub(crate) configuration: Option<Configuration>,
-    pub(crate) context: InstanceContext,
+    pub(crate) context: Context,
     pub(crate) outputs: HashMap<PortId, Output>,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) _library: Option<Arc<Library>>,
     pub(crate) handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
     pub(crate) abort_handle: Option<AbortHandle>,
+    pub(crate) cb_handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
+    pub(crate) cb_abort_handle: Option<AbortHandle>,
 }
 
 impl SourceRunner {
@@ -56,19 +59,21 @@ impl SourceRunner {
     /// # Errors
     /// If fails if the output is not connected.
     pub fn new(
-        context: InstanceContext,
+        instance_context: Arc<InstanceContext>,
         source: SourceLoaded,
         outputs: HashMap<PortId, Output>,
     ) -> Self {
         Self {
             id: source.id,
-            context,
+            context: Context::new(instance_context),
             configuration: source.configuration,
             outputs,
             source: source.source,
             _library: source.library,
             handle: None,
             abort_handle: None,
+            cb_handle: None,
+            cb_abort_handle: None,
         }
     }
 
@@ -310,9 +315,44 @@ impl Runner for SourceRunner {
 
         let iteration = self
             .source
-            .setup(&self.configuration, self.outputs.clone())
+            .setup(&mut self.context, &self.configuration, self.outputs.clone())
             .await?;
 
+        /* Callbacks */
+        let c_id = self.id.clone();
+
+        let callbacks = std::mem::take(&mut self.context.callback_senders);
+        let callbacks_loop = async move {
+            let mut cbs: Vec<_> = callbacks
+                .iter()
+                .map(|callback| Box::pin(callback.trigger()))
+                .collect();
+
+            loop {
+                let (res, _, remainings) = futures::future::select_all(cbs).await;
+                cbs = remainings;
+                match res {
+                    Err(e) => {
+                        log::error!("[Source: {c_id}] {:?}", e);
+                        return e;
+                    }
+                    Ok(index) => {
+                        cbs.push(Box::pin(callbacks[index].trigger()));
+                    }
+                }
+
+                async_std::task::yield_now().await;
+            }
+        };
+
+        let (cb_abort_handle, cb_abort_registration) = AbortHandle::new_pair();
+        let cb_handle =
+            async_std::task::spawn(Abortable::new(callbacks_loop, cb_abort_registration));
+
+        self.cb_handle = Some(cb_handle);
+        self.cb_abort_handle = Some(cb_abort_handle);
+
+        /* Streams */
         let c_id = self.id.clone();
 
         let run_loop = async move {

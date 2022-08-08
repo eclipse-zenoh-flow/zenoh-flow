@@ -36,7 +36,7 @@ use self::runners::Runner;
 /// It contains runtime information for the instance
 /// and the [`InstanceContext`](`InstanceContext`)
 pub struct DataflowInstance {
-    pub(crate) context: InstanceContext,
+    pub(crate) instance_context: Arc<InstanceContext>,
     pub(crate) runners: HashMap<NodeId, Box<dyn Runner>>,
 }
 
@@ -137,11 +137,11 @@ impl DataflowInstance {
 
         let mut links = create_links(&node_ids, &dataflow.links, hlc)?;
 
-        let context = InstanceContext {
+        let context = Arc::new(InstanceContext {
             flow_id: dataflow.flow_id,
             instance_id: dataflow.uuid,
             runtime: dataflow.context,
-        };
+        });
 
         // The links were created, we can generate the Runners.
         let mut runners: HashMap<NodeId, Box<dyn Runner>> = HashMap::with_capacity(node_ids.len());
@@ -155,7 +155,7 @@ impl DataflowInstance {
             })?;
             runners.insert(
                 id,
-                Box::new(SourceRunner::new(context.clone(), source, outputs)),
+                Box::new(SourceRunner::new(Arc::clone(&context), source, outputs)),
             );
         }
 
@@ -207,22 +207,25 @@ impl DataflowInstance {
             }
         }
 
-        Ok(Self { context, runners })
+        Ok(Self {
+            instance_context: context,
+            runners,
+        })
     }
 
     /// Returns the instance's `Uuid`.
     pub fn get_uuid(&self) -> Uuid {
-        self.context.instance_id
+        self.instance_context.instance_id
     }
 
     /// Returns the instance's `FlowId`.
     pub fn get_flow(&self) -> Arc<str> {
-        self.context.flow_id.clone()
+        self.instance_context.flow_id.clone()
     }
 
     /// Returns a copy of the `InstanceContext`.
-    pub fn get_instance_context(&self) -> InstanceContext {
-        self.context.clone()
+    pub fn get_instance_context(&self) -> Arc<InstanceContext> {
+        self.instance_context.clone()
     }
 
     /// Returns the `NodeId` for all the sources in this instance.

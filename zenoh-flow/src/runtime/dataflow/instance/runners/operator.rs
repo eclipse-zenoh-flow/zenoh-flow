@@ -16,7 +16,7 @@ use crate::async_std::sync::Arc;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::InstanceContext;
-use crate::{Configuration, Input, NodeId, Operator, Output, PortId, ZFError, ZFResult};
+use crate::{Configuration, Context, Input, NodeId, Operator, Output, PortId, ZFError, ZFResult};
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
@@ -38,7 +38,7 @@ use libloading::Library;
 /// will have a SIGSEV.
 pub struct OperatorRunner {
     pub(crate) id: NodeId,
-    pub(crate) context: InstanceContext,
+    pub(crate) context: Context,
     pub(crate) configuration: Option<Configuration>,
     pub(crate) inputs: HashMap<PortId, Input>,
     pub(crate) outputs: HashMap<PortId, Output>,
@@ -46,6 +46,10 @@ pub struct OperatorRunner {
     pub(crate) _library: Option<Arc<Library>>,
     pub(crate) handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
     pub(crate) abort_handle: Option<AbortHandle>,
+    pub(crate) callbacks_senders_handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
+    pub(crate) callbacks_senders_abort_handle: Option<AbortHandle>,
+    pub(crate) callbacks_receivers_handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
+    pub(crate) callbacks_receivers_abort_handle: Option<AbortHandle>,
 }
 
 impl OperatorRunner {
@@ -56,7 +60,7 @@ impl OperatorRunner {
     /// # Errors
     /// If fails if the output is not connected.
     pub fn new(
-        context: InstanceContext,
+        instance_context: Arc<InstanceContext>,
         operator: OperatorLoaded,
         inputs: HashMap<PortId, Input>,
         outputs: HashMap<PortId, Output>,
@@ -64,7 +68,7 @@ impl OperatorRunner {
         // TODO Check that all ports are used.
         Self {
             id: operator.id,
-            context,
+            context: Context::new(instance_context),
             configuration: operator.configuration,
             inputs,
             outputs,
@@ -72,6 +76,10 @@ impl OperatorRunner {
             _library: operator.library,
             handle: None,
             abort_handle: None,
+            callbacks_senders_handle: None,
+            callbacks_senders_abort_handle: None,
+            callbacks_receivers_handle: None,
+            callbacks_receivers_abort_handle: None,
         }
     }
 
@@ -387,12 +395,84 @@ impl Runner for OperatorRunner {
         let iteration = self
             .operator
             .setup(
+                &mut self.context,
                 &self.configuration,
                 self.inputs.clone(),
                 self.outputs.clone(),
             )
             .await?;
 
+        /* Callbacks */
+        // Senders
+        let c_id = self.id.clone();
+
+        let cb_senders = std::mem::take(&mut self.context.callback_senders);
+        let callbacks_senders_loop = async move {
+            let mut cbs: Vec<_> = cb_senders
+                .iter()
+                .map(|callback| Box::pin(callback.trigger()))
+                .collect();
+
+            loop {
+                let (res, _, remainings) = futures::future::select_all(cbs).await;
+                cbs = remainings;
+                match res {
+                    Err(e) => {
+                        log::error!("[Source: {c_id}] {:?}", e);
+                        return e;
+                    }
+                    Ok(index) => {
+                        cbs.push(Box::pin(cb_senders[index].trigger()));
+                    }
+                }
+
+                async_std::task::yield_now().await;
+            }
+        };
+
+        let (cb_abort_handle, cb_abort_registration) = AbortHandle::new_pair();
+        let cb_handle = async_std::task::spawn(Abortable::new(
+            callbacks_senders_loop,
+            cb_abort_registration,
+        ));
+        self.callbacks_senders_handle = Some(cb_handle);
+        self.callbacks_senders_abort_handle = Some(cb_abort_handle);
+
+        // Receivers
+        let c_id = Arc::clone(&self.id);
+        let cb_receivers = std::mem::take(&mut self.context.callback_receivers);
+        let callbacks_receivers_loop = async move {
+            let mut cbs: Vec<_> = cb_receivers
+                .iter()
+                .map(|callback| Box::pin(callback.run()))
+                .collect();
+
+            loop {
+                let (res, _, remainings) = futures::future::select_all(cbs).await;
+                cbs = remainings;
+                match res {
+                    Err(e) => {
+                        log::error!("[Source: {c_id}] {:?}", e);
+                        return e;
+                    }
+                    Ok(index) => {
+                        cbs.push(Box::pin(cb_receivers[index].run()));
+                    }
+                }
+
+                async_std::task::yield_now().await;
+            }
+        };
+
+        let (cb_abort_handle, cb_abort_registration) = AbortHandle::new_pair();
+        let cb_handle = async_std::task::spawn(Abortable::new(
+            callbacks_receivers_loop,
+            cb_abort_registration,
+        ));
+        self.callbacks_receivers_handle = Some(cb_handle);
+        self.callbacks_receivers_abort_handle = Some(cb_abort_handle);
+
+        /* Streams */
         let c_id = self.id.clone();
 
         let run_loop = async move {
