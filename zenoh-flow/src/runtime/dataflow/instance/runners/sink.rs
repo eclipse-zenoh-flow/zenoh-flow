@@ -76,50 +76,6 @@ impl SinkRunner {
             callbacks_receivers_abort_handle: None,
         }
     }
-
-    // /// Starts the sink.
-    // async fn start(&self) {
-    //     *self.is_running.lock().await = true;
-    // }
-
-    // /// A single iteration of the run loop.
-    // ///
-    // /// # Errors
-    // /// An error variant is returned in case of:
-    // /// -  user returns an error
-    // /// - link recv fails
-    // ///
-    // async fn iteration(&self, mut context: Context) -> ZFResult<Context> {
-    //     // Guards are taken at the beginning of each iteration to allow interleaving.
-    //     if let Some(link) = &*self.link.lock().await {
-    //         let mut state = self.state.lock().await;
-
-    //         let (_port_id, message) = link.recv().await?;
-    //         let input = match message.as_ref() {
-    //             Message::Data(data_message) => {
-    //                 if let Err(error) = self
-    //                     .context
-    //                     .runtime
-    //                     .hlc
-    //                     .update_with_timestamp(&data_message.timestamp)
-    //                 {
-    //                     log::error!(
-    //                         "[Sink: {}][HLC] Could not update HLC with timestamp {:?}: {:?}",
-    //                         self.id,
-    //                         data_message.timestamp,
-    //                         error
-    //                     );
-    //                 }
-    //                 data_message.clone()
-    //             }
-
-    //             Message::Control(_) => return Err(ZFError::Unimplemented),
-    //         };
-
-    //         self.sink.run(&mut context, &mut state, input).await?;
-    //     }
-    //     Ok(context)
-    // }
 }
 
 #[async_trait]
@@ -131,55 +87,9 @@ impl Runner for SinkRunner {
         RunnerKind::Sink
     }
 
-    // async fn add_input(&self, input: LinkReceiver) -> ZFResult<()> {
-    //     (*self.link.lock().await) = Some(input);
-    //     Ok(())
-    // }
-
-    // async fn add_output(&self, _output: LinkSender) -> ZFResult<()> {
-    //     Err(ZFError::SinkDoNotHaveOutputs)
-    // }
-
     async fn clean(&self) -> ZFResult<()> {
         self.sink.finalize().await
     }
-
-    // fn get_inputs(&self) -> HashMap<PortId, PortType> {
-    //     let mut inputs = HashMap::with_capacity(1);
-    //     inputs.insert(self.input.port_id.clone(), self.input.port_type.clone());
-    //     inputs
-    // }
-
-    // fn get_outputs(&self) -> HashMap<PortId, PortType> {
-    //     HashMap::with_capacity(0)
-    // }
-
-    // async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>> {
-    //     HashMap::with_capacity(0)
-    // }
-
-    // async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver> {
-    //     let mut link_guard = self.link.lock().await;
-    //     if let Some(link) = &*link_guard {
-    //         let mut inputs = HashMap::with_capacity(1);
-    //         inputs.insert(self.input.port_id.clone(), link.clone());
-    //         *link_guard = None;
-    //         return inputs;
-    //     }
-    //     HashMap::with_capacity(0)
-    // }
-
-    // async fn start_recording(&self) -> ZFResult<String> {
-    //     Err(ZFError::Unsupported)
-    // }
-
-    // async fn stop_recording(&self) -> ZFResult<String> {
-    //     Err(ZFError::Unsupported)
-    // }
-
-    // async fn is_recording(&self) -> bool {
-    //     false
-    // }
 
     async fn is_running(&self) -> bool {
         self.handle.is_some()

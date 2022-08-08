@@ -111,39 +111,6 @@ impl SourceRunner {
 
     //     Ok(())
     // }
-
-    // /// A single iteration of the run loop.
-    // ///
-    // /// # Errors
-    // /// An error variant is returned in case of:
-    // /// - user returns an error
-    // /// - record fails
-    // /// - link send fails
-    // async fn iteration(&self, mut context: Context) -> ZFResult<Context> {
-    //     let links = self.links.lock().await;
-    //     let mut state = self.state.lock().await;
-
-    //     // Running
-    //     let output = self.source.run(&mut context, &mut state).await?;
-
-    //     let timestamp = self.context.runtime.hlc.new_timestamp();
-
-    //     // Send to Links
-    //     log::trace!("Sending on {:?} data: {:?}", self.output.port_id, output);
-
-    //     let zf_message = Arc::new(Message::from_serdedata(output, timestamp));
-    //     for link in links.iter() {
-    //         log::trace!("\tSending on: {:?}", link);
-    //         link.send(zf_message.clone()).await?;
-    //     }
-    //     self.record(zf_message).await?;
-    //     Ok(context)
-    // }
-
-    // /// Starts the source.
-    // async fn start(&self) {
-    //     *self.is_running.lock().await = true;
-    // }
 }
 
 #[async_trait]
@@ -156,38 +123,9 @@ impl Runner for SourceRunner {
         RunnerKind::Source
     }
 
-    // async fn add_output(&self, output: LinkSender) -> ZFResult<()> {
-    //     (*self.links.lock().await).push(output);
-    //     Ok(())
-    // }
-
-    // async fn add_input(&self, _input: LinkReceiver) -> ZFResult<()> {
-    //     Err(ZFError::SourceDoNotHaveInputs)
-    // }
-
     async fn clean(&self) -> ZFResult<()> {
         self.source.finalize().await
     }
-
-    // fn get_outputs(&self) -> HashMap<PortId, PortType> {
-    //     let mut outputs = HashMap::with_capacity(1);
-    //     outputs.insert(self.output.port_id.clone(), self.output.port_type.clone());
-    //     outputs
-    // }
-
-    // fn get_inputs(&self) -> HashMap<PortId, PortType> {
-    //     HashMap::with_capacity(0)
-    // }
-
-    // async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>> {
-    //     let mut outputs = HashMap::with_capacity(1);
-    //     outputs.insert(self.output.port_id.clone(), self.links.lock().await.clone());
-    //     outputs
-    // }
-
-    // async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver> {
-    //     HashMap::with_capacity(0)
-    // }
 
     // async fn start_recording(&self) -> ZFResult<String> {
     //     let mut is_recording_guard = self.is_recording.lock().await;

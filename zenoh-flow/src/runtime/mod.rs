@@ -41,7 +41,6 @@ use zrpc_macros::znservice;
 pub mod dataflow;
 pub mod message;
 pub mod resources;
-pub mod token;
 
 /// The context of a Zenoh Flow runtime.
 /// This is shared across all the instances in a runtime.
