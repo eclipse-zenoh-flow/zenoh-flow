@@ -256,38 +256,40 @@ impl Runner for SourceRunner {
             .await?;
 
         /* Callbacks */
-        let c_id = self.id.clone();
 
         let callbacks = std::mem::take(&mut self.context.callback_senders);
-        let callbacks_loop = async move {
-            let mut cbs: Vec<_> = callbacks
-                .iter()
-                .map(|callback| Box::pin(callback.trigger()))
-                .collect();
+        if !callbacks.is_empty() {
+            let c_id = self.id.clone();
+            let callbacks_loop = async move {
+                let mut cbs: Vec<_> = callbacks
+                    .iter()
+                    .map(|callback| Box::pin(callback.trigger()))
+                    .collect();
 
-            loop {
-                let (res, _, remainings) = futures::future::select_all(cbs).await;
-                cbs = remainings;
-                match res {
-                    Err(e) => {
-                        log::error!("[Source: {c_id}] {:?}", e);
-                        return e;
+                loop {
+                    let (res, _, remainings) = futures::future::select_all(cbs).await;
+                    cbs = remainings;
+                    match res {
+                        Err(e) => {
+                            log::error!("[Source: {c_id}] {:?}", e);
+                            return e;
+                        }
+                        Ok(index) => {
+                            cbs.push(Box::pin(callbacks[index].trigger()));
+                        }
                     }
-                    Ok(index) => {
-                        cbs.push(Box::pin(callbacks[index].trigger()));
-                    }
+
+                    async_std::task::yield_now().await;
                 }
+            };
 
-                async_std::task::yield_now().await;
-            }
-        };
+            let (cb_abort_handle, cb_abort_registration) = AbortHandle::new_pair();
+            let cb_handle =
+                async_std::task::spawn(Abortable::new(callbacks_loop, cb_abort_registration));
 
-        let (cb_abort_handle, cb_abort_registration) = AbortHandle::new_pair();
-        let cb_handle =
-            async_std::task::spawn(Abortable::new(callbacks_loop, cb_abort_registration));
-
-        self.cb_handle = Some(cb_handle);
-        self.cb_abort_handle = Some(cb_abort_handle);
+            self.cb_handle = Some(cb_handle);
+            self.cb_abort_handle = Some(cb_abort_handle);
+        }
 
         /* Streams */
         let c_id = self.id.clone();
