@@ -12,11 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::error::ZFError;
 use crate::model::link::{LinkDescriptor, PortRecord};
 use crate::model::{InputDescriptor, OutputDescriptor, PortDescriptor};
-use crate::types::{Configuration, NodeId, RuntimeId};
 use crate::types::{merge_configurations, PortType, ZFResult};
-use crate::error::ZFError;
+use crate::types::{Configuration, NodeId, RuntimeId};
 use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 
