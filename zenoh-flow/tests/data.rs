@@ -12,6 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::convert::From;
 use zenoh_flow::async_std::sync::Arc;
 use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::zenoh_flow_derive::ZFData;
@@ -63,7 +64,7 @@ fn data_wrapping_unwrapping() {
 
     let arc_data = Arc::new(test_data.clone());
 
-    let mut wrapped_data = Data::from_arc(arc_data);
+    let mut wrapped_data = Data::from(arc_data);
     let unwrapped_data = wrapped_data.try_get::<TestData>().unwrap();
 
     assert_eq!(unwrapped_data.field1, test_data.field1);
@@ -72,7 +73,7 @@ fn data_wrapping_unwrapping() {
 
     let serialized_data = test_data.try_serialize().unwrap();
 
-    let mut wrapped_data = Data::from_bytes(serialized_data.clone());
+    let mut wrapped_data = Data::from(serialized_data.clone());
 
     assert_eq!(
         Arc::from(serialized_data),

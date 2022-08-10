@@ -15,7 +15,8 @@
 use crate::async_std::sync::Arc;
 use crate::runtime::InstanceContext;
 use crate::serde::{Deserialize, Serialize};
-use crate::{AsyncCallbackReceiver, AsyncCallbackSender, ControlMessage, ZFData};
+use crate::{AsyncCallbackReceiver, AsyncCallbackSender, ZFData};
+use std::convert::From;
 use std::ops::Deref;
 use std::time::Duration;
 
@@ -79,17 +80,6 @@ pub enum Data {
 }
 
 impl Data {
-    /// Creates a new `Data` from a `Vec<u8>`,
-    /// In order to avoid copies it puts the data inside an `Arc`.
-    pub fn from_bytes(bytes: Vec<u8>) -> Self {
-        Self::Bytes(Arc::new(bytes))
-    }
-
-    /// Creates a new `Data` from a `Arc<Vec<u8>>`.
-    pub fn from_arc_bytes(bytes: Arc<Vec<u8>>) -> Self {
-        Self::Bytes(bytes)
-    }
-
     /// Tries to return a serialized representation of the data.
     /// It does not actually change the internal representation.
     /// The serialized representation in stored inside an `Arc`
@@ -108,25 +98,6 @@ impl Data {
                 Ok(Arc::new(serialized_data))
             }
         }
-    }
-
-    /// Creates a Data from an `Arc` of  typed data.
-    /// The typed data has to be an instance of `ZFData`.
-    pub fn from_arc<Typed>(arc: Arc<Typed>) -> Self
-    where
-        Typed: ZFData + 'static,
-    {
-        Self::Typed(arc)
-    }
-
-    /// Creates a Data from  typed data.
-    /// The typed data has to be an instance of `ZFData`.
-    /// The data is then stored inside an `Arc` to avoid copies.
-    pub fn from<Typed>(typed: Typed) -> Self
-    where
-        Typed: ZFData + 'static,
-    {
-        Self::Typed(Arc::new(typed))
     }
 
     /// Tries to cast the data to the given type.
@@ -169,113 +140,50 @@ impl Data {
     }
 }
 
-// FIXME To remove?
-// /// This structs stores a node state in the heap.
-// pub struct State {
-//     state: Box<dyn ZFState>,
-// }
-
-// impl State {
-//     /// Creates a new `State`, from an already boxed state.
-//     /// The state has to be an instance of [`ZFState`]`ZFState`
-//     pub fn from_box<S>(boxed: Box<S>) -> Self
-//     where
-//         S: ZFState + 'static,
-//     {
-//         Self { state: boxed }
-//     }
-
-//     /// Creates a new `State` from the provided state.
-//     /// The state has to be an instance of [`ZFState`]`ZFState`
-//     pub fn from<S>(state: S) -> Self
-//     where
-//         S: ZFState + 'static,
-//     {
-//         Self {
-//             state: Box::new(state),
-//         }
-//     }
-
-//     /// Tries to cast the state to the given type.
-//     /// It returns a mutable reference to the internal state, so user can
-//     /// modify it.
-//     ///
-//     /// # Errors
-//     /// If it fails to cast an error
-//     /// variant will be returned.
-//     pub fn try_get<S>(&mut self) -> ZFResult<&mut S>
-//     where
-//         S: ZFState + 'static,
-//     {
-//         self.state
-//             .as_mut_any()
-//             .downcast_mut::<S>()
-//             .ok_or_else(|| ZFError::InvalidData("Could not downcast.".to_string()))
-//     }
-// }
-
-/// Represents the output of a node.
-/// A node can either send `Data` or `Control`
-/// Where the first is a [`Data`](`Data`) and the latter
-/// a [`ControlMessage`](`ControlMessage`).
-///
-///
-/// *NOTE:* Handling of control messages is not yet implemented.
-#[derive(Debug, Clone)]
-pub enum NodeOutput {
-    Data(Data),
-    // TODO Users should not have access to all control messages. When implementing the control
-    // messages change this to an enum with a "limited scope".
-    Control(ControlMessage),
+/// Creates a Data from an `Arc` of  typed data.
+/// The typed data has to be an instance of `ZFData`.
+impl<UT> From<Arc<UT>> for Data
+where
+    UT: ZFData + 'static,
+{
+    fn from(data: Arc<UT>) -> Self {
+        Self::Typed(data)
+    }
 }
 
-// /// The empty state is a commodity struct provided to user that do not
-// /// need any state for they operators.
-// #[derive(Debug, Clone)]
-// pub struct EmptyState;
+/// Creates a Data from  typed data.
+/// The typed data has to be an instance of `ZFData`.
+/// The data is then stored inside an `Arc` to avoid copies.
+impl<UT> From<UT> for Data
+where
+    UT: ZFData + 'static,
+{
+    fn from(data: UT) -> Self {
+        Self::Typed(Arc::new(data))
+    }
+}
 
-// impl ZFState for EmptyState {
-//     fn as_any(&self) -> &dyn std::any::Any {
-//         self
-//     }
+/// Creates a new `Data` from a `Arc<Vec<u8>>`.
+impl From<Arc<Vec<u8>>> for Data {
+    fn from(bytes: Arc<Vec<u8>>) -> Self {
+        Self::Bytes(bytes)
+    }
+}
 
-//     fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
-//         self
-//     }
-// }
+/// Creates a new `Data` from a `Vec<u8>`,
+/// In order to avoid copies it puts the data inside an `Arc`.
+impl From<Vec<u8>> for Data {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self::Bytes(Arc::new(bytes))
+    }
+}
 
-// /// Commodity function for users that do not need output
-// /// rules in their operators.
-// /// The data is simply converted to the
-// /// expected [`NodeOutput`](`NodeOutput`) type.
-// pub fn default_output_rule(
-//     _state: &mut State,
-//     outputs: HashMap<PortId, Data>,
-// ) -> ZFResult<HashMap<PortId, NodeOutput>> {
-//     let mut results = HashMap::with_capacity(outputs.len());
-//     for (k, v) in outputs {
-//         results.insert(k, NodeOutput::Data(v));
-//     }
-
-//     Ok(results)
-// }
-
-// /// Commodity function for users that need their operators to behave
-// /// in a KPN manner:
-// /// all inputs must be present before a computation can be triggered.
-// pub fn default_input_rule(
-//     _state: &mut State,
-//     tokens: &mut HashMap<PortId, InputToken>,
-// ) -> ZFResult<bool> {
-//     for token in tokens.values() {
-//         match token {
-//             InputToken::Ready(_) => continue,
-//             InputToken::Pending => return Ok(false),
-//         }
-//     }
-
-//     Ok(true)
-// }
+/// Creates a new `Data` from a `&[u8]`.
+impl From<&[u8]> for Data {
+    fn from(bytes: &[u8]) -> Self {
+        Self::Bytes(Arc::new(bytes.to_vec()))
+    }
+}
 
 /// The generic configuration of a graph node.
 /// It is a re-export of `serde_json::Value`

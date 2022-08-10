@@ -14,7 +14,7 @@
 
 extern crate serde;
 
-use crate::{Data, FlowId, NodeId, NodeOutput, PortId, ZFData, ZFError, ZFResult};
+use crate::{Data, FlowId, NodeId, PortId, ZFData, ZFError, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, fmt::Debug};
@@ -113,15 +113,6 @@ pub enum Message {
 }
 
 impl Message {
-    /// Creates a `Message` from a [`NodeOutput`](`NodeOutput`)
-    ///
-    pub fn from_node_output(output: NodeOutput, timestamp: Timestamp) -> Self {
-        match output {
-            NodeOutput::Control(c) => Self::Control(c),
-            NodeOutput::Data(d) => Self::from_serdedata(d, timestamp),
-        }
-    }
-
     /// Creates a `Message::Data` from [`Data`](`Data`).
     pub fn from_serdedata(output: Data, timestamp: Timestamp) -> Self {
         match output {

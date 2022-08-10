@@ -87,7 +87,7 @@ impl Source for CountSource {
             c_trigger_rx.recv_async().await.unwrap();
             COUNTER.fetch_add(1, Ordering::AcqRel);
             let d = ZFUsize(COUNTER.load(Ordering::Relaxed));
-            let data = Data::from::<ZFUsize>(d);
+            let data = Data::from(d);
             output.send_async(data, None).await
         })))
     }
@@ -153,6 +153,8 @@ impl Operator for NoOp {
             if let Ok(Message::Data(mut msg)) = input.recv_async().await {
                 let data = msg.get_inner_data().try_get::<ZFUsize>()?;
                 assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
+                let out_data = Data::from(data.clone());
+                output.send_async(out_data, None).await?;
             }
             Ok(())
         })))
