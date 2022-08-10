@@ -26,7 +26,7 @@ use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::zenoh_flow_derive::ZFData;
 use zenoh_flow::{
-    AsyncIteration, Configuration, Context, Data, Deserializable, Inputs, Message, Node, Operator,
+    AsyncIteration, Configuration, Context, Data, Deserializable, Inputs, Message, Operator,
     Outputs, Sink, Source, Streams, ZFData, ZFError, ZFResult,
 };
 
@@ -93,13 +93,6 @@ impl Source for CountSource {
     }
 }
 
-#[async_trait]
-impl Node for CountSource {
-    async fn finalize(&self) -> ZFResult<()> {
-        Ok(())
-    }
-}
-
 // SINK
 
 struct ExampleGenericSink;
@@ -122,13 +115,6 @@ impl Sink for ExampleGenericSink {
             }
             Ok(())
         })))
-    }
-}
-
-#[async_trait]
-impl Node for ExampleGenericSink {
-    async fn finalize(&self) -> ZFResult<()> {
-        Ok(())
     }
 }
 
@@ -158,13 +144,6 @@ impl Operator for NoOp {
             }
             Ok(())
         })))
-    }
-}
-
-#[async_trait]
-impl Node for NoOp {
-    async fn finalize(&self) -> ZFResult<()> {
-        Ok(())
     }
 }
 

@@ -181,10 +181,6 @@ impl Runner for ZenohSender {
 
         Ok(())
     }
-
-    async fn clean(&self) -> ZFResult<()> {
-        Ok(())
-    }
 }
 
 /// A `ZenohReceiver` receives the messages from Zenoh when nodes are running
@@ -304,10 +300,6 @@ impl Runner for ZenohReceiver {
         self.handle = Some(handle);
         self.abort_handle = Some(abort_handle);
 
-        Ok(())
-    }
-
-    async fn clean(&self) -> ZFResult<()> {
         Ok(())
     }
 

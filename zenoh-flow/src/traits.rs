@@ -102,48 +102,9 @@ pub trait Deserializable {
         Self: Sized;
 }
 
-/// This trait abstracts the user's state type inside Zenoh Flow.
-///
-/// User types should implement this trait otherwise Zenoh Flow will
-/// not be able to handle the state.
-///
-/// It can be easily derived.
-///
-/// Example:
-///
-/// ```no_run
-/// use zenoh_flow::zenoh_flow_derive::ZFState;
-/// #[derive(Debug, Clone, ZFState)]
-/// pub struct MyState;
-/// ```
-///
-pub trait ZFState: Debug + Send + Sync {
-    /// Donwcast as reference to [`Any`](`Any`)
-    fn as_any(&self) -> &dyn Any;
-
-    /// Donwcast as mutable reference to [`Any`](`Any`)
-    fn as_mut_any(&mut self) -> &mut dyn Any;
-}
-
-/// The `Node` trait represents a generic node in the data flow graph.
-/// It contains functions that are common between Operator, Sink and Source.
-/// It has to be implemented for each node within a graph.
-#[async_trait]
-pub trait Node {
-    /// This method is used to finalize a node. It is called by the Zenoh Flow
-    /// runtime when tearing down the data flow graph.
-    ///
-    /// An example of node state to finalize is files to be closed, clean-up of
-    /// libraries, or devices.
-    ///
-    /// # Errors
-    /// If it fails to finalize an error variant will be returned.
-    async fn finalize(&self) -> ZFResult<()>;
-}
-
 /// The `Source` trait represents a Source inside Zenoh Flow.
 #[async_trait]
-pub trait Source: Node + Send + Sync {
+pub trait Source: Send + Sync {
     async fn setup(
         &self,
         context: &mut Context,
@@ -154,7 +115,7 @@ pub trait Source: Node + Send + Sync {
 
 /// The `Operator` trait represents an Operator inside Zenoh Flow.
 #[async_trait]
-pub trait Operator: Node + Send + Sync {
+pub trait Operator: Send + Sync {
     async fn setup(
         &self,
         context: &mut Context,
@@ -166,7 +127,7 @@ pub trait Operator: Node + Send + Sync {
 
 /// The `Sink` trait represents a Sink inside Zenoh Flow.
 #[async_trait]
-pub trait Sink: Node + Send + Sync {
+pub trait Sink: Send + Sync {
     async fn setup(
         &self,
         context: &mut Context,
@@ -178,7 +139,7 @@ pub trait Sink: Node + Send + Sync {
 /// A `SourceSink` represents Nodes that access the same physical interface to
 /// read and write.
 #[async_trait]
-pub trait SourceSink: Node + Send + Sync {
+pub trait SourceSink: Send + Sync {
     async fn setup(
         &self,
         context: &mut Context,

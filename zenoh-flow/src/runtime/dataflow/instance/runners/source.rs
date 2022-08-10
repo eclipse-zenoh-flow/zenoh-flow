@@ -122,10 +122,6 @@ impl Runner for SourceRunner {
         RunnerKind::Source
     }
 
-    async fn clean(&self) -> ZFResult<()> {
-        self.source.finalize().await
-    }
-
     // async fn start_recording(&self) -> ZFResult<String> {
     //     let mut is_recording_guard = self.is_recording.lock().await;
     //     if !(*is_recording_guard) {

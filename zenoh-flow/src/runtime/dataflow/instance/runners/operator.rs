@@ -114,10 +114,6 @@ impl Runner for OperatorRunner {
             || self.callbacks_senders_handle.is_some()
     }
 
-    async fn clean(&self) -> ZFResult<()> {
-        self.operator.finalize().await
-    }
-
     async fn start(&mut self) -> ZFResult<()> {
         // Start is idempotent, if the node was already started,
         // do nothing and return Ok(())
@@ -246,7 +242,3 @@ impl Runner for OperatorRunner {
         Ok(())
     }
 }
-
-// #[cfg(test)]
-// #[path = "./tests/operator_test.rs"]
-// mod tests;

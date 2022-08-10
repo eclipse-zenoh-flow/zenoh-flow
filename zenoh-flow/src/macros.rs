@@ -21,18 +21,12 @@
 /// use async_trait::async_trait;
 /// use async_std::sync::Arc;
 /// use zenoh_flow::{
-///     export_operator, AsyncIteration, Configuration, Context, Inputs, Node, Operator, Outputs,
+///     export_operator, AsyncIteration, Configuration, Context, Inputs, Operator, Outputs,
 ///     Streams, ZFResult,
 /// };
 ///
 /// pub struct MyOperator;
 ///
-/// #[async_trait]
-/// impl Node for MyOperator {
-///     async fn finalize(&self) -> ZFResult<()> {
-///         Ok(())
-///     }
-/// }
 ///
 /// #[async_trait]
 /// impl Operator for MyOperator {
@@ -77,17 +71,11 @@ macro_rules! export_operator {
 /// use async_trait::async_trait;
 /// use async_std::sync::Arc;
 /// use zenoh_flow::{
-///     ZFResult, Source, export_source, Node, Configuration, Context, Outputs, AsyncIteration
+///     ZFResult, Source, export_source, Configuration, Context, Outputs, AsyncIteration
 /// };
 ///
 /// pub struct MySource;
 ///
-/// #[async_trait]
-/// impl Node for MySource {
-///     async fn finalize(&self) -> ZFResult<()> {
-///         Ok(())
-///     }
-/// }
 ///
 /// #[async_trait]
 /// impl Source for MySource {
@@ -131,17 +119,11 @@ macro_rules! export_source {
 /// ```no_run
 /// use async_trait::async_trait;
 /// use async_std::sync::Arc;
-/// use zenoh_flow::{ZFResult, Sink, export_sink, Node, Inputs, AsyncIteration,
+/// use zenoh_flow::{ZFResult, Sink, export_sink, Inputs, AsyncIteration,
 ///     Configuration, Context};
 ///
 /// pub struct MySink;
 ///
-/// #[async_trait]
-/// impl Node for MySink {
-///     async fn finalize(&self) -> ZFResult<()> {
-///         Ok(())
-///     }
-/// }
 ///
 /// #[async_trait]
 /// impl Sink for MySink {
@@ -191,30 +173,3 @@ macro_rules! zf_spin_lock {
         }
     };
 }
-
-// /// This macro is a helper if your node does not need any state.
-// /// It can be used inside your implementation of `Node::intialize`
-// ///
-// /// Example:
-// ///
-// /// ```no_run
-// /// use zenoh_flow::{zf_empty_state, Node, ZFResult, State, Configuration};
-// ///
-// /// struct MyOp;
-// ///
-// ///
-// ///  impl Node for MyOp {
-// ///     fn finalize(&self) -> ZFResult<()> {
-// ///         Ok(())
-// ///     }
-// ///  }
-// ///
-// /// ```
-// #[macro_export]
-// macro_rules! zf_empty_state {
-//     () => {
-//         Ok(zenoh_flow::State::from::<zenoh_flow::EmptyState>(
-//             zenoh_flow::EmptyState {},
-//         ))
-//     };
-// }

@@ -87,10 +87,6 @@ impl Runner for SinkRunner {
         RunnerKind::Sink
     }
 
-    async fn clean(&self) -> ZFResult<()> {
-        self.sink.finalize().await
-    }
-
     async fn is_running(&self) -> bool {
         self.handle.is_some() || self.callbacks_handle.is_some()
     }
