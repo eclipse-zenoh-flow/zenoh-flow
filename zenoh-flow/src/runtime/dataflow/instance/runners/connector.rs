@@ -12,12 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::async_std::sync::{Arc, Mutex};
+use crate::async_std::sync::Arc;
 use crate::model::connector::ZFConnectorRecord;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::InstanceContext;
 use crate::{Input, Message, NodeId, Output, PortId, ZFError, ZFResult};
+use async_std::task::JoinHandle;
 use async_trait::async_trait;
+use futures::stream::{AbortHandle, Abortable, Aborted};
 use futures::StreamExt;
 use std::collections::HashMap;
 use zenoh::prelude::*;
@@ -25,12 +27,12 @@ use zenoh::publication::CongestionControl;
 
 /// The `ZenohSender` is the connector that sends the data to Zenoh
 /// when nodes are running on different runtimes.
-#[derive(Clone)]
 pub struct ZenohSender {
     pub(crate) id: NodeId,
     pub(crate) instance_context: Arc<InstanceContext>,
     pub(crate) record: ZFConnectorRecord,
-    pub(crate) is_running: Arc<Mutex<bool>>,
+    pub(crate) handle: Option<JoinHandle<Result<ZFResult<()>, Aborted>>>,
+    pub(crate) abort_handle: Option<AbortHandle>,
     pub(crate) link: Input,
     pub(crate) key_expr: ExprId,
 }
@@ -66,43 +68,11 @@ impl ZenohSender {
             id: record.id.clone(),
             instance_context,
             record,
-            is_running: Arc::new(Mutex::new(false)),
+            handle: None,
+            abort_handle: None,
             link: input,
             key_expr,
         })
-    }
-
-    // /// Starts the the sender.
-    // async fn start(&self) {
-    //     *self.is_running.lock().await = true;
-    // }
-
-    /// A single sender iteration
-    ///
-    /// # Errors
-    /// An error variant is returned if:
-    /// - serialization fails
-    /// - zenoh put fails
-    /// - link recv fails
-    async fn iteration(&self) -> ZFResult<()> {
-        log::debug!("ZenohSender - {} - Started", self.record.resource);
-        // if let Some(link) = &*self.link.lock().await {
-        while let Ok(message) = self.link.recv_async().await {
-            log::trace!("ZenohSender IN <= {:?} ", message);
-
-            let serialized = message.serialize_bincode()?;
-            log::trace!("ZenohSender - {}=>{:?} ", self.record.resource, serialized);
-            self.instance_context
-                .runtime
-                .session
-                .put(&self.key_expr, serialized)
-                .congestion_control(CongestionControl::Block)
-                .await?;
-        }
-        // } else {
-        //     return Err(ZFError::Disconnected);
-        // }
-        Ok(())
     }
 }
 
@@ -117,92 +87,89 @@ impl Runner for ZenohSender {
     }
 
     async fn start(&mut self) -> ZFResult<()> {
-        *self.is_running.lock().await = true;
+        // Start is idempotent, if the node was already started,
+        // do nothing and return Ok(())
+        if self.handle.is_some() && self.abort_handle.is_some() {
+            log::warn!(
+                "[Connector: {}] Trying to start while it is already started, aborting",
+                self.id
+            );
+            return Ok(());
+        }
 
         // Looping on iteration, each iteration is a single
         // run of the source, as a run can fail in case of error it
         // stops and returns the error to the caller (the RunnerManager)
 
-        loop {
-            match self.iteration().await {
-                Ok(_) => {
-                    log::trace!("[ZenohSender: {}] iteration ok", self.id);
-                    continue;
+        let c_record = self.record.clone();
+        let c_link = self.link.clone();
+        let c_keyexpr = self.key_expr.clone();
+        let c_instance_ctx = self.instance_context.clone();
+        let c_id = self.id.clone();
+
+        let run_loop = async move {
+            loop {
+                let res: ZFResult<()> = {
+                    log::debug!("[ZenohSender: {c_id}] - {} - Started", c_record.resource);
+                    // if let Some(link) = &*self.link.lock().await {
+                    while let Ok(message) = c_link.recv_async().await {
+                        log::trace!("[ZenohSender: {c_id}] IN <= {:?} ", message);
+
+                        let serialized = message.serialize_bincode()?;
+                        log::trace!(
+                            "[ZenohSender: {c_id}] - {}=>{:?} ",
+                            c_record.resource,
+                            serialized
+                        );
+                        c_instance_ctx
+                            .runtime
+                            .session
+                            .put(&c_keyexpr, serialized)
+                            .congestion_control(CongestionControl::Block)
+                            .await?;
+                    }
+                    Ok(())
+                };
+
+                if let Err(e) = res {
+                    log::error!("[ZenohSender: {}] iteration failed with error: {}", c_id, e);
+                    return Err(e);
                 }
-                Err(e) => {
-                    log::error!(
-                        "[ZenohSender: {}] iteration failed with error: {}",
-                        self.id,
-                        e
-                    );
-                    self.stop().await?;
-                    break Err(e);
-                }
+                log::trace!("[ZenohSender: {}] iteration ok", c_id);
             }
-        }
+        };
+
+        let (abort_handle, abort_registration) = AbortHandle::new_pair();
+        let handle = async_std::task::spawn(Abortable::new(run_loop, abort_registration));
+
+        self.handle = Some(handle);
+        self.abort_handle = Some(abort_handle);
+
+        Ok(())
     }
 
-    // fn get_outputs(&self) -> HashMap<PortId, PortType> {
-    //     let mut outputs = HashMap::with_capacity(1);
-    //     outputs.insert(
-    //         self.record.link_id.port_id.clone(),
-    //         self.record.link_id.port_type.clone(),
-    //     );
-    //     outputs
-    // }
-
-    // fn get_inputs(&self) -> HashMap<PortId, PortType> {
-    //     HashMap::with_capacity(0)
-    // }
-
-    // async fn add_input(&self, input: LinkReceiver) -> ZFResult<()> {
-    //     *(self.link.lock().await) = Some(input);
-    //     Ok(())
-    // }
-
-    // async fn add_output(&self, _output: LinkSender) -> ZFResult<()> {
-    //     Err(ZFError::SenderDoNotHaveOutputs)
-    // }
-
-    // async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>> {
-    //     HashMap::with_capacity(0)
-    // }
-
-    // async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver> {
-    //     let mut link_guard = self.link.lock().await;
-    //     if let Some(link) = &*link_guard {
-    //         let mut inputs = HashMap::with_capacity(1);
-    //         inputs.insert(self.record.link_id.port_id.clone(), link.clone());
-    //         *link_guard = None;
-    //         return inputs;
-    //     }
-    //     HashMap::with_capacity(0)
-    // }
-
-    // async fn start_recording(&self) -> ZFResult<String> {
-    //     Err(ZFError::Unsupported)
-    // }
-
-    // async fn stop_recording(&self) -> ZFResult<String> {
-    //     Err(ZFError::Unsupported)
-    // }
-
-    // async fn is_recording(&self) -> bool {
-    //     false
-    // }
-
     async fn is_running(&self) -> bool {
-        *self.is_running.lock().await
+        self.handle.is_some()
     }
 
     async fn stop(&mut self) -> ZFResult<()> {
+        // Stop is idempotent, if the node was already stopped,
+        // do nothing and return Ok(())
+
+        if let Some(abort_handle) = self.abort_handle.take() {
+            abort_handle.abort()
+        }
+
+        if let Some(handle) = self.handle.take() {
+            log::trace!("Operator handler finished with {:?}", handle.await);
+        }
+
         self.instance_context
             .runtime
             .session
             .undeclare_expr(self.key_expr)
             .await?;
 
-        *self.is_running.lock().await = false;
         Ok(())
     }
 
@@ -213,14 +180,13 @@ impl Runner for ZenohSender {
 
 /// A `ZenohReceiver` receives the messages from Zenoh when nodes are running
 /// on different runtimes.
-#[derive(Clone)]
 pub struct ZenohReceiver {
     pub(crate) id: NodeId,
     pub(crate) instance_context: Arc<InstanceContext>,
     pub(crate) record: ZFConnectorRecord,
-    pub(crate) is_running: Arc<Mutex<bool>>,
+    pub(crate) handle: Option<JoinHandle<Result<ZFResult<()>, Aborted>>>,
+    pub(crate) abort_handle: Option<AbortHandle>,
     pub(crate) key_expr: ExprId,
-    // pub(crate) link: Arc<Mutex<Option<LinkSender>>>,
     pub(crate) link: Output,
 }
 
@@ -254,7 +220,8 @@ impl ZenohReceiver {
             instance_context,
             record,
             key_expr,
-            is_running: Arc::new(Mutex::new(false)),
+            handle: None,
+            abort_handle: None,
             link: output,
         })
     }
@@ -271,97 +238,73 @@ impl Runner for ZenohReceiver {
     }
 
     async fn start(&mut self) -> ZFResult<()> {
-        *self.is_running.lock().await = true;
+        // Start is idempotent, if the node was already started,
+        // do nothing and return Ok(())
+        if self.handle.is_some() && self.abort_handle.is_some() {
+            log::warn!(
+                "[Connector: {}] Trying to start while it is already started, aborting",
+                self.id
+            );
+            return Ok(());
+        }
 
-        let res = {
-            log::debug!("ZenohReceiver - {} - Started", self.record.resource);
-            // if let Some(link) = &*self.link.lock().await {
-            let mut subscriber = self
-                .instance_context
-                .runtime
-                .session
-                .subscribe(&self.key_expr)
-                .await?;
+        let c_record = self.record.clone();
+        let c_link = self.link.clone();
+        let c_keyexpr = self.key_expr.clone();
+        let c_instance_ctx = self.instance_context.clone();
+        let c_id = self.id.clone();
+
+        let run_loop = async move {
+            log::debug!("[ZenohReceiver: {c_id}] - {} - Started", c_record.resource);
+            let mut subscriber = c_instance_ctx.runtime.session.subscribe(&c_keyexpr).await?;
 
             while let Some(msg) = subscriber.receiver().next().await {
-                log::trace!("ZenohSender - {}<={:?} ", self.record.resource, msg);
+                log::trace!("[ZenohReceiver: {c_id}] - {}<={msg:?} ", c_record.resource);
                 let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
                     .map_err(|_| ZFError::DeseralizationError)?;
-                log::trace!("ZenohSender - OUT =>{:?} ", de);
-                self.link.send_to_all_async(de).await?;
+                log::trace!("[ZenohReceiver: {c_id}] - OUT =>{de:?} ");
+                c_link.send_to_all_async(de).await?;
             }
             // }
 
             Err(ZFError::Disconnected)
         };
 
-        self.stop().await?;
-        res
+        let (abort_handle, abort_registration) = AbortHandle::new_pair();
+        let handle = async_std::task::spawn(Abortable::new(run_loop, abort_registration));
+
+        self.handle = Some(handle);
+        self.abort_handle = Some(abort_handle);
+
+        Ok(())
     }
-
-    // fn get_inputs(&self) -> HashMap<PortId, PortType> {
-    //     HashMap::with_capacity(0)
-    // }
-
-    // fn get_outputs(&self) -> HashMap<PortId, PortType> {
-    //     let mut inputs = HashMap::with_capacity(1);
-    //     inputs.insert(
-    //         self.record.link_id.port_id.clone(),
-    //         self.record.link_id.port_type.clone(),
-    //     );
-    //     inputs
-    // }
-    // async fn add_output(&self, output: LinkSender) -> ZFResult<()> {
-    //     (*self.link.lock().await) = Some(output);
-    //     Ok(())
-    // }
-
-    // async fn add_input(&self, _input: LinkReceiver) -> ZFResult<()> {
-    //     Err(ZFError::ReceiverDoNotHaveInputs)
-    // }
-
-    // async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender>> {
-    //     let link_guard = self.link.lock().await;
-    //     if let Some(link) = &*link_guard {
-    //         let mut outputs = HashMap::with_capacity(1);
-    //         outputs.insert(self.record.link_id.port_id.clone(), vec![link.clone()]);
-    //         return outputs;
-    //     }
-    //     HashMap::with_capacity(0)
-    // }
-
-    // async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver> {
-    //     HashMap::with_capacity(0)
-    // }
 
     async fn clean(&self) -> ZFResult<()> {
         Ok(())
     }
 
-    // async fn start_recording(&self) -> ZFResult<String> {
-    //     Err(ZFError::Unsupported)
-    // }
-
-    // async fn stop_recording(&self) -> ZFResult<String> {
-    //     Err(ZFError::Unsupported)
-    // }
-
-    // async fn is_recording(&self) -> bool {
-    //     false
-    // }
-
     async fn is_running(&self) -> bool {
-        *self.is_running.lock().await
+        self.handle.is_some()
     }
 
     async fn stop(&mut self) -> ZFResult<()> {
+        // Stop is idempotent, if the node was already stopped,
+        // do nothing and return Ok(())
+
+        if let Some(abort_handle) = self.abort_handle.take() {
+            abort_handle.abort()
+        }
+
+        if let Some(handle) = self.handle.take() {
+            log::trace!("Operator handler finished with {:?}", handle.await);
+        }
+
         self.instance_context
             .runtime
             .session
             .undeclare_expr(self.key_expr)
             .await?;
 
-        *self.is_running.lock().await = false;
         Ok(())
     }
 }
