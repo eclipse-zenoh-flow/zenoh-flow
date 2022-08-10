@@ -103,7 +103,7 @@ impl Runner for ZenohSender {
 
         let c_record = self.record.clone();
         let c_link = self.link.clone();
-        let c_keyexpr = self.key_expr.clone();
+        let c_keyexpr = self.key_expr;
         let c_instance_ctx = self.instance_context.clone();
         let c_id = self.id.clone();
 
