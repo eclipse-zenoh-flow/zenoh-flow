@@ -46,8 +46,8 @@ pub struct SourceRunner {
     pub(crate) _library: Option<Arc<Library>>,
     pub(crate) handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
     pub(crate) abort_handle: Option<AbortHandle>,
-    pub(crate) cb_handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
-    pub(crate) cb_abort_handle: Option<AbortHandle>,
+    pub(crate) callbacks_handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
+    pub(crate) callbacks_abort_handle: Option<AbortHandle>,
 }
 
 impl SourceRunner {
@@ -71,8 +71,8 @@ impl SourceRunner {
             _library: source.library,
             handle: None,
             abort_handle: None,
-            cb_handle: None,
-            cb_abort_handle: None,
+            callbacks_handle: None,
+            callbacks_abort_handle: None,
         }
     }
 
@@ -219,7 +219,7 @@ impl Runner for SourceRunner {
     // }
 
     async fn is_running(&self) -> bool {
-        self.handle.is_some()
+        self.handle.is_some() || self.callbacks_handle.is_some()
     }
 
     async fn stop(&mut self) -> ZFResult<()> {
@@ -287,36 +287,39 @@ impl Runner for SourceRunner {
             let cb_handle =
                 async_std::task::spawn(Abortable::new(callbacks_loop, cb_abort_registration));
 
-            self.cb_handle = Some(cb_handle);
-            self.cb_abort_handle = Some(cb_abort_handle);
+            self.callbacks_handle = Some(cb_handle);
+            self.callbacks_abort_handle = Some(cb_abort_handle);
         }
 
         /* Streams */
-        let c_id = self.id.clone();
+        if let Some(iteration) = iteration {
+            let c_id = self.id.clone();
 
-        let run_loop = async move {
-            let mut instant: Instant;
-            loop {
-                instant = Instant::now();
-                if let Err(e) = iteration.call().await {
-                    log::error!("[Source: {c_id}] {:?}", e);
-                    return e;
+            let run_loop = async move {
+                let mut instant: Instant;
+                loop {
+                    instant = Instant::now();
+                    if let Err(e) = iteration.call().await {
+                        log::error!("[Source: {c_id}] {:?}", e);
+                        return e;
+                    }
+
+                    log::trace!(
+                        "[Source: {c_id}] iteration took: {}ms",
+                        instant.elapsed().as_millis()
+                    );
+
+                    async_std::task::yield_now().await;
                 }
+            };
 
-                log::trace!(
-                    "[Source: {c_id}] iteration took: {}ms",
-                    instant.elapsed().as_millis()
-                );
+            let (abort_handle, abort_registration) = AbortHandle::new_pair();
+            let handle = async_std::task::spawn(Abortable::new(run_loop, abort_registration));
 
-                async_std::task::yield_now().await;
-            }
-        };
+            self.handle = Some(handle);
+            self.abort_handle = Some(abort_handle);
+        }
 
-        let (abort_handle, abort_registration) = AbortHandle::new_pair();
-        let handle = async_std::task::spawn(Abortable::new(run_loop, abort_registration));
-
-        self.handle = Some(handle);
-        self.abort_handle = Some(abort_handle);
         Ok(())
     }
 }

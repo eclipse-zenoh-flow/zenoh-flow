@@ -110,6 +110,8 @@ impl Runner for OperatorRunner {
 
     async fn is_running(&self) -> bool {
         self.handle.is_some()
+            || self.callbacks_receivers_handle.is_some()
+            || self.callbacks_senders_handle.is_some()
     }
 
     async fn clean(&self) -> ZFResult<()> {
@@ -214,31 +216,32 @@ impl Runner for OperatorRunner {
         }
 
         /* Streams */
-        let c_id = self.id.clone();
+        if let Some(iteration) = iteration {
+            let c_id = self.id.clone();
+            let run_loop = async move {
+                let mut instant: Instant;
+                loop {
+                    instant = Instant::now();
+                    if let Err(e) = iteration.call().await {
+                        log::error!("[Operator: {c_id}] {:?}", e);
+                        return e;
+                    }
 
-        let run_loop = async move {
-            let mut instant: Instant;
-            loop {
-                instant = Instant::now();
-                if let Err(e) = iteration.call().await {
-                    log::error!("[Operator: {c_id}] {:?}", e);
-                    return e;
+                    log::trace!(
+                        "[Operator: {c_id}] iteration took: {}ms",
+                        instant.elapsed().as_millis()
+                    );
+
+                    async_std::task::yield_now().await;
                 }
+            };
 
-                log::trace!(
-                    "[Operator: {c_id}] iteration took: {}ms",
-                    instant.elapsed().as_millis()
-                );
+            let (abort_handle, abort_registration) = AbortHandle::new_pair();
+            let handle = async_std::task::spawn(Abortable::new(run_loop, abort_registration));
 
-                async_std::task::yield_now().await;
-            }
-        };
-
-        let (abort_handle, abort_registration) = AbortHandle::new_pair();
-        let handle = async_std::task::spawn(Abortable::new(run_loop, abort_registration));
-
-        self.handle = Some(handle);
-        self.abort_handle = Some(abort_handle);
+            self.handle = Some(handle);
+            self.abort_handle = Some(abort_handle);
+        }
 
         Ok(())
     }
