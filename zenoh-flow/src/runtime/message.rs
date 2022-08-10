@@ -14,7 +14,9 @@
 
 extern crate serde;
 
-use crate::{Data, FlowId, NodeId, PortId, ZFData, ZFError, ZFResult};
+use crate::error::ZFError;
+use crate::traits::ZFData;
+use crate::types::{Data, FlowId, NodeId, PortId, ZFResult};
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, fmt::Debug};
@@ -105,10 +107,11 @@ pub enum ControlMessage {
 /// The Zenoh Flow message that is sent across `Link` and across Zenoh.
 /// It contains either a [`DataMessage`](`DataMessage`) or
 /// a [`ControlMessage`](`ControlMessage`).
+#[non_exhaustive]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Message {
     Data(DataMessage),
-    Control(ControlMessage),
+    // Control(ControlMessage),
     Watermark(Timestamp),
 }
 
@@ -142,9 +145,7 @@ impl Message {
                     bincode::serialize(&serialized_message).map_err(|_| ZFError::SerializationError)
                 }
             },
-            Message::Control(_) | Message::Watermark(_) => {
-                bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
-            }
+            _ => bincode::serialize(&self).map_err(|_| ZFError::SerializationError),
         }
     }
 
@@ -153,12 +154,11 @@ impl Message {
         match self {
             Self::Data(data) => data.timestamp,
             Self::Watermark(ref ts) => *ts,
-            Self::Control(ref ctrl) => match ctrl {
-                ControlMessage::RecordingStart(ref rs) => rs.timestamp,
-                ControlMessage::RecordingStop(ref ts) => *ts,
-                // Commented because Control messages are not yet defined.
-                // _ => Timestamp::new(NTP64(u64::MAX), Uuid::nil().into()),
-            },
+            // Self::Control(ref ctrl) => match ctrl {
+            //     ControlMessage::RecordingStart(ref rs) => rs.timestamp,
+            //     ControlMessage::RecordingStop(ref ts) => *ts,
+            // },
+            // _ => Err(ZFError::Unsupported),
         }
     }
 }

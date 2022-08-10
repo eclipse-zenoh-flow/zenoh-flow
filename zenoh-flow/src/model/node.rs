@@ -15,7 +15,8 @@
 use crate::model::link::{LinkDescriptor, PortRecord};
 use crate::model::{InputDescriptor, OutputDescriptor, PortDescriptor};
 use crate::types::{Configuration, NodeId, RuntimeId};
-use crate::{merge_configurations, PortType, ZFError, ZFResult};
+use crate::types::{merge_configurations, PortType, ZFResult};
+use crate::error::ZFError;
 use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 

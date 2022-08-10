@@ -23,11 +23,12 @@ extern crate serde_cbor;
 #[cfg(feature = "data_json")]
 extern crate serde_json;
 
+use crate::error::ZFError;
 use crate::model::dataflow::record::DataFlowRecord;
 use crate::model::RegistryNode;
 use crate::runtime::{RuntimeConfig, RuntimeInfo, RuntimeStatus};
 use crate::serde::{de::DeserializeOwned, Serialize};
-use crate::{async_std::sync::Arc, ZFError, ZFResult};
+use crate::{async_std::sync::Arc, types::ZFResult};
 use async_std::pin::Pin;
 use async_std::stream::Stream;
 use async_std::task::{Context, Poll};

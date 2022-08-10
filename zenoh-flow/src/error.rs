@@ -13,7 +13,7 @@
 //
 
 use crate::serde::{Deserialize, Serialize};
-use crate::{NodeId, PortId, PortType};
+use crate::types::{NodeId, PortId, PortType};
 use std::convert::From;
 use std::error::Error;
 use uhlc::Timestamp;

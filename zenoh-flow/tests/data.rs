@@ -14,9 +14,11 @@
 
 use std::convert::From;
 use zenoh_flow::async_std::sync::Arc;
+use zenoh_flow::prelude::ZFError;
 use zenoh_flow::serde::{Deserialize, Serialize};
+use zenoh_flow::traits::{Deserializable, ZFData};
+use zenoh_flow::types::{Data, ZFResult};
 use zenoh_flow::zenoh_flow_derive::ZFData;
-use zenoh_flow::{Data, Deserializable, ZFData, ZFError, ZFResult};
 
 #[derive(Debug, ZFData, Clone, Serialize, Deserialize)]
 struct TestData {
@@ -26,7 +28,7 @@ struct TestData {
 }
 
 impl ZFData for TestData {
-    fn try_serialize(&self) -> zenoh_flow::ZFResult<Vec<u8>> {
+    fn try_serialize(&self) -> ZFResult<Vec<u8>> {
         Ok(serde_json::to_string(self)
             .map_err(|_| ZFError::SerializationError)?
             .as_bytes()

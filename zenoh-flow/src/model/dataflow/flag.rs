@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::NodeId;
+use crate::types::NodeId;
 use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

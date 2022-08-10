@@ -12,7 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{Context, Data, Message, PortId, ZFError, ZFResult};
+use crate::error::ZFError;
+use crate::runtime::message::Message;
+use crate::types::{Context, Data, PortId, ZFResult};
 use async_std::sync::Arc;
 use flume::TryRecvError;
 use futures::Future;

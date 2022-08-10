@@ -38,7 +38,8 @@ use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::serde::{Deserialize, Serialize};
 
 use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
-use zenoh_flow::types::{ZFError, ZFResult};
+use zenoh_flow::types::{ZFResult};
+use zenoh_flow::prelude::ZFError;
 use znrpc_macros::znserver;
 use zrpc::ZNServe;
 

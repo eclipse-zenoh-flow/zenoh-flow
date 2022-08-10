@@ -17,10 +17,10 @@ pub mod dataflow;
 pub mod link;
 pub mod node;
 
+use crate::error::ZFError;
 use crate::model::link::PortDescriptor;
 use crate::serde::{Deserialize, Serialize};
-use crate::ZFError;
-use crate::{DurationDescriptor, NodeId, PortId};
+use crate::types::{DurationDescriptor, NodeId, PortId};
 use std::fmt;
 
 /// Describes one output

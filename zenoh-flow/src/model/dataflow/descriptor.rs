@@ -12,6 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::error::ZFError;
 use crate::model::dataflow::flag::Flag;
 use crate::model::dataflow::validator::DataflowValidator;
 use crate::model::link::LinkDescriptor;
@@ -19,8 +20,7 @@ use crate::model::node::{
     NodeDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{NodeId, RuntimeId, ZFError, ZFResult};
-use crate::{merge_configurations, Configuration};
+use crate::types::{merge_configurations, Configuration, NodeId, RuntimeId, ZFResult};
 use itertools::Itertools;
 use std::collections::HashMap;
 use std::convert::TryFrom;

@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use zenoh_flow::Configuration;
+use zenoh_flow::types::Configuration;
 
 static EXAMPLE_CONFIG: &str = r#"
 map1:

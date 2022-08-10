@@ -13,7 +13,8 @@
 //
 
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::{Configuration, NodeId, Operator, Sink, Source, ZFResult};
+use crate::traits::{Operator, Sink, Source};
+use crate::types::{Configuration, NodeId, ZFResult};
 use async_std::sync::Arc;
 
 #[cfg(target_family = "unix")]

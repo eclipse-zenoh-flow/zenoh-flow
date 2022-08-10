@@ -13,9 +13,11 @@
 //
 
 use super::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
+use crate::error::ZFError;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::serde::{Deserialize, Serialize};
-use crate::{Configuration, Operator, Sink, Source, ZFError, ZFResult};
+use crate::traits::{Operator, Sink, Source};
+use crate::types::{Configuration, ZFResult};
 use async_std::sync::Arc;
 
 #[cfg(target_family = "unix")]

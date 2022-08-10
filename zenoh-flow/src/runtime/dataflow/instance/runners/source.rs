@@ -13,11 +13,13 @@
 //
 
 use crate::async_std::sync::Arc;
+use crate::error::ZFError;
+use crate::runtime::dataflow::instance::io::Output;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::InstanceContext;
-use crate::types::ZFResult;
-use crate::{Configuration, Context, NodeId, Output, PortId, Source, ZFError};
+use crate::traits::Source;
+use crate::types::{Configuration, Context, NodeId, PortId, ZFResult};
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};

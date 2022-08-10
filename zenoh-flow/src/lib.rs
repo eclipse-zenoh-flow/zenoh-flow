@@ -45,20 +45,23 @@ pub use ::paste;
 pub use ::serde;
 pub use ::typetag;
 
+pub mod error;
+pub mod macros;
 pub mod model;
 pub mod runtime;
-pub use runtime::dataflow::instance::io::*;
-pub use runtime::message::*;
-pub mod types;
-pub use types::*;
 pub mod traits;
-pub use traits::*;
+pub mod types;
 
-pub mod macros;
-pub use macros::*;
-
-pub mod error;
-pub use error::*;
+pub mod prelude {
+    pub use crate::error::ZFError;
+    pub use crate::runtime::dataflow::instance::io::{Input, Inputs, Output, Outputs, Streams};
+    pub use crate::runtime::message::{DataMessage, Message};
+    pub use crate::traits::{
+        AsyncIteration, Deserializable, DowncastAny, Operator, Sink, Source, ZFData,
+    };
+    pub use crate::types::{Configuration, Context, Data, NodeId, PortId, RuntimeId, ZFResult};
+    pub use crate::{export_operator, export_sink, export_source};
+}
 
 /// Commit id of latest commit on Zenoh Flow
 pub const GIT_VERSION: &str = git_version::git_version!(prefix = "v", cargo_prefix = "v");

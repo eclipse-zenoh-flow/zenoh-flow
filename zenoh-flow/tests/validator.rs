@@ -12,7 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use zenoh_flow::{model::dataflow::descriptor::FlattenDataFlowDescriptor, ZFError};
+use zenoh_flow::model::dataflow::descriptor::FlattenDataFlowDescriptor;
+use zenoh_flow::prelude::ZFError;
 
 static DESCRIPTOR_OK: &str = r#"
 flow: SimplePipeline

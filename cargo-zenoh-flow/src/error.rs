@@ -13,6 +13,7 @@
 //
 
 use std::error::Error;
+use zenoh_flow::prelude::ZFError;
 
 #[derive(Debug)]
 pub enum CZFError {
@@ -31,7 +32,7 @@ pub enum CZFError {
     BuildFailed,
     #[cfg(feature = "local_registry")]
     ZenohError(zenoh::ZError),
-    ZenohFlowError(zenoh_flow::ZFError),
+    ZenohFlowError(ZFError),
     GenericError(String),
     IoError(std::io::Error),
 }
@@ -67,8 +68,8 @@ impl From<zenoh::ZError> for CZFError {
     }
 }
 
-impl From<zenoh_flow::ZFError> for CZFError {
-    fn from(err: zenoh_flow::ZFError) -> Self {
+impl From<ZFError> for CZFError {
+    fn from(err: ZFError) -> Self {
         Self::ZenohFlowError(err)
     }
 }

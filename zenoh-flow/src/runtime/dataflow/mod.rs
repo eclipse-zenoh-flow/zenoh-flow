@@ -27,7 +27,8 @@ use crate::model::link::{LinkRecord, PortDescriptor};
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
-use crate::{Configuration, FlowId, NodeId, Operator, Sink, Source, ZFResult};
+use crate::traits::{Operator, Sink, Source};
+use crate::types::{Configuration, FlowId, NodeId, ZFResult};
 
 /// The data flow struct.
 /// This struct contains all the information needed to instantiate a data flow.

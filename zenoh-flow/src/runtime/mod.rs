@@ -23,15 +23,15 @@ use crate::{
         node::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor},
     },
     serde::{Deserialize, Serialize},
-    FlowId,
 };
 use async_std::sync::Arc;
 use uuid::Uuid;
 
 use self::dataflow::loader::LoaderConfig;
+use crate::error::ZFError;
 use crate::runtime::dataflow::loader::Loader;
 use crate::runtime::message::ControlMessage;
-use crate::{RuntimeId, ZFError, ZFResult};
+use crate::types::{FlowId, RuntimeId, ZFResult};
 use uhlc::HLC;
 use zenoh::config::Config as ZenohConfig;
 use zenoh::Session;

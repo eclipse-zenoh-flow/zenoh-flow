@@ -31,7 +31,7 @@ pub fn zf_data_derive(input: TokenStream) -> TokenStream {
     let ident = &ast.ident;
     let gen = quote! {
 
-        impl zenoh_flow::DowncastAny for #ident {
+        impl zenoh_flow::prelude::DowncastAny for #ident {
             fn as_any(&self) -> &dyn std::any::Any {
                 self
             }

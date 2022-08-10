@@ -13,7 +13,7 @@
 //
 
 use crate::model::{InputDescriptor, OutputDescriptor};
-use crate::{PortId, PortType};
+use crate::types::{PortId, PortType};
 use serde::{Deserialize, Serialize};
 
 /// The description of a link.

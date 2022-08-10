@@ -20,10 +20,7 @@
 /// ```no_run
 /// use async_trait::async_trait;
 /// use async_std::sync::Arc;
-/// use zenoh_flow::{
-///     export_operator, AsyncIteration, Configuration, Context, Inputs, Operator, Outputs,
-///     Streams, ZFResult,
-/// };
+/// use zenoh_flow::prelude::*;
 ///
 /// pub struct MyOperator;
 ///
@@ -70,9 +67,7 @@ macro_rules! export_operator {
 /// ```no_run
 /// use async_trait::async_trait;
 /// use async_std::sync::Arc;
-/// use zenoh_flow::{
-///     ZFResult, Source, export_source, Configuration, Context, Outputs, AsyncIteration
-/// };
+/// use zenoh_flow::prelude::*;
 ///
 /// pub struct MySource;
 ///
@@ -119,8 +114,7 @@ macro_rules! export_source {
 /// ```no_run
 /// use async_trait::async_trait;
 /// use async_std::sync::Arc;
-/// use zenoh_flow::{ZFResult, Sink, export_sink, Inputs, AsyncIteration,
-///     Configuration, Context};
+/// use zenoh_flow::prelude::*;
 ///
 /// pub struct MySink;
 ///

@@ -20,7 +20,7 @@ use zenoh_flow::model::dataflow::descriptor::*;
 use zenoh_flow::model::node::{
     CompositeOperatorDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
-use zenoh_flow::ZFResult;
+use zenoh_flow::types::ZFResult;
 
 static DESCRIPTOR_FLOW: &str = r#"
 flow: test

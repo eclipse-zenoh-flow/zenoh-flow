@@ -16,7 +16,7 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 use zenoh::config::Config;
-use zenoh_flow::ZFResult;
+use zenoh_flow::types::ZFResult;
 
 /// Helper function to read a file into a string.
 ///

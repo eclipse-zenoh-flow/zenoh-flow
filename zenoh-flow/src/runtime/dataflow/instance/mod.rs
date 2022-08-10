@@ -15,16 +15,18 @@
 pub mod io;
 pub mod runners;
 
+use super::instance::io::{Input, Inputs, Output, Outputs};
+use super::instance::runners::connector::{ZenohReceiver, ZenohSender};
+use super::instance::runners::operator::OperatorRunner;
+use super::instance::runners::sink::SinkRunner;
+use super::instance::runners::source::SourceRunner;
+use super::instance::runners::RunnerKind;
+use crate::error::ZFError;
 use crate::model::connector::ZFConnectorKind;
 use crate::model::link::LinkRecord;
-use crate::runtime::dataflow::instance::runners::connector::{ZenohReceiver, ZenohSender};
-use crate::runtime::dataflow::instance::runners::operator::OperatorRunner;
-use crate::runtime::dataflow::instance::runners::sink::SinkRunner;
-use crate::runtime::dataflow::instance::runners::source::SourceRunner;
-use crate::runtime::dataflow::instance::runners::RunnerKind;
 use crate::runtime::dataflow::Dataflow;
 use crate::runtime::InstanceContext;
-use crate::{Input, Inputs, NodeId, Output, Outputs, ZFError, ZFResult};
+use crate::types::{NodeId, ZFResult};
 use async_std::sync::Arc;
 use std::collections::HashMap;
 use uhlc::HLC;
@@ -135,6 +137,7 @@ impl DataflowInstance {
         node_ids.append(&mut dataflow.sinks.keys().cloned().collect::<Vec<_>>());
         node_ids.append(&mut dataflow.connectors.keys().cloned().collect::<Vec<_>>());
 
+        // FIXME Filter?
         let mut links = create_links(&node_ids, &dataflow.links, hlc)?;
 
         let context = Arc::new(InstanceContext {

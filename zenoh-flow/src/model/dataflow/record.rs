@@ -12,14 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::error::ZFError;
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use crate::model::link::{LinkDescriptor, LinkRecord, PortRecord};
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{RuntimeId, ZFError, ZFResult};
-use crate::{merge_configurations, NodeId, PortId, PortType};
+use crate::types::{merge_configurations, NodeId, PortId, PortType, RuntimeId, ZFResult};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};

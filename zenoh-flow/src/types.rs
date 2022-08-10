@@ -13,9 +13,11 @@
 //
 
 use crate::async_std::sync::Arc;
+use crate::error::ZFError;
+use crate::runtime::dataflow::instance::io::{AsyncCallbackReceiver, AsyncCallbackSender};
 use crate::runtime::InstanceContext;
 use crate::serde::{Deserialize, Serialize};
-use crate::{AsyncCallbackReceiver, AsyncCallbackSender, ZFData};
+use crate::traits::ZFData;
 use std::convert::From;
 use std::ops::Deref;
 use std::time::Duration;
@@ -33,8 +35,6 @@ pub type PortType = Arc<str>;
 
 /// The Zenoh Flow result type.
 pub type ZFResult<T> = Result<T, ZFError>;
-
-pub use crate::ZFError;
 
 /// Context is a structure provided by Zenoh Flow to access the execution context directly from the
 /// nodes. It contains the `mode` as usize.
@@ -115,7 +115,7 @@ impl Data {
     /// variant will be returned.
     pub fn try_get<Typed>(&mut self) -> ZFResult<&Typed>
     where
-        Typed: ZFData + crate::Deserializable + 'static,
+        Typed: ZFData + crate::traits::Deserializable + 'static,
     {
         *self = (match &self {
             Self::Bytes(bytes) => {
@@ -214,7 +214,7 @@ pub(crate) fn merge_configurations(
 
 #[cfg(test)]
 mod tests {
-    use crate::merge_configurations;
+    use crate::types::merge_configurations;
     use serde_json::json;
 
     #[test]

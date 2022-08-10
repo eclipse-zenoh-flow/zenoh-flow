@@ -12,7 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{Configuration, Context, Input, Output, PortId, ZFResult};
+use crate::runtime::dataflow::instance::io::{Input, Output};
+use crate::types::{Configuration, Context, PortId, ZFResult};
 use async_trait::async_trait;
 use futures::Future;
 use std::any::Any;
@@ -49,12 +50,12 @@ pub trait DowncastAny {
 /// Example:
 /// ```no_run
 /// use zenoh_flow::zenoh_flow_derive::ZFData;
-/// use zenoh_flow::ZFData;
+/// use zenoh_flow::prelude::{ZFData, ZFResult};
 ///
 /// #[derive(Debug, Clone, ZFData)]
 /// pub struct MyString(pub String);
 /// impl ZFData for MyString {
-///     fn try_serialize(&self) -> zenoh_flow::ZFResult<Vec<u8>> {
+///     fn try_serialize(&self) -> ZFResult<Vec<u8>> {
 ///         Ok(self.0.as_bytes().to_vec())
 ///     }
 /// }
@@ -75,7 +76,7 @@ pub trait ZFData: DowncastAny + Debug + Send + Sync {
 /// Example:
 /// ```no_run
 ///
-/// use zenoh_flow::{Deserializable, ZFResult, ZFError};
+/// use zenoh_flow::prelude::*;
 /// use zenoh_flow::zenoh_flow_derive::ZFData;
 ///
 /// #[derive(Debug, Clone, ZFData)]

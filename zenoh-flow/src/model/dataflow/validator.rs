@@ -12,12 +12,12 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::error::ZFError;
 use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use crate::model::dataflow::flag::{get_nodes_to_remove, Flag};
 use crate::model::link::PortDescriptor;
 use crate::model::{InputDescriptor, OutputDescriptor};
-use crate::types::{NodeId, ZFError, ZFResult};
-use crate::{PortId, PortType};
+use crate::types::{NodeId, PortId, PortType, ZFResult};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::Graph;
 use std::collections::{HashMap, HashSet};

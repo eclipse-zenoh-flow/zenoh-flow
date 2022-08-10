@@ -18,8 +18,8 @@ pub mod replay;
 pub mod sink;
 pub mod source;
 
+use crate::error::ZFError;
 use crate::types::{NodeId, ZFResult};
-use crate::ZFError;
 use async_trait::async_trait;
 
 /// Type of the Runner.
