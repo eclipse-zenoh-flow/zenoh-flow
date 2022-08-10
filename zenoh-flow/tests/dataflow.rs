@@ -77,13 +77,14 @@ impl Source for CountSource {
     async fn setup(
         &self,
         _ctx: &mut Context,
-        configuration: &Option<Configuration>,
+        _configuration: &Option<Configuration>,
         mut outputs: Outputs,
     ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
         let output = outputs.take(SOURCE).unwrap();
         let c_trigger_rx = self.rx.clone();
 
         Ok(Some(Arc::new(async move || {
+            c_trigger_rx.recv_async().await.unwrap();
             COUNTER.fetch_add(1, Ordering::AcqRel);
             let d = ZFUsize(COUNTER.load(Ordering::Relaxed));
             let data = Data::from::<ZFUsize>(d);
@@ -108,7 +109,7 @@ impl Sink for ExampleGenericSink {
     async fn setup(
         &self,
         _ctx: &mut Context,
-        configuration: &Option<Configuration>,
+        _configuration: &Option<Configuration>,
         mut inputs: Inputs,
     ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
         let input = inputs.take(SOURCE).unwrap();
