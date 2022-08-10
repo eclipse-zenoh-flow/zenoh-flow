@@ -103,37 +103,46 @@ impl Runner for ZenohSender {
 
         let c_record = self.record.clone();
         let c_link = self.link.clone();
-        let c_keyexpr = self.key_expr;
+        let c_keyexpr = self.key_expr.clone();
         let c_instance_ctx = self.instance_context.clone();
         let c_id = self.id.clone();
 
         let run_loop = async move {
+            log::debug!("[ZenohSender: {c_id}] - {} - Started", c_record.resource);
+
+            async fn iteration(
+                link: &Input,
+                record: &ZFConnectorRecord,
+                key_expr: &u64,
+                instance_ctx: &InstanceContext,
+                id: &NodeId,
+            ) -> ZFResult<()> {
+                while let Ok(message) = link.recv_async().await {
+                    log::trace!("[ZenohSender: {id}] IN <= {:?} ", message);
+
+                    let serialized = message.serialize_bincode()?;
+                    log::trace!(
+                        "[ZenohSender: {id}] - {}=>{:?} ",
+                        record.resource,
+                        serialized
+                    );
+
+                    instance_ctx
+                        .runtime
+                        .session
+                        .put(key_expr, serialized)
+                        // .put(key_expr, &(**buffer)[0..size])
+                        .congestion_control(CongestionControl::Block)
+                        .await?;
+                }
+                Err(ZFError::Disconnected)
+            }
+
             loop {
-                let res: ZFResult<()> = {
-                    log::debug!("[ZenohSender: {c_id}] - {} - Started", c_record.resource);
-                    // if let Some(link) = &*self.link.lock().await {
-                    while let Ok(message) = c_link.recv_async().await {
-                        log::trace!("[ZenohSender: {c_id}] IN <= {:?} ", message);
-
-                        let serialized = message.serialize_bincode()?;
-                        log::trace!(
-                            "[ZenohSender: {c_id}] - {}=>{:?} ",
-                            c_record.resource,
-                            serialized
-                        );
-                        c_instance_ctx
-                            .runtime
-                            .session
-                            .put(&c_keyexpr, serialized)
-                            .congestion_control(CongestionControl::Block)
-                            .await?;
-                    }
-                    Ok(())
-                };
-
-                if let Err(e) = res {
+                if let Err(e) =
+                    iteration(&c_link, &c_record, &c_keyexpr, &c_instance_ctx, &c_id).await
+                {
                     log::error!("[ZenohSender: {}] iteration failed with error: {}", c_id, e);
-                    return Err(e);
                 }
                 log::trace!("[ZenohSender: {}] iteration ok", c_id);
             }
@@ -255,19 +264,38 @@ impl Runner for ZenohReceiver {
         let c_id = self.id.clone();
 
         let run_loop = async move {
-            log::debug!("[ZenohReceiver: {c_id}] - {} - Started", c_record.resource);
-            let mut subscriber = c_instance_ctx.runtime.session.subscribe(&c_keyexpr).await?;
+            async fn iteration(
+                link: &Output,
+                record: &ZFConnectorRecord,
+                key_expr: &u64,
+                instance_ctx: &InstanceContext,
+                id: &NodeId,
+            ) -> ZFResult<()> {
+                log::debug!("[ZenohReceiver: {id}] - {} - Started", record.resource);
+                let mut subscriber = instance_ctx.runtime.session.subscribe(key_expr).await?;
 
-            while let Some(msg) = subscriber.receiver().next().await {
-                log::trace!("[ZenohReceiver: {c_id}] - {}<={msg:?} ", c_record.resource);
-                let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
-                    .map_err(|_| ZFError::DeseralizationError)?;
-                log::trace!("[ZenohReceiver: {c_id}] - OUT =>{de:?} ");
-                c_link.send_to_all_async(de).await?;
+                while let Some(msg) = subscriber.receiver().next().await {
+                    log::trace!("[ZenohReceiver: {id}] - {}<={msg:?} ", record.resource);
+                    let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
+                        .map_err(|_| ZFError::DeseralizationError)?;
+                    log::trace!("[ZenohReceiver: {id}] - OUT =>{de:?} ");
+                    link.send_to_all_async(de).await?;
+                }
+                Err(ZFError::Disconnected)
             }
-            // }
 
-            Err(ZFError::Disconnected)
+            loop {
+                if let Err(e) =
+                    iteration(&c_link, &c_record, &c_keyexpr, &c_instance_ctx, &c_id).await
+                {
+                    log::error!(
+                        "[ZenohReceiver: {}] iteration failed with error: {}",
+                        c_id,
+                        e
+                    );
+                }
+                log::trace!("[ZenohReceiver: {}] iteration ok", c_id);
+            }
         };
 
         let (abort_handle, abort_registration) = AbortHandle::new_pair();
