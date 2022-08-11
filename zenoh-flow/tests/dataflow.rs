@@ -12,7 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-#![feature(async_closure)]
 
 use async_std::sync::Arc;
 use async_trait::async_trait;
@@ -84,7 +83,7 @@ impl Source for CountSource {
         let output = outputs.take(SOURCE).unwrap();
         let c_trigger_rx = self.rx.clone();
 
-        Ok(Some(Arc::new(async move || {
+        Ok(Some(Arc::new(move || async move {
             c_trigger_rx.recv_async().await.unwrap();
             COUNTER.fetch_add(1, Ordering::AcqRel);
             let d = ZFUsize(COUNTER.load(Ordering::Relaxed));
@@ -108,7 +107,7 @@ impl Sink for ExampleGenericSink {
     ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
         let input = inputs.take(SOURCE).unwrap();
 
-        Ok(Some(Arc::new(async move || {
+        Ok(Some(Arc::new(move || async move {
             if let Ok(Message::Data(mut msg)) = input.recv_async().await {
                 let data = msg.get_inner_data().try_get::<ZFUsize>()?;
                 assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
@@ -136,7 +135,7 @@ impl Operator for NoOp {
         let input = inputs.take(SOURCE).unwrap();
         let output = outputs.take(DESTINATION).unwrap();
 
-        Ok(Some(Arc::new(async move || {
+        Ok(Some(Arc::new(move || async move {
             if let Ok(Message::Data(mut msg)) = input.recv_async().await {
                 let data = msg.get_inner_data().try_get::<ZFUsize>()?;
                 assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
