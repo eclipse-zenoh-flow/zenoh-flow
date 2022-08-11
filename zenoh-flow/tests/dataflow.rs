@@ -12,7 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-
 use async_std::sync::Arc;
 use async_trait::async_trait;
 use flume::{bounded, Receiver};
