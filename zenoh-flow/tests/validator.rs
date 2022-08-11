@@ -729,3 +729,50 @@ fn validate_ko_flags_node_not_found() {
         r
     )
 }
+
+static DESCRIPTOR_OK_TYPE_ANY: &str = r#"
+flow: SimplePipeline
+operators:
+  - id : SumOperator
+    tags: []
+    uri: file://./target/release/libsum_and_send.dylib
+    inputs:
+      - id: Number
+        type: usize
+    outputs:
+      - id: Sum
+        type: isize
+sources:
+  - id : Counter
+    tags: []
+    uri: file://./target/release/libcounter_source.dylib
+    outputs:
+      - id: Counter
+        type: usize
+sinks:
+  - id : PrintSink
+    tags: []
+    uri: file://./target/release/libgeneric_sink.dylib
+    inputs:
+      - id: Data
+        type: _any_
+
+links:
+- from:
+    node : Counter
+    output : Counter
+  to:
+    node : SumOperator
+    input : Number
+- from:
+    node : SumOperator
+    output : Sum
+  to:
+    node : PrintSink
+    input : Data
+"#;
+#[test]
+fn validate_ok_type_any() {
+    let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_OK_TYPE_ANY);
+    assert!(r.is_ok(), "Unexpected error: {:?}", r)
+}

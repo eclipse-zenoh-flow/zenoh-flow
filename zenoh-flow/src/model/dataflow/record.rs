@@ -19,7 +19,9 @@ use crate::model::link::{LinkDescriptor, LinkRecord, PortRecord};
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::serde::{Deserialize, Serialize};
-use crate::types::{merge_configurations, NodeId, PortId, PortType, RuntimeId, ZFResult};
+use crate::types::{
+    merge_configurations, NodeId, PortId, PortType, RuntimeId, ZFResult, PORT_TYPE_ANY,
+};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -208,7 +210,10 @@ impl DataFlowRecord {
                 }
             };
 
-            if from_type != &to_type {
+            if from_type != &to_type
+                && from_type.as_ref() != PORT_TYPE_ANY
+                && to_type.as_ref() != PORT_TYPE_ANY
+            {
                 return Err(ZFError::PortTypeNotMatching((from_type.clone(), to_type)));
             }
 

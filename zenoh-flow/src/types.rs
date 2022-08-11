@@ -32,6 +32,8 @@ pub type RuntimeId = Arc<str>;
 pub type FlowId = Arc<str>;
 /// The PortType identifies the type of the data expected in a port.
 pub type PortType = Arc<str>;
+/// Special port type that matches any other port type.
+pub(crate) const PORT_TYPE_ANY: &str = "_any_";
 
 /// The Zenoh Flow result type.
 pub type ZFResult<T> = Result<T, ZFError>;

@@ -17,7 +17,7 @@ use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use crate::model::dataflow::flag::{get_nodes_to_remove, Flag};
 use crate::model::link::PortDescriptor;
 use crate::model::{InputDescriptor, OutputDescriptor};
-use crate::types::{NodeId, PortId, PortType, ZFResult};
+use crate::types::{NodeId, PortId, PortType, ZFResult, PORT_TYPE_ANY};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::Graph;
 use std::collections::{HashMap, HashSet};
@@ -327,7 +327,10 @@ impl DataflowValidator {
             .ok_or_else(|| ZFError::PortNotFound((to.node.clone(), to.input.clone())))?;
         log::debug!("Looking for port type of < {:?} >… OK.", &to_id);
         log::debug!("Port types are identical…");
-        if from_type != to_type {
+        if from_type != to_type
+            && from_type.as_ref() != PORT_TYPE_ANY
+            && to_type.as_ref() != PORT_TYPE_ANY
+        {
             return Err(ZFError::PortTypeNotMatching((
                 from_type.clone(),
                 to_type.clone(),
