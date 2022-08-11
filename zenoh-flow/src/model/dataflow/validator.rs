@@ -115,9 +115,7 @@ impl TryFrom<&FlattenDataFlowDescriptor> for DataflowValidator {
             .sources
             .iter()
             .filter(|&s| !nodes_to_remove.contains(&s.id))
-            .try_for_each(|source| {
-                validator.try_add_source(source.id.clone(), source.output.clone())
-            })?;
+            .try_for_each(|source| validator.try_add_source(source.id.clone(), &source.outputs))?;
 
         descriptor
             .operators
@@ -131,7 +129,7 @@ impl TryFrom<&FlattenDataFlowDescriptor> for DataflowValidator {
             .sinks
             .iter()
             .filter(|&s| !nodes_to_remove.contains(&s.id))
-            .try_for_each(|sink| validator.try_add_sink(sink.id.clone(), sink.input.clone()))?;
+            .try_for_each(|sink| validator.try_add_sink(sink.id.clone(), &sink.inputs))?;
 
         descriptor
             .links
@@ -236,20 +234,29 @@ impl DataflowValidator {
     pub(crate) fn try_add_source(
         &mut self,
         node_id: NodeId,
-        output: PortDescriptor,
+        outputs: &[PortDescriptor],
     ) -> ZFResult<()> {
         self.try_add_id(NodeKind::Source, node_id.clone())?;
 
-        self.try_add_output(node_id, output)
+        outputs
+            .iter()
+            .try_for_each(|output| self.try_add_output(node_id.clone(), output.clone()))
     }
 
     /// Adds a sink
     ///
     /// # Errors
     /// It can fail when calling `try_add_output` or `try_add_id`.
-    pub(crate) fn try_add_sink(&mut self, node_id: NodeId, input: PortDescriptor) -> ZFResult<()> {
+    pub(crate) fn try_add_sink(
+        &mut self,
+        node_id: NodeId,
+        inputs: &[PortDescriptor],
+    ) -> ZFResult<()> {
         self.try_add_id(NodeKind::Sink, node_id.clone())?;
-        self.try_add_input(node_id, input)
+
+        inputs
+            .iter()
+            .try_for_each(|input| self.try_add_input(node_id.clone(), input.clone()))
     }
 
     /// Adds an operator

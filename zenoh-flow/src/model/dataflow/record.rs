@@ -85,7 +85,7 @@ impl DataFlowRecord {
     }
 
     /// Returns the output type for the given node and port.
-    pub fn find_node_output_type(&self, id: &str, output: &str) -> Option<PortType> {
+    pub fn find_node_output_type(&self, id: &str, output: &str) -> Option<&PortType> {
         log::trace!("find_node_output_type({:?},{:?})", id, output);
         match self.operators.get(id) {
             Some(o) => o.get_output_type(output),
@@ -97,7 +97,7 @@ impl DataFlowRecord {
     }
 
     /// Returns the input type for the given node and port.
-    pub fn find_node_input_type(&self, id: &str, input: &str) -> Option<PortType> {
+    pub fn find_node_input_type(&self, id: &str, input: &str) -> Option<&PortType> {
         log::trace!("find_node_input_type({:?},{:?})", id, input);
         match self.operators.get(id) {
             Some(o) => o.get_input_type(input),
@@ -124,25 +124,28 @@ impl DataFlowRecord {
 
     /// Find the port uid for the given couple of node, port.
     fn find_port_id_in_node(&self, node_id: &NodeId, port_id: &PortId) -> Option<u32> {
-        if let Some(o) = self.operators.get(node_id) {
-            if let Some(l) = o.inputs.iter().find(|&i| i.port_id == *port_id) {
-                return Some(l.uid);
-            }
-            if let Some(l) = o.outputs.iter().find(|&o| o.port_id == *port_id) {
-                return Some(l.uid);
-            }
-            return None;
-        }
-        if let Some(s) = self.sources.get(node_id) {
-            if s.output.port_id == *port_id {
-                return Some(s.output.uid);
-            }
-        }
-        if let Some(s) = self.sinks.get(node_id) {
-            if s.input.port_id == *port_id {
-                return Some(s.input.uid);
+        let (inputs, outputs) = if let Some(op) = self.operators.get(node_id) {
+            (Some(&op.inputs), Some(&op.outputs))
+        } else if let Some(source) = self.sources.get(node_id) {
+            (None, Some(&source.outputs))
+        } else if let Some(sink) = self.sinks.get(node_id) {
+            (Some(&sink.inputs), None)
+        } else {
+            (None, None)
+        };
+
+        if let Some(outputs) = outputs {
+            if let Some(port_record) = outputs.iter().find(|&output| output.port_id == *port_id) {
+                return Some(port_record.uid);
             }
         }
+
+        if let Some(inputs) = inputs {
+            if let Some(port_record) = inputs.iter().find(|&input| input.port_id == *port_id) {
+                return Some(port_record.uid);
+            }
+        }
+
         None
     }
 
@@ -196,7 +199,7 @@ impl DataFlowRecord {
             };
 
             let to_type = match self.find_node_input_type(&l.to.node, &l.to.input) {
-                Some(t) => t,
+                Some(t) => t.clone(),
                 None => {
                     return Err(ZFError::PortNotFound((
                         l.to.node.clone(),
@@ -205,8 +208,8 @@ impl DataFlowRecord {
                 }
             };
 
-            if from_type != to_type {
-                return Err(ZFError::PortTypeNotMatching((from_type, to_type)));
+            if from_type != &to_type {
+                return Err(ZFError::PortTypeNotMatching((from_type.clone(), to_type)));
             }
 
             if from_runtime == to_runtime {
@@ -252,7 +255,7 @@ impl DataFlowRecord {
                         link_id: PortRecord {
                             uid: self.counter,
                             port_id: l.from.output.clone(),
-                            port_type: from_type,
+                            port_type: from_type.clone(),
                         },
 
                         runtime: from_runtime,
@@ -289,7 +292,7 @@ impl DataFlowRecord {
                     link_id: PortRecord {
                         uid: self.counter,
                         port_id: l.to.input.clone(),
-                        port_type: to_type,
+                        port_type: to_type.clone(),
                     },
 
                     runtime: to_runtime,
@@ -393,14 +396,16 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
             .into_iter()
             .filter(|s| !nodes_to_remove.contains(&s.id))
         {
-            // converting output
-            let output = (s.output, dfr.counter).into();
-            dfr.counter += 1;
+            let mut outputs: Vec<PortRecord> = vec![];
+            for o in s.outputs {
+                outputs.push((o, dfr.counter).into());
+                dfr.counter += 1;
+            }
 
             let sr = SourceRecord {
                 id: s.id.clone(),
                 uid: dfr.counter,
-                output,
+                outputs,
                 uri: s.uri,
                 configuration: merge_configurations(global_configuration.clone(), s.configuration),
                 runtime: mapping
@@ -416,14 +421,16 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
             .into_iter()
             .filter(|s| !nodes_to_remove.contains(&s.id))
         {
-            // converting input
-            let input = (s.input, dfr.counter).into();
-            dfr.counter += 1;
+            let mut inputs: Vec<PortRecord> = Vec::with_capacity(s.inputs.len());
+            for i in s.inputs {
+                inputs.push((i, dfr.counter).into());
+                dfr.counter += 1;
+            }
 
             let sr = SinkRecord {
                 id: s.id.clone(),
                 uid: dfr.counter,
-                input,
+                inputs,
                 uri: s.uri,
                 configuration: merge_configurations(global_configuration.clone(), s.configuration),
                 runtime: mapping

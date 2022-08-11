@@ -31,16 +31,16 @@ sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
     tags: []
-    output:
-      id: Counter
-      type: usize
+    outputs:
+      - id: Counter
+        type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
     tags: []
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
 
 links:
 - from:
@@ -73,15 +73,15 @@ sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
     tags: []
-    output:
-      id: Counter
-      type: usize
+    outputs:
+      - id: Counter
+        type: usize
 sinks:
   - id : PrintSink
 uri: file://./target/release/libgeneric_sink.dylib
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
 
 links:
 - from:
@@ -97,7 +97,7 @@ static DESCRIPTOR_KO_INVALID_JSON: &str = r#"
     }],
     "sources": [{"id" : "Counter",
     "uri": "file://./target/release/libcounter_source.dylib",
-    "output":{"id": "Counter","type": "usize"}
+    "outputs":[{"id": "Counter","type": "usize"}]
     }],
     "sinks":[{"id" : "PrintSink","uri": file://./target/release/libgeneric_sink.dylib"}}}]
 "#;
@@ -118,16 +118,16 @@ sources:
   - id : Counter
     tags: []
     uri: file://./target/release/libcounter_source.dylib
-    output:
-      id: Counter
-      type: usize
+    outputs:
+      - id: Counter
+        type: usize
 sinks:
   - id : PrintSink
     tags: []
     uri: file://./target/release/libgeneric_sink.dylib
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
 
 links:
 - from:
@@ -162,16 +162,16 @@ sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
     tags: []
-    output:
-      id: Counter
-      type: usize
+    outputs:
+      - id: Counter
+        type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
     tags: []
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
 
 links:
 - from:
@@ -206,22 +206,22 @@ sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
     tags: []
-    output:
-      id: Counter
-      type: usize
+    outputs:
+      - id: Counter
+        type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
     tags: []
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
   - id : PrintSink2
     uri: file://./target/release/libgeneric_sink.dylib
     tags: []
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
 
 links:
 - from:
@@ -262,16 +262,16 @@ sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
     tags: []
-    output:
-      id: Counter
-      type: usize
+    outputs:
+      - id: Counter
+        type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
     tags: []
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
 
 links:
 - from:
@@ -304,22 +304,22 @@ sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
     tags: []
-    output:
-      id: Counter
-      type: usize
+    outputs:
+      - id: Counter
+        type: usize
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
     tags: []
-    output:
-      id: Counter
-      type: usize
+    outputs:
+      - id: Counter
+        type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
     tags: []
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
 
 links:
 - from:
@@ -352,22 +352,22 @@ sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
     tags: []
-    output:
-      id: Counter
-      type: usize
+    outputs:
+      - id: Counter
+        type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
     tags: []
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
   - id : PrintSink2
     uri: file://./target/release/libgeneric_sink.dylib
     tags: []
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
 
 links:
 - from:
@@ -406,16 +406,16 @@ sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
     tags: []
-    output:
-      id: Counter
-      type: usize
+    outputs:
+      - id: Counter
+        type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
     tags: []
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
 
 links:
 - from:
@@ -448,16 +448,16 @@ sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
     tags: []
-    output:
-      id: Counter
-      type: usize
+    outputs:
+      - id: Counter
+        type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
     tags: []
-    input:
-      id: Data
-      type: usize
+    inputs:
+      - id: Data
+        type: usize
 
 links:
 - from:
@@ -586,9 +586,9 @@ sources:
 - id : Source
   uri: file://./source.dylib
   tags: []
-  output:
-    id: out-Source
-    type: any
+  outputs:
+    - id: out-Source
+      type: any
 
 operators:
 - id : A
@@ -623,9 +623,9 @@ sinks:
   - id : Sink
     uri: file://./sink.dylib
     tags: []
-    input:
-      id: in-Sink
-      type: any
+    inputs:
+      - id: in-Sink
+        type: any
 
 links:
 # Flag: A
@@ -682,9 +682,9 @@ sources:
 - id : Source
   uri: file://./source.dylib
   tags: []
-  output:
-    id: out-Source
-    type: any
+  outputs:
+    - id: out-Source
+      type: any
 
 operators:
 - id : A
@@ -701,9 +701,9 @@ sinks:
   - id : Sink
     tags: []
     uri: file://./sink.dylib
-    input:
-      id: in-Sink
-      type: any
+    inputs:
+      - id: in-Sink
+        type: any
 
 links:
 - from:

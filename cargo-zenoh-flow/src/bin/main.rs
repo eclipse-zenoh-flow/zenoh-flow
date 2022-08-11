@@ -305,16 +305,9 @@ async fn main() {
                         exit(-1);
                     }
 
-                    if outputs.len() > 1 {
-                        println!("{}: Zenoh-Flow metadata has more than one output for Source, it should exactly one output", "error".red().bold());
-                        exit(-1);
-                    }
-
-                    let output = &outputs[0];
-
                     let descriptor = SourceDescriptor {
                         id: NodeId::from(node_info.id.clone()),
-                        output: output.clone(),
+                        outputs: outputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
                         tags: vec![],
@@ -340,7 +333,7 @@ async fn main() {
                         classes: vec![],
                         tags: vec![metadata_tag],
                         inputs: vec![],
-                        outputs: vec![output.clone()],
+                        outputs,
                         period: None,
                     };
 
@@ -373,16 +366,9 @@ async fn main() {
                         exit(-1);
                     }
 
-                    if inputs.len() > 1 {
-                        println!("{}: Zenoh-Flow metadata has more than one input for Sink, it should exactly one input", "error".red().bold());
-                        exit(-1);
-                    }
-
-                    let input = &inputs[0];
-
                     let descriptor = SinkDescriptor {
                         id: NodeId::from(node_info.id.clone()),
-                        input: input.clone(),
+                        inputs: inputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
                         tags: vec![],
@@ -407,7 +393,7 @@ async fn main() {
                         kind: node_info.kind.clone(),
                         classes: vec![],
                         tags: vec![metadata_tag],
-                        inputs: vec![input.clone()],
+                        inputs,
                         outputs: vec![],
                         period: None,
                     };

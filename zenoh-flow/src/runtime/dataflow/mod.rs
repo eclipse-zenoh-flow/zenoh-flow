@@ -156,11 +156,11 @@ impl Dataflow {
         &mut self,
         id: NodeId,
         configuration: Option<Configuration>,
-        output: PortDescriptor,
+        outputs: Vec<PortDescriptor>,
         source: Arc<dyn Source>,
     ) -> ZFResult<()> {
         // self.validator.try_add_source(id.clone(), output.clone())?;
-        self.validator.try_add_source(id.clone(), output)?;
+        self.validator.try_add_source(id.clone(), &outputs)?;
 
         self.sources.insert(
             id.clone(),
@@ -234,11 +234,11 @@ impl Dataflow {
         &mut self,
         id: NodeId,
         configuration: Option<Configuration>,
-        input: PortDescriptor,
+        inputs: Vec<PortDescriptor>,
         sink: Arc<dyn Sink>,
     ) -> ZFResult<()> {
         // self.validator.try_add_sink(id.clone(), input.clone())?;
-        self.validator.try_add_sink(id.clone(), input)?;
+        self.validator.try_add_sink(id.clone(), &inputs)?;
 
         self.sinks.insert(
             id.clone(),

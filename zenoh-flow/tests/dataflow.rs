@@ -174,10 +174,10 @@ async fn single_runtime() {
         .try_add_static_source(
             "counter-source".into(),
             None,
-            PortDescriptor {
+            vec![PortDescriptor {
                 port_id: SOURCE.into(),
                 port_type: "int".into(),
-            },
+            }],
             source,
         )
         .unwrap();
@@ -186,10 +186,10 @@ async fn single_runtime() {
         .try_add_static_sink(
             "generic-sink".into(),
             None,
-            PortDescriptor {
+            vec![PortDescriptor {
                 port_id: SOURCE.into(),
                 port_type: "int".into(),
-            },
+            }],
             sink,
         )
         .unwrap();

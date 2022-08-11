@@ -158,18 +158,18 @@ links:
 static DESCRIPTOR_Y: &str = r#"
 id: file-src
 uri: file://bla/bla
-output:
-  id: Content
-  type: str
+outputs:
+  - id: Content
+    type: str
 tags: []
 "#;
 
 static DESCRIPTOR_Z: &str = r#"
 id: file-snk
 uri: file://vlala
-input:
-  id: Line
-  type: str
+inputs:
+  - id: Line
+    type: str
 tags: []
 "#;
 

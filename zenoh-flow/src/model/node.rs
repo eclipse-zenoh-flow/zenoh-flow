@@ -39,7 +39,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SinkDescriptor {
     pub id: NodeId,
-    pub input: PortDescriptor,
+    pub inputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
     pub tags: Vec<String>,
@@ -108,7 +108,7 @@ impl SinkDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SourceDescriptor {
     pub id: NodeId,
-    pub output: PortDescriptor,
+    pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
     pub tags: Vec<String>,
@@ -642,7 +642,7 @@ impl NodeDescriptor {
 pub struct SinkRecord {
     pub id: NodeId,
     pub uid: u32,
-    pub input: PortRecord,
+    pub inputs: Vec<PortRecord>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
     pub runtime: RuntimeId,
@@ -656,12 +656,11 @@ impl std::fmt::Display for SinkRecord {
 
 impl SinkRecord {
     /// Returns the `PortType` for the input.
-    pub fn get_input_type(&self, id: &str) -> Option<PortType> {
-        if self.input.port_id.as_ref() == id {
-            Some(self.input.port_type.clone())
-        } else {
-            None
-        }
+    pub fn get_input_type(&self, id: impl AsRef<str>) -> Option<&PortType> {
+        self.inputs
+            .iter()
+            .find(|&lid| lid.port_id.as_ref() == id.as_ref())
+            .map(|lid| &lid.port_type)
     }
 }
 
@@ -670,7 +669,7 @@ impl SinkRecord {
 pub struct SourceRecord {
     pub id: NodeId,
     pub uid: u32,
-    pub output: PortRecord,
+    pub outputs: Vec<PortRecord>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
     pub runtime: RuntimeId,
@@ -684,12 +683,11 @@ impl std::fmt::Display for SourceRecord {
 
 impl SourceRecord {
     /// Returns the `PortType` for the output.
-    pub fn get_output_type(&self, id: &str) -> Option<PortType> {
-        if self.output.port_id.as_ref() == id {
-            Some(self.output.port_type.clone())
-        } else {
-            None
-        }
+    pub fn get_output_type(&self, id: impl AsRef<str>) -> Option<&PortType> {
+        self.outputs
+            .iter()
+            .find(|&lid| lid.port_id.as_ref() == id.as_ref())
+            .map(|lid| &lid.port_type)
     }
 }
 
@@ -713,18 +711,18 @@ impl std::fmt::Display for OperatorRecord {
 
 impl OperatorRecord {
     /// Returns the `PortType` for the given output.
-    pub fn get_output_type(&self, id: &str) -> Option<PortType> {
+    pub fn get_output_type(&self, id: impl AsRef<str>) -> Option<&PortType> {
         self.outputs
             .iter()
-            .find(|&lid| *lid.port_id == *id)
-            .map(|lid| lid.port_type.clone())
+            .find(|&lid| lid.port_id.as_ref() == id.as_ref())
+            .map(|lid| &lid.port_type)
     }
 
     /// Return the `PortType` for the given input.
-    pub fn get_input_type(&self, id: &str) -> Option<PortType> {
+    pub fn get_input_type(&self, id: impl AsRef<str>) -> Option<&PortType> {
         self.inputs
             .iter()
-            .find(|&lid| *lid.port_id == *id)
-            .map(|lid| lid.port_type.clone())
+            .find(|&lid| lid.port_id.as_ref() == id.as_ref())
+            .map(|lid| &lid.port_type)
     }
 }
