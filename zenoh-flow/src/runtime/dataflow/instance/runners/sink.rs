@@ -98,11 +98,19 @@ impl Runner for SinkRunner {
         // do nothing and return Ok(())
 
         if let Some(abort_handle) = self.abort_handle.take() {
-            abort_handle.abort()
+            abort_handle.abort();
+
+            if let Some(handle) = self.handle.take() {
+                log::trace!("Sink handler finished with {:?}", handle.await);
+            }
         }
 
-        if let Some(handle) = self.handle.take() {
-            log::trace!("Sink handler finished with {:?}", handle.await);
+        if let Some(abort_sender_handle) = self.callbacks_abort_handle.take() {
+            abort_sender_handle.abort();
+
+            if let Some(handle) = self.callbacks_handle.take() {
+                log::trace!("Source callbacks handler finished with {:?}", handle.await);
+            }
         }
 
         Ok(())

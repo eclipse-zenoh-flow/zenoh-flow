@@ -53,8 +53,10 @@ impl Deserializable for ZFUsize {
 
 static SOURCE: &str = "Counter";
 static DESTINATION: &str = "Counter";
+static PORT_CALLBACK: &str = "Counter_callback";
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
+static COUNTER_CALLBACK: AtomicUsize = AtomicUsize::new(1);
 
 // SOURCE
 
@@ -80,6 +82,7 @@ impl Source for CountSource {
         mut outputs: Outputs,
     ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
         let output = outputs.take(SOURCE).unwrap();
+        let output_callback = outputs.take(PORT_CALLBACK).unwrap();
         let c_trigger_rx = self.rx.clone();
 
         Ok(Some(Arc::new(move || async move {
@@ -87,7 +90,15 @@ impl Source for CountSource {
             COUNTER.fetch_add(1, Ordering::AcqRel);
             let d = ZFUsize(COUNTER.load(Ordering::Relaxed));
             let data = Data::from(d);
-            output.send_async(data, None).await
+            output.send_async(data, None).await?;
+
+            COUNTER_CALLBACK.fetch_add(1, Ordering::AcqRel);
+            output_callback
+                .send_async(
+                    Data::from(ZFUsize(COUNTER_CALLBACK.load(Ordering::Relaxed))),
+                    None,
+                )
+                .await
         })))
     }
 }
@@ -105,6 +116,7 @@ impl Sink for ExampleGenericSink {
         mut inputs: Inputs,
     ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
         let input = inputs.take(SOURCE).unwrap();
+        let input_callback = inputs.take(PORT_CALLBACK).unwrap();
 
         Ok(Some(Arc::new(move || async move {
             if let Ok(Message::Data(mut msg)) = input.recv_async().await {
@@ -112,12 +124,18 @@ impl Sink for ExampleGenericSink {
                 assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
                 println!("Example Generic Sink Received: {:?}", input);
             }
+
+            if let Ok(Message::Data(mut msg)) = input_callback.recv_async().await {
+                let data = msg.get_inner_data().try_get::<ZFUsize>()?;
+                assert_eq!(data.0, COUNTER_CALLBACK.load(Ordering::Relaxed));
+            }
+
             Ok(())
         })))
     }
 }
 
-// OPERATOR
+// OPERATORS
 
 #[derive(Debug)]
 struct NoOp;
@@ -146,6 +164,40 @@ impl Operator for NoOp {
     }
 }
 
+#[derive(Debug)]
+struct NoOpCallback;
+
+#[async_trait]
+impl Operator for NoOpCallback {
+    async fn setup(
+        &self,
+        context: &mut Context,
+        _configuration: &Option<Configuration>,
+        mut inputs: Inputs,
+        mut outputs: Outputs,
+    ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
+        let input = inputs.take(PORT_CALLBACK).unwrap();
+        let output = outputs.take(PORT_CALLBACK).unwrap();
+
+        input.into_callback(
+            context,
+            Arc::new(move |message| async move {
+                println!("Entering callback");
+                let data = match message {
+                    Message::Data(mut data) => data.get_inner_data().try_get::<ZFUsize>()?.clone(),
+                    _ => return Err(ZFError::Unsupported),
+                };
+
+                assert_eq!(data.0, COUNTER_CALLBACK.load(Ordering::Relaxed));
+                output.send_async(Data::from(data), None).await?;
+                Ok(())
+            }),
+        );
+
+        Ok(None)
+    }
+}
+
 // Run dataflow in single runtime
 async fn single_runtime() {
     env_logger::init();
@@ -169,15 +221,22 @@ async fn single_runtime() {
     let source = Arc::new(CountSource::new(rx));
     let sink = Arc::new(ExampleGenericSink {});
     let operator = Arc::new(NoOp {});
+    let operator_callback = Arc::new(NoOpCallback {});
 
     dataflow
         .try_add_static_source(
             "counter-source".into(),
             None,
-            vec![PortDescriptor {
-                port_id: SOURCE.into(),
-                port_type: "int".into(),
-            }],
+            vec![
+                PortDescriptor {
+                    port_id: SOURCE.into(),
+                    port_type: "int".into(),
+                },
+                PortDescriptor {
+                    port_id: PORT_CALLBACK.into(),
+                    port_type: "int".into(),
+                },
+            ],
             source,
         )
         .unwrap();
@@ -186,10 +245,16 @@ async fn single_runtime() {
         .try_add_static_sink(
             "generic-sink".into(),
             None,
-            vec![PortDescriptor {
-                port_id: SOURCE.into(),
-                port_type: "int".into(),
-            }],
+            vec![
+                PortDescriptor {
+                    port_id: SOURCE.into(),
+                    port_type: "int".into(),
+                },
+                PortDescriptor {
+                    port_id: PORT_CALLBACK.into(),
+                    port_type: "int".into(),
+                },
+            ],
             sink,
         )
         .unwrap();
@@ -207,6 +272,22 @@ async fn single_runtime() {
                 port_type: "int".into(),
             }],
             operator,
+        )
+        .unwrap();
+
+    dataflow
+        .try_add_static_operator(
+            "noop_callback".into(),
+            None,
+            vec![PortDescriptor {
+                port_id: PORT_CALLBACK.into(),
+                port_type: "int".into(),
+            }],
+            vec![PortDescriptor {
+                port_id: PORT_CALLBACK.into(),
+                port_type: "int".into(),
+            }],
+            operator_callback,
         )
         .unwrap();
 
@@ -235,6 +316,38 @@ async fn single_runtime() {
             InputDescriptor {
                 node: "generic-sink".into(),
                 input: SOURCE.into(),
+            },
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+    dataflow
+        .try_add_link(
+            OutputDescriptor {
+                node: "counter-source".into(),
+                output: PORT_CALLBACK.into(),
+            },
+            InputDescriptor {
+                node: "noop_callback".into(),
+                input: PORT_CALLBACK.into(),
+            },
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+
+    dataflow
+        .try_add_link(
+            OutputDescriptor {
+                node: "noop_callback".into(),
+                output: PORT_CALLBACK.into(),
+            },
+            InputDescriptor {
+                node: "generic-sink".into(),
+                input: PORT_CALLBACK.into(),
             },
             None,
             None,

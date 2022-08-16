@@ -101,11 +101,30 @@ impl Runner for OperatorRunner {
         // do nothing and return Ok(())
 
         if let Some(abort_handle) = self.abort_handle.take() {
-            abort_handle.abort()
+            abort_handle.abort();
+            if let Some(handle) = self.handle.take() {
+                log::trace!("Operator handler finished with {:?}", handle.await);
+            }
         }
 
-        if let Some(handle) = self.handle.take() {
-            log::trace!("Operator handler finished with {:?}", handle.await);
+        if let Some(cb_senders_handle) = self.callbacks_senders_abort_handle.take() {
+            cb_senders_handle.abort();
+            if let Some(handle) = self.callbacks_senders_handle.take() {
+                log::trace!(
+                    "Operator callback sender handler finished with {:?}",
+                    handle.await
+                );
+            }
+        }
+
+        if let Some(cb_receivers_handle) = self.callbacks_receivers_abort_handle.take() {
+            cb_receivers_handle.abort();
+            if let Some(handle) = self.callbacks_receivers_handle.take() {
+                log::trace!(
+                    "Operator callback receiver handler finished with {:?}",
+                    handle.await
+                );
+            }
         }
 
         Ok(())
