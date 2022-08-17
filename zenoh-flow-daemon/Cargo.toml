@@ -42,7 +42,7 @@ uhlc = "0.5"
 zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master"}
 zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
 zrpc = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
-znrpc-macros = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
+zrpc-macros = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
 clap = { version = "3.1", features = ["derive"] }
 hostname = "0.3.1"
 machine-uid = "0.2.0"
