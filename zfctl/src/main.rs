@@ -31,7 +31,7 @@ use std::error::Error;
 use std::fs::read_to_string;
 use uuid::Uuid;
 use zenoh::Session;
-use zenoh_flow::async_std::sync::Arc;
+use std::sync::Arc;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::RuntimeClient;
 const GIT_VERSION: &str = git_version!(prefix = "v", cargo_prefix = "v");

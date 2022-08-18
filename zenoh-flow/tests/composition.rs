@@ -20,7 +20,7 @@ use zenoh_flow::model::dataflow::descriptor::*;
 use zenoh_flow::model::node::{
     CompositeOperatorDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
-use zenoh_flow::types::ZFResult;
+use zenoh_flow::prelude::*;
 
 static DESCRIPTOR_FLOW: &str = r#"
 flow: test
@@ -333,7 +333,7 @@ fn composition_ok() {
     });
 }
 
-fn write_file(path: &Path, content: Vec<u8>) -> ZFResult<()> {
+fn write_file(path: &Path, content: Vec<u8>) -> Result<()> {
     let mut file = File::create(path)?;
     file.write_all(&content)?;
     Ok(file.sync_all()?)

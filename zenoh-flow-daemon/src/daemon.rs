@@ -20,7 +20,9 @@ use std::path::Path;
 use uhlc::{HLCBuilder, ID};
 use uuid::Uuid;
 use zenoh::prelude::*;
-use zenoh_flow::async_std::sync::{Arc, Mutex};
+
+use std::sync::Arc;
+use async_std::sync::{Mutex};
 use zenoh_flow::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use zenoh_flow::model::{
     dataflow::record::DataFlowRecord,
@@ -35,11 +37,10 @@ use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::RuntimeClient;
 use zenoh_flow::runtime::RuntimeContext;
-use zenoh_flow::serde::{Deserialize, Serialize};
-
-use zenoh_flow::prelude::ZFError;
+use zenoh_flow::DaemonResult;
+use zenoh_flow::prelude::{Result as ZFResult, ErrorKind, zferror};
+use serde::{Deserialize, Serialize};
 use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
-use zenoh_flow::types::ZFResult;
 use zrpc::ZServe;
 use zrpc_macros::znserver;
 
@@ -118,21 +119,21 @@ impl Daemon {
         let (rt_stopper, _hrt) = rt_server
             .connect()
             .await
-            .map_err(|_e| ZFError::GenericError)?;
+            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
         rt_server
             .initialize()
             .await
-            .map_err(|_e| ZFError::GenericError)?;
+            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
         rt_server
             .register()
             .await
-            .map_err(|_e| ZFError::GenericError)?;
+            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
 
         log::trace!("Staring ZRPC Servers");
         let (srt, _hrt) = rt_server
             .start()
             .await
-            .map_err(|_e| ZFError::GenericError)?;
+            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
 
         log::trace!("Setting state as Ready");
 
@@ -156,20 +157,20 @@ impl Daemon {
 
         stop.recv()
             .await
-            .map_err(|e| ZFError::RecvError(format!("{}", e)))?;
+            .map_err(|e| zferror!(ErrorKind::RecvError,e))?;
 
         rt_server
             .stop(srt)
             .await
-            .map_err(|_e| ZFError::GenericError)?;
+            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
         rt_server
             .unregister()
             .await
-            .map_err(|_e| ZFError::GenericError)?;
+            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
         rt_server
             .disconnect(rt_stopper)
             .await
-            .map_err(|_e| ZFError::GenericError)?;
+            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
 
         log::info!("Runtime main loop exiting...");
         Ok(())
@@ -240,7 +241,7 @@ impl Daemon {
     pub async fn stop(&self, stop: async_std::channel::Sender<()>) -> ZFResult<()> {
         stop.send(())
             .await
-            .map_err(|e| ZFError::SendError(format!("{}", e)))?;
+            .map_err(|e| zferror!(ErrorKind::SendError, e))?;
 
         self.store
             .remove_runtime_config(&self.ctx.runtime_uuid)
@@ -261,9 +262,9 @@ impl Daemon {
 /// # Errors
 /// Returns an error variant if unable to get or parse the Uuid.
 pub fn get_machine_uuid() -> ZFResult<Uuid> {
-    let machine_id_raw = machine_uid::get().map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+    let machine_id_raw = machine_uid::get().map_err(|e| zferror!(ErrorKind::ParsingError,"{}", e))?;
     let node_str: &str = &machine_id_raw;
-    Uuid::parse_str(node_str).map_err(|e| ZFError::ParsingError(format!("{}", e)))
+    Uuid::parse_str(node_str).map_err(|e| zferror!(ErrorKind::ParsingError, e).into())
 }
 
 /// Creates a new `Daemon` from a configuration file.
@@ -275,9 +276,9 @@ pub fn get_machine_uuid() -> ZFResult<Uuid> {
 /// - unable to get the machine uuid.
 /// - unable to open the zenoh session.
 impl TryFrom<DaemonConfig> for Daemon {
-    type Error = ZFError;
+    type Error = zenoh_flow::prelude::Error;
 
-    fn try_from(config: DaemonConfig) -> Result<Self, Self::Error> {
+    fn try_from(config: DaemonConfig) -> std::result::Result<Self, Self::Error> {
         // If Uuid is not specified uses machine id.
         let uuid = match &config.uuid {
             Some(u) => *u,
@@ -287,7 +288,7 @@ impl TryFrom<DaemonConfig> for Daemon {
         // If name is not specified uses hostname.
         let name = match &config.name {
             Some(n) => n.clone(),
-            None => String::from(hostname::get()?.to_str().ok_or(ZFError::GenericError)?),
+            None => String::from(hostname::get()?.to_str().ok_or(zferror!(ErrorKind::GenericError))?),
         };
 
         // Loading Zenoh configuration
@@ -386,7 +387,7 @@ impl TryFrom<DaemonConfig> for Daemon {
 
         // Creates the HLC.
         let uhlc_id = ID::try_from(uuid.as_bytes())
-            .map_err(|e| ZFError::InvalidData(format!("Unable to create ID {e:?}")))?;
+            .map_err(|e| zferror!(ErrorKind::InvalidData, "Unable to create ID {:?}", e))?;
         let hlc = Arc::new(HLCBuilder::new().with_id(uhlc_id).build());
 
         // Creates the loader.
@@ -406,7 +407,7 @@ impl TryFrom<DaemonConfig> for Daemon {
 
 #[znserver]
 impl Runtime for Daemon {
-    async fn create_instance(&self, flow: FlattenDataFlowDescriptor) -> ZFResult<DataFlowRecord> {
+    async fn create_instance(&self, flow: FlattenDataFlowDescriptor) -> DaemonResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow (when
         // the registry will be in place)
         //TODO: this has to run asynchronously, this means that it must
@@ -472,7 +473,7 @@ impl Runtime for Daemon {
         Ok(dfr)
     }
 
-    async fn delete_instance(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+    async fn delete_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
         log::info!("Delete Instance UUID: {}", record_id);
         let record = self.store.get_flow_by_instance(&record_id).await?;
 
@@ -510,7 +511,7 @@ impl Runtime for Daemon {
         Ok(record)
     }
 
-    async fn instantiate(&self, flow: FlattenDataFlowDescriptor) -> ZFResult<DataFlowRecord> {
+    async fn instantiate(&self, flow: FlattenDataFlowDescriptor) -> DaemonResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow (when
         // the registry will be in place)
         //TODO: this has to run asynchronously, this means that it must
@@ -539,7 +540,7 @@ impl Runtime for Daemon {
         Ok(dfr)
     }
 
-    async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+    async fn teardown(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
         log::info!("Tearing down Instance UUID: {}", record_id);
 
         // Stopping
@@ -553,7 +554,7 @@ impl Runtime for Daemon {
         Ok(dfr)
     }
 
-    async fn prepare(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+    async fn prepare(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
         log::info!("Preparing for Instance UUID: {}", record_id);
 
         let dfr = self.store.get_flow_by_instance(&record_id).await?;
@@ -572,7 +573,7 @@ impl Runtime for Daemon {
 
         Ok(dfr)
     }
-    async fn clean(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+    async fn clean(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
         log::info!("Cleaning for Instance UUID: {}", record_id);
 
         let mut _state = self.state.lock().await;
@@ -596,11 +597,11 @@ impl Runtime for Daemon {
 
                 Ok(record)
             }
-            None => Err(ZFError::InstanceNotFound(record_id)),
+            None => Err(ErrorKind::InstanceNotFound(record_id)),
         }
     }
 
-    async fn start_instance(&self, record_id: Uuid) -> ZFResult<()> {
+    async fn start_instance(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!("Staring Instance UUID: {}", record_id);
 
         let mut rt_clients = vec![];
@@ -643,7 +644,7 @@ impl Runtime for Daemon {
         Ok(())
     }
 
-    async fn stop_instance(&self, record_id: Uuid) -> ZFResult<DataFlowRecord> {
+    async fn stop_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
         log::info!("Stopping Instance UUID: {}", record_id);
         let record = self.store.get_flow_by_instance(&record_id).await?;
 
@@ -687,7 +688,7 @@ impl Runtime for Daemon {
         Ok(record)
     }
 
-    async fn start(&self, record_id: Uuid) -> ZFResult<()> {
+    async fn start(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!(
             "Starting nodes (not sources) for Instance UUID: {}",
             record_id
@@ -726,10 +727,10 @@ impl Runtime for Daemon {
 
                 Ok(())
             }
-            None => Err(ZFError::InstanceNotFound(record_id)),
+            None => Err(ErrorKind::InstanceNotFound(record_id)),
         }
     }
-    async fn start_sources(&self, record_id: Uuid) -> ZFResult<()> {
+    async fn start_sources(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!("Starting sources for Instance UUID: {}", record_id);
 
         let mut _state = self.state.lock().await;
@@ -755,10 +756,10 @@ impl Runtime for Daemon {
 
                 Ok(())
             }
-            None => Err(ZFError::InstanceNotFound(record_id)),
+            None => Err(ErrorKind::InstanceNotFound(record_id)),
         }
     }
-    async fn stop(&self, record_id: Uuid) -> ZFResult<()> {
+    async fn stop(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!(
             "Stopping nodes (not sources) for Instance UUID: {}",
             record_id
@@ -797,10 +798,10 @@ impl Runtime for Daemon {
 
                 Ok(())
             }
-            None => Err(ZFError::InstanceNotFound(record_id)),
+            None => Err(ErrorKind::InstanceNotFound(record_id)),
         }
     }
-    async fn stop_sources(&self, record_id: Uuid) -> ZFResult<()> {
+    async fn stop_sources(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!("Stopping sources for Instance UUID: {}", record_id);
 
         let mut _state = self.state.lock().await;
@@ -825,10 +826,10 @@ impl Runtime for Daemon {
 
                 Ok(())
             }
-            None => Err(ZFError::InstanceNotFound(record_id)),
+            None => Err(ErrorKind::InstanceNotFound(record_id)),
         }
     }
-    async fn start_node(&self, instance_id: Uuid, node: String) -> ZFResult<()> {
+    async fn start_node(&self, instance_id: Uuid, node: String) -> DaemonResult<()> {
         let mut _state = self.state.lock().await;
         let mut rt_status = self
             .store
@@ -837,10 +838,10 @@ impl Runtime for Daemon {
 
         match _state.graphs.get_mut(&instance_id) {
             Some(mut instance) => Ok(instance.start_node(&node.into()).await?),
-            None => Err(ZFError::InstanceNotFound(instance_id)),
+            None => Err(ErrorKind::InstanceNotFound(instance_id)),
         }
     }
-    async fn stop_node(&self, instance_id: Uuid, node: String) -> ZFResult<()> {
+    async fn stop_node(&self, instance_id: Uuid, node: String) -> DaemonResult<()> {
         let mut _state = self.state.lock().await;
         let mut rt_status = self
             .store
@@ -849,11 +850,11 @@ impl Runtime for Daemon {
 
         match _state.graphs.get_mut(&instance_id) {
             Some(mut instance) => Ok(instance.stop_node(&node.into()).await?),
-            None => Err(ZFError::InstanceNotFound(instance_id)),
+            None => Err(ErrorKind::InstanceNotFound(instance_id)),
         }
     }
 
-    // async fn start_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String> {
+    // async fn start_record(&self, instance_id: Uuid, source_id: NodeId) -> DaemonResult<String> {
     //     let mut _state = self.state.lock().await;
     //     let mut rt_status = self
     //         .store
@@ -865,11 +866,11 @@ impl Runtime for Daemon {
     //             let key_expr = instance.start_recording(&source_id).await?;
     //             Ok(key_expr)
     //         }
-    //         None => Err(ZFError::InstanceNotFound(instance_id)),
+    //         None => Err(ErrorKind::InstanceNotFound(instance_id)),
     //     }
     // }
 
-    // async fn stop_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String> {
+    // async fn stop_record(&self, instance_id: Uuid, source_id: NodeId) -> DaemonResult<String> {
     //     let mut _state = self.state.lock().await;
     //     let mut rt_status = self
     //         .store
@@ -881,7 +882,7 @@ impl Runtime for Daemon {
     //             let key_expr = instance.stop_recording(&source_id).await?;
     //             Ok(key_expr)
     //         }
-    //         None => Err(ZFError::InstanceNotFound(instance_id)),
+    //         None => Err(ErrorKind::InstanceNotFound(instance_id)),
     //     }
     // }
 
@@ -890,7 +891,7 @@ impl Runtime for Daemon {
     //     instance_id: Uuid,
     //     source_id: NodeId,
     //     key_expr: String,
-    // ) -> ZFResult<NodeId> {
+    // ) -> DaemonResult<NodeId> {
     //     let mut _state = self.state.lock().await;
     //     let mut rt_status = self
     //         .store
@@ -903,10 +904,10 @@ impl Runtime for Daemon {
     //                 let replay_id = instance.start_replay(&source_id, key_expr).await?;
     //                 Ok(replay_id)
     //             } else {
-    //                 Err(ZFError::InvalidState)
+    //                 Err(ErrorKind::InvalidState)
     //             }
     //         }
-    //         None => Err(ZFError::InstanceNotFound(instance_id)),
+    //         None => Err(ErrorKind::InstanceNotFound(instance_id)),
     //     }
     // }
 
@@ -915,7 +916,7 @@ impl Runtime for Daemon {
     //     instance_id: Uuid,
     //     source_id: NodeId,
     //     replay_id: NodeId,
-    // ) -> ZFResult<NodeId> {
+    // ) -> DaemonResult<NodeId> {
     //     let mut _state = self.state.lock().await;
     //     let mut rt_status = self
     //         .store
@@ -927,7 +928,7 @@ impl Runtime for Daemon {
     //             instance.stop_replay(&replay_id).await?;
     //             Ok(replay_id)
     //         }
-    //         None => Err(ZFError::InstanceNotFound(instance_id)),
+    //         None => Err(ErrorKind::InstanceNotFound(instance_id)),
     //     }
     // }
 
@@ -936,19 +937,19 @@ impl Runtime for Daemon {
         record_id: Uuid,
         node: String,
         message: ControlMessage,
-    ) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+    ) -> DaemonResult<()> {
+        Err(ErrorKind::Unimplemented)
     }
     async fn check_operator_compatibility(
         &self,
         operator: SimpleOperatorDescriptor,
-    ) -> ZFResult<bool> {
-        Err(ZFError::Unimplemented)
+    ) -> DaemonResult<bool> {
+        Err(ErrorKind::Unimplemented)
     }
-    async fn check_source_compatibility(&self, source: SourceDescriptor) -> ZFResult<bool> {
-        Err(ZFError::Unimplemented)
+    async fn check_source_compatibility(&self, source: SourceDescriptor) -> DaemonResult<bool> {
+        Err(ErrorKind::Unimplemented)
     }
-    async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> ZFResult<bool> {
-        Err(ZFError::Unimplemented)
+    async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> DaemonResult<bool> {
+        Err(ErrorKind::Unimplemented)
     }
 }

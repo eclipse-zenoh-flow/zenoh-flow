@@ -13,8 +13,8 @@
 //
 
 use super::link::PortRecord;
-use crate::serde::{Deserialize, Serialize};
 use crate::types::{NodeId, RuntimeId};
+use serde::{Deserialize, Serialize};
 
 /// The type of the connector.
 #[derive(PartialEq, Eq, Serialize, Deserialize, Debug, Clone)]

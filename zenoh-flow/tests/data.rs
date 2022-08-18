@@ -13,11 +13,11 @@
 //
 
 use std::convert::From;
-use zenoh_flow::async_std::sync::Arc;
-use zenoh_flow::prelude::ZFError;
-use zenoh_flow::serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use zenoh_flow::prelude::*;
+use serde::{Deserialize, Serialize};
 use zenoh_flow::traits::{Deserializable, ZFData};
-use zenoh_flow::types::{Data, ZFResult};
+use zenoh_flow::types::Data;
 use zenoh_flow::zenoh_flow_derive::ZFData;
 
 #[derive(Debug, ZFData, Clone, Serialize, Deserialize)]
@@ -28,22 +28,22 @@ struct TestData {
 }
 
 impl ZFData for TestData {
-    fn try_serialize(&self) -> ZFResult<Vec<u8>> {
+    fn try_serialize(&self) -> Result<Vec<u8>> {
         Ok(serde_json::to_string(self)
-            .map_err(|_| ZFError::SerializationError)?
+            .map_err(|e| zferror!(ErrorKind::SerializationError, e))?
             .as_bytes()
             .to_vec())
     }
 }
 
 impl Deserializable for TestData {
-    fn try_deserialize(bytes: &[u8]) -> ZFResult<TestData>
+    fn try_deserialize(bytes: &[u8]) -> Result<TestData>
     where
         Self: Sized,
     {
         let json = String::from_utf8_lossy(bytes);
         let data: TestData =
-            serde_json::from_str(&json).map_err(|_| ZFError::DeseralizationError)?;
+            serde_json::from_str(&json).map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?;
         Ok(data)
     }
 }

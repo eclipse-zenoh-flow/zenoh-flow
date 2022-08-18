@@ -13,7 +13,8 @@
 //
 
 use crate::runtime::dataflow::instance::io::{Input, Output};
-use crate::types::{Configuration, Context, PortId, ZFResult};
+use crate::types::{Configuration, Context, PortId};
+use crate::Result;
 use async_trait::async_trait;
 use futures::Future;
 use std::any::Any;
@@ -50,12 +51,12 @@ pub trait DowncastAny {
 /// Example:
 /// ```no_run
 /// use zenoh_flow::zenoh_flow_derive::ZFData;
-/// use zenoh_flow::prelude::{ZFData, ZFResult};
+/// use zenoh_flow::prelude::{ZFData, Result};
 ///
 /// #[derive(Debug, Clone, ZFData)]
 /// pub struct MyString(pub String);
 /// impl ZFData for MyString {
-///     fn try_serialize(&self) -> ZFResult<Vec<u8>> {
+///     fn try_serialize(&self) -> Result<Vec<u8>> {
 ///         Ok(self.0.as_bytes().to_vec())
 ///     }
 /// }
@@ -65,7 +66,7 @@ pub trait ZFData: DowncastAny + Debug + Send + Sync {
     ///
     /// # Errors
     /// If it fails to serialize an error variant will be returned.
-    fn try_serialize(&self) -> ZFResult<Vec<u8>>;
+    fn try_serialize(&self) -> Result<Vec<u8>>;
 }
 
 /// This trait abstract user's type deserialization.
@@ -83,12 +84,12 @@ pub trait ZFData: DowncastAny + Debug + Send + Sync {
 /// pub struct MyString(pub String);
 ///
 /// impl Deserializable for MyString {
-///     fn try_deserialize(bytes: &[u8]) -> ZFResult<MyString>
+///     fn try_deserialize(bytes: &[u8]) -> Result<MyString>
 ///     where
 ///         Self: Sized,
 ///     {
 ///         Ok(MyString(
-///             String::from_utf8(bytes.to_vec()).map_err(|_| ZFError::DeseralizationError)?,
+///             String::from_utf8(bytes.to_vec()).map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?,
 ///         ))
 ///     }
 /// }
@@ -98,7 +99,7 @@ pub trait Deserializable {
     ///
     /// # Errors
     /// If it fails to deserialize an error variant will be returned.
-    fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
+    fn try_deserialize(bytes: &[u8]) -> Result<Self>
     where
         Self: Sized;
 }
@@ -111,7 +112,7 @@ pub trait Source: Send + Sync {
         context: &mut Context,
         configuration: &Option<Configuration>,
         outputs: HashMap<PortId, Output>,
-    ) -> ZFResult<Option<Arc<dyn AsyncIteration>>>;
+    ) -> Result<Option<Arc<dyn AsyncIteration>>>;
 }
 
 /// The `Operator` trait represents an Operator inside Zenoh Flow.
@@ -123,7 +124,7 @@ pub trait Operator: Send + Sync {
         configuration: &Option<Configuration>,
         inputs: HashMap<PortId, Input>,
         outputs: HashMap<PortId, Output>,
-    ) -> ZFResult<Option<Arc<dyn AsyncIteration>>>;
+    ) -> Result<Option<Arc<dyn AsyncIteration>>>;
 }
 
 /// The `Sink` trait represents a Sink inside Zenoh Flow.
@@ -134,7 +135,7 @@ pub trait Sink: Send + Sync {
         context: &mut Context,
         configuration: &Option<Configuration>,
         inputs: HashMap<PortId, Input>,
-    ) -> ZFResult<Option<Arc<dyn AsyncIteration>>>;
+    ) -> Result<Option<Arc<dyn AsyncIteration>>>;
 }
 
 /// A `SourceSink` represents Nodes that access the same physical interface to
@@ -147,7 +148,7 @@ pub trait SourceSink: Send + Sync {
         configuration: &Option<Configuration>,
         inputs: HashMap<PortId, Input>,
         outputs: HashMap<PortId, Output>,
-    ) -> ZFResult<Option<Arc<dyn AsyncIteration>>>;
+    ) -> Result<Option<Arc<dyn AsyncIteration>>>;
 }
 
 /// Trait wrapping an async closures for node iteration, it requires rust-nightly because of
@@ -155,11 +156,11 @@ pub trait SourceSink: Send + Sync {
 ///
 /// * Note: * not intended to be directly used by users.
 pub trait AsyncIteration: Send + Sync {
-    fn call(&self) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>>;
+    fn call(&self) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>;
 }
 
 /// Implementation of AsyncCallbackTx for any async closure that returns
-/// `ZFResult<()>`.
+/// `Result<()>`.
 /// This "converts" any `async move { ... }` to `AsyncCallbackTx`
 ///
 /// *Note:* It takes an `FnOnce` because of the `move` keyword. The closure
@@ -167,9 +168,9 @@ pub trait AsyncIteration: Send + Sync {
 impl<Fut, Fun> AsyncIteration for Fun
 where
     Fun: FnOnce() -> Fut + Sync + Send + Clone,
-    Fut: Future<Output = ZFResult<()>> + Send + Sync + 'static,
+    Fut: Future<Output = Result<()>> + Send + Sync + 'static,
 {
-    fn call(&self) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>> {
+    fn call(&self) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>> {
         Box::pin(self.clone()())
     }
 }

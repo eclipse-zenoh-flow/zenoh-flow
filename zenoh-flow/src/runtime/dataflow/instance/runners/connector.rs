@@ -12,19 +12,21 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::async_std::sync::Arc;
-use crate::error::ZFError;
 use crate::model::connector::ZFConnectorRecord;
 use crate::runtime::dataflow::instance::io::{Input, Output};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
-use crate::types::{NodeId, PortId, ZFResult};
+use crate::types::{NodeId, PortId};
+use crate::zferror;
+use crate::zfresult::ErrorKind;
+use crate::Result as ZFResult;
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::stream::{AbortHandle, Abortable, Aborted};
 use futures::StreamExt;
 use std::collections::HashMap;
+use std::sync::Arc;
 use zenoh::prelude::*;
 use zenoh::publication::CongestionControl;
 
@@ -54,10 +56,12 @@ impl ZenohSender {
     ) -> ZFResult<Self> {
         let port_id = record.link_id.port_id.clone();
         let input = inputs.remove(&port_id).ok_or_else(|| {
-            ZFError::IOError(format!(
+            zferror!(
+                ErrorKind::IOError,
                 "Link < {} > was not created for Connector < {} >.",
-                &port_id, &record.id
-            ))
+                &port_id,
+                &record.id
+            )
         })?;
 
         // Declaring the resource to reduce network overhead.
@@ -138,7 +142,7 @@ impl Runner for ZenohSender {
                         .congestion_control(CongestionControl::Block)
                         .await?;
                 }
-                Err(ZFError::Disconnected)
+                Err(zferror!(ErrorKind::Disconnected).into())
             }
 
             loop {
@@ -211,10 +215,12 @@ impl ZenohReceiver {
     ) -> ZFResult<Self> {
         let port_id = record.link_id.port_id.clone();
         let output = outputs.remove(&port_id).ok_or_else(|| {
-            ZFError::IOError(format!(
+            zferror!(
+                ErrorKind::IOError,
                 "Link < {} > was not created for Connector < {} >.",
-                &port_id, &record.id
-            ))
+                &port_id,
+                &record.id
+            )
         })?;
 
         let key_expr = instance_context
@@ -276,11 +282,11 @@ impl Runner for ZenohReceiver {
                 while let Some(msg) = subscriber.receiver().next().await {
                     log::trace!("[ZenohReceiver: {id}] - {}<={msg:?} ", record.resource);
                     let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
-                        .map_err(|_| ZFError::DeseralizationError)?;
+                        .map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?;
                     log::trace!("[ZenohReceiver: {id}] - OUT =>{de:?} ");
                     link.send_to_all_async(de).await?;
                 }
-                Err(ZFError::Disconnected)
+                Err(zferror!(ErrorKind::Disconnected).into())
             }
 
             loop {

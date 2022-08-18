@@ -13,9 +13,9 @@
 //
 
 use crate::types::NodeId;
-use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::sync::Arc;
 
 /// A Flag is an optional structure to indicate which part(s) of a data flow to activate.
 ///

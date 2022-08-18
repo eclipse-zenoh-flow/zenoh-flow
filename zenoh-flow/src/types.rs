@@ -12,14 +12,16 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::async_std::sync::Arc;
-use crate::error::ZFError;
 use crate::runtime::dataflow::instance::io::{AsyncCallbackReceiver, AsyncCallbackSender};
 use crate::runtime::InstanceContext;
-use crate::serde::{Deserialize, Serialize};
 use crate::traits::ZFData;
+use crate::zferror;
+use crate::zfresult::ErrorKind;
+use crate::Result;
+use serde::{Deserialize, Serialize};
 use std::convert::From;
 use std::ops::Deref;
+use std::sync::Arc;
 use std::time::Duration;
 
 /// A NodeId identifies a node inside a Zenoh Flow graph
@@ -34,9 +36,6 @@ pub type FlowId = Arc<str>;
 pub type PortType = Arc<str>;
 /// Special port type that matches any other port type.
 pub(crate) const PORT_TYPE_ANY: &str = "_any_";
-
-/// The Zenoh Flow result type.
-pub type ZFResult<T> = Result<T, ZFError>;
 
 /// Context is a structure provided by Zenoh Flow to access the execution context directly from the
 /// nodes. It contains the `mode` as usize.
@@ -90,13 +89,13 @@ impl Data {
     /// # Errors
     /// If it fails to serialize an error
     /// variant will be returned.
-    pub fn try_as_bytes(&self) -> ZFResult<Arc<Vec<u8>>> {
+    pub fn try_as_bytes(&self) -> Result<Arc<Vec<u8>>> {
         match &self {
             Self::Bytes(bytes) => Ok(bytes.clone()),
             Self::Typed(typed) => {
                 let serialized_data = typed
                     .try_serialize()
-                    .map_err(|_| ZFError::SerializationError)?;
+                    .map_err(|e| zferror!(ErrorKind::SerializationError, "{:?}", e))?;
                 Ok(Arc::new(serialized_data))
             }
         }
@@ -115,7 +114,7 @@ impl Data {
     /// # Errors
     /// If fails to cast an error
     /// variant will be returned.
-    pub fn try_get<Typed>(&mut self) -> ZFResult<&Typed>
+    pub fn try_get<Typed>(&mut self) -> Result<&Typed>
     where
         Typed: ZFData + crate::traits::Deserializable + 'static,
     {
@@ -123,21 +122,22 @@ impl Data {
             Self::Bytes(bytes) => {
                 let data: Arc<dyn ZFData> = Arc::new(
                     Typed::try_deserialize(bytes.as_slice())
-                        .map_err(|_| crate::types::ZFError::DeseralizationError)?,
+                        .map_err(|e| zferror!(ErrorKind::DeseralizationError, "{:?}", e))?,
                 );
                 Ok(Self::Typed(data.clone()))
             }
             Self::Typed(typed) => Ok(Self::Typed(typed.clone())),
-        } as ZFResult<Self>)?;
+        } as Result<Self>)?;
 
         match self {
             Self::Typed(typed) => Ok(typed
                 .as_any()
                 .downcast_ref::<Typed>()
-                .ok_or_else(|| ZFError::InvalidData("Could not downcast.".to_string()))?),
-            _ => Err(ZFError::InvalidData(
-                "Should be deserialized first".to_string(),
-            )),
+                .ok_or_else(|| zferror!(ErrorKind::InvalidData, "Could not downcast"))?),
+            _ => Err(zferror!(
+                ErrorKind::InvalidData,
+                "Should be deserialized first"
+            ).into()),
         }
     }
 }

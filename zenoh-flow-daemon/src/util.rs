@@ -16,13 +16,13 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 use zenoh::config::Config;
-use zenoh_flow::types::ZFResult;
+use zenoh_flow::Result;
 
 /// Helper function to read a file into a string.
 ///
 /// # Errors
 /// It returns an error variant if unable o read the file.
-pub(crate) fn read_file(path: &Path) -> ZFResult<String> {
+pub(crate) fn read_file(path: &Path) -> Result<String> {
     Ok(fs::read_to_string(path)?)
 }
 
@@ -32,12 +32,12 @@ pub(crate) fn read_file(path: &Path) -> ZFResult<String> {
 /// # Errors
 ///
 /// It returns an error varian it unable to create or write the file.
-pub(crate) fn _write_file(path: &Path, content: Vec<u8>) -> ZFResult<()> {
+pub(crate) fn _write_file(path: &Path, content: Vec<u8>) -> Result<()> {
     let mut file = fs::File::create(path)?;
     file.write_all(&content)?;
     Ok(file.sync_all()?)
 }
 
-pub(crate) fn get_zenoh_config(path: &str) -> ZFResult<Config> {
+pub(crate) fn get_zenoh_config(path: &str) -> Result<Config> {
     Ok(zenoh::config::Config::from_file(path)?)
 }

@@ -22,9 +22,9 @@ use zenoh_flow::model::{NodeKind, RegistryNode, RegistryNodeArchitecture, Regist
 use zenoh_flow::types::NodeId;
 
 #[cfg(feature = "local_registry")]
-use async_std::sync::Arc;
-#[cfg(feature = "local_registry")]
 use rand::seq::SliceRandom;
+#[cfg(feature = "local_registry")]
+use std::sync::Arc;
 #[cfg(feature = "local_registry")]
 use zenoh::*;
 #[cfg(feature = "local_registry")]

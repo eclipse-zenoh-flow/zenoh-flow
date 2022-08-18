@@ -17,21 +17,21 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
-use crate::{
-    model::{
-        dataflow::record::DataFlowRecord,
-        node::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor},
-    },
-    serde::{Deserialize, Serialize},
+use crate::model::{
+    dataflow::record::DataFlowRecord,
+    node::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor},
 };
-use async_std::sync::Arc;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use uuid::Uuid;
 
 use self::dataflow::loader::LoaderConfig;
-use crate::error::ZFError;
 use crate::runtime::dataflow::loader::Loader;
 use crate::runtime::message::ControlMessage;
-use crate::types::{FlowId, RuntimeId, ZFResult};
+use crate::types::{FlowId, RuntimeId};
+use crate::zferror;
+use crate::zfresult::ErrorKind;
+use crate::{Result as ZFResult, DaemonResult};
 use uhlc::HLC;
 use zenoh::config::Config as ZenohConfig;
 use zenoh::Session;
@@ -156,12 +156,12 @@ impl std::fmt::Display for ZenohConfigKind {
 }
 
 impl TryFrom<zenoh::config::whatami::WhatAmI> for ZenohConfigKind {
-    type Error = ZFError;
+    type Error = crate::zfresult::Error;
     fn try_from(value: zenoh::config::whatami::WhatAmI) -> Result<Self, Self::Error> {
         match value {
             zenoh::config::whatami::WhatAmI::Client => Ok(Self::Client),
             zenoh::config::whatami::WhatAmI::Peer => Ok(Self::Peer),
-            _ => Err(ZFError::MissingConfiguration),
+            _ => Err(zferror!(ErrorKind::MissingConfiguration).into()),
         }
     }
 }
@@ -220,7 +220,7 @@ pub trait Runtime {
     /// - error on zenoh-rpc
     /// - unable to map
     /// - unable to prepare nodes
-    async fn create_instance(&self, flow: FlattenDataFlowDescriptor) -> ZFResult<DataFlowRecord>;
+    async fn create_instance(&self, flow: FlattenDataFlowDescriptor) -> DaemonResult<DataFlowRecord>;
     //TODO: workaround - it should just take the ID of the flow (when
     // the registry will be in place)
 
@@ -235,7 +235,7 @@ pub trait Runtime {
     /// - instance not stopped
     /// - unable to clean
     /// - zenoh error
-    async fn delete_instance(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
+    async fn delete_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
 
     /// Instantiates the given [`FlattenDataFlowDescriptor`][^note].
     /// and, creates the associated [`DataFlowRecord`].
@@ -252,7 +252,7 @@ pub trait Runtime {
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to instantiate
-    async fn instantiate(&self, flow: FlattenDataFlowDescriptor) -> ZFResult<DataFlowRecord>;
+    async fn instantiate(&self, flow: FlattenDataFlowDescriptor) -> DaemonResult<DataFlowRecord>;
     //TODO: workaround - it should just take the ID of the flow (when
     // the registry will be in place)
 
@@ -267,7 +267,7 @@ pub trait Runtime {
     /// - error on zenoh-rpc
     /// - unable to teardown
     /// - instance not found
-    async fn teardown(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
+    async fn teardown(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
 
     /// Prepares the runtime host the instance identified by the [`Uuid`].
     /// Preparing a runtime means, fetch the operators/source/sinks libraries,
@@ -278,7 +278,7 @@ pub trait Runtime {
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to prepare
-    async fn prepare(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
+    async fn prepare(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
 
     /// Cleans the runtime from the remains of the given record.
     /// Cleans means unload the libraries, drop data structures and destroy links.
@@ -287,7 +287,7 @@ pub trait Runtime {
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to clean
-    async fn clean(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
+    async fn clean(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
 
     /// Starts the instance on all involved nodes.
     ///
@@ -298,7 +298,7 @@ pub trait Runtime {
     /// - error on zenoh-rpc
     /// - record not found
     /// - record already started
-    async fn start_instance(&self, record_id: Uuid) -> ZFResult<()>;
+    async fn start_instance(&self, record_id: Uuid) -> DaemonResult<()>;
 
     /// Stops the instance on all involved nodes.
     ///
@@ -308,7 +308,7 @@ pub trait Runtime {
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to clean
-    async fn stop_instance(&self, record_id: Uuid) -> ZFResult<DataFlowRecord>;
+    async fn stop_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
 
     /// Starts the sinks, connectors, and operators for the given record.
     ///
@@ -317,7 +317,7 @@ pub trait Runtime {
     /// - error on zenoh-rpc
     /// - record not found
     /// - record already started
-    async fn start(&self, record_id: Uuid) -> ZFResult<()>;
+    async fn start(&self, record_id: Uuid) -> DaemonResult<()>;
 
     /// Starts the sources for the given record.
     /// Note that this should be called only after the `start(record)` has returned
@@ -328,7 +328,7 @@ pub trait Runtime {
     /// - error on zenoh-rpc
     /// - record not found
     /// - sources already started
-    async fn start_sources(&self, record_id: Uuid) -> ZFResult<()>;
+    async fn start_sources(&self, record_id: Uuid) -> DaemonResult<()>;
 
     /// Stops the sinks, connectors, and operators for the given record.
     /// Note that this should be called after the `stop_sources(record)` has returned
@@ -339,7 +339,7 @@ pub trait Runtime {
     /// - error on zenoh-rpc
     /// - record not found
     /// - record already stopped
-    async fn stop(&self, record_id: Uuid) -> ZFResult<()>;
+    async fn stop(&self, record_id: Uuid) -> DaemonResult<()>;
 
     /// Stops the sources for the given record.
     ///
@@ -348,7 +348,7 @@ pub trait Runtime {
     /// - error on zenoh-rpc
     /// - record not found
     /// - sources already stopped
-    async fn stop_sources(&self, record_id: Uuid) -> ZFResult<()>;
+    async fn stop_sources(&self, record_id: Uuid) -> DaemonResult<()>;
 
     /// Starts the given graph node for the given instance.
     /// A graph node can be a source, a sink, a connector, or an operator.
@@ -359,7 +359,7 @@ pub trait Runtime {
     /// - record not found
     /// - node already started
     /// - node not found
-    async fn start_node(&self, record_id: Uuid, node: String) -> ZFResult<()>;
+    async fn start_node(&self, record_id: Uuid, node: String) -> DaemonResult<()>;
 
     /// Stops the given graph node from the given instance.
     /// A graph node can be a source, a sink, a connector, or an operator.
@@ -370,7 +370,7 @@ pub trait Runtime {
     /// - record not found
     /// - node already started
     /// - node not found
-    async fn stop_node(&self, record_id: Uuid, node: String) -> ZFResult<()>;
+    async fn stop_node(&self, record_id: Uuid, node: String) -> DaemonResult<()>;
 
     // FIXME A source now has several outputs.
 
@@ -383,7 +383,7 @@ pub trait Runtime {
     // /// - record already started
     // /// - source not found
     // /// - node is not a source
-    // async fn start_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String>;
+    // async fn start_record(&self, instance_id: Uuid, source_id: NodeId) -> DaemonResult<String>;
 
     // /// Stops the recording for the given source.
     // ///
@@ -394,7 +394,7 @@ pub trait Runtime {
     // /// - record already stopped
     // /// - source not found
     // /// - node is not a source
-    // async fn stop_record(&self, instance_id: Uuid, source_id: NodeId) -> ZFResult<String>;
+    // async fn stop_record(&self, instance_id: Uuid, source_id: NodeId) -> DaemonResult<String>;
 
     // /// Starts the replay for the given source.
     // /// The replay creates a new node that has the same port and links as the
@@ -412,7 +412,7 @@ pub trait Runtime {
     //     instance_id: Uuid,
     //     source_id: NodeId,
     //     key_expr: String,
-    // ) -> ZFResult<NodeId>;
+    // ) -> DaemonResult<NodeId>;
 
     // /// Stops the replay for the given source.
     // /// This stops and removes the replay node from the graph.
@@ -429,13 +429,13 @@ pub trait Runtime {
     //     instance_id: Uuid,
     //     source_id: NodeId,
     //     replay_id: NodeId,
-    // ) -> ZFResult<NodeId>;
+    // ) -> DaemonResult<NodeId>;
 
     /// Gets the state of the given graph node for the given instance.
     /// A graph node can be a source, a sink, a connector, or an operator.
     /// The node state represents the current state of the node:
     /// `enum NodeState { Running, Stopped, Error(err) }`
-    // async fn get_node_state(&self, record_id: Uuid, node: String) -> ZFResult<NodeState>;
+    // async fn get_node_state(&self, record_id: Uuid, node: String) -> DaemonResult<NodeState>;
 
     /// Sends the `message` to `node` for the given record.
     /// This is useful for sending out-of-band notification to a node.
@@ -450,7 +450,7 @@ pub trait Runtime {
         record_id: Uuid,
         runtime: String,
         message: ControlMessage,
-    ) -> ZFResult<()>;
+    ) -> DaemonResult<()>;
 
     /// Checks the compatibility for the given `operator`
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
@@ -461,7 +461,7 @@ pub trait Runtime {
     async fn check_operator_compatibility(
         &self,
         operator: SimpleOperatorDescriptor,
-    ) -> ZFResult<bool>;
+    ) -> DaemonResult<bool>;
 
     /// Checks the compatibility for the given `source`
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
@@ -469,7 +469,7 @@ pub trait Runtime {
     /// # Errors
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
-    async fn check_source_compatibility(&self, source: SourceDescriptor) -> ZFResult<bool>;
+    async fn check_source_compatibility(&self, source: SourceDescriptor) -> DaemonResult<bool>;
 
     /// Checks the compatibility for the given `sink`
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
@@ -477,5 +477,5 @@ pub trait Runtime {
     /// # Errors
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
-    async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> ZFResult<bool>;
+    async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> DaemonResult<bool>;
 }

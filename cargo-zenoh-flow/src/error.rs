@@ -13,7 +13,7 @@
 //
 
 use std::error::Error;
-use zenoh_flow::prelude::ZFError;
+use zenoh_flow::prelude::Error as ZFError;
 
 #[derive(Debug)]
 pub enum CZFError {

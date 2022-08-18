@@ -17,10 +17,9 @@ pub mod dataflow;
 pub mod link;
 pub mod node;
 
-use crate::error::ZFError;
-use crate::model::link::PortDescriptor;
-use crate::serde::{Deserialize, Serialize};
 use crate::types::{DurationDescriptor, NodeId, PortId};
+use crate::{model::link::PortDescriptor, zferror, zfresult::ErrorKind};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Describes one output
@@ -78,16 +77,17 @@ pub enum NodeKind {
 }
 
 impl std::str::FromStr for NodeKind {
-    type Err = ZFError;
+    type Err = crate::zfresult::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_ascii_lowercase().as_str() {
             "operator" => Ok(Self::Operator),
             "sink" => Ok(Self::Sink),
             "source" => Ok(Self::Source),
-            _ => Err(ZFError::ParsingError(
-                "unable to parse node kind".to_string(),
-            )),
+            _ => Err(zferror!(
+                ErrorKind::ParsingError,
+                "unable to parse node kind"
+            ).into()),
         }
     }
 }

@@ -18,7 +18,7 @@ use async_ctrlc::CtrlC;
 use std::convert::TryFrom;
 use std::path::Path;
 use std::str;
-use zenoh_flow::async_std::prelude::*;
+use async_std::prelude::*;
 
 mod daemon;
 mod util;

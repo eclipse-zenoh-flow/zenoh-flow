@@ -21,14 +21,16 @@ use super::instance::runners::operator::OperatorRunner;
 use super::instance::runners::sink::SinkRunner;
 use super::instance::runners::source::SourceRunner;
 use super::instance::runners::RunnerKind;
-use crate::error::ZFError;
 use crate::model::connector::ZFConnectorKind;
 use crate::model::link::LinkRecord;
 use crate::runtime::dataflow::Dataflow;
 use crate::runtime::InstanceContext;
-use crate::types::{NodeId, ZFResult};
-use async_std::sync::Arc;
+use crate::types::NodeId;
+use crate::zferror;
+use crate::zfresult::ErrorKind;
+use crate::Result;
 use std::collections::HashMap;
+use std::sync::Arc;
 use uhlc::HLC;
 use uuid::Uuid;
 
@@ -51,7 +53,7 @@ fn create_links(
     nodes: &[NodeId],
     links: &[LinkRecord],
     hlc: Arc<HLC>,
-) -> ZFResult<HashMap<NodeId, (Inputs, Outputs)>> {
+) -> Result<HashMap<NodeId, (Inputs, Outputs)>> {
     let mut io: HashMap<NodeId, (Inputs, Outputs)> = HashMap::with_capacity(nodes.len());
 
     for link_desc in links {
@@ -122,7 +124,7 @@ impl DataflowInstance {
     /// An error variant is returned in case of:
     /// - validation fails
     /// - connectors cannot be created
-    pub fn try_instantiate(dataflow: Dataflow, hlc: Arc<HLC>) -> ZFResult<Self> {
+    pub fn try_instantiate(dataflow: Dataflow, hlc: Arc<HLC>) -> Result<Self> {
         // Gather all node ids to be able to generate (i) the links and (ii) the hash map containing
         // the runners.
         let mut node_ids: Vec<NodeId> = Vec::with_capacity(
@@ -151,10 +153,11 @@ impl DataflowInstance {
 
         for (id, source) in dataflow.sources.into_iter() {
             let (_, outputs) = links.remove(&id).ok_or_else(|| {
-                ZFError::IOError(format!(
+                zferror!(
+                    ErrorKind::IOError,
                     "Links for Source < {} > were not created.",
                     &source.id
-                ))
+                )
             })?;
             runners.insert(
                 id,
@@ -164,10 +167,11 @@ impl DataflowInstance {
 
         for (id, operator) in dataflow.operators.into_iter() {
             let (inputs, outputs) = links.remove(&operator.id).ok_or_else(|| {
-                ZFError::IOError(format!(
+                zferror!(
+                    ErrorKind::IOError,
                     "Links for Operator < {} > were not created.",
                     &operator.id
-                ))
+                )
             })?;
             runners.insert(
                 id,
@@ -182,17 +186,22 @@ impl DataflowInstance {
 
         for (id, sink) in dataflow.sinks.into_iter() {
             let (inputs, _) = links.remove(&id).ok_or_else(|| {
-                ZFError::IOError(format!("Links for Sink < {} > were not created.", &sink.id))
+                zferror!(
+                    ErrorKind::IOError,
+                    "Links for Sink < {} > were not created.",
+                    &sink.id
+                )
             })?;
             runners.insert(id, Box::new(SinkRunner::new(context.clone(), sink, inputs)));
         }
 
         for (id, connector) in dataflow.connectors.into_iter() {
             let (inputs, outputs) = links.remove(&id).ok_or_else(|| {
-                ZFError::IOError(format!(
+                zferror!(
+                    ErrorKind::IOError,
                     "Links for Connector < {} > were not created.",
                     &connector.id
-                ))
+                )
             })?;
             match connector.kind {
                 ZFConnectorKind::Sender => {
@@ -283,8 +292,8 @@ impl DataflowInstance {
     /// # Errors
     /// An error variant is returned in case of:
     /// -  sources already started.
-    pub async fn start_sources(&mut self) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+    pub async fn start_sources(&mut self) -> Result<()> {
+        Err(zferror!(ErrorKind::Unimplemented).into())
     }
 
     /// Starts all the nodes in this instance.
@@ -294,8 +303,8 @@ impl DataflowInstance {
     /// # Errors
     /// An error variant is returned in case of:
     /// -  nodes already started.
-    pub async fn start_nodes(&mut self) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+    pub async fn start_nodes(&mut self) -> Result<()> {
+        Err(zferror!(ErrorKind::Unimplemented).into())
     }
 
     /// Stops all the sources in this instance.
@@ -305,8 +314,8 @@ impl DataflowInstance {
     /// # Errors
     /// An error variant is returned in case of:
     /// -  sources already stopped.
-    pub async fn stop_sources(&mut self) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+    pub async fn stop_sources(&mut self) -> Result<()> {
+        Err(zferror!(ErrorKind::Unimplemented).into())
     }
 
     /// Stops all the sources in this instance.
@@ -316,45 +325,45 @@ impl DataflowInstance {
     /// # Errors
     /// An error variant is returned in case of:
     /// -  nodes already stopped.
-    pub async fn stop_nodes(&mut self) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
+    pub async fn stop_nodes(&mut self) -> Result<()> {
+        Err(zferror!(ErrorKind::Unimplemented).into())
     }
 
     /// Checks if the given node is running.
     ///
     /// # Errors
     /// If fails if the node is not found.
-    pub async fn is_node_running(&self, node_id: &NodeId) -> ZFResult<bool> {
+    pub async fn is_node_running(&self, node_id: &NodeId) -> Result<bool> {
         if let Some(runner) = self.runners.get(node_id) {
             return Ok(runner.is_running().await);
         }
 
-        Err(ZFError::NodeNotFound(node_id.clone()))
+        Err(zferror!(ErrorKind::NodeNotFound(node_id.clone())).into())
     }
 
     /// Starts the given node.
     ///
     /// # Errors
     /// If fails if the node is not found.
-    pub async fn start_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
+    pub async fn start_node(&mut self, node_id: &NodeId) -> Result<()> {
         if let Some(runner) = self.runners.get_mut(node_id) {
             return runner.start().await;
         }
 
-        Err(ZFError::NodeNotFound(node_id.clone()))
+        Err(zferror!(ErrorKind::NodeNotFound(node_id.clone())).into())
     }
 
     /// Stops the given node.
     ///
     /// # Errors
     /// If fails if the node is not found or it is not running.
-    pub async fn stop_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
+    pub async fn stop_node(&mut self, node_id: &NodeId) -> Result<()> {
         if let Some(runner) = self.runners.get_mut(node_id) {
             runner.stop().await?;
             return Ok(());
         }
 
-        Err(ZFError::NodeNotFound(node_id.clone()))
+        Err(zferror!(ErrorKind::NodeNotFound(node_id.clone())).into())
     }
 
     // /// Starts the recording for the given source.
@@ -363,12 +372,13 @@ impl DataflowInstance {
     // ///
     // /// # Errors
     // /// If fails if the node is not found.
-    // pub async fn start_recording(&self, node_id: &NodeId) -> ZFResult<String> {
+    // pub async fn start_recording(&self, node_id: &NodeId) -> Result<String> {
     //     if let Some(runner) = self.runners.get(node_id) {
     //         return runner.start_recording().await;
     //     }
 
-    //     Err(ZFError::NodeNotFound(node_id.clone()))
+    //     Err(zferror!(ErrorKind::NodeNotFound(node_id.clone())).into())
+
     // }
 
     // /// Stops the recording for the given source.
@@ -377,12 +387,13 @@ impl DataflowInstance {
     // ///
     // /// # Errors
     // /// If fails if the node is not found.
-    // pub async fn stop_recording(&self, node_id: &NodeId) -> ZFResult<String> {
+    // pub async fn stop_recording(&self, node_id: &NodeId) -> Result<String> {
     //     if let Some(runner) = self.runners.get(node_id) {
     //         return runner.stop_recording().await;
     //     }
 
-    //     Err(ZFError::NodeNotFound(node_id.clone()))
+    //     Err(zferror!(ErrorKind::NodeNotFound(node_id.clone())).into())
+
     // }
 
     // /// Assumes the source is already stopped before calling the start replay!
@@ -396,7 +407,7 @@ impl DataflowInstance {
     // /// - the source is not stopped
     // /// - the node is not a source
     // /// - the key expression is not point to a recording
-    // pub async fn start_replay(&mut self, source_id: &NodeId, resource: String) -> ZFResult<NodeId> {
+    // pub async fn start_replay(&mut self, source_id: &NodeId, resource: String) -> Result<NodeId> {
     //     let runner = self
     //         .runners
     //         .get(source_id)
@@ -443,7 +454,7 @@ impl DataflowInstance {
     // ///
     // /// # Errors
     // /// If fails if the node is not found.
-    // pub async fn stop_replay(&mut self, replay_id: &NodeId) -> ZFResult<()> {
+    // pub async fn stop_replay(&mut self, replay_id: &NodeId) -> Result<()> {
     //     self.stop_node(replay_id).await?;
     //     self.runners.remove(replay_id);
     //     Ok(())

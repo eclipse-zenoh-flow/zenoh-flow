@@ -14,11 +14,14 @@
 
 extern crate serde;
 
-use crate::error::ZFError;
 use crate::traits::ZFData;
-use crate::types::{Data, FlowId, NodeId, PortId, ZFResult};
-use async_std::sync::Arc;
+use crate::types::{Data, FlowId, NodeId, PortId};
+use crate::zferror;
+use crate::zfresult::ErrorKind;
+use crate::Result;
+
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::{cmp::Ordering, fmt::Debug};
 use uhlc::Timestamp;
 use uuid::Uuid;
@@ -129,12 +132,11 @@ impl Message {
     /// # Errors
     /// An error variant is returned in case of:
     /// - fails to serialize
-    pub fn serialize_bincode(&self) -> ZFResult<Vec<u8>> {
+    pub fn serialize_bincode(&self) -> Result<Vec<u8>> {
         match &self {
             Message::Data(data_message) => match &data_message.data {
-                Data::Bytes(_) => {
-                    bincode::serialize(&self).map_err(|_| ZFError::SerializationError)
-                }
+                Data::Bytes(_) => bincode::serialize(&self)
+                    .map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
                 Data::Typed(_) => {
                     let serialized_data = data_message.data.try_as_bytes()?;
                     let serialized_message = Message::Data(DataMessage::new_serialized(
@@ -142,10 +144,11 @@ impl Message {
                         data_message.timestamp,
                     ));
 
-                    bincode::serialize(&serialized_message).map_err(|_| ZFError::SerializationError)
+                    bincode::serialize(&serialized_message)
+                        .map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
                 }
             },
-            _ => bincode::serialize(&self).map_err(|_| ZFError::SerializationError),
+            _ => bincode::serialize(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
         }
     }
 
@@ -158,7 +161,7 @@ impl Message {
             //     ControlMessage::RecordingStart(ref rs) => rs.timestamp,
             //     ControlMessage::RecordingStop(ref ts) => *ts,
             // },
-            // _ => Err(ZFError::Unsupported),
+            // _ => Err(ErrorKind::Unsupported),
         }
     }
 }

@@ -12,18 +12,19 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::async_std::sync::Arc;
-use crate::error::ZFError;
 use crate::runtime::dataflow::instance::io::{Input, Output};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::InstanceContext;
 use crate::traits::Operator;
-use crate::types::{Configuration, Context, NodeId, PortId, ZFResult};
+use crate::types::{Configuration, Context, NodeId, PortId};
+use crate::zfresult::{Error};
+use crate::Result as ZFResult;
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Instant;
 
 #[cfg(target_family = "unix")]
@@ -47,11 +48,11 @@ pub struct OperatorRunner {
     pub(crate) outputs: HashMap<PortId, Output>,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) _library: Option<Arc<Library>>,
-    pub(crate) handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
+    pub(crate) handle: Option<JoinHandle<Result<Error, Aborted>>>,
     pub(crate) abort_handle: Option<AbortHandle>,
-    pub(crate) callbacks_senders_handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
+    pub(crate) callbacks_senders_handle: Option<JoinHandle<Result<Error, Aborted>>>,
     pub(crate) callbacks_senders_abort_handle: Option<AbortHandle>,
-    pub(crate) callbacks_receivers_handle: Option<JoinHandle<Result<ZFError, Aborted>>>,
+    pub(crate) callbacks_receivers_handle: Option<JoinHandle<Result<Error, Aborted>>>,
     pub(crate) callbacks_receivers_abort_handle: Option<AbortHandle>,
 }
 

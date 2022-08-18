@@ -13,12 +13,15 @@
 //
 
 use super::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
-use crate::error::ZFError;
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::serde::{Deserialize, Serialize};
 use crate::traits::{Operator, Sink, Source};
-use crate::types::{Configuration, ZFResult};
-use async_std::sync::Arc;
+use crate::types::Configuration;
+use crate::zferror;
+use crate::zfresult::ErrorKind;
+use crate::Result;
+use serde::{Deserialize, Serialize};
+
+use std::sync::Arc;
 
 #[cfg(target_family = "unix")]
 use libloading::os::unix::Library;
@@ -51,7 +54,7 @@ pub static EXT_FILE_EXTENSION: &str = "zfext";
 /// # Errors
 /// An error variant is returned in case of:
 /// -  user wants to return an error.
-pub type OperatorRegisterFn = fn() -> ZFResult<Arc<dyn Operator>>;
+pub type OperatorRegisterFn = fn() -> Result<Arc<dyn Operator>>;
 
 /// Operator declaration expected in the library that will be loaded.
 pub struct OperatorDeclaration {
@@ -67,7 +70,7 @@ pub struct OperatorDeclaration {
 /// # Errors
 /// An error variant is returned in case of:
 /// -  user wants to return an error.
-pub type SourceRegisterFn = fn() -> ZFResult<Arc<dyn Source>>;
+pub type SourceRegisterFn = fn() -> Result<Arc<dyn Source>>;
 
 /// Source declaration expected in the library that will be loaded.
 pub struct SourceDeclaration {
@@ -83,7 +86,7 @@ pub struct SourceDeclaration {
 /// # Errors
 /// An error variant is returned in case of:
 /// -  user wants to return an error.
-pub type SinkRegisterFn = fn() -> ZFResult<Arc<dyn Sink>>;
+pub type SinkRegisterFn = fn() -> Result<Arc<dyn Sink>>;
 
 /// Sink declaration expected in the library that will be loaded.
 pub struct SinkDeclaration {
@@ -145,9 +148,9 @@ impl LoaderConfig {
     ///
     /// # Errors
     /// It returns an error variant if the extension is already present.
-    pub fn try_add_extension(&mut self, ext: ExtensibleImplementation) -> ZFResult<()> {
+    pub fn try_add_extension(&mut self, ext: ExtensibleImplementation) -> Result<()> {
         if self.extensions.iter().any(|e| e.name == ext.name) {
-            return Err(ZFError::Duplicate);
+            return Err(zferror!(ErrorKind::Duplicate).into());
         }
         self.extensions.push(ext);
         Ok(())
@@ -224,25 +227,27 @@ impl Loader {
     /// - the library does not contain the symbols.
     /// - the URI is missing
     /// - the URI scheme is not known ( so far only `file://` is known).
-    pub fn load_operator(&self, record: OperatorRecord) -> ZFResult<OperatorLoaded> {
+    pub fn load_operator(&self, record: OperatorRecord) -> Result<OperatorLoaded> {
         let uri = record.uri.clone().ok_or_else(|| {
-            ZFError::LoadingError(format!(
+            zferror!(
+                ErrorKind::LoadingError,
                 "Missing URI for dynamically loaded Operator < {} >.",
                 record.id.clone()
-            ))
+            )
         })?;
 
-        let uri = Url::parse(&uri).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
+        let uri = Url::parse(&uri).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
 
         match uri.scheme() {
             "file" => {
                 let file_path = Self::make_file_path(uri)?;
                 let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-                    ZFError::LoadingError(format!(
+                    zferror!(
+                        ErrorKind::LoadingError,
                         "Missing file extension for dynamically loaded Operator < {} , {:?}>.",
                         record.id.clone(),
                         file_path,
-                    ))
+                    )
                 })?;
 
                 match Self::is_lib(&file_extension) {
@@ -253,7 +258,7 @@ impl Loader {
                     _ => Ok(self.load_operator_from_extension(record, file_path)?),
                 }
             }
-            _ => Err(ZFError::Unimplemented),
+            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
         }
     }
 
@@ -268,25 +273,21 @@ impl Loader {
     /// - the library does not contain the symbols.
     /// - the URI is missing
     /// - the URI scheme is not known ( so far only `file://` is known).
-    pub fn load_source(&self, record: SourceRecord) -> ZFResult<SourceLoaded> {
-        let uri = record.uri.clone().ok_or_else(|| {
-            ZFError::LoadingError(format!(
-                "Missing URI for dynamically loaded Source < {} >.",
-                record.id.clone()
-            ))
-        })?;
+    pub fn load_source(&self, record: SourceRecord) -> Result<SourceLoaded> {
+        let uri = record.uri.clone().ok_or_else(|| zferror!(ErrorKind::LoadingError, "Missing URI for dynamically loaded Source < {} >.", record.id.clone()))?;
 
-        let uri = Url::parse(&uri).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
+        let uri = Url::parse(&uri).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
 
         match uri.scheme() {
             "file" => {
                 let file_path = Self::make_file_path(uri)?;
                 let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-                    ZFError::LoadingError(format!(
+                    zferror!(
+                        ErrorKind::LoadingError,
                         "Missing file extension for dynamically loaded Source < {} , {:?}>.",
                         record.id.clone(),
                         file_path,
-                    ))
+                    )
                 })?;
 
                 match Self::is_lib(&file_extension) {
@@ -297,7 +298,7 @@ impl Loader {
                     _ => Ok(self.load_source_from_extension(record, file_path)?),
                 }
             }
-            _ => Err(ZFError::Unimplemented),
+            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
         }
     }
 
@@ -311,25 +312,27 @@ impl Loader {
     /// - the library does not contain the symbols.
     /// - the URI is missing
     /// - the URI scheme is not known ( so far only `file://` is known).
-    pub fn load_sink(&self, record: SinkRecord) -> ZFResult<SinkLoaded> {
+    pub fn load_sink(&self, record: SinkRecord) -> Result<SinkLoaded> {
         let uri = record.uri.clone().ok_or_else(|| {
-            ZFError::LoadingError(format!(
+            zferror!(
+                ErrorKind::LoadingError,
                 "Missing URI for dynamically loaded Sink < {} >.",
                 record.id.clone()
-            ))
+            )
         })?;
 
-        let uri = Url::parse(&uri).map_err(|err| ZFError::ParsingError(format!("{}", err)))?;
+        let uri = Url::parse(&uri).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
 
         match uri.scheme() {
             "file" => {
                 let file_path = Self::make_file_path(uri)?;
                 let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-                    ZFError::LoadingError(format!(
+                    zferror!(
+                        ErrorKind::LoadingError,
                         "Missing file extension for dynamically loaded Sink < {} , {:?}>.",
                         record.id.clone(),
                         file_path,
-                    ))
+                    )
                 })?;
 
                 match Self::is_lib(&file_extension) {
@@ -340,7 +343,7 @@ impl Loader {
                     _ => Ok(self.load_sink_from_extension(record, file_path)?),
                 }
             }
-            _ => Err(ZFError::Unimplemented),
+            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
         }
     }
 
@@ -352,7 +355,7 @@ impl Loader {
     /// # Errors
     /// This function dynamically loads an external library, things can go wrong:
     /// - it fails if the symbol `zfoperator_declaration` is not found,
-    unsafe fn load_lib_operator(path: PathBuf) -> ZFResult<(Library, Arc<dyn Operator>)> {
+    unsafe fn load_lib_operator(path: PathBuf) -> Result<(Library, Arc<dyn Operator>)> {
         log::debug!("Operator Loading {:#?}", path);
 
         #[cfg(target_family = "unix")]
@@ -367,7 +370,7 @@ impl Loader {
 
         // version checks to prevent accidental ABI incompatibilities
         if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
-            return Err(ZFError::VersionMismatch);
+            return Err(zferror!(ErrorKind::VersionMismatch).into());
         }
 
         Ok((library, (decl.register)()?))
@@ -381,7 +384,7 @@ impl Loader {
     /// # Errors
     /// This function dynamically loads an external library, things can go wrong:
     /// - it fails if the symbol `zfsource_declaration` is not found,
-    unsafe fn load_lib_source(path: PathBuf) -> ZFResult<(Library, Arc<dyn Source>)> {
+    unsafe fn load_lib_source(path: PathBuf) -> Result<(Library, Arc<dyn Source>)> {
         log::debug!("Source Loading {:#?}", path);
 
         #[cfg(target_family = "unix")]
@@ -396,7 +399,7 @@ impl Loader {
 
         // version checks to prevent accidental ABI incompatibilities
         if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
-            return Err(ZFError::VersionMismatch);
+            return Err(zferror!(ErrorKind::VersionMismatch).into());
         }
 
         Ok((library, (decl.register)()?))
@@ -411,7 +414,7 @@ impl Loader {
     /// This function dynamically loads an external library, things can go wrong:
     /// - it fails if the symbol `zfsink_declaration` is not found,
     ///
-    unsafe fn load_lib_sink(path: PathBuf) -> ZFResult<(Library, Arc<dyn Sink>)> {
+    unsafe fn load_lib_sink(path: PathBuf) -> Result<(Library, Arc<dyn Sink>)> {
         log::debug!("Sink Loading {:#?}", path);
 
         #[cfg(target_family = "unix")]
@@ -426,22 +429,26 @@ impl Loader {
 
         // version checks to prevent accidental ABI incompatibilities
         if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
-            return Err(ZFError::VersionMismatch);
+            return Err(zferror!(ErrorKind::VersionMismatch).into());
         }
 
         Ok((library, (decl.register)()?))
     }
 
     /// Converts the `Url` to a `PathBuf`
-    fn make_file_path(uri: Url) -> ZFResult<PathBuf> {
+    fn make_file_path(uri: Url) -> Result<PathBuf> {
         let mut path = PathBuf::new();
         let file_path = match uri.host_str() {
             Some(h) => format!("{}{}", h, uri.path()),
             None => uri.path().to_string(),
         };
         path.push(file_path);
-        let path = std::fs::canonicalize(&path)
-            .map_err(|e| ZFError::IOError(format!("{}: {}", e, &path.to_string_lossy())))?;
+        let path = std::fs::canonicalize(&path).map_err(|e| {
+            zferror!(
+                ErrorKind::IOError,
+                "{}: {}", e, &path.to_string_lossy()
+            )
+        })?;
         Ok(path)
     }
 
@@ -479,13 +486,13 @@ impl Loader {
         &self,
         mut record: OperatorRecord,
         file_path: PathBuf,
-    ) -> ZFResult<OperatorLoaded> {
+    ) -> Result<OperatorLoaded> {
         let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-            ZFError::LoadingError(format!(
+            zferror!(ErrorKind::LoadingError,
                 "Missing file extension for dynamically loaded Operator < {} , {:?}>.",
                 record.id.clone(),
                 file_path,
-            ))
+            )
         })?;
 
         match self.config.get_extension_by_file_extension(&file_extension) {
@@ -500,7 +507,7 @@ impl Loader {
                 let (lib, op) = unsafe { Self::load_lib_operator(wrapper_file_path) }?;
                 Ok(OperatorLoaded::try_new(record, Some(Arc::new(lib)), op)?)
             }
-            _ => Err(ZFError::Unimplemented),
+            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
         }
     }
 
@@ -520,13 +527,13 @@ impl Loader {
         &self,
         mut record: SourceRecord,
         file_path: PathBuf,
-    ) -> ZFResult<SourceLoaded> {
+    ) -> Result<SourceLoaded> {
         let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-            ZFError::LoadingError(format!(
-                "Missing file extension for dynamically loaded Operator < {} , {:?}>.",
+            zferror!(ErrorKind::LoadingError,
+                "Missing file extension for dynamically loaded Source < {} , {:?}>.",
                 record.id.clone(),
                 file_path,
-            ))
+            )
         })?;
 
         match self.config.get_extension_by_file_extension(&file_extension) {
@@ -541,7 +548,7 @@ impl Loader {
                 let (lib, op) = unsafe { Self::load_lib_source(wrapper_file_path) }?;
                 Ok(SourceLoaded::try_new(record, Some(Arc::new(lib)), op)?)
             }
-            _ => Err(ZFError::Unimplemented),
+            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
         }
     }
 
@@ -561,13 +568,14 @@ impl Loader {
         &self,
         mut record: SinkRecord,
         file_path: PathBuf,
-    ) -> ZFResult<SinkLoaded> {
+    ) -> Result<SinkLoaded> {
         let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-            ZFError::LoadingError(format!(
-                "Missing file extension for dynamically loaded Operator < {} , {:?}>.",
+            zferror!(
+                ErrorKind::LoadingError,
+                "Missing file extension for dynamically loaded Sink < {} , {:?}>.",
                 record.id.clone(),
                 file_path,
-            ))
+            )
         })?;
 
         match self.config.get_extension_by_file_extension(&file_extension) {
@@ -582,7 +590,7 @@ impl Loader {
                 let (lib, op) = unsafe { Self::load_lib_sink(wrapper_file_path) }?;
                 Ok(SinkLoaded::try_new(record, Some(Arc::new(lib)), op)?)
             }
-            _ => Err(ZFError::Unimplemented),
+            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
         }
     }
 
@@ -595,7 +603,7 @@ impl Loader {
         configuration: Option<Configuration>,
         config_key: String,
         file_path: &Path,
-    ) -> ZFResult<Configuration> {
+    ) -> Result<Configuration> {
         let mut new_config: serde_json::map::Map<String, Configuration> =
             serde_json::map::Map::new();
         new_config.insert(
@@ -603,7 +611,11 @@ impl Loader {
             file_path
                 .to_str()
                 .ok_or_else(|| {
-                    ZFError::LoadingError(format!("Unable parse file path < {:?} >.", file_path,))
+                    zferror!(
+                        ErrorKind::LoadingError,
+                        "Unable parse file path < {:?} >.",
+                        file_path,
+                    )
                 })?
                 .into(),
         );

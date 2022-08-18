@@ -12,16 +12,19 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::error::ZFError;
+
 use crate::model::dataflow::flag::Flag;
 use crate::model::dataflow::validator::DataflowValidator;
 use crate::model::link::LinkDescriptor;
 use crate::model::node::{
     NodeDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
-use crate::serde::{Deserialize, Serialize};
-use crate::types::{merge_configurations, Configuration, NodeId, RuntimeId, ZFResult};
+use crate::types::{merge_configurations, Configuration, NodeId, RuntimeId};
+use crate::zferror;
+use crate::zfresult::ErrorKind;
+use crate::Result;
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -84,9 +87,9 @@ impl DataFlowDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_yaml(data: &str) -> ZFResult<Self> {
+    pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<DataFlowDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         // dataflow_descriptor.validate()?;
         Ok(dataflow_descriptor)
     }
@@ -95,9 +98,9 @@ impl DataFlowDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_json(data: &str) -> ZFResult<Self> {
+    pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<DataFlowDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         // dataflow_descriptor.validate()?;
         Ok(dataflow_descriptor)
     }
@@ -106,16 +109,16 @@ impl DataFlowDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_json(&self) -> ZFResult<String> {
-        serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Returns the YAML representation of the `DataFlowDescriptor`.
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_yaml(&self) -> ZFResult<String> {
-        serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_yaml(&self) -> Result<String> {
+        serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Gets all the `RuntimeId` mapped to nodes of this `DataFlowDescriptor`.
@@ -131,7 +134,7 @@ impl DataFlowDescriptor {
     ///
     ///  # Errors
     // /// A variant error is returned if loading operators fails.
-    pub async fn flatten(self) -> ZFResult<FlattenDataFlowDescriptor> {
+    pub async fn flatten(self) -> Result<FlattenDataFlowDescriptor> {
         let mut sources = vec![];
         let mut sinks = vec![];
         let mut operators = vec![];
@@ -172,7 +175,7 @@ impl DataFlowDescriptor {
                     let matching_input = ins
                         .iter()
                         .find(|x| x.node.starts_with(&*oid))
-                        .ok_or_else(|| ZFError::NodeNotFound(oid.clone()))?;
+                        .ok_or_else(|| zferror!(ErrorKind::NodeNotFound(oid.clone())))?;
                     l.to.node = matching_input.node.clone();
                 }
 
@@ -180,7 +183,7 @@ impl DataFlowDescriptor {
                     let matching_output = outs
                         .iter()
                         .find(|x| x.node.starts_with(&*oid))
-                        .ok_or_else(|| ZFError::NodeNotFound(oid.clone()))?;
+                        .ok_or_else(|| zferror!(ErrorKind::NodeNotFound(oid.clone())))?;
                     l.from.node = matching_output.node.clone();
                 }
             }
@@ -235,9 +238,9 @@ impl FlattenDataFlowDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_yaml(data: &str) -> ZFResult<Self> {
+    pub fn from_yaml(data: &str) -> Result<FlattenDataFlowDescriptor> {
         let dataflow_descriptor = serde_yaml::from_str::<FlattenDataFlowDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         dataflow_descriptor.validate()?;
         Ok(dataflow_descriptor)
     }
@@ -246,9 +249,9 @@ impl FlattenDataFlowDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_json(data: &str) -> ZFResult<Self> {
+    pub fn from_json(data: &str) -> Result<FlattenDataFlowDescriptor> {
         let dataflow_descriptor = serde_json::from_str::<FlattenDataFlowDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         dataflow_descriptor.validate()?;
         Ok(dataflow_descriptor)
     }
@@ -257,16 +260,16 @@ impl FlattenDataFlowDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_json(&self) -> ZFResult<String> {
-        serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Returns the YAML representation of the `FlattenDataFlowDescriptor`.
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_yaml(&self) -> ZFResult<String> {
-        serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_yaml(&self) -> Result<String> {
+        serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Gets all the `RuntimeId` mapped to nodes of this `FlattenDataFlowDescriptor`.
@@ -290,7 +293,7 @@ impl FlattenDataFlowDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if validation fails.
-    pub fn validate(&self) -> ZFResult<()> {
+    pub fn validate(&self) -> Result<()> {
         let validator = DataflowValidator::try_from(self)?;
 
         validator.validate_ports()?;

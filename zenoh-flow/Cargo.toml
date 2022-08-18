@@ -32,6 +32,7 @@ readme = "README.md"
 async-std = { version = "=1.11.0", features = ["attributes"] }
 async-lock = "2.4.0"
 async-trait = "0.1.50"
+anyhow = { version = "1.0", default-features = false, features = ["std"] }
 async-recursion = "1.0.0"
 base64 = "0.13.0"
 bincode = { version = "1.3"}

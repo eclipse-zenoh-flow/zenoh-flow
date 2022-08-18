@@ -12,9 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::types::{Data, Message, PortId, ZFResult};
-use crate::error::ZFError;
-use async_std::sync::Arc;
+use crate::zfresult::ErrorKind;
+use crate::zferror;
+use crate::Result;
+use crate::types::{Data, Message, PortId};
+use std::sync::Arc;
 use flume::TryRecvError;
 use futures::Future;
 use std::pin::Pin;
@@ -49,7 +51,7 @@ pub struct LinkReceiver {
 
 impl LinkReceiver {
     /// Wrapper over flume::Receiver::recv_async(),
-    /// it returns [`ZFResult<Message>`](`ZFResult<Message>`)
+    /// it returns [`Result<Message>`](`Result<Message>`)
     ///
     /// # Errors
     /// If fails if the link is disconnected
@@ -58,14 +60,14 @@ impl LinkReceiver {
     }
 
     /// Wrapper over flume::Receiver::recv(),
-    /// it returns [`ZFResult<Message>`](`ZFResult<Message>`)
+    /// it returns [`Result<Message>`](`Result<Message>`)
     ///
     /// # Errors
     /// If fails if the link is disconnected
-    pub fn recv_sync(&self) -> ZFResult<Message> {
+    pub fn recv_sync(&self) -> Result<Message> {
         self.receiver
             .recv()
-            .map_err(|e| ZFError::RecvError(format!("{e:?}")))
+            .map_err(|e| zferror!(ErrorKind::RecvError,e))
     }
 
     /// Wrapper over flume::Receiver::try_recv(),
@@ -93,14 +95,14 @@ impl LinkSender {
     ///
     /// # Errors
     /// It fails if the link is disconnected
-    pub async fn send(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
+    pub async fn send(&self, data: Data, timestamp: Option<u64>) -> Result<()> {
         let ts = match timestamp {
             Some(timestamp) => Timestamp::new(NTP64(timestamp), *self.hlc.get_id()),
             None => self.hlc.new_timestamp(),
         };
 
         if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
-            return Err(ZFError::BelowWatermarkTimestamp(ts));
+            return Err(zferror!(ErrorKind::BelowWatermarkTimestamp(ts)));
         }
 
         let msg = Message::from_serdedata(data, ts);
@@ -112,14 +114,14 @@ impl LinkSender {
     ///
     /// # Errors
     /// It fails if the link is disconnected
-    pub fn send_sync(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
+    pub fn send_sync(&self, data: Data, timestamp: Option<u64>) -> Result<()> {
         let ts = match timestamp {
             Some(timestamp) => Timestamp::new(NTP64(timestamp), *self.hlc.get_id()),
             None => self.hlc.new_timestamp(),
         };
 
         if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
-            return Err(ZFError::BelowWatermarkTimestamp(ts));
+            return Err(zferror!(ErrorKind::BelowWatermarkTimestamp(ts)));
         }
 
         let msg = Message::from_serdedata(data, ts);
@@ -131,14 +133,14 @@ impl LinkSender {
     ///
     /// # Errors
     /// It fails if the link is disconnected
-    pub async fn send_watermark(&self, timestamp: Option<u64>) -> ZFResult<()> {
+    pub async fn send_watermark(&self, timestamp: Option<u64>) -> Result<()> {
         let ts = match timestamp {
             Some(timestamp) => Timestamp::new(NTP64(timestamp), *self.hlc.get_id()),
             None => self.hlc.new_timestamp(),
         };
 
         if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
-            return Err(ZFError::BelowWatermarkTimestamp(ts));
+            return Err(zferror!(ErrorKind::BelowWatermarkTimestamp(ts)));
         }
 
         self.last_watermark
@@ -156,7 +158,7 @@ impl LinkSender {
     ///
     /// # Errors
     /// It fails if the link is disconnected
-    pub(crate) async fn send_msg(&self, msg: Message) -> ZFResult<()> {
+    pub(crate) async fn send_msg(&self, msg: Message) -> Result<()> {
         // This is internal, no need to check the watermark
 
         Ok(self.sender.send_async(msg).await?)
@@ -224,11 +226,11 @@ pub trait AsyncCallbackRx: Send + Sync {
     fn call(
         &self,
         arg: Message,
-    ) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>>;
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>;
 }
 
 /// Implementation of AsyncCallbackRx for any async closure that takes
-/// `Message` as parameter and returns `ZFResult<()>`.
+/// `Message` as parameter and returns `Result<()>`.
 /// This "converts" any `async move |msg| { ... Ok() }` to `AsyncCallbackRx`
 ///
 /// *Note:* It takes an `FnOnce` because of the `move` keyword. The closure
@@ -236,12 +238,12 @@ pub trait AsyncCallbackRx: Send + Sync {
 impl<Fut, Fun> AsyncCallbackRx for Fun
 where
     Fun: FnOnce(Message) -> Fut + Sync + Send + Clone,
-    Fut: Future<Output = ZFResult<()>> + 'static + Send + Sync,
+    Fut: Future<Output = Result<()>> + 'static + Send + Sync,
 {
     fn call(
         &self,
         arg: Message,
-    ) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>> {
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>> {
         Box::pin(self.clone()(arg))
     }
 }
@@ -262,7 +264,7 @@ impl AsyncCallbackReceiver {
         Self { _id, rx, cb }
     }
 
-    pub async fn run(&self) -> ZFResult<()> {
+    pub async fn run(&self) -> Result<()> {
         let msg = self.rx.recv().await?;
         self.cb.call(msg).await
     }
@@ -273,11 +275,11 @@ impl AsyncCallbackReceiver {
 ///
 /// * Note: * not intended to be directly used by users.
 pub trait AsyncCallbackTx: Send + Sync {
-    fn call(&self) -> Pin<Box<dyn Future<Output = ZFResult<Data>> + Send + Sync + 'static>>;
+    fn call(&self) -> Pin<Box<dyn Future<Output = Result<Data>> + Send + Sync + 'static>>;
 }
 
 /// Implementation of AsyncCallbackTx for any async closure that returns
-/// `ZFResult<()>`.
+/// `Result<()>`.
 /// This "converts" any `async move { ... }` to `AsyncCallbackTx`
 ///
 /// *Note:* It takes an `FnOnce` because of the `move` keyword. The closure
@@ -285,9 +287,9 @@ pub trait AsyncCallbackTx: Send + Sync {
 impl<Fut, Fun> AsyncCallbackTx for Fun
 where
     Fun: FnOnce() -> Fut + Sync + Send + Clone,
-    Fut: Future<Output = ZFResult<Data>> + Send + Sync + 'static,
+    Fut: Future<Output = Result<Data>> + Send + Sync + 'static,
 {
-    fn call(&self) -> Pin<Box<dyn Future<Output = ZFResult<Data>> + Send + Sync + 'static>> {
+    fn call(&self) -> Pin<Box<dyn Future<Output = Result<Data>> + Send + Sync + 'static>> {
         Box::pin(self.clone()())
     }
 }
@@ -307,7 +309,7 @@ impl AsyncCallbackSender {
         Self { _id, tx, cb }
     }
 
-    pub async fn trigger(&self) -> ZFResult<()> {
+    pub async fn trigger(&self) -> Result<()> {
         let data = self.cb.call().await?;
         // FIXME
 

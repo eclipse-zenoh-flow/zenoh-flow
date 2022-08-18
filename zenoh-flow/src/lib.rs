@@ -39,28 +39,28 @@ use const_format::formatcp;
 
 pub use ::zenoh_flow_derive;
 
-pub use ::async_std;
-pub use ::bincode;
-pub use ::paste;
-pub use ::serde;
-pub use ::typetag;
-
-pub mod error;
 pub mod macros;
 pub mod model;
 pub mod runtime;
 pub mod traits;
 pub mod types;
 
+pub mod zfresult;
+
+pub use zfresult::{ZFResult as Result, DaemonResult};
+pub use anyhow::anyhow;
+
 pub mod prelude {
-    pub use crate::error::ZFError;
+
     pub use crate::runtime::dataflow::instance::io::{Input, Inputs, Output, Outputs, Streams};
     pub use crate::runtime::message::{DataMessage, Message};
     pub use crate::traits::{
         AsyncIteration, Deserializable, DowncastAny, Operator, Sink, Source, ZFData,
     };
-    pub use crate::types::{Configuration, Context, Data, NodeId, PortId, RuntimeId, ZFResult};
-    pub use crate::{export_operator, export_sink, export_source};
+    pub use crate::types::{Configuration, Context, Data, NodeId, PortId, RuntimeId};
+    pub use crate::{export_operator, export_sink, export_source, zferror};
+
+    pub use crate::zfresult::{ErrorKind, ZFResult as Result, Error};
 }
 
 /// Commit id of latest commit on Zenoh Flow

@@ -16,8 +16,8 @@ pub mod instance;
 pub mod loader;
 pub mod node;
 
-use async_std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::model::connector::ZFConnectorRecord;
@@ -28,7 +28,8 @@ use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
 use crate::traits::{Operator, Sink, Source};
-use crate::types::{Configuration, FlowId, NodeId, ZFResult};
+use crate::types::{Configuration, FlowId, NodeId};
+use crate::Result as ZFResult;
 
 /// The data flow struct.
 /// This struct contains all the information needed to instantiate a data flow.

@@ -12,12 +12,12 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use async_std::sync::Arc;
 use async_trait::async_trait;
 use flume::{bounded, Receiver};
 use std::convert::TryInto;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use zenoh_flow::error::ZFError;
+use std::sync::Arc;
+use zenoh_flow::prelude::*;
 use zenoh_flow::model::link::PortDescriptor;
 use zenoh_flow::model::{InputDescriptor, OutputDescriptor};
 use zenoh_flow::runtime::dataflow::instance::io::{Inputs, Outputs, Streams};
@@ -26,7 +26,7 @@ use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::message::Message;
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::traits::{AsyncIteration, Deserializable, Operator, Sink, Source, ZFData};
-use zenoh_flow::types::{Configuration, Context, Data, ZFResult};
+use zenoh_flow::types::{Configuration, Context, Data};
 use zenoh_flow::zenoh_flow_derive::ZFData;
 
 // Data Type
@@ -35,18 +35,18 @@ use zenoh_flow::zenoh_flow_derive::ZFData;
 pub struct ZFUsize(pub usize);
 
 impl ZFData for ZFUsize {
-    fn try_serialize(&self) -> ZFResult<Vec<u8>> {
+    fn try_serialize(&self) -> Result<Vec<u8>> {
         Ok(self.0.to_ne_bytes().to_vec())
     }
 }
 
 impl Deserializable for ZFUsize {
-    fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
+    fn try_deserialize(bytes: &[u8]) -> Result<Self>
     where
         Self: Sized,
     {
         let value =
-            usize::from_ne_bytes(bytes.try_into().map_err(|_| ZFError::DeseralizationError)?);
+            usize::from_ne_bytes(bytes.try_into().map_err(|e| zferror!(ErrorKind::DeseralizationError, "{}", e))?);
         Ok(ZFUsize(value))
     }
 }
@@ -80,7 +80,7 @@ impl Source for CountSource {
         _ctx: &mut Context,
         _configuration: &Option<Configuration>,
         mut outputs: Outputs,
-    ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
+    ) -> Result<Option<Arc<dyn AsyncIteration>>> {
         let output = outputs.take(SOURCE).unwrap();
         let output_callback = outputs.take(PORT_CALLBACK).unwrap();
         let c_trigger_rx = self.rx.clone();
@@ -114,7 +114,7 @@ impl Sink for ExampleGenericSink {
         _ctx: &mut Context,
         _configuration: &Option<Configuration>,
         mut inputs: Inputs,
-    ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
+    ) -> Result<Option<Arc<dyn AsyncIteration>>> {
         let input = inputs.take(SOURCE).unwrap();
         let input_callback = inputs.take(PORT_CALLBACK).unwrap();
 
@@ -148,7 +148,7 @@ impl Operator for NoOp {
         _configuration: &Option<Configuration>,
         mut inputs: Inputs,
         mut outputs: Outputs,
-    ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
+    ) -> Result<Option<Arc<dyn AsyncIteration>>> {
         let input = inputs.take(SOURCE).unwrap();
         let output = outputs.take(DESTINATION).unwrap();
 
@@ -175,7 +175,7 @@ impl Operator for NoOpCallback {
         _configuration: &Option<Configuration>,
         mut inputs: Inputs,
         mut outputs: Outputs,
-    ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
+    ) -> Result<Option<Arc<dyn AsyncIteration>>> {
         let input = inputs.take(PORT_CALLBACK).unwrap();
         let output = outputs.take(PORT_CALLBACK).unwrap();
 
@@ -185,7 +185,7 @@ impl Operator for NoOpCallback {
                 println!("Entering callback");
                 let data = match message {
                     Message::Data(mut data) => data.get_inner_data().try_get::<ZFUsize>()?.clone(),
-                    _ => return Err(ZFError::Unsupported),
+                    _ => return Err(zferror!(ErrorKind::Unsupported).into()),
                 };
 
                 assert_eq!(data.0, COUNTER_CALLBACK.load(Ordering::Relaxed));
@@ -363,7 +363,7 @@ async fn single_runtime() {
     }
     tx.send_async(()).await.unwrap();
 
-    zenoh_flow::async_std::task::sleep(std::time::Duration::from_secs(1)).await;
+    async_std::task::sleep(std::time::Duration::from_secs(1)).await;
 
     for id in &instance.get_sources() {
         instance.stop_node(id).await.unwrap()

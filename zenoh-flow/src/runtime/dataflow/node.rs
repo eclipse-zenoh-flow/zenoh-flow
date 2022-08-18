@@ -14,8 +14,9 @@
 
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::traits::{Operator, Sink, Source};
-use crate::types::{Configuration, NodeId, ZFResult};
-use async_std::sync::Arc;
+use crate::types::{Configuration, NodeId};
+use crate::Result;
+use std::sync::Arc;
 
 #[cfg(target_family = "unix")]
 use libloading::os::unix::Library;
@@ -45,7 +46,7 @@ impl SourceLoaded {
         record: SourceRecord,
         lib: Option<Arc<Library>>,
         source: Arc<dyn Source>,
-    ) -> ZFResult<Self> {
+    ) -> Result<Self> {
         Ok(Self {
             id: record.id,
             configuration: record.configuration,
@@ -80,7 +81,7 @@ impl OperatorLoaded {
         record: OperatorRecord,
         lib: Option<Arc<Library>>,
         operator: Arc<dyn Operator>,
-    ) -> ZFResult<Self> {
+    ) -> Result<Self> {
         // let inputs: HashMap<PortId, PortType> = record
         //     .inputs
         //     .into_iter()
@@ -127,7 +128,7 @@ impl SinkLoaded {
         record: SinkRecord,
         lib: Option<Arc<Library>>,
         sink: Arc<dyn Sink>,
-    ) -> ZFResult<Self> {
+    ) -> Result<Self> {
         Ok(Self {
             id: record.id,
             // input: record.input,

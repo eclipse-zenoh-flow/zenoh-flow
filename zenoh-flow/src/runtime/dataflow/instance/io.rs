@@ -12,12 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::error::ZFError;
 use crate::runtime::message::Message;
-use crate::types::{Context, Data, PortId, ZFResult};
-use async_std::sync::Arc;
+use crate::types::{Context, Data, PortId};
+use crate::zferror;
+use crate::zfresult::{ErrorKind};
+use crate::Result as ZFResult;
 use flume::TryRecvError;
 use futures::Future;
+use std::sync::Arc;
 use std::{
     collections::HashMap,
     pin::Pin,
@@ -94,7 +96,7 @@ impl Input {
         // `recv` is called again?
         let (res, _, _) = futures::future::select_all(iter).await;
 
-        res.map_err(|e| ZFError::RecvError(format!("{e:?}")))
+        res.map_err(|e| zferror!(ErrorKind::RecvError, e).into())
     }
 
     /// Returns the first `Message` that was received on any of the channels associated with this
@@ -119,15 +121,15 @@ impl Input {
                     Err(e) => match e {
                         TryRecvError::Empty => (),
                         TryRecvError::Disconnected => {
-                            msg.replace(Err(ZFError::Disconnected));
+                            msg.replace(Err(zferror!(ErrorKind::Disconnected).into()));
                         }
                     },
                 }
             }
         }
 
-        msg.ok_or(ZFError::Empty)?
-            .map_err(|e| ZFError::RecvError(format!("{e:?}")))
+        msg.ok_or(zferror!(ErrorKind::Empty))?
+            .map_err(|e| zferror!(ErrorKind::RecvError, "{:?}", e).into())
     }
 
     pub(crate) fn new(id: PortId) -> Self {
@@ -251,7 +253,7 @@ impl Output {
         };
 
         if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
-            return Err(ZFError::BelowWatermarkTimestamp(ts));
+            return Err(zferror!(ErrorKind::BelowWatermarkTimestamp(ts)).into());
         }
 
         Ok(ts)
@@ -268,10 +270,12 @@ impl Output {
         }
 
         if err > 0 {
-            return Err(ZFError::SendError(format!(
+            return Err(zferror!(
+                ErrorKind::SendError,
                 "[Output: {}] Encountered {} errors while sending (or trying to)",
-                self.port_id, err
-            )));
+                self.port_id,
+                err
+            ).into());
         }
 
         Ok(())
@@ -288,10 +292,12 @@ impl Output {
         }
 
         if err > 0 {
-            return Err(ZFError::SendError(format!(
+            return Err(zferror!(
+                ErrorKind::SendError,
                 "[Output: {}] Encountered {} errors while async sending (or trying to)",
-                self.port_id, err
-            )));
+                self.port_id,
+                err
+            ).into());
         }
 
         Ok(())

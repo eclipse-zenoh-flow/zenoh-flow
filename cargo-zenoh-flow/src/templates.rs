@@ -65,7 +65,7 @@ inputs=[ \{id ="Data", type="bytes"}]
 "#;
 
 static LIB_OPERATOR_TEMPLATE: &str = r#"
-use zenoh_flow::async_std::sync::Arc;
+use std::sync::Arc;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
 use zenoh_flow::\{
@@ -133,7 +133,7 @@ fn register() -> ZFResult<Arc<dyn Operator>> \{
 "#;
 
 static LIB_SOURCE_TEMPLATE: &str = r#"
-use zenoh_flow::async_std::sync::Arc;
+use std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;
@@ -180,7 +180,7 @@ fn register() -> ZFResult<Arc<dyn Source>> \{
 "#;
 
 static LIB_SINK_TEMPLATE: &str = r#"
-use zenoh_flow::async_std::sync::Arc;
+use std::sync::Arc;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use zenoh_flow::zenoh_flow_derive::ZFState;

@@ -12,16 +12,16 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::error::ZFError;
 use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use crate::model::link::{LinkDescriptor, LinkRecord, PortRecord};
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::{InputDescriptor, OutputDescriptor};
-use crate::serde::{Deserialize, Serialize};
-use crate::types::{
-    merge_configurations, NodeId, PortId, PortType, RuntimeId, ZFResult, PORT_TYPE_ANY,
-};
+use crate::types::{merge_configurations, NodeId, PortId, PortType, RuntimeId, PORT_TYPE_ANY};
+use crate::zferror;
+use crate::zfresult::ErrorKind;
+use crate::Result as ZFResult;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
@@ -47,7 +47,7 @@ impl DataFlowRecord {
     /// A variant error is returned if deserialization fails.
     pub fn from_yaml(data: &str) -> ZFResult<Self> {
         serde_yaml::from_str::<DataFlowRecord>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e).into())
     }
 
     /// Creates a new `DataFlowRecord` from its JSON format.
@@ -56,7 +56,7 @@ impl DataFlowRecord {
     /// A variant error is returned if deserialization fails.
     pub fn from_json(data: &str) -> ZFResult<Self> {
         serde_json::from_str::<DataFlowRecord>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e).into())
     }
 
     /// Returns the JSON representation of the `DataFlowRecord`.
@@ -64,7 +64,7 @@ impl DataFlowRecord {
     ///  # Errors
     /// A variant error is returned if serialization fails.
     pub fn to_json(&self) -> ZFResult<String> {
-        serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
+        serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Returns the YAML representation of the `DataFlowRecord`.
@@ -72,7 +72,7 @@ impl DataFlowRecord {
     ///  # Errors
     /// A variant error is returned if serialization fails.
     pub fn to_yaml(&self) -> ZFResult<String> {
-        serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
+        serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Returns the runtime mapping for the given node.
@@ -172,10 +172,10 @@ impl DataFlowRecord {
                 Some(rt) => rt,
                 None => {
                     log::error!("Could not find runtime for: {:?}", &l.from.node);
-                    return Err(ZFError::Uncompleted(format!(
+                    return Err(zferror!(ErrorKind::Uncompleted,
                         "Unable to find runtime for {}",
                         &l.from.node
-                    )));
+                    ).into());
                 }
             };
 
@@ -183,30 +183,30 @@ impl DataFlowRecord {
                 Some(rt) => rt,
                 None => {
                     log::error!("Could not find runtime for: {:?}", &l.to.node);
-                    return Err(ZFError::Uncompleted(format!(
+                    return Err(zferror!(ErrorKind::Uncompleted,
                         "Unable to find runtime for {}",
                         &l.to.node
-                    )));
+                    ).into())
                 }
             };
 
             let from_type = match self.find_node_output_type(&l.from.node, &l.from.output) {
                 Some(t) => t,
                 None => {
-                    return Err(ZFError::PortNotFound((
+                    return Err(zferror!(ErrorKind::PortNotFound((
                         l.from.node.clone(),
                         l.from.output.clone(),
-                    )))
+                    ))).into())
                 }
             };
 
             let to_type = match self.find_node_input_type(&l.to.node, &l.to.input) {
                 Some(t) => t.clone(),
                 None => {
-                    return Err(ZFError::PortNotFound((
+                    return Err(zferror!(ErrorKind::PortNotFound((
                         l.to.node.clone(),
                         l.to.input.clone(),
-                    )))
+                    ))).into())
                 }
             };
 
@@ -214,7 +214,7 @@ impl DataFlowRecord {
                 && from_type.as_ref() != PORT_TYPE_ANY
                 && to_type.as_ref() != PORT_TYPE_ANY
             {
-                return Err(ZFError::PortTypeNotMatching((from_type.clone(), to_type)));
+                return Err(zferror!(ErrorKind::PortTypeNotMatching((from_type.clone(), to_type.clone()))).into());
             }
 
             if from_runtime == to_runtime {
@@ -229,10 +229,10 @@ impl DataFlowRecord {
 
                 let from_uid = self
                     .find_node_uid_by_id(&l.from.node)
-                    .ok_or(ZFError::NotFound)?;
+                    .ok_or(zferror!(ErrorKind::NotFound))?;
                 let from_port_uid = self
                     .find_port_id_in_node(&l.from.node, &l.from.output)
-                    .ok_or(ZFError::NotFound)?;
+                    .ok_or(zferror!(ErrorKind::NotFound))?;
 
                 // creating zenoh resource name
                 let z_resource_name = format!(
@@ -328,7 +328,7 @@ impl DataFlowRecord {
 }
 
 impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
-    type Error = ZFError;
+    type Error = crate::zfresult::Error;
 
     fn try_from(d: (FlattenDataFlowDescriptor, Uuid)) -> Result<Self, Self::Error> {
         let (dataflow, id) = d;
@@ -390,7 +390,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 configuration: merge_configurations(global_configuration.clone(), o.configuration),
                 runtime: mapping
                     .get(&o.id)
-                    .ok_or(ZFError::MissingConfiguration)
+                    .ok_or(zferror!(ErrorKind::MissingConfiguration, "Missing mapping"))
                     .cloned()?,
             };
             dfr.operators.insert(o.id, or);
@@ -415,7 +415,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 configuration: merge_configurations(global_configuration.clone(), s.configuration),
                 runtime: mapping
                     .get(&s.id)
-                    .ok_or(ZFError::MissingConfiguration)
+                    .ok_or(zferror!(ErrorKind::MissingConfiguration, "Missing mapping"))
                     .cloned()?,
             };
             dfr.sources.insert(s.id, sr);
@@ -440,7 +440,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 configuration: merge_configurations(global_configuration.clone(), s.configuration),
                 runtime: mapping
                     .get(&s.id)
-                    .ok_or(ZFError::MissingConfiguration)
+                    .ok_or(zferror!(ErrorKind::MissingConfiguration, "Missing mapping"))
                     .cloned()?,
             };
             dfr.sinks.insert(s.id, sr);

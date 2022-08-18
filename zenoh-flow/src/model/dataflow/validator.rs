@@ -12,12 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::error::ZFError;
 use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use crate::model::dataflow::flag::{get_nodes_to_remove, Flag};
 use crate::model::link::PortDescriptor;
 use crate::model::{InputDescriptor, OutputDescriptor};
-use crate::types::{NodeId, PortId, PortType, ZFResult, PORT_TYPE_ANY};
+use crate::types::{NodeId, PortId, PortType, PORT_TYPE_ANY};
+use crate::zferror;
+use crate::zfresult::ErrorKind;
+use crate::Result as ZFResult;
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::Graph;
 use std::collections::{HashMap, HashSet};
@@ -92,7 +94,7 @@ struct PortUniqueId {
 }
 
 impl TryFrom<&FlattenDataFlowDescriptor> for DataflowValidator {
-    type Error = ZFError;
+    type Error = crate::zfresult::Error;
 
     fn try_from(descriptor: &FlattenDataFlowDescriptor) -> Result<Self, Self::Error> {
         let mut validator = DataflowValidator::new();
@@ -168,7 +170,10 @@ impl DataflowValidator {
             .insert(node_id.clone(), (node_kind, graph_checker_idx))
             .is_some()
         {
-            return Err(ZFError::DuplicatedNodeId(node_id));
+            return Err(zferror!(
+                ErrorKind::DuplicatedNodeId(node_id),
+                "Duplicate node"
+            ).into());
         }
 
         Ok(())
@@ -196,7 +201,9 @@ impl DataflowValidator {
             .insert(id.clone(), node_checker_idx)
             .is_some()
         {
-            return Err(ZFError::DuplicatedPort((node_id, port.port_id)));
+            return Err(zferror!(
+                ErrorKind::DuplicatedPort((node_id.clone(), port.port_id.clone()))
+            ).into());
         }
         self.map_id_to_type.insert(id, port.port_type);
 
@@ -294,13 +301,15 @@ impl DataflowValidator {
         let (_, from_graph_checker_idx) = self
             .map_id_to_graph_checker_idx
             .get(&from.node)
-            .ok_or_else(|| ZFError::NodeNotFound(from.node.clone()))?;
+            .ok_or_else(|| {
+                zferror!(ErrorKind::NodeNotFound(from.node.clone()))
+            })?;
         log::debug!("Looking for node < {} >… OK.", &from.node);
         log::debug!("Looking for node < {} >…", &to.node);
         let (_, to_graph_checker_idx) = self
             .map_id_to_graph_checker_idx
             .get(&to.node)
-            .ok_or_else(|| ZFError::NodeNotFound(to.node.clone()))?;
+            .ok_or_else(|| zferror!(ErrorKind::NodeNotFound(to.node.clone())))?;
         log::debug!("Looking for node < {} >… OK.", &to.node);
 
         let from_id = PortUniqueId {
@@ -315,26 +324,27 @@ impl DataflowValidator {
         };
 
         log::debug!("Looking for port type of < {:?} >…", &from_id);
-        let from_type = self
-            .map_id_to_type
-            .get(&from_id)
-            .ok_or_else(|| ZFError::PortNotFound((from.node.clone(), from.output.clone())))?;
+        let from_type = self.map_id_to_type.get(&from_id).ok_or_else(|| {
+            zferror!(
+                ErrorKind::PortNotFound((from.node.clone(), from.output.clone()))
+            )
+        })?;
         log::debug!("Looking for port type of < {:?} >… OK.", &from_id);
         log::debug!("Looking for port type of < {:?} >…", &to_id);
-        let to_type = self
-            .map_id_to_type
-            .get(&to_id)
-            .ok_or_else(|| ZFError::PortNotFound((to.node.clone(), to.input.clone())))?;
+        let to_type = self.map_id_to_type.get(&to_id).ok_or_else(|| {
+            zferror!(
+                ErrorKind::PortNotFound((to.node.clone(), to.input.clone()))
+            )
+        })?;
         log::debug!("Looking for port type of < {:?} >… OK.", &to_id);
         log::debug!("Port types are identical…");
         if from_type != to_type
             && from_type.as_ref() != PORT_TYPE_ANY
             && to_type.as_ref() != PORT_TYPE_ANY
         {
-            return Err(ZFError::PortTypeNotMatching((
-                from_type.clone(),
-                to_type.clone(),
-            )));
+            return Err(zferror!(
+                ErrorKind::PortTypeNotMatching((from_type.clone(), to_type.clone(),))
+            ).into());
         }
         log::debug!("Port types are identical… OK.");
 
@@ -376,18 +386,19 @@ impl DataflowValidator {
             {
                 0 => {
                     let port = self.node_checker.node_weight(*idx).unwrap();
-                    Err(ZFError::PortNotConnected((
-                        port.node_id.clone(),
-                        port.port_id.clone(),
-                    )))
+                    Err(zferror!(
+                        ErrorKind::PortNotConnected((port.node_id.clone(), port.port_id.clone(),))
+                    ))
                 }
                 1 => Ok(()),
                 _ => {
                     let port = self.node_checker.node_weight(*idx).unwrap();
-                    Err(ZFError::MultipleOutputsToInput((
-                        port.node_id.clone(),
-                        port.port_id.clone(),
-                    )))
+                    Err(zferror!(
+                        ErrorKind::MultipleOutputsToInput((
+                            port.node_id.clone(),
+                            port.port_id.clone(),
+                        ))
+                    ))
                 }
             }
         })?;
@@ -400,27 +411,27 @@ impl DataflowValidator {
             {
                 0 => {
                     let port = self.node_checker.node_weight(*idx).unwrap();
-                    Err(ZFError::PortNotConnected((
-                        port.node_id.clone(),
-                        port.port_id.clone(),
-                    )))
+                    Err(zferror!(
+                        ErrorKind::PortNotConnected((port.node_id.clone(), port.port_id.clone()))
+                    ).into())
                 }
                 _ => Ok(()),
             }
         })
     }
 
+    //@TODO: remove?
     /// Validates that, without the Loops, the Dataflow is a Directed Acyclic Graph.
     ///
     /// # Errors
     /// A variant error is returned if validation fails.
     pub(crate) fn validate_dag(&self) -> ZFResult<()> {
         match petgraph::algo::is_cyclic_directed(&self.graph_checker) {
-            true => Err(ZFError::InvalidData(
+            true => Err(zferror!(
+                ErrorKind::InvalidData,
                 "The dataflow contains a cycle, please use the \
                  `Loops` section to express this behavior."
-                    .into(),
-            )),
+            ).into()),
             false => Ok(()),
         }
     }
@@ -434,7 +445,9 @@ impl DataflowValidator {
             if !node_ids.contains(node) {
                 if flag.toggle {
                     log::error!("Flag < {} >: unknown node {}", flag.id, node);
-                    return Err(ZFError::NodeNotFound(node.clone()));
+                    return Err(zferror!(
+                        ErrorKind::NodeNotFound(node.clone())
+                    ).into());
                 }
 
                 log::warn!("Flag < {} >: unknown node {}", flag.id, node);

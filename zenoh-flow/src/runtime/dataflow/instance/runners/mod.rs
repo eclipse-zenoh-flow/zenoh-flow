@@ -17,10 +17,10 @@ pub mod operator;
 pub mod replay;
 pub mod sink;
 pub mod source;
-
-use crate::error::ZFError;
-use crate::types::{NodeId, ZFResult};
+use crate::Result;
+use crate::zfresult::Error;
 use async_trait::async_trait;
+use crate::prelude::NodeId;
 
 /// Type of the Runner.
 ///
@@ -35,7 +35,7 @@ pub enum RunnerKind {
 
 /// Action to be taken depending on the result of the run.
 pub enum RunAction {
-    RestartRun(Option<ZFError>),
+    RestartRun(Option<Error>),
     Stop,
 }
 
@@ -49,7 +49,7 @@ pub trait Runner: Send + Sync {
     ///
     /// # Errors
     /// It can fail to indicate that something went wrong when executing the node.
-    async fn start(&mut self) -> ZFResult<()>;
+    async fn start(&mut self) -> Result<()>;
 
     /// Returns the type of the runner.
     fn get_kind(&self) -> RunnerKind;
@@ -61,5 +61,5 @@ pub trait Runner: Send + Sync {
     async fn is_running(&self) -> bool;
 
     /// Stops the runner.
-    async fn stop(&mut self) -> ZFResult<()>;
+    async fn stop(&mut self) -> Result<()>;
 }

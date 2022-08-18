@@ -12,13 +12,16 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::error::ZFError;
+
 use crate::model::link::{LinkDescriptor, PortRecord};
 use crate::model::{InputDescriptor, OutputDescriptor, PortDescriptor};
-use crate::types::{merge_configurations, PortType, ZFResult};
+use crate::types::{merge_configurations, PortType};
 use crate::types::{Configuration, NodeId, RuntimeId};
 use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
+use crate::zferror;
+use crate::zfresult::ErrorKind;
+use crate::Result;
 
 /// Describes a sink.
 ///
@@ -56,9 +59,9 @@ impl SinkDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_yaml(data: &str) -> ZFResult<Self> {
+    pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<SinkDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -66,9 +69,9 @@ impl SinkDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_json(data: &str) -> ZFResult<Self> {
+    pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<SinkDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -76,16 +79,16 @@ impl SinkDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_json(&self) -> ZFResult<String> {
-        serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Returns the YAML representation of the `SinkDescriptor`.
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_yaml(&self) -> ZFResult<String> {
-        serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_yaml(&self) -> Result<String> {
+        serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 }
 
@@ -125,9 +128,9 @@ impl SourceDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_yaml(data: &str) -> ZFResult<Self> {
+    pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<SourceDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -135,9 +138,9 @@ impl SourceDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_json(data: &str) -> ZFResult<Self> {
+    pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<SourceDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -145,16 +148,16 @@ impl SourceDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_json(&self) -> ZFResult<String> {
-        serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Returns the YAML representation of the `SourceDescriptor`.
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_yaml(&self) -> ZFResult<String> {
-        serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_yaml(&self) -> Result<String> {
+        serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 }
 
@@ -198,9 +201,9 @@ impl SimpleOperatorDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_yaml(data: &str) -> ZFResult<Self> {
+    pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<SimpleOperatorDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -208,9 +211,9 @@ impl SimpleOperatorDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_json(data: &str) -> ZFResult<Self> {
+    pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<SimpleOperatorDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -218,16 +221,16 @@ impl SimpleOperatorDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_json(&self) -> ZFResult<String> {
-        serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Returns the YAML representation of the `SimpleOperatorDescriptor`.
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_yaml(&self) -> ZFResult<String> {
-        serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_yaml(&self) -> Result<String> {
+        serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 }
 
@@ -293,9 +296,9 @@ impl CompositeOperatorDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_yaml(data: &str) -> ZFResult<Self> {
+    pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<CompositeOperatorDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -303,9 +306,9 @@ impl CompositeOperatorDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_json(data: &str) -> ZFResult<Self> {
+    pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<CompositeOperatorDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -313,16 +316,16 @@ impl CompositeOperatorDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_json(&self) -> ZFResult<String> {
-        serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Returns the YAML representation of the `CompositeOperatorDescriptor`.
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_yaml(&self) -> ZFResult<String> {
-        serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_yaml(&self) -> Result<String> {
+        serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Flattens the `CompositeOperatorDescriptor` by loading all the composite operators
@@ -335,7 +338,7 @@ impl CompositeOperatorDescriptor {
         mut self,
         id: NodeId,
         global_configuration: Option<Configuration>,
-    ) -> ZFResult<(
+    ) -> Result<(
         Vec<SimpleOperatorDescriptor>,
         Vec<LinkDescriptor>,
         Vec<InputDescriptor>,
@@ -414,9 +417,7 @@ impl CompositeOperatorDescriptor {
                                             let matching_input = ins
                                                 .iter()
                                                 .find(|x| x.node.starts_with(&*new_id))
-                                                .ok_or_else(|| {
-                                                    ZFError::NodeNotFound(new_id.clone())
-                                                })?;
+                                                .ok_or_else(|| zferror!(ErrorKind::NodeNotFound(new_id.clone())))?;
                                             l.to.node = matching_input.node.clone();
                                         }
 
@@ -424,9 +425,7 @@ impl CompositeOperatorDescriptor {
                                             let matching_output = outs
                                                 .iter()
                                                 .find(|x| x.node.starts_with(&*new_id))
-                                                .ok_or_else(|| {
-                                                    ZFError::NodeNotFound(new_id.clone())
-                                                })?;
+                                                .ok_or_else(|| zferror!(ErrorKind::NodeNotFound(new_id.clone())))?;
                                             l.from.node = matching_output.node.clone();
                                         }
                                     }
@@ -493,9 +492,9 @@ impl NodeDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_yaml(data: &str) -> ZFResult<Self> {
+    pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<NodeDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -503,9 +502,9 @@ impl NodeDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_json(data: &str) -> ZFResult<Self> {
+    pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<NodeDescriptor>(data)
-            .map_err(|e| ZFError::ParsingError(format!("{}", e)))?;
+        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -513,16 +512,16 @@ impl NodeDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_json(&self) -> ZFResult<String> {
-        serde_json::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Returns the YAML representation of the `NodeDescriptor`.
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_yaml(&self) -> ZFResult<String> {
-        serde_yaml::to_string(&self).map_err(|_| ZFError::SerializationError)
+    pub fn to_yaml(&self) -> Result<String> {
+        serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Flattens the `NodeDescriptor` by loading all the composite operators
@@ -534,7 +533,7 @@ impl NodeDescriptor {
         self,
         id: NodeId,
         global_configuration: Option<Configuration>,
-    ) -> ZFResult<(
+    ) -> Result<(
         Vec<SimpleOperatorDescriptor>,
         Vec<LinkDescriptor>,
         Vec<InputDescriptor>,
@@ -578,7 +577,7 @@ impl NodeDescriptor {
             },
         }
 
-        // Err(ZFError::Unimplemented)
+        // Err(ErrorKind::Unimplemented)
     }
 
     /// Loads the source from the `NodeDescriptor`
@@ -589,7 +588,7 @@ impl NodeDescriptor {
     pub async fn load_source(
         self,
         global_configuration: Option<Configuration>,
-    ) -> ZFResult<SourceDescriptor> {
+    ) -> Result<SourceDescriptor> {
         let descriptor_path = async_std::fs::read_to_string(&self.descriptor).await?;
         log::trace!("Loading source {}", self.descriptor);
         // We try to load the descriptor, first we try as simple one, if it fails
@@ -615,7 +614,7 @@ impl NodeDescriptor {
     pub async fn load_sink(
         self,
         global_configuration: Option<Configuration>,
-    ) -> ZFResult<SinkDescriptor> {
+    ) -> Result<SinkDescriptor> {
         let descriptor_path = async_std::fs::read_to_string(&self.descriptor).await?;
         log::trace!("Loading sink {}", self.descriptor);
 

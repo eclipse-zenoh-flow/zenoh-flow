@@ -19,7 +19,7 @@
 ///
 /// ```no_run
 /// use async_trait::async_trait;
-/// use async_std::sync::Arc;
+/// use std::sync::Arc;
 /// use zenoh_flow::prelude::*;
 ///
 /// pub struct MyOperator;
@@ -33,14 +33,14 @@
 ///         configuration: &Option<Configuration>,
 ///         mut inputs: Inputs,
 ///         mut outputs: Outputs,
-///     ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
+///     ) -> Result<Option<Arc<dyn AsyncIteration>>> {
 ///         todo!()
 ///     }
 /// }
 ///
 /// export_operator!(register);
 ///
-/// fn register() -> ZFResult<Arc<dyn Operator>> {
+/// fn register() -> Result<Arc<dyn Operator>> {
 ///    Ok(Arc::new(MyOperator) as Arc<dyn Operator>)
 /// }
 /// ```
@@ -66,7 +66,7 @@ macro_rules! export_operator {
 ///
 /// ```no_run
 /// use async_trait::async_trait;
-/// use async_std::sync::Arc;
+/// use std::sync::Arc;
 /// use zenoh_flow::prelude::*;
 ///
 /// pub struct MySource;
@@ -79,14 +79,14 @@ macro_rules! export_operator {
 ///         _context: &mut Context,
 ///         configuration: &Option<Configuration>,
 ///         mut outputs: Outputs,
-///     ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
+///     ) -> Result<Option<Arc<dyn AsyncIteration>>> {
 ///         todo!()
 ///     }
 /// }
 ///
 /// export_source!(register);
 ///
-/// fn register() -> ZFResult<Arc<dyn Source>> {
+/// fn register() -> Result<Arc<dyn Source>> {
 ///    Ok(Arc::new(MySource) as Arc<dyn Source>)
 /// }
 ///
@@ -113,7 +113,7 @@ macro_rules! export_source {
 ///
 /// ```no_run
 /// use async_trait::async_trait;
-/// use async_std::sync::Arc;
+/// use std::sync::Arc;
 /// use zenoh_flow::prelude::*;
 ///
 /// pub struct MySink;
@@ -126,7 +126,7 @@ macro_rules! export_source {
 ///         _context: &mut Context,
 ///         configuration: &Option<Configuration>,
 ///         mut inputs: Inputs,
-///     ) -> ZFResult<Option<Arc<dyn AsyncIteration>>> {
+///     ) -> Result<Option<Arc<dyn AsyncIteration>>> {
 ///         todo!()
 ///     }
 /// }
@@ -134,7 +134,7 @@ macro_rules! export_source {
 /// export_sink!(register);
 ///
 ///
-/// fn register() -> ZFResult<Arc<dyn Sink>> {
+/// fn register() -> Result<Arc<dyn Sink>> {
 ///    Ok(Arc::new(MySink) as Arc<dyn Sink>)
 /// }
 ///
