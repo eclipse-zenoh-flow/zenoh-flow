@@ -15,10 +15,10 @@
 use clap::Parser;
 
 use async_ctrlc::CtrlC;
+use async_std::prelude::*;
 use std::convert::TryFrom;
 use std::path::Path;
 use std::str;
-use async_std::prelude::*;
 
 mod daemon;
 mod util;

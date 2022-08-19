@@ -21,13 +21,15 @@ use uhlc::{HLCBuilder, ID};
 use uuid::Uuid;
 use zenoh::prelude::*;
 
+use async_std::sync::Mutex;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use async_std::sync::{Mutex};
 use zenoh_flow::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use zenoh_flow::model::{
     dataflow::record::DataFlowRecord,
     node::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor},
 };
+use zenoh_flow::prelude::{zferror, ErrorKind, Result as ZFResult};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{
     ExtensibleImplementation, Loader, LoaderConfig, EXT_FILE_EXTENSION,
@@ -37,10 +39,8 @@ use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::RuntimeClient;
 use zenoh_flow::runtime::RuntimeContext;
-use zenoh_flow::DaemonResult;
-use zenoh_flow::prelude::{Result as ZFResult, ErrorKind, zferror};
-use serde::{Deserialize, Serialize};
 use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
+use zenoh_flow::DaemonResult;
 use zrpc::ZServe;
 use zrpc_macros::znserver;
 
@@ -119,21 +119,21 @@ impl Daemon {
         let (rt_stopper, _hrt) = rt_server
             .connect()
             .await
-            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
+            .map_err(|e| zferror!(ErrorKind::GenericError, e))?;
         rt_server
             .initialize()
             .await
-            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
+            .map_err(|e| zferror!(ErrorKind::GenericError, e))?;
         rt_server
             .register()
             .await
-            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
+            .map_err(|e| zferror!(ErrorKind::GenericError, e))?;
 
         log::trace!("Staring ZRPC Servers");
         let (srt, _hrt) = rt_server
             .start()
             .await
-            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
+            .map_err(|e| zferror!(ErrorKind::GenericError, e))?;
 
         log::trace!("Setting state as Ready");
 
@@ -157,20 +157,20 @@ impl Daemon {
 
         stop.recv()
             .await
-            .map_err(|e| zferror!(ErrorKind::RecvError,e))?;
+            .map_err(|e| zferror!(ErrorKind::RecvError, e))?;
 
         rt_server
             .stop(srt)
             .await
-            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
+            .map_err(|e| zferror!(ErrorKind::GenericError, e))?;
         rt_server
             .unregister()
             .await
-            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
+            .map_err(|e| zferror!(ErrorKind::GenericError, e))?;
         rt_server
             .disconnect(rt_stopper)
             .await
-            .map_err(|e| zferror!(ErrorKind::GenericError,e))?;
+            .map_err(|e| zferror!(ErrorKind::GenericError, e))?;
 
         log::info!("Runtime main loop exiting...");
         Ok(())
@@ -262,7 +262,8 @@ impl Daemon {
 /// # Errors
 /// Returns an error variant if unable to get or parse the Uuid.
 pub fn get_machine_uuid() -> ZFResult<Uuid> {
-    let machine_id_raw = machine_uid::get().map_err(|e| zferror!(ErrorKind::ParsingError,"{}", e))?;
+    let machine_id_raw =
+        machine_uid::get().map_err(|e| zferror!(ErrorKind::ParsingError, "{}", e))?;
     let node_str: &str = &machine_id_raw;
     Uuid::parse_str(node_str).map_err(|e| zferror!(ErrorKind::ParsingError, e).into())
 }
@@ -288,7 +289,11 @@ impl TryFrom<DaemonConfig> for Daemon {
         // If name is not specified uses hostname.
         let name = match &config.name {
             Some(n) => n.clone(),
-            None => String::from(hostname::get()?.to_str().ok_or(zferror!(ErrorKind::GenericError))?),
+            None => String::from(
+                hostname::get()?
+                    .to_str()
+                    .ok_or(zferror!(ErrorKind::GenericError))?,
+            ),
         };
 
         // Loading Zenoh configuration
@@ -407,7 +412,10 @@ impl TryFrom<DaemonConfig> for Daemon {
 
 #[znserver]
 impl Runtime for Daemon {
-    async fn create_instance(&self, flow: FlattenDataFlowDescriptor) -> DaemonResult<DataFlowRecord> {
+    async fn create_instance(
+        &self,
+        flow: FlattenDataFlowDescriptor,
+    ) -> DaemonResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow (when
         // the registry will be in place)
         //TODO: this has to run asynchronously, this means that it must

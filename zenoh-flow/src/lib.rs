@@ -47,8 +47,8 @@ pub mod types;
 
 pub mod zfresult;
 
-pub use zfresult::{ZFResult as Result, DaemonResult};
 pub use anyhow::anyhow;
+pub use zfresult::{DaemonResult, ZFResult as Result};
 
 pub mod prelude {
 
@@ -60,7 +60,7 @@ pub mod prelude {
     pub use crate::types::{Configuration, Context, Data, NodeId, PortId, RuntimeId};
     pub use crate::{export_operator, export_sink, export_source, zferror};
 
-    pub use crate::zfresult::{ErrorKind, ZFResult as Result, Error};
+    pub use crate::zfresult::{Error, ErrorKind, ZFResult as Result};
 }
 
 /// Commit id of latest commit on Zenoh Flow

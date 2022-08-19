@@ -274,7 +274,13 @@ impl Loader {
     /// - the URI is missing
     /// - the URI scheme is not known ( so far only `file://` is known).
     pub fn load_source(&self, record: SourceRecord) -> Result<SourceLoaded> {
-        let uri = record.uri.clone().ok_or_else(|| zferror!(ErrorKind::LoadingError, "Missing URI for dynamically loaded Source < {} >.", record.id.clone()))?;
+        let uri = record.uri.clone().ok_or_else(|| {
+            zferror!(
+                ErrorKind::LoadingError,
+                "Missing URI for dynamically loaded Source < {} >.",
+                record.id.clone()
+            )
+        })?;
 
         let uri = Url::parse(&uri).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
 
@@ -443,12 +449,8 @@ impl Loader {
             None => uri.path().to_string(),
         };
         path.push(file_path);
-        let path = std::fs::canonicalize(&path).map_err(|e| {
-            zferror!(
-                ErrorKind::IOError,
-                "{}: {}", e, &path.to_string_lossy()
-            )
-        })?;
+        let path = std::fs::canonicalize(&path)
+            .map_err(|e| zferror!(ErrorKind::IOError, "{}: {}", e, &path.to_string_lossy()))?;
         Ok(path)
     }
 
@@ -488,7 +490,8 @@ impl Loader {
         file_path: PathBuf,
     ) -> Result<OperatorLoaded> {
         let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-            zferror!(ErrorKind::LoadingError,
+            zferror!(
+                ErrorKind::LoadingError,
                 "Missing file extension for dynamically loaded Operator < {} , {:?}>.",
                 record.id.clone(),
                 file_path,
@@ -529,7 +532,8 @@ impl Loader {
         file_path: PathBuf,
     ) -> Result<SourceLoaded> {
         let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-            zferror!(ErrorKind::LoadingError,
+            zferror!(
+                ErrorKind::LoadingError,
                 "Missing file extension for dynamically loaded Source < {} , {:?}>.",
                 record.id.clone(),
                 file_path,

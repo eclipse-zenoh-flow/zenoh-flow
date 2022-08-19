@@ -17,9 +17,9 @@ use flume::{bounded, Receiver};
 use std::convert::TryInto;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use zenoh_flow::prelude::*;
 use zenoh_flow::model::link::PortDescriptor;
 use zenoh_flow::model::{InputDescriptor, OutputDescriptor};
+use zenoh_flow::prelude::*;
 use zenoh_flow::runtime::dataflow::instance::io::{Inputs, Outputs, Streams};
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
@@ -45,8 +45,11 @@ impl Deserializable for ZFUsize {
     where
         Self: Sized,
     {
-        let value =
-            usize::from_ne_bytes(bytes.try_into().map_err(|e| zferror!(ErrorKind::DeseralizationError, "{}", e))?);
+        let value = usize::from_ne_bytes(
+            bytes
+                .try_into()
+                .map_err(|e| zferror!(ErrorKind::DeseralizationError, "{}", e))?,
+        );
         Ok(ZFUsize(value))
     }
 }

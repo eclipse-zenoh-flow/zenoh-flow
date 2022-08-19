@@ -12,10 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use serde::{Deserialize, Serialize};
 use std::convert::From;
 use std::sync::Arc;
 use zenoh_flow::prelude::*;
-use serde::{Deserialize, Serialize};
 use zenoh_flow::traits::{Deserializable, ZFData};
 use zenoh_flow::types::Data;
 use zenoh_flow::zenoh_flow_derive::ZFData;

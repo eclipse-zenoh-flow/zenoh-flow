@@ -583,7 +583,9 @@ impl DataStore {
                     );
                     zferror!(ErrorKind::DeseralizationError)
                 })?;
-            runtimes.push(Uuid::parse_str(id).map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?);
+            runtimes.push(
+                Uuid::parse_str(id).map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?,
+            );
         }
 
         Ok(runtimes)

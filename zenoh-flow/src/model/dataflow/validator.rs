@@ -170,10 +170,7 @@ impl DataflowValidator {
             .insert(node_id.clone(), (node_kind, graph_checker_idx))
             .is_some()
         {
-            return Err(zferror!(
-                ErrorKind::DuplicatedNodeId(node_id),
-                "Duplicate node"
-            ).into());
+            return Err(zferror!(ErrorKind::DuplicatedNodeId(node_id), "Duplicate node").into());
         }
 
         Ok(())
@@ -201,9 +198,11 @@ impl DataflowValidator {
             .insert(id.clone(), node_checker_idx)
             .is_some()
         {
-            return Err(zferror!(
-                ErrorKind::DuplicatedPort((node_id.clone(), port.port_id.clone()))
-            ).into());
+            return Err(zferror!(ErrorKind::DuplicatedPort((
+                node_id.clone(),
+                port.port_id.clone()
+            )))
+            .into());
         }
         self.map_id_to_type.insert(id, port.port_type);
 
@@ -301,9 +300,7 @@ impl DataflowValidator {
         let (_, from_graph_checker_idx) = self
             .map_id_to_graph_checker_idx
             .get(&from.node)
-            .ok_or_else(|| {
-                zferror!(ErrorKind::NodeNotFound(from.node.clone()))
-            })?;
+            .ok_or_else(|| zferror!(ErrorKind::NodeNotFound(from.node.clone())))?;
         log::debug!("Looking for node < {} >… OK.", &from.node);
         log::debug!("Looking for node < {} >…", &to.node);
         let (_, to_graph_checker_idx) = self
@@ -325,16 +322,15 @@ impl DataflowValidator {
 
         log::debug!("Looking for port type of < {:?} >…", &from_id);
         let from_type = self.map_id_to_type.get(&from_id).ok_or_else(|| {
-            zferror!(
-                ErrorKind::PortNotFound((from.node.clone(), from.output.clone()))
-            )
+            zferror!(ErrorKind::PortNotFound((
+                from.node.clone(),
+                from.output.clone()
+            )))
         })?;
         log::debug!("Looking for port type of < {:?} >… OK.", &from_id);
         log::debug!("Looking for port type of < {:?} >…", &to_id);
         let to_type = self.map_id_to_type.get(&to_id).ok_or_else(|| {
-            zferror!(
-                ErrorKind::PortNotFound((to.node.clone(), to.input.clone()))
-            )
+            zferror!(ErrorKind::PortNotFound((to.node.clone(), to.input.clone())))
         })?;
         log::debug!("Looking for port type of < {:?} >… OK.", &to_id);
         log::debug!("Port types are identical…");
@@ -342,9 +338,11 @@ impl DataflowValidator {
             && from_type.as_ref() != PORT_TYPE_ANY
             && to_type.as_ref() != PORT_TYPE_ANY
         {
-            return Err(zferror!(
-                ErrorKind::PortTypeNotMatching((from_type.clone(), to_type.clone(),))
-            ).into());
+            return Err(zferror!(ErrorKind::PortTypeNotMatching((
+                from_type.clone(),
+                to_type.clone(),
+            )))
+            .into());
         }
         log::debug!("Port types are identical… OK.");
 
@@ -386,19 +384,18 @@ impl DataflowValidator {
             {
                 0 => {
                     let port = self.node_checker.node_weight(*idx).unwrap();
-                    Err(zferror!(
-                        ErrorKind::PortNotConnected((port.node_id.clone(), port.port_id.clone(),))
-                    ))
+                    Err(zferror!(ErrorKind::PortNotConnected((
+                        port.node_id.clone(),
+                        port.port_id.clone(),
+                    ))))
                 }
                 1 => Ok(()),
                 _ => {
                     let port = self.node_checker.node_weight(*idx).unwrap();
-                    Err(zferror!(
-                        ErrorKind::MultipleOutputsToInput((
-                            port.node_id.clone(),
-                            port.port_id.clone(),
-                        ))
-                    ))
+                    Err(zferror!(ErrorKind::MultipleOutputsToInput((
+                        port.node_id.clone(),
+                        port.port_id.clone(),
+                    ))))
                 }
             }
         })?;
@@ -411,9 +408,11 @@ impl DataflowValidator {
             {
                 0 => {
                     let port = self.node_checker.node_weight(*idx).unwrap();
-                    Err(zferror!(
-                        ErrorKind::PortNotConnected((port.node_id.clone(), port.port_id.clone()))
-                    ).into())
+                    Err(zferror!(ErrorKind::PortNotConnected((
+                        port.node_id.clone(),
+                        port.port_id.clone()
+                    )))
+                    .into())
                 }
                 _ => Ok(()),
             }
@@ -431,7 +430,8 @@ impl DataflowValidator {
                 ErrorKind::InvalidData,
                 "The dataflow contains a cycle, please use the \
                  `Loops` section to express this behavior."
-            ).into()),
+            )
+            .into()),
             false => Ok(()),
         }
     }
@@ -445,9 +445,7 @@ impl DataflowValidator {
             if !node_ids.contains(node) {
                 if flag.toggle {
                     log::error!("Flag < {} >: unknown node {}", flag.id, node);
-                    return Err(zferror!(
-                        ErrorKind::NodeNotFound(node.clone())
-                    ).into());
+                    return Err(zferror!(ErrorKind::NodeNotFound(node.clone())).into());
                 }
 
                 log::warn!("Flag < {} >: unknown node {}", flag.id, node);

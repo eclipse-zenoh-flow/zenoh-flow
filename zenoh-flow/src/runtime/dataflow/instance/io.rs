@@ -15,7 +15,7 @@
 use crate::runtime::message::Message;
 use crate::types::{Context, Data, PortId};
 use crate::zferror;
-use crate::zfresult::{ErrorKind};
+use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;
 use flume::TryRecvError;
 use futures::Future;
@@ -275,7 +275,8 @@ impl Output {
                 "[Output: {}] Encountered {} errors while sending (or trying to)",
                 self.port_id,
                 err
-            ).into());
+            )
+            .into());
         }
 
         Ok(())
@@ -297,7 +298,8 @@ impl Output {
                 "[Output: {}] Encountered {} errors while async sending (or trying to)",
                 self.port_id,
                 err
-            ).into());
+            )
+            .into());
         }
 
         Ok(())

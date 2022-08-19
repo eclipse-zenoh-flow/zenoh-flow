@@ -12,16 +12,15 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-
 use crate::model::link::{LinkDescriptor, PortRecord};
 use crate::model::{InputDescriptor, OutputDescriptor, PortDescriptor};
 use crate::types::{merge_configurations, PortType};
 use crate::types::{Configuration, NodeId, RuntimeId};
-use async_recursion::async_recursion;
-use serde::{Deserialize, Serialize};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result;
+use async_recursion::async_recursion;
+use serde::{Deserialize, Serialize};
 
 /// Describes a sink.
 ///
@@ -71,7 +70,7 @@ impl SinkDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<SinkDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -130,7 +129,7 @@ impl SourceDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<SourceDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -140,7 +139,7 @@ impl SourceDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<SourceDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -203,7 +202,7 @@ impl SimpleOperatorDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<SimpleOperatorDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -213,7 +212,7 @@ impl SimpleOperatorDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<SimpleOperatorDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -298,7 +297,7 @@ impl CompositeOperatorDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<CompositeOperatorDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -308,7 +307,7 @@ impl CompositeOperatorDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<CompositeOperatorDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -417,7 +416,11 @@ impl CompositeOperatorDescriptor {
                                             let matching_input = ins
                                                 .iter()
                                                 .find(|x| x.node.starts_with(&*new_id))
-                                                .ok_or_else(|| zferror!(ErrorKind::NodeNotFound(new_id.clone())))?;
+                                                .ok_or_else(|| {
+                                                    zferror!(ErrorKind::NodeNotFound(
+                                                        new_id.clone()
+                                                    ))
+                                                })?;
                                             l.to.node = matching_input.node.clone();
                                         }
 
@@ -425,7 +428,11 @@ impl CompositeOperatorDescriptor {
                                             let matching_output = outs
                                                 .iter()
                                                 .find(|x| x.node.starts_with(&*new_id))
-                                                .ok_or_else(|| zferror!(ErrorKind::NodeNotFound(new_id.clone())))?;
+                                                .ok_or_else(|| {
+                                                    zferror!(ErrorKind::NodeNotFound(
+                                                        new_id.clone()
+                                                    ))
+                                                })?;
                                             l.from.node = matching_output.node.clone();
                                         }
                                     }
@@ -494,7 +501,7 @@ impl NodeDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<NodeDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
@@ -504,7 +511,7 @@ impl NodeDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<NodeDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 

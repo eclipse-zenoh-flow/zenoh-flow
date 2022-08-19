@@ -15,7 +15,6 @@
 use crate::types::{NodeId, PortId, PortType};
 use serde::{Deserialize, Serialize};
 
-
 use anyhow::Error as AnyError;
 use std::convert::From;
 use std::fmt;
@@ -55,14 +54,12 @@ macro_rules! bail{
 //     fn get_kind(&self) -> &ErrorKind;
 // }
 
-
 // pub type Error = Box<dyn KindError + Send + Sync + 'static >;
 
-pub type Error = Box<dyn std::error::Error + Send + Sync + 'static >;
+pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 /// The Zenoh Flow result type.
 pub type ZFResult<T> = Result<T, Error>;
-
 
 pub type DaemonResult<T> = Result<T, ErrorKind>;
 
@@ -267,17 +264,18 @@ impl From<std::str::Utf8Error> for ZFError {
     }
 }
 
-
 impl From<ZFError> for ErrorKind {
     fn from(err: ZFError) -> Self {
         err.get_kind().clone()
     }
 }
 
-
 impl From<Box<dyn std::error::Error + Send + Sync>> for ErrorKind {
-    fn from(_err: Box<dyn std::error::Error + Send + Sync>) -> Self {
-        ErrorKind::GenericError
+    fn from(err: Box<dyn std::error::Error + Send + Sync>) -> Self {
+        match err.downcast::<ZFError>() {
+            Ok(zf_err) => (*zf_err).into(),
+            Err(_) => ErrorKind::GenericError,
+        }
     }
 }
 

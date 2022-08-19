@@ -17,10 +17,10 @@ pub mod operator;
 pub mod replay;
 pub mod sink;
 pub mod source;
-use crate::Result;
-use crate::zfresult::Error;
-use async_trait::async_trait;
 use crate::prelude::NodeId;
+use crate::zfresult::Error;
+use crate::Result;
+use async_trait::async_trait;
 
 /// Type of the Runner.
 ///

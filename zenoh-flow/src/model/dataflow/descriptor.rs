@@ -12,7 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-
 use crate::model::dataflow::flag::Flag;
 use crate::model::dataflow::validator::DataflowValidator;
 use crate::model::link::LinkDescriptor;
@@ -89,7 +88,7 @@ impl DataFlowDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<DataFlowDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         // dataflow_descriptor.validate()?;
         Ok(dataflow_descriptor)
     }
@@ -240,7 +239,7 @@ impl FlattenDataFlowDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_yaml(data: &str) -> Result<FlattenDataFlowDescriptor> {
         let dataflow_descriptor = serde_yaml::from_str::<FlattenDataFlowDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         dataflow_descriptor.validate()?;
         Ok(dataflow_descriptor)
     }
@@ -251,7 +250,7 @@ impl FlattenDataFlowDescriptor {
     /// A variant error is returned if deserialization fails.
     pub fn from_json(data: &str) -> Result<FlattenDataFlowDescriptor> {
         let dataflow_descriptor = serde_json::from_str::<FlattenDataFlowDescriptor>(data)
-        .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         dataflow_descriptor.validate()?;
         Ok(dataflow_descriptor)
     }

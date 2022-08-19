@@ -31,7 +31,7 @@ use crate::runtime::message::ControlMessage;
 use crate::types::{FlowId, RuntimeId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
-use crate::{Result as ZFResult, DaemonResult};
+use crate::{DaemonResult, Result as ZFResult};
 use uhlc::HLC;
 use zenoh::config::Config as ZenohConfig;
 use zenoh::Session;
@@ -220,7 +220,10 @@ pub trait Runtime {
     /// - error on zenoh-rpc
     /// - unable to map
     /// - unable to prepare nodes
-    async fn create_instance(&self, flow: FlattenDataFlowDescriptor) -> DaemonResult<DataFlowRecord>;
+    async fn create_instance(
+        &self,
+        flow: FlattenDataFlowDescriptor,
+    ) -> DaemonResult<DataFlowRecord>;
     //TODO: workaround - it should just take the ID of the flow (when
     // the registry will be in place)
 

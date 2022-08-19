@@ -148,7 +148,8 @@ impl Message {
                         .map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
                 }
             },
-            _ => bincode::serialize(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
+            _ => bincode::serialize(&self)
+                .map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
         }
     }
 

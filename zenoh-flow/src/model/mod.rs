@@ -84,10 +84,7 @@ impl std::str::FromStr for NodeKind {
             "operator" => Ok(Self::Operator),
             "sink" => Ok(Self::Sink),
             "source" => Ok(Self::Source),
-            _ => Err(zferror!(
-                ErrorKind::ParsingError,
-                "unable to parse node kind"
-            ).into()),
+            _ => Err(zferror!(ErrorKind::ParsingError, "unable to parse node kind").into()),
         }
     }
 }

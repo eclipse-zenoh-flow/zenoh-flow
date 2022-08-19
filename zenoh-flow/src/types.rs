@@ -134,10 +134,7 @@ impl Data {
                 .as_any()
                 .downcast_ref::<Typed>()
                 .ok_or_else(|| zferror!(ErrorKind::InvalidData, "Could not downcast"))?),
-            _ => Err(zferror!(
-                ErrorKind::InvalidData,
-                "Should be deserialized first"
-            ).into()),
+            _ => Err(zferror!(ErrorKind::InvalidData, "Should be deserialized first").into()),
         }
     }
 }

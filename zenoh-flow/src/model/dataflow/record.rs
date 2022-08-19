@@ -172,10 +172,12 @@ impl DataFlowRecord {
                 Some(rt) => rt,
                 None => {
                     log::error!("Could not find runtime for: {:?}", &l.from.node);
-                    return Err(zferror!(ErrorKind::Uncompleted,
+                    return Err(zferror!(
+                        ErrorKind::Uncompleted,
                         "Unable to find runtime for {}",
                         &l.from.node
-                    ).into());
+                    )
+                    .into());
                 }
             };
 
@@ -183,10 +185,12 @@ impl DataFlowRecord {
                 Some(rt) => rt,
                 None => {
                     log::error!("Could not find runtime for: {:?}", &l.to.node);
-                    return Err(zferror!(ErrorKind::Uncompleted,
+                    return Err(zferror!(
+                        ErrorKind::Uncompleted,
                         "Unable to find runtime for {}",
                         &l.to.node
-                    ).into())
+                    )
+                    .into());
                 }
             };
 
@@ -196,7 +200,8 @@ impl DataFlowRecord {
                     return Err(zferror!(ErrorKind::PortNotFound((
                         l.from.node.clone(),
                         l.from.output.clone(),
-                    ))).into())
+                    )))
+                    .into())
                 }
             };
 
@@ -206,7 +211,8 @@ impl DataFlowRecord {
                     return Err(zferror!(ErrorKind::PortNotFound((
                         l.to.node.clone(),
                         l.to.input.clone(),
-                    ))).into())
+                    )))
+                    .into())
                 }
             };
 
@@ -214,7 +220,11 @@ impl DataFlowRecord {
                 && from_type.as_ref() != PORT_TYPE_ANY
                 && to_type.as_ref() != PORT_TYPE_ANY
             {
-                return Err(zferror!(ErrorKind::PortTypeNotMatching((from_type.clone(), to_type.clone()))).into());
+                return Err(zferror!(ErrorKind::PortTypeNotMatching((
+                    from_type.clone(),
+                    to_type.clone()
+                )))
+                .into());
             }
 
             if from_runtime == to_runtime {

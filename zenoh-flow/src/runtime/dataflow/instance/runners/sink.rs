@@ -21,7 +21,7 @@ use crate::runtime::dataflow::node::SinkLoaded;
 use crate::runtime::InstanceContext;
 use crate::traits::Sink;
 use crate::types::{Configuration, Context, NodeId, PortId};
-use crate::zfresult::{Error};
+use crate::zfresult::Error;
 use crate::Result as ZFResult;
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
