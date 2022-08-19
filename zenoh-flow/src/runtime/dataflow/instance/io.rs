@@ -128,7 +128,7 @@ impl Input {
             }
         }
 
-        msg.ok_or(zferror!(ErrorKind::Empty))?
+        msg.ok_or_else(|| zferror!(ErrorKind::Empty))?
             .map_err(|e| zferror!(ErrorKind::RecvError, "{:?}", e).into())
     }
 

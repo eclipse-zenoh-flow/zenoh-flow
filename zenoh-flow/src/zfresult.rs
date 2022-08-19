@@ -47,6 +47,9 @@ macro_rules! bail{
     ($kind: expr, $($t: tt)*) => {
         return Err($crate::zferror!($kind, $($t)*).into())
     };
+    ($kind: expr) => {
+        return Err($crate::zferror!($kind).into())
+    };
 }
 
 // Todo for refactoring

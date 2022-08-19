@@ -292,7 +292,7 @@ impl TryFrom<DaemonConfig> for Daemon {
             None => String::from(
                 hostname::get()?
                     .to_str()
-                    .ok_or(zferror!(ErrorKind::GenericError))?,
+                    .ok_or_else(|| zferror!(ErrorKind::GenericError))?,
             ),
         };
 

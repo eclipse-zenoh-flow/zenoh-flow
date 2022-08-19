@@ -222,7 +222,7 @@ impl DataFlowRecord {
             {
                 return Err(zferror!(ErrorKind::PortTypeNotMatching((
                     from_type.clone(),
-                    to_type.clone()
+                    to_type.clone(),
                 )))
                 .into());
             }
@@ -239,10 +239,10 @@ impl DataFlowRecord {
 
                 let from_uid = self
                     .find_node_uid_by_id(&l.from.node)
-                    .ok_or(zferror!(ErrorKind::NotFound))?;
+                    .ok_or_else(|| zferror!(ErrorKind::NotFound))?;
                 let from_port_uid = self
                     .find_port_id_in_node(&l.from.node, &l.from.output)
-                    .ok_or(zferror!(ErrorKind::NotFound))?;
+                    .ok_or_else(|| zferror!(ErrorKind::NotFound))?;
 
                 // creating zenoh resource name
                 let z_resource_name = format!(
@@ -400,7 +400,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 configuration: merge_configurations(global_configuration.clone(), o.configuration),
                 runtime: mapping
                     .get(&o.id)
-                    .ok_or(zferror!(ErrorKind::MissingConfiguration, "Missing mapping"))
+                    .ok_or_else(|| zferror!(ErrorKind::MissingConfiguration))
                     .cloned()?,
             };
             dfr.operators.insert(o.id, or);
@@ -425,7 +425,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 configuration: merge_configurations(global_configuration.clone(), s.configuration),
                 runtime: mapping
                     .get(&s.id)
-                    .ok_or(zferror!(ErrorKind::MissingConfiguration, "Missing mapping"))
+                    .ok_or_else(|| zferror!(ErrorKind::MissingConfiguration))
                     .cloned()?,
             };
             dfr.sources.insert(s.id, sr);
@@ -450,7 +450,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 configuration: merge_configurations(global_configuration.clone(), s.configuration),
                 runtime: mapping
                     .get(&s.id)
-                    .ok_or(zferror!(ErrorKind::MissingConfiguration, "Missing mapping"))
+                    .ok_or_else(|| zferror!(ErrorKind::MissingConfiguration))
                     .cloned()?,
             };
             dfr.sinks.insert(s.id, sr);

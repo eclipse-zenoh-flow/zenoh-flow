@@ -26,9 +26,9 @@ extern crate serde_json;
 use crate::model::dataflow::record::DataFlowRecord;
 use crate::model::RegistryNode;
 use crate::runtime::{RuntimeConfig, RuntimeInfo, RuntimeStatus};
-use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result;
+use crate::{bail, zferror};
 use async_std::pin::Pin;
 use async_std::stream::Stream;
 use async_std::task::{Context, Poll};
@@ -378,7 +378,7 @@ impl DataStore {
                 return Ok(rt.clone());
             }
         }
-        Err(zferror!(ErrorKind::NotFound).into())
+        bail!(ErrorKind::NotFound)
     }
 
     /// Removes the information for the given runtime `rtid`.
@@ -388,7 +388,7 @@ impl DataStore {
     pub async fn remove_runtime_info(&self, rtid: &Uuid) -> Result<()> {
         let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
-        Ok(self.z.delete(&path).await?)
+        self.z.delete(&path).await
     }
 
     /// Stores the given  [`RuntimeInfo`](`RuntimeInfo`) for the given `rtid`
@@ -402,7 +402,7 @@ impl DataStore {
         let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
-        Ok(self.z.put(&path, encoded_info).await?)
+        self.z.put(&path, encoded_info).await
     }
 
     /// Gets [`RuntimeConfig`](`RuntimeConfig`) for the given `rtid`
@@ -430,7 +430,7 @@ impl DataStore {
         //     .subscribe(&selector)
         //     .await
         //     .map(|change_stream| ZFRuntimeConfigStream { change_stream })?)
-        Err(zferror!(ErrorKind::Unimplemented).into())
+        bail!(ErrorKind::Unimplemented)
     }
 
     /// Removes the configuration for the given `rtid`.
@@ -440,7 +440,7 @@ impl DataStore {
     pub async fn remove_runtime_config(&self, rtid: &Uuid) -> Result<()> {
         let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
 
-        Ok(self.z.delete(&path).await?)
+        self.z.delete(&path).await
     }
 
     /// Stores the given [`RuntimeConfig`](`RuntimeConfig`) for the given
@@ -454,7 +454,7 @@ impl DataStore {
         let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
-        Ok(self.z.put(&path, encoded_info).await?)
+        self.z.put(&path, encoded_info).await
     }
 
     /// Gets the `RuntimeStatus` for the given runtime `rtid`.
@@ -475,7 +475,7 @@ impl DataStore {
     pub async fn remove_runtime_status(&self, rtid: &Uuid) -> Result<()> {
         let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
 
-        Ok(self.z.delete(&path).await?)
+        self.z.delete(&path).await
     }
 
     /// Stores the given [`RuntimeStatus`](`RuntimeStatus`) for the given `rtid`
@@ -490,7 +490,7 @@ impl DataStore {
         let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
-        Ok(self.z.put(&path, encoded_info).await?)
+        self.z.put(&path, encoded_info).await
     }
 
     /// Gets the [`DataFlowRecord`](`DataFlowRecord`) running on the given
@@ -604,7 +604,7 @@ impl DataStore {
     ) -> Result<()> {
         let path = RT_FLOW_PATH!(ROOT_STANDALONE, rtid, fid, iid);
 
-        Ok(self.z.delete(&path).await?)
+        self.z.delete(&path).await
     }
 
     /// Stores the given [`DataFlowRecord`](`DataFlowRecord`) running on the
@@ -627,7 +627,7 @@ impl DataStore {
         );
 
         let encoded_info = serialize_data(flow_instance)?;
-        Ok(self.z.put(&path, encoded_info).await?)
+        self.z.put(&path, encoded_info).await
     }
 
     // Registry Related, registry is not yet in place.
@@ -643,7 +643,7 @@ impl DataStore {
         let path = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph.id);
 
         let encoded_info = serialize_data(graph)?;
-        Ok(self.z.put(&path, encoded_info).await?)
+        self.z.put(&path, encoded_info).await
     }
 
     /// Gets the [`RegistryNode`](`RegistryNode`) associated with the given
@@ -675,7 +675,7 @@ impl DataStore {
     pub async fn delete_graph(&self, graph_id: &str) -> Result<()> {
         let path = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph_id);
 
-        Ok(self.z.delete(&path).await?)
+        self.z.delete(&path).await
     }
 
     /// Helper function to get a generic data `T` and deserializing it

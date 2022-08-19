@@ -39,5 +39,5 @@ pub(crate) fn _write_file(path: &Path, content: Vec<u8>) -> Result<()> {
 }
 
 pub(crate) fn get_zenoh_config(path: &str) -> Result<Config> {
-    Ok(zenoh::config::Config::from_file(path)?)
+    zenoh::config::Config::from_file(path)
 }
