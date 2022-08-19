@@ -45,6 +45,7 @@ use zrpc::ZServe;
 use zrpc_macros::znserver;
 
 use crate::util::{get_zenoh_config, read_file};
+use crate::work::WorkerPool;
 
 /// The daemon configuration file.
 /// The daemon loads this file and uses the informations it contains to
@@ -228,6 +229,7 @@ impl Daemon {
         let h = async_std::task::spawn_blocking(move || {
             async_std::task::block_on(async { rt.run(r).await })
         });
+
         Ok((s, h))
     }
 
@@ -405,6 +407,20 @@ impl TryFrom<DaemonConfig> for Daemon {
             runtime_name: rt_config.name.clone().into(),
             runtime_uuid: uuid,
         };
+
+        let mut workers = WorkerPool::new(5, session.clone(), rt_config.uuid.clone());
+        workers.start();
+
+        async_std::task::spawn(async move {
+            log::info!("I'll do jobs!");
+            let hlc = uhlc::HLC::default();
+            loop {
+                async_std::task::sleep(std::time::Duration::from_millis(5000)).await;
+                let job = crate::work::Job::new(&hlc);
+                log::info!("I'm sending {job:?}");
+                workers.sumbit(job).await.unwrap();
+            }
+        });
 
         Ok(Self::new(session, ctx, rt_config))
     }

@@ -68,6 +68,18 @@ pub static KEY_STATUS: &str = "status";
 /// Token for the leaf with configuration in the key expression.
 pub static KEY_CONFIGURATION: &str = "configuration";
 
+/// Token for job queue in the key expression.
+pub static KEY_JOB_QUEUE: &str = "job-queue";
+
+/// Token for the submitted jobs job queue in the key expression.
+pub static KEY_JOB_SUBMITTED: &str = "sumbitted";
+
+/// Token for the started jobs job queue in the key expression.
+pub static KEY_JOB_STARTED: &str = "started";
+
+/// Token for the done jobs job queue in the key expression.
+pub static KEY_JOB_DONE: &str = "done";
+
 /// Generates the runtime info key expression.
 #[macro_export]
 macro_rules! RT_INFO_PATH {
@@ -206,6 +218,69 @@ macro_rules! REG_GRAPH_SELECTOR {
             $crate::runtime::resources::KEY_REGISTRY,
             $crate::runtime::resources::KEY_GRAPHS,
             $fid
+        )
+    };
+}
+
+/// Generates the sumbitted jobs key expression (selector)
+#[macro_export]
+macro_rules! JQ_SUMBITTED_SEL {
+    ($prefix:expr, $rid:expr) => {
+        format!(
+            "{}/{}/{}/{}/{}/*",
+            $prefix,
+            $crate::runtime::resources::KEY_RUNTIMES,
+            $rid,
+            $crate::runtime::resources::KEY_JOB_QUEUE,
+            $crate::runtime::resources::KEY_JOB_SUBMITTED
+        )
+    };
+}
+
+/// Generates the sumbitted job key expression
+#[macro_export]
+macro_rules! JQ_SUMBITTED_JOB {
+    ($prefix:expr, $rid:expr, $jid: expr) => {
+        format!(
+            "{}/{}/{}/{}/{}/{}",
+            $prefix,
+            $crate::runtime::resources::KEY_RUNTIMES,
+            $rid,
+            $crate::runtime::resources::KEY_JOB_QUEUE,
+            $crate::runtime::resources::KEY_JOB_SUBMITTED,
+            $jid
+        )
+    };
+}
+
+/// Generates the started job key expression
+#[macro_export]
+macro_rules! JQ_STARTED_JOB {
+    ($prefix:expr, $rid:expr, $jid: expr) => {
+        format!(
+            "{}/{}/{}/{}/{}/{}",
+            $prefix,
+            $crate::runtime::resources::KEY_RUNTIMES,
+            $rid,
+            $crate::runtime::resources::KEY_JOB_QUEUE,
+            $crate::runtime::resources::KEY_JOB_STARTED,
+            $jid
+        )
+    };
+}
+
+/// Generates the done job key expression
+#[macro_export]
+macro_rules! JQ_DONE_JOB {
+    ($prefix:expr, $rid:expr, $jid: expr) => {
+        format!(
+            "{}/{}/{}/{}/{}/{}",
+            $prefix,
+            $crate::runtime::resources::KEY_RUNTIMES,
+            $rid,
+            $crate::runtime::resources::KEY_JOB_QUEUE,
+            $crate::runtime::resources::KEY_JOB_DONE,
+            $jid
         )
     };
 }

@@ -22,6 +22,7 @@ use std::str;
 
 mod daemon;
 mod util;
+mod work;
 use daemon::Daemon;
 use daemon::DaemonConfig;
 use util::read_file;
