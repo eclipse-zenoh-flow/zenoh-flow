@@ -32,7 +32,7 @@ use crate::types::{FlowId, RuntimeId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::{DaemonResult, Result as ZFResult};
-use uhlc::HLC;
+use uhlc::{Timestamp, HLC};
 use zenoh::config::Config as ZenohConfig;
 use zenoh::Session;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
@@ -41,6 +41,7 @@ use zrpc_macros::znservice;
 pub mod dataflow;
 pub mod message;
 pub mod resources;
+pub mod worker_pool;
 
 /// The context of a Zenoh Flow runtime.
 /// This is shared across all the instances in a runtime.
@@ -185,6 +186,79 @@ pub struct RuntimeConfig {
     pub uuid: Uuid,
     pub zenoh: ZenohConfig,
     pub loader: LoaderConfig,
+}
+
+/// The type of [`Job`](`Job`) to be executed by the workers
+///
+/// [^note]: This enum is not exhaustive yet, it will evolve in the future
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum JobKind {
+    CreateInstance(FlattenDataFlowDescriptor),
+    DeleteInstance(Uuid),
+    Instantiate(FlattenDataFlowDescriptor),
+    Teardown(Uuid),
+}
+
+/// The status of a [`Job`](`Job`), associated with a timestamp from when the status change happenend
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum JobStatus {
+    Submitted(Timestamp),
+    Started(Timestamp),
+    Done(Timestamp),
+    Failed(Timestamp, String),
+}
+
+/// All the needed information to run a Job
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Job {
+    id: Uuid,
+    job: JobKind,
+    status: JobStatus,
+    assignee: Option<usize>,
+}
+
+impl Job {
+    fn new_instantiate(dfd: FlattenDataFlowDescriptor, id: Uuid, ts: Timestamp) -> Self {
+        Self {
+            id,
+            job: JobKind::Instantiate(dfd),
+            status: JobStatus::Submitted(ts),
+            assignee: None,
+        }
+    }
+
+    fn new_teardown(fid: Uuid, id: Uuid, ts: Timestamp) -> Self {
+        Self {
+            id,
+            job: JobKind::Teardown(fid),
+            status: JobStatus::Submitted(ts),
+            assignee: None,
+        }
+    }
+
+    pub fn get_id(&self) -> &Uuid {
+        &self.id
+    }
+
+    pub fn get_kind(&self) -> &JobKind {
+        &self.job
+    }
+
+    pub fn get_status(&self) -> &JobStatus {
+        &self.status
+    }
+
+    pub fn get_assigne(&self) -> &Option<usize> {
+        &self.assignee
+    }
+
+    pub fn set_status(&mut self, status: JobStatus) {
+        self.status = status;
+    }
+
+    pub fn assign(&mut self, assignee: usize) {
+        self.assignee.replace(assignee);
+    }
 }
 
 /// The interface the Runtime expose to a client

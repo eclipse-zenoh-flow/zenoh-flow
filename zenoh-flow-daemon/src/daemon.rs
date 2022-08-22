@@ -37,15 +37,16 @@ use zenoh_flow::runtime::dataflow::loader::{
 use zenoh_flow::runtime::dataflow::Dataflow;
 use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
-use zenoh_flow::runtime::RuntimeClient;
-use zenoh_flow::runtime::RuntimeContext;
-use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
+use zenoh_flow::runtime::worker_pool::WorkerPool;
+use zenoh_flow::runtime::{
+    Runtime, RuntimeClient, RuntimeConfig, RuntimeContext, RuntimeInfo, RuntimeStatus,
+    RuntimeStatusKind,
+};
 use zenoh_flow::DaemonResult;
 use zrpc::ZServe;
 use zrpc_macros::znserver;
 
 use crate::util::{get_zenoh_config, read_file};
-use crate::work::WorkerPool;
 
 /// The daemon configuration file.
 /// The daemon loads this file and uses the informations it contains to
@@ -90,16 +91,28 @@ pub struct Daemon {
 impl Daemon {
     /// Creates a new `Daemon` from the given parameters.
     pub fn new(z: Arc<zenoh::Session>, ctx: RuntimeContext, config: RuntimeConfig) -> Self {
+        let store = DataStore::new(z);
+
+        let mut workers = WorkerPool::new(5, store.clone(), config.uuid.clone(), ctx.hlc.clone());
+        workers.start();
+
+        async_std::task::spawn(async move {
+            log::info!("I'll ask for (fake) jobs!");
+
+            loop {
+                let fake_id = Uuid::new_v4();
+                async_std::task::sleep(std::time::Duration::from_millis(5000)).await;
+                let job = workers.submit_teardown(&fake_id).await.unwrap();
+                log::info!("Sent Job {:?}", job);
+            }
+        });
+
         let state = Arc::new(Mutex::new(RTState {
             graphs: HashMap::new(),
             config,
         }));
 
-        Self {
-            store: DataStore::new(z),
-            ctx,
-            state,
-        }
+        Self { store, ctx, state }
     }
 
     /// The daemon run.
@@ -407,20 +420,6 @@ impl TryFrom<DaemonConfig> for Daemon {
             runtime_name: rt_config.name.clone().into(),
             runtime_uuid: uuid,
         };
-
-        let mut workers = WorkerPool::new(5, session.clone(), rt_config.uuid.clone());
-        workers.start();
-
-        async_std::task::spawn(async move {
-            log::info!("I'll do jobs!");
-            let hlc = uhlc::HLC::default();
-            loop {
-                async_std::task::sleep(std::time::Duration::from_millis(5000)).await;
-                let job = crate::work::Job::new(&hlc);
-                log::info!("I'm sending {job:?}");
-                workers.sumbit(job).await.unwrap();
-            }
-        });
 
         Ok(Self::new(session, ctx, rt_config))
     }

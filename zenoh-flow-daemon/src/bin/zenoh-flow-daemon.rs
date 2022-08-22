@@ -20,12 +20,9 @@ use std::convert::TryFrom;
 use std::path::Path;
 use std::str;
 
-mod daemon;
-mod util;
-mod work;
-use daemon::Daemon;
-use daemon::DaemonConfig;
-use util::read_file;
+use zenoh_flow_daemon::daemon::{get_machine_uuid, Daemon, DaemonConfig};
+
+use zenoh_flow_daemon::util::read_file;
 
 /// Default path for the runtime configuration file.
 static RUNTIME_CONFIG_FILE: &str = "/etc/zenoh-flow/runtime.yaml";
@@ -67,7 +64,7 @@ async fn main() {
     }
 
     if args.node_uuid {
-        println!("{}", daemon::get_machine_uuid().unwrap());
+        println!("{}", get_machine_uuid().unwrap());
         std::process::exit(0);
     }
 
