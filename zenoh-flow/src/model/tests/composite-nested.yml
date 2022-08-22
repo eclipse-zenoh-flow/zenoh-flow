@@ -1,0 +1,30 @@
+id: composite-nested
+
+
+inputs:
+  - id: composite-nested-in
+    node: operator-1
+    input: operator-1-in-1
+
+
+outputs:
+  - id: composite-nested-out
+    node: operator-2
+    output: operator-2-out
+
+
+operators:
+  - id: operator-1
+    descriptor: ./src/model/tests/operator-1.yml
+
+  - id: operator-2
+    descriptor: ./src/model/tests/operator-2.yml
+
+
+links:
+  - from:
+      node: operator-1
+      output: operator-1-out
+    to:
+      node: operator-2
+      input: operator-2-in

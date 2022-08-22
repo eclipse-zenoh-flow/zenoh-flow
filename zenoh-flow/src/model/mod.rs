@@ -19,6 +19,7 @@ pub mod node;
 
 use crate::types::{DurationDescriptor, NodeId, PortId};
 use crate::{model::link::PortDescriptor, zferror, zfresult::ErrorKind};
+use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -43,6 +44,42 @@ impl fmt::Display for OutputDescriptor {
     }
 }
 
+impl OutputDescriptor {
+    pub fn new(node: impl AsRef<str>, output: impl AsRef<str>) -> Self {
+        Self {
+            node: node.as_ref().into(),
+            output: output.as_ref().into(),
+        }
+    }
+}
+
+/// Describes an Output of a Composite Operator.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CompositeOutputDescriptor {
+    pub id: Arc<str>,
+    pub node: NodeId,
+    pub output: PortId,
+}
+
+impl CompositeOutputDescriptor {
+    pub fn new(id: impl AsRef<str>, node: impl AsRef<str>, output: impl AsRef<str>) -> Self {
+        Self {
+            id: id.as_ref().into(),
+            node: node.as_ref().into(),
+            output: output.as_ref().into(),
+        }
+    }
+}
+
+impl From<CompositeOutputDescriptor> for OutputDescriptor {
+    fn from(composite: CompositeOutputDescriptor) -> Self {
+        Self {
+            node: composite.node,
+            output: composite.output,
+        }
+    }
+}
+
 /// Describes one input
 ///
 /// Example:
@@ -60,6 +97,50 @@ pub struct InputDescriptor {
 impl fmt::Display for InputDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("{}.{}", self.node, self.input))
+    }
+}
+
+impl InputDescriptor {
+    pub fn new(node: impl AsRef<str>, input: impl AsRef<str>) -> Self {
+        Self {
+            node: node.as_ref().into(),
+            input: input.as_ref().into(),
+        }
+    }
+}
+
+impl From<CompositeInputDescriptor> for InputDescriptor {
+    fn from(composite: CompositeInputDescriptor) -> Self {
+        Self {
+            node: composite.node,
+            input: composite.input,
+        }
+    }
+}
+
+/// Describes an Input of a Composite Operator.
+///
+/// # Example
+///
+/// ```yaml
+/// id: UniquePortIdentifier
+/// node: Node
+/// input: Input
+/// ```
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct CompositeInputDescriptor {
+    pub id: Arc<str>,
+    pub node: NodeId,
+    pub input: PortId,
+}
+
+impl CompositeInputDescriptor {
+    pub fn new(id: impl AsRef<str>, node: impl AsRef<str>, input: impl AsRef<str>) -> Self {
+        Self {
+            id: id.as_ref().into(),
+            node: node.as_ref().into(),
+            input: input.as_ref().into(),
+        }
     }
 }
 

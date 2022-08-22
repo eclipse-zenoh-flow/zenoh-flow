@@ -24,6 +24,7 @@ use petgraph::graph::{EdgeIndex, NodeIndex};
 use petgraph::Graph;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
+use std::sync::Arc;
 
 /// `DataflowValidator` performs and allows performing verifications on the Dataflow graph.
 ///
@@ -199,8 +200,8 @@ impl DataflowValidator {
             .is_some()
         {
             return Err(zferror!(ErrorKind::DuplicatedPort((
-                node_id.clone(),
-                port.port_id.clone()
+                Arc::clone(&node_id),
+                Arc::clone(&port.port_id)
             )))
             .into());
         }

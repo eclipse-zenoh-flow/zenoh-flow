@@ -1,0 +1,13 @@
+id: operator-2
+
+uri: file://operator-2.so
+
+inputs:
+  - id: operator-2-in
+    type: _any_
+
+outputs:
+  - id: operator-2-out
+    type: _any_
+
+tags: []

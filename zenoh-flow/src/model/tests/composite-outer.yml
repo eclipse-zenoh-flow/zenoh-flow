@@ -1,0 +1,13 @@
+id: composite-outer
+
+uri: file://composite-outer.so
+
+inputs:
+  - id: composite-outer-in
+    type: _any_
+
+outputs:
+  - id: composite-outer-out
+    type: _any_
+
+tags: []

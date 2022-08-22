@@ -13,14 +13,18 @@
 //
 
 use crate::model::link::{LinkDescriptor, PortRecord};
-use crate::model::{InputDescriptor, OutputDescriptor, PortDescriptor};
+use crate::model::PortDescriptor;
 use crate::types::{merge_configurations, PortType};
 use crate::types::{Configuration, NodeId, RuntimeId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result;
 use async_recursion::async_recursion;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+use super::{CompositeInputDescriptor, CompositeOutputDescriptor};
 
 /// Describes a sink.
 ///
@@ -38,12 +42,13 @@ use serde::{Deserialize, Serialize};
 /// tags: [linux]
 /// ```
 ///
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SinkDescriptor {
     pub id: NodeId,
     pub inputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
+    pub flags: Option<Vec<String>>,
     pub tags: Vec<String>,
 }
 
@@ -107,12 +112,13 @@ impl SinkDescriptor {
 /// tags: []
 /// ```
 ///
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SourceDescriptor {
     pub id: NodeId,
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
+    pub flags: Option<Vec<String>>,
     pub tags: Vec<String>,
 }
 
@@ -179,13 +185,14 @@ impl SourceDescriptor {
 /// tags: [something]
 /// ```
 ///
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SimpleOperatorDescriptor {
     pub id: NodeId,
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
+    pub flags: Option<Vec<String>>,
     pub tags: Vec<String>,
 }
 
@@ -277,8 +284,8 @@ impl SimpleOperatorDescriptor {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CompositeOperatorDescriptor {
     pub id: NodeId,
-    pub inputs: Vec<InputDescriptor>,
-    pub outputs: Vec<OutputDescriptor>,
+    pub inputs: Vec<CompositeInputDescriptor>,
+    pub outputs: Vec<CompositeOutputDescriptor>,
     pub operators: Vec<NodeDescriptor>,
     pub links: Vec<LinkDescriptor>,
     pub configuration: Option<Configuration>,
@@ -330,142 +337,132 @@ impl CompositeOperatorDescriptor {
     /// Flattens the `CompositeOperatorDescriptor` by loading all the composite operators
     ///
     ///  # Errors
-    /// A variant error is returned if loading operators fails. Or if the
-    ///  node does not contains an operator
+    /// A variant error is returned if loading operators fails. Or if the node does not contains an
+    /// operator.
     #[async_recursion]
-    pub async fn flatten(
+    pub(crate) async fn flatten(
         mut self,
-        id: NodeId,
+        composite_id: NodeId,
+        links: &mut Vec<LinkDescriptor>,
         global_configuration: Option<Configuration>,
-    ) -> Result<(
-        Vec<SimpleOperatorDescriptor>,
-        Vec<LinkDescriptor>,
-        Vec<InputDescriptor>,
-        Vec<OutputDescriptor>,
-    )> {
+    ) -> Result<Vec<SimpleOperatorDescriptor>> {
         let mut simple_operators = vec![];
-        // let mut links = vec![];
+
         for o in self.operators {
-            let descriptor_path = async_std::fs::read_to_string(&o.descriptor).await?;
-            log::trace!("Loading operator {}", o.descriptor);
-            // We try to load the descriptor, first we try as simple one, if it fails
-            // we try as a composite one, if that also fails it is malformed.
-            match SimpleOperatorDescriptor::from_yaml(&descriptor_path) {
-                Ok(mut desc) => {
-                    log::trace!("This is a simple operator");
-                    // Creating a new ID
-                    let new_id: NodeId = format!("{}-{}", id, o.id).into();
+            let description = async_std::fs::read_to_string(&o.descriptor).await?;
 
-                    // Updating all the links with the old id to the new ID
-                    for l in &mut self.links {
-                        if l.from.node == o.id {
-                            log::trace!("Updating {} to {}", l.from.node, new_id);
-                            l.from.node = new_id.clone();
-                        }
-                        if l.to.node == o.id {
-                            log::trace!("Updating {} to {}", l.to.node, new_id);
-                            l.to.node = new_id.clone();
-                        }
+            let res_simple = SimpleOperatorDescriptor::from_yaml(&description);
+            if let Ok(mut simple_operator) = res_simple {
+                let new_id: NodeId = format!("{}/{}", composite_id, o.id).into();
 
-                        // Adding in the list of links
-                        // links.push(l.clone());
+                let output_ids: HashMap<_, _> = self
+                    .outputs
+                    .iter()
+                    .filter(|&output| output.node == o.id)
+                    .map(|output| (&output.id, &output.output))
+                    .collect();
+
+                let input_ids: HashMap<_, _> = self
+                    .inputs
+                    .iter()
+                    .filter(|&input| input.node == o.id)
+                    .map(|input| (&input.id, &input.input))
+                    .collect();
+
+                // Updating all the links with the old id to the new ID
+                for l in &mut self.links {
+                    if l.from.node == o.id {
+                        log::trace!("Updating {} to {}", l.from.node, new_id);
+                        l.from.node = new_id.clone();
                     }
-
-                    for i in &mut self.inputs {
-                        if i.node == o.id {
-                            i.node = new_id.clone();
-                        }
-                    }
-
-                    for out in &mut self.outputs {
-                        if out.node == o.id {
-                            out.node = new_id.clone();
-                        }
-                    }
-
-                    // Updating the new id
-                    desc.id = new_id;
-
-                    desc.configuration = merge_configurations(
-                        global_configuration.clone(),
-                        merge_configurations(desc.configuration, self.configuration.clone()),
-                    );
-
-                    // Adding in the list of operators
-                    simple_operators.push(desc);
-                }
-                Err(_) => {
-                    log::trace!("Try as composite one {}", o.descriptor);
-                    match CompositeOperatorDescriptor::from_yaml(&descriptor_path) {
-                        Ok(desc) => {
-                            log::trace!("This is a composite operator");
-                            let new_id: NodeId = format!("{}-{}", id, o.id).into();
-                            match desc
-                                .flatten(new_id.clone(), global_configuration.clone())
-                                .await
-                            {
-                                Ok((ds, ls, ins, outs)) => {
-                                    // Adding the result in the list of operators
-                                    // and links
-                                    simple_operators.extend(ds);
-                                    self.links.extend(ls);
-
-                                    // Updating the links
-                                    for l in &mut self.links {
-                                        if l.to.node == o.id {
-                                            let matching_input = ins
-                                                .iter()
-                                                .find(|x| x.node.starts_with(&*new_id))
-                                                .ok_or_else(|| {
-                                                    zferror!(ErrorKind::NodeNotFound(
-                                                        new_id.clone()
-                                                    ))
-                                                })?;
-                                            l.to.node = matching_input.node.clone();
-                                        }
-
-                                        if l.from.node == o.id {
-                                            let matching_output = outs
-                                                .iter()
-                                                .find(|x| x.node.starts_with(&*new_id))
-                                                .ok_or_else(|| {
-                                                    zferror!(ErrorKind::NodeNotFound(
-                                                        new_id.clone()
-                                                    ))
-                                                })?;
-                                            l.from.node = matching_output.node.clone();
-                                        }
-                                    }
-
-                                    // Updating inputs and outputs
-                                    for i in &mut self.inputs {
-                                        if i.node == o.id {
-                                            i.node = new_id.clone();
-                                        }
-                                    }
-
-                                    for out in &mut self.outputs {
-                                        if out.node == o.id {
-                                            out.node = new_id.clone();
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    log::warn!("Unable to flatten {}, error {}", o.id, e);
-                                    return Err(e);
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            log::warn!("Unable to flatten {}, error {}", self.id, e);
-                            return Err(e);
-                        }
+                    if l.to.node == o.id {
+                        log::trace!("Updating {} to {}", l.to.node, new_id);
+                        l.to.node = new_id.clone();
                     }
                 }
+
+                links
+                    .iter_mut()
+                    .filter(|link| {
+                        link.from.node == composite_id
+                            && output_ids.keys().contains(&&link.from.output)
+                    })
+                    .for_each(|link| {
+                        link.from.node = new_id.clone();
+                        link.from.output = (*output_ids.get(&&link.from.output).unwrap()).clone();
+                    });
+
+                links
+                    .iter_mut()
+                    .filter(|link| {
+                        link.to.node == composite_id && input_ids.keys().contains(&&link.to.input)
+                    })
+                    .for_each(|link| {
+                        link.to.node = new_id.clone();
+                        link.to.input = (*input_ids.get(&&link.to.input).unwrap()).clone();
+                    });
+
+                // Updating the new id
+                simple_operator.id = new_id;
+
+                simple_operator.configuration = merge_configurations(
+                    global_configuration.clone(),
+                    merge_configurations(simple_operator.configuration, self.configuration.clone()),
+                );
+
+                // Adding in the list of operators
+                simple_operators.push(simple_operator);
+
+                continue;
             }
+
+            let res_composite = CompositeOperatorDescriptor::from_yaml(&description);
+            if let Ok(composite_operator) = res_composite {
+                let mut operators = composite_operator
+                    .flatten(o.id, &mut self.links, global_configuration.clone())
+                    .await?;
+
+                for operator in operators.iter_mut() {
+                    let new_id: NodeId = format!("{}/{}", composite_id, operator.id).into();
+                    self.links
+                        .iter_mut()
+                        .filter(|link| link.from.node == operator.id || link.to.node == operator.id)
+                        .for_each(|link| {
+                            if link.from.node == operator.id {
+                                link.from.node = new_id.clone();
+                            }
+                            if link.to.node == operator.id {
+                                link.to.node = new_id.clone();
+                            }
+                        });
+
+                    operator.id = new_id;
+                }
+
+                simple_operators.append(&mut operators);
+
+                continue;
+            }
+
+            // If we arrive at that code it means that both attempts to parse the descriptor failed.
+            log::error!(
+                "Could not parse < {} > as either a Simple or a Composite Operator:",
+                o.descriptor
+            );
+            log::error!("Simple: {:?}", res_simple.err().unwrap());
+            log::error!("Composite: {:?}", res_composite.err().unwrap());
+
+            return Err(zferror!(
+                ErrorKind::ParsingError,
+                "Could not parse < {} >",
+                o.descriptor
+            )
+            .into());
         }
 
-        Ok((simple_operators, self.links, self.inputs, self.outputs))
+        links.append(&mut self.links);
+
+        Ok(simple_operators)
     }
 }
 
@@ -481,6 +478,7 @@ impl CompositeOperatorDescriptor {
 pub struct NodeDescriptor {
     pub id: NodeId,
     pub descriptor: String,
+    pub flags: Option<Vec<String>>,
     pub configuration: Option<Configuration>,
 }
 
@@ -539,52 +537,37 @@ impl NodeDescriptor {
     pub async fn flatten(
         self,
         id: NodeId,
+        links: &mut Vec<LinkDescriptor>,
         global_configuration: Option<Configuration>,
-    ) -> Result<(
-        Vec<SimpleOperatorDescriptor>,
-        Vec<LinkDescriptor>,
-        Vec<InputDescriptor>,
-        Vec<OutputDescriptor>,
-    )> {
-        let descriptor_path = async_std::fs::read_to_string(&self.descriptor).await?;
-        log::trace!("Loading operator {}", self.descriptor);
-        // We try to load the descriptor, first we try as simple one, if it fails
-        // we try as a composite one, if that also fails it is malformed.
-        match SimpleOperatorDescriptor::from_yaml(&descriptor_path) {
-            Ok(mut desc) => {
-                desc.id = id;
-                desc.configuration = merge_configurations(
-                    global_configuration,
-                    merge_configurations(desc.configuration, self.configuration.clone()),
-                );
-                let ins = desc
-                    .inputs
-                    .iter()
-                    .map(|e| InputDescriptor {
-                        node: desc.id.clone(),
-                        input: e.port_id.clone(),
-                    })
-                    .collect();
-                let outs = desc
-                    .outputs
-                    .iter()
-                    .map(|e| OutputDescriptor {
-                        node: desc.id.clone(),
-                        output: e.port_id.clone(),
-                    })
-                    .collect();
-                Ok((vec![desc], vec![], ins, outs))
-            }
-            Err(_) => match CompositeOperatorDescriptor::from_yaml(&descriptor_path) {
-                Ok(desc) => desc.flatten(id, global_configuration).await,
-                Err(e) => {
-                    log::warn!("Unable to flatten {}, error {}", self.id, e);
-                    Err(e)
-                }
-            },
+    ) -> Result<Vec<SimpleOperatorDescriptor>> {
+        let description = async_std::fs::read_to_string(&self.descriptor).await?;
+
+        // We try to load the descriptor, first we try as simple one, if it fails we try as a
+        // composite one, if that also fails it is malformed.
+        let res_simple = SimpleOperatorDescriptor::from_yaml(&description);
+        if let Ok(simple_operator) = res_simple {
+            // TODO Handle configuration
+            // TODO Handle flags
+            return Ok(vec![simple_operator]);
         }
 
-        // Err(ErrorKind::Unimplemented)
+        let res_composite = CompositeOperatorDescriptor::from_yaml(&description);
+        if let Ok(composite_operator) = res_composite {
+            return composite_operator
+                .flatten(id, links, global_configuration)
+                .await;
+        }
+
+        log::error!("Could not parse operator < {} >", self.descriptor);
+        log::error!("(Operator) {:?}", res_simple.err().unwrap());
+        log::error!("(Composite) {:?}", res_composite.err().unwrap());
+
+        Err(zferror!(
+            ErrorKind::ParsingError,
+            "Could not parse operator < {} >",
+            self.descriptor
+        )
+        .into())
     }
 
     /// Loads the source from the `NodeDescriptor`
@@ -604,6 +587,7 @@ impl NodeDescriptor {
             Ok(mut desc) => {
                 desc.id = self.id;
                 desc.configuration = merge_configurations(global_configuration, desc.configuration);
+                desc.flags = self.flags;
                 Ok(desc)
             }
             Err(e) => {
@@ -631,6 +615,7 @@ impl NodeDescriptor {
             Ok(mut desc) => {
                 desc.id = self.id;
                 desc.configuration = merge_configurations(global_configuration, desc.configuration);
+                desc.flags = self.flags;
                 Ok(desc)
             }
             Err(e) => {
@@ -732,3 +717,7 @@ impl OperatorRecord {
             .map(|lid| &lid.port_type)
     }
 }
+
+#[cfg(test)]
+#[path = "./tests/flatten-composite.rs"]
+mod tests;

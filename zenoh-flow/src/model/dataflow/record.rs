@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 use uuid::Uuid;
 
 /// A `DataFlowRecord` is an instance of a [`FlattenDataFlowDescriptor`](`FlattenDataFlowDescriptor`).
@@ -221,8 +222,8 @@ impl DataFlowRecord {
                 && to_type.as_ref() != PORT_TYPE_ANY
             {
                 return Err(zferror!(ErrorKind::PortTypeNotMatching((
-                    from_type.clone(),
-                    to_type.clone(),
+                    Arc::clone(from_type),
+                    Arc::clone(&to_type),
                 )))
                 .into());
             }

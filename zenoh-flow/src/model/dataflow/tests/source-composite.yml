@@ -1,0 +1,11 @@
+id: source-composite
+
+uri: file://source-composite.so
+
+outputs:
+  - id: source-composite-out-1
+    type: _any_
+  - id: source-composite-out-2
+    type: _any_
+
+tags: []

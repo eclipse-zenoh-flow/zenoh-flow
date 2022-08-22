@@ -1,0 +1,9 @@
+id: source-2
+
+uri: file://source-2.so
+
+outputs:
+  - id: source-2-out
+    type: _any_
+
+tags: []

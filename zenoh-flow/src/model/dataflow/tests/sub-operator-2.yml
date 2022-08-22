@@ -1,0 +1,15 @@
+id: sub-operator-2
+
+uri: file://sub-operator-2.so
+
+inputs:
+  - id: sub-operator-2-in
+    type: _any_
+
+outputs:
+  - id: sub-operator-2-out-1
+    type: _any_
+  - id: sub-operator-2-out-2
+    type: _any_
+
+tags: []

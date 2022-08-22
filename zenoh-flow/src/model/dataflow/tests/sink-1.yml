@@ -1,0 +1,9 @@
+id: sink-1
+
+uri: file://sink-1.so
+
+inputs:
+  - id: sink-1-in
+    type: _any_
+
+tags: []

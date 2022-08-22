@@ -132,75 +132,54 @@ impl DataFlowDescriptor {
     /// returns the [`FlattenDataFlowDescriptor`](`FlattenDataFlowDescriptor`)
     ///
     ///  # Errors
-    // /// A variant error is returned if loading operators fails.
+    /// A variant error is returned if loading operators fails.
     pub async fn flatten(self) -> Result<FlattenDataFlowDescriptor> {
-        let mut sources = vec![];
-        let mut sinks = vec![];
-        let mut operators = vec![];
-        let mut links = vec![];
-
-        // first adding back all the links
-        for l in self.links {
-            links.push(l);
-        }
-
-        // loading sources
-        for s in self.sources {
-            let config =
-                merge_configurations(self.global_configuration.clone(), s.configuration.clone());
-            sources.push(s.load_source(config).await?);
-        }
-
-        // loading sinks
-        for s in self.sinks {
-            let config =
-                merge_configurations(self.global_configuration.clone(), s.configuration.clone());
-            sinks.push(s.load_sink(config).await?);
-        }
-
-        // loading operators
-        for o in self.operators {
-            let config =
-                merge_configurations(self.global_configuration.clone(), o.configuration.clone());
-            let oid = o.id.clone();
-            let (ops, lnks, ins, outs) = o.flatten(oid.clone(), config).await?;
-
-            operators.extend(ops);
-            links.extend(lnks);
-
-            // Updating the links
-            for l in &mut links {
-                if l.to.node == oid {
-                    let matching_input = ins
-                        .iter()
-                        .find(|x| x.node.starts_with(&*oid))
-                        .ok_or_else(|| zferror!(ErrorKind::NodeNotFound(oid.clone())))?;
-                    l.to.node = matching_input.node.clone();
-                }
-
-                if l.from.node == oid {
-                    let matching_output = outs
-                        .iter()
-                        .find(|x| x.node.starts_with(&*oid))
-                        .ok_or_else(|| zferror!(ErrorKind::NodeNotFound(oid.clone())))?;
-                    l.from.node = matching_output.node.clone();
-                }
-            }
-        }
-
-        Ok(FlattenDataFlowDescriptor {
-            flow: self.flow,
+        let Self {
+            flow,
             operators,
             sources,
             sinks,
+            mut links,
+            mapping,
+            global_configuration,
+            flags,
+        } = self;
+
+        let mut flattened_sources = Vec::with_capacity(sources.len());
+        for source in sources {
+            let config =
+                merge_configurations(global_configuration.clone(), source.configuration.clone());
+            flattened_sources.push(source.load_source(config).await?);
+        }
+
+        let mut flattened_sinks = Vec::with_capacity(sinks.len());
+        for sink in sinks {
+            let config =
+                merge_configurations(global_configuration.clone(), sink.configuration.clone());
+            flattened_sinks.push(sink.load_sink(config).await?);
+        }
+
+        let mut flattened_operators = Vec::new();
+        for operator in operators {
+            let config =
+                merge_configurations(global_configuration.clone(), operator.configuration.clone());
+
+            let id = operator.id.clone();
+            let mut flattened = operator.flatten(id, &mut links, config).await?;
+            flattened_operators.append(&mut flattened);
+        }
+
+        Ok(FlattenDataFlowDescriptor {
+            flow,
+            sources: flattened_sources,
+            sinks: flattened_sinks,
+            operators: flattened_operators,
             links,
-            mapping: None,
-            global_configuration: self.global_configuration.clone(),
-            flags: None,
+            mapping,
+            global_configuration,
+            flags,
         })
     }
-
-    // }
 }
 
 impl Hash for DataFlowDescriptor {
@@ -316,3 +295,7 @@ impl PartialEq for FlattenDataFlowDescriptor {
 }
 
 impl Eq for FlattenDataFlowDescriptor {}
+
+#[cfg(test)]
+#[path = "./tests/descriptor.rs"]
+mod tests;

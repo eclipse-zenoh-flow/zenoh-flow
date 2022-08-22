@@ -1,0 +1,16 @@
+id: operator-1
+
+uri: file://operator-1.so
+
+inputs:
+  - id: operator-1-in-1
+    type: _any_
+
+  - id: operator-1-in-2
+    type: _any_
+
+outputs:
+  - id: operator-1-out
+    type: _any_
+
+tags: []

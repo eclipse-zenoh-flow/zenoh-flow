@@ -1,0 +1,30 @@
+id: sub-operator-composite
+
+
+inputs:
+  - id: sub-operator-composite-in
+    node: sub-sub-operator-1
+    input: sub-sub-operator-1-in
+
+
+outputs:
+  - id: sub-operator-composite-out
+    node: sub-sub-operator-2
+    output: sub-sub-operator-2-out
+
+
+operators:
+  - id: sub-sub-operator-1
+    descriptor: ./src/model/dataflow/tests/sub-sub-operator-1.yml
+
+  - id: sub-sub-operator-2
+    descriptor: ./src/model/dataflow/tests/sub-sub-operator-2.yml
+
+
+links:
+  - from:
+      node: sub-sub-operator-1
+      output: sub-sub-operator-1-out
+    to:
+      node: sub-sub-operator-2
+      input: sub-sub-operator-2-in

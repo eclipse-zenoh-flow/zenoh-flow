@@ -1,0 +1,11 @@
+id: sink-composite
+
+uri: file://sink-composite.so
+
+inputs:
+  - id: sink-composite-in-1
+    type: _any_
+  - id: sink-composite-in-2
+    type: _any_
+
+tags: []
