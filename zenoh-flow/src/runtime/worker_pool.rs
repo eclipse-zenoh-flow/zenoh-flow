@@ -24,15 +24,19 @@ use futures::stream::{AbortHandle, Abortable, Aborted};
 use uhlc::HLC;
 use uuid::Uuid;
 
+/// The trait of the different workers implementations.
 #[async_trait]
 pub trait WorkerTrait: Send + Sync {
     async fn run(&self) -> ZFResult<()>;
 }
 
+/// The trait for the function creating a new worker.
 pub trait FnNewWorkerTrait: Send + Sync {
     fn call(&self, id: usize, rx: Arc<Receiver<Job>>, hlc: Arc<HLC>) -> Box<dyn WorkerTrait>;
 }
 
+/// This impl allows to create a [`FnNewWorkerTrait`](`FnNewWorkerTrait`) from
+/// an `FnOnce(usize, Arc<Receiver<Job>>, Arc<HLC>)`.
 impl<F> FnNewWorkerTrait for F
 where
     F: FnOnce(usize, Arc<Receiver<Job>>, Arc<HLC>) -> Box<dyn WorkerTrait> + Clone + Send + Sync,
@@ -42,8 +46,8 @@ where
     }
 }
 
+/// Type alias for the function used to create new workers.
 pub type FnNewWorker = Arc<dyn FnNewWorkerTrait>;
-//Box<dyn Fn(usize, Arc<Receiver<Job>>, Arc<HLC>) -> Box<dyn WorkerTrait>>;
 
 pub struct WorkerPool {
     rtid: Uuid,
@@ -128,7 +132,7 @@ impl WorkerPool {
                     Some(job) => {
                         // Receiving a Job and sending to the workers via the
                         // flume channel
-                        log::info!("[Job Queue: {c_id:?}] Received Job {job:?}");
+                        log::trace!("[Job Queue: {c_id:?}] Received Job {job:?}");
                         c_tx.send_async(job).await?;
                     }
                     None => (),
@@ -175,9 +179,36 @@ impl WorkerPool {
         }
     }
 
-    pub async fn submit_instantiate(&self, dfd: &FlattenDataFlowDescriptor) -> ZFResult<Job> {
+    pub async fn submit_instantiate(
+        &self,
+        dfd: &FlattenDataFlowDescriptor,
+        instance_id: &Uuid,
+    ) -> ZFResult<Job> {
         let jid = Uuid::new_v4();
-        let job = Job::new_instantiate(dfd.clone(), jid.clone(), self.hlc.new_timestamp());
+        let job = Job::new_instantiate(
+            dfd.clone(),
+            instance_id.clone(),
+            jid.clone(),
+            self.hlc.new_timestamp(),
+        );
+
+        self.session.add_submitted_job(&self.rtid, &job).await?;
+
+        Ok(job)
+    }
+
+    pub async fn submit_create(
+        &self,
+        dfd: &FlattenDataFlowDescriptor,
+        instance_id: &Uuid,
+    ) -> ZFResult<Job> {
+        let jid = Uuid::new_v4();
+        let job = Job::new_create(
+            dfd.clone(),
+            instance_id.clone(),
+            jid.clone(),
+            self.hlc.new_timestamp(),
+        );
 
         self.session.add_submitted_job(&self.rtid, &job).await?;
 

@@ -193,9 +193,9 @@ pub struct RuntimeConfig {
 /// [^note]: This enum is not exhaustive yet, it will evolve in the future
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum JobKind {
-    CreateInstance(FlattenDataFlowDescriptor),
+    CreateInstance(FlattenDataFlowDescriptor, Uuid),
     DeleteInstance(Uuid),
-    Instantiate(FlattenDataFlowDescriptor),
+    Instantiate(FlattenDataFlowDescriptor, Uuid),
     Teardown(Uuid),
 }
 
@@ -218,10 +218,29 @@ pub struct Job {
 }
 
 impl Job {
-    fn new_instantiate(dfd: FlattenDataFlowDescriptor, id: Uuid, ts: Timestamp) -> Self {
+    fn new_instantiate(
+        dfd: FlattenDataFlowDescriptor,
+        instance_id: Uuid,
+        id: Uuid,
+        ts: Timestamp,
+    ) -> Self {
         Self {
             id,
-            job: JobKind::Instantiate(dfd),
+            job: JobKind::Instantiate(dfd, instance_id),
+            status: JobStatus::Submitted(ts),
+            assignee: None,
+        }
+    }
+
+    fn new_create(
+        dfd: FlattenDataFlowDescriptor,
+        instance_id: Uuid,
+        id: Uuid,
+        ts: Timestamp,
+    ) -> Self {
+        Self {
+            id,
+            job: JobKind::CreateInstance(dfd, instance_id),
             status: JobStatus::Submitted(ts),
             assignee: None,
         }
@@ -258,6 +277,19 @@ impl Job {
 
     pub fn assign(&mut self, assignee: usize) {
         self.assignee.replace(assignee);
+    }
+
+    pub fn started(&mut self, assignee: usize, ts: Timestamp) {
+        self.assignee.replace(assignee);
+        self.status = JobStatus::Started(ts);
+    }
+
+    pub fn done(&mut self, ts: Timestamp) {
+        self.status = JobStatus::Done(ts);
+    }
+
+    pub fn failed(&mut self, ts: Timestamp, error_description: String) {
+        self.status = JobStatus::Failed(ts, error_description)
     }
 }
 

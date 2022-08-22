@@ -17,13 +17,10 @@ use std::convert::TryFrom;
 use std::fs;
 use std::path::Path;
 
-use async_trait::async_trait;
-
 use async_std::sync::Mutex;
-use flume::Receiver;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use uhlc::{HLCBuilder, HLC, ID};
+use uhlc::{HLCBuilder, ID};
 use uuid::Uuid;
 use zenoh::prelude::*;
 use zenoh_flow::model::dataflow::descriptor::FlattenDataFlowDescriptor;
@@ -41,7 +38,7 @@ use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::worker_pool::{WorkerPool, WorkerTrait};
 use zenoh_flow::runtime::{
-    Job, Runtime, RuntimeClient, RuntimeConfig, RuntimeContext, RuntimeInfo, RuntimeStatus,
+    Runtime, RuntimeClient, RuntimeConfig, RuntimeContext, RuntimeInfo, RuntimeStatus,
     RuntimeStatusKind,
 };
 use zenoh_flow::DaemonResult;
@@ -49,6 +46,7 @@ use zrpc::ZServe;
 use zrpc_macros::znserver;
 
 use crate::util::{get_zenoh_config, read_file};
+use crate::worker::Worker;
 
 /// The daemon configuration file.
 /// The daemon loads this file and uses the informations it contains to
@@ -90,14 +88,178 @@ pub struct Daemon {
     pub ctx: RuntimeContext,
 }
 
+/// Gets the machine Uuid.
+///
+/// # Errors
+/// Returns an error variant if unable to get or parse the Uuid.
+pub fn get_machine_uuid() -> ZFResult<Uuid> {
+    let machine_id_raw =
+        machine_uid::get().map_err(|e| zferror!(ErrorKind::ParsingError, "{}", e))?;
+    let node_str: &str = &machine_id_raw;
+    Uuid::parse_str(node_str).map_err(|e| zferror!(ErrorKind::ParsingError, e).into())
+}
+
+/// Creates a new `Daemon` from a configuration file.
+///
+/// # Errors
+/// This function can fail if:
+/// - unable to configure zenoh.
+/// - unable to get the machine hostname.
+/// - unable to get the machine uuid.
+/// - unable to open the zenoh session.
+impl TryFrom<DaemonConfig> for Daemon {
+    type Error = zenoh_flow::prelude::Error;
+
+    fn try_from(config: DaemonConfig) -> std::result::Result<Self, Self::Error> {
+        // If Uuid is not specified uses machine id.
+        let uuid = match &config.uuid {
+            Some(u) => *u,
+            None => get_machine_uuid()?,
+        };
+
+        // If name is not specified uses hostname.
+        let name = match &config.name {
+            Some(n) => n.clone(),
+            None => String::from(
+                hostname::get()?
+                    .to_str()
+                    .ok_or_else(|| zferror!(ErrorKind::GenericError))?,
+            ),
+        };
+
+        // Loading Zenoh configuration
+        let zconfig = get_zenoh_config(&config.zenoh_config)?;
+
+        // Generates the loader configuration.
+        let mut extensions = LoaderConfig::new();
+
+        let ext_dir = Path::new(&config.extensions);
+
+        // Loading extensions, if an error happens, we do not return
+        // instead we log it.
+        if ext_dir.is_dir() {
+            let ext_dir_entries = fs::read_dir(ext_dir)?;
+            for entry in ext_dir_entries {
+                match entry {
+                    Ok(entry) => {
+                        let entry_path = entry.path();
+                        if entry_path.is_file() {
+                            match entry_path.extension() {
+                                Some(entry_ext) => {
+                                    if entry_ext != EXT_FILE_EXTENSION {
+                                        log::warn!(
+                                            "Skipping {} as it does not match the extension {}",
+                                            entry_path.display(),
+                                            EXT_FILE_EXTENSION
+                                        );
+                                        continue;
+                                    }
+
+                                    // Read the files.
+
+                                    match read_file(&entry_path) {
+                                        Ok(ext_file_content) => {
+                                            match serde_yaml::from_str::<ExtensibleImplementation>(
+                                                &ext_file_content,
+                                            ) {
+                                                Ok(ext) => {
+                                                    match extensions.try_add_extension(ext) {
+                                                        Ok(_) => log::info!(
+                                                            "Loaded extension {}",
+                                                            entry_path.display()
+                                                        ),
+                                                        Err(e) => log::warn!(
+                                                            "Unable to load extension {}: {}",
+                                                            entry_path.display(),
+                                                            e
+                                                        ),
+                                                    }
+                                                }
+                                                Err(e) => log::warn!(
+                                                    "Unable to parse extension file {}: {}",
+                                                    entry_path.display(),
+                                                    e
+                                                ),
+                                            }
+                                        }
+                                        Err(e) => log::warn!(
+                                            "Unable to read extension file {}: {}",
+                                            entry_path.display(),
+                                            e
+                                        ),
+                                    }
+                                }
+                                None => log::warn!(
+                                    "Skipping {} as it as no extension",
+                                    entry_path.display()
+                                ),
+                            }
+                        } else {
+                            log::warn!("Skipping {} as it is not a file", entry_path.display());
+                        }
+                    }
+                    Err(e) => log::warn!("Unable to access extension file: {}", e),
+                }
+            }
+        } else {
+            log::warn!(
+                "The extension parameter: {} is not a directory",
+                ext_dir.display()
+            );
+        }
+
+        // Generates the RuntimeConfig
+        let rt_config = RuntimeConfig {
+            pid_file: config.pid_file,
+            path: config.path,
+            name,
+            uuid,
+            zenoh: zconfig.clone(),
+            loader: extensions.clone(),
+        };
+
+        // Creates the zenoh session.
+        let session = Arc::new(zenoh::open(zconfig).wait()?);
+
+        // Creates the HLC.
+        let uhlc_id = ID::try_from(uuid.as_bytes())
+            .map_err(|e| zferror!(ErrorKind::InvalidData, "Unable to create ID {:?}", e))?;
+        let hlc = Arc::new(HLCBuilder::new().with_id(uhlc_id).build());
+
+        // Creates the loader.
+        let loader = Arc::new(Loader::new(extensions));
+
+        let ctx = RuntimeContext {
+            session: session.clone(),
+            hlc,
+            loader,
+            runtime_name: rt_config.name.clone().into(),
+            runtime_uuid: uuid,
+        };
+
+        Ok(Self::new(session, ctx, rt_config))
+    }
+}
+
 impl Daemon {
     /// Creates a new `Daemon` from the given parameters.
     pub fn new(z: Arc<zenoh::Session>, ctx: RuntimeContext, config: RuntimeConfig) -> Self {
         let store = DataStore::new(z);
 
-        let c_store = store.clone();
+        let state = Arc::new(Mutex::new(RTState {
+            graphs: HashMap::new(),
+            config: config.clone(),
+        }));
+
+        let daemon = Self {
+            store: store.clone(),
+            ctx: ctx.clone(),
+            state,
+        };
+
+        let c_daemon = daemon.clone();
         let new_worker = Arc::new(move |id, rx, hlc| {
-            Box::new(Worker::new(id, rx, hlc, c_store)) as Box<dyn WorkerTrait>
+            Box::new(Worker::new(id, rx, hlc, c_daemon)) as Box<dyn WorkerTrait>
         });
 
         let mut workers = WorkerPool::new(
@@ -120,12 +282,7 @@ impl Daemon {
             }
         });
 
-        let state = Arc::new(Mutex::new(RTState {
-            graphs: HashMap::new(),
-            config,
-        }));
-
-        Self { store, ctx, state }
+        daemon
     }
 
     /// The daemon run.
@@ -283,163 +440,9 @@ impl Daemon {
 
         Ok(())
     }
-}
 
-/// Gets the machine Uuid.
-///
-/// # Errors
-/// Returns an error variant if unable to get or parse the Uuid.
-pub fn get_machine_uuid() -> ZFResult<Uuid> {
-    let machine_id_raw =
-        machine_uid::get().map_err(|e| zferror!(ErrorKind::ParsingError, "{}", e))?;
-    let node_str: &str = &machine_id_raw;
-    Uuid::parse_str(node_str).map_err(|e| zferror!(ErrorKind::ParsingError, e).into())
-}
+    // Zenoh Flow runtime operations
 
-/// Creates a new `Daemon` from a configuration file.
-///
-/// # Errors
-/// This function can fail if:
-/// - unable to configure zenoh.
-/// - unable to get the machine hostname.
-/// - unable to get the machine uuid.
-/// - unable to open the zenoh session.
-impl TryFrom<DaemonConfig> for Daemon {
-    type Error = zenoh_flow::prelude::Error;
-
-    fn try_from(config: DaemonConfig) -> std::result::Result<Self, Self::Error> {
-        // If Uuid is not specified uses machine id.
-        let uuid = match &config.uuid {
-            Some(u) => *u,
-            None => get_machine_uuid()?,
-        };
-
-        // If name is not specified uses hostname.
-        let name = match &config.name {
-            Some(n) => n.clone(),
-            None => String::from(
-                hostname::get()?
-                    .to_str()
-                    .ok_or_else(|| zferror!(ErrorKind::GenericError))?,
-            ),
-        };
-
-        // Loading Zenoh configuration
-        let zconfig = get_zenoh_config(&config.zenoh_config)?;
-
-        // Generates the loader configuration.
-        let mut extensions = LoaderConfig::new();
-
-        let ext_dir = Path::new(&config.extensions);
-
-        // Loading extensions, if an error happens, we do not return
-        // instead we log it.
-        if ext_dir.is_dir() {
-            let ext_dir_entries = fs::read_dir(ext_dir)?;
-            for entry in ext_dir_entries {
-                match entry {
-                    Ok(entry) => {
-                        let entry_path = entry.path();
-                        if entry_path.is_file() {
-                            match entry_path.extension() {
-                                Some(entry_ext) => {
-                                    if entry_ext != EXT_FILE_EXTENSION {
-                                        log::warn!(
-                                            "Skipping {} as it does not match the extension {}",
-                                            entry_path.display(),
-                                            EXT_FILE_EXTENSION
-                                        );
-                                        continue;
-                                    }
-
-                                    // Read the files.
-
-                                    match read_file(&entry_path) {
-                                        Ok(ext_file_content) => {
-                                            match serde_yaml::from_str::<ExtensibleImplementation>(
-                                                &ext_file_content,
-                                            ) {
-                                                Ok(ext) => {
-                                                    match extensions.try_add_extension(ext) {
-                                                        Ok(_) => log::info!(
-                                                            "Loaded extension {}",
-                                                            entry_path.display()
-                                                        ),
-                                                        Err(e) => log::warn!(
-                                                            "Unable to load extension {}: {}",
-                                                            entry_path.display(),
-                                                            e
-                                                        ),
-                                                    }
-                                                }
-                                                Err(e) => log::warn!(
-                                                    "Unable to parse extension file {}: {}",
-                                                    entry_path.display(),
-                                                    e
-                                                ),
-                                            }
-                                        }
-                                        Err(e) => log::warn!(
-                                            "Unable to read extension file {}: {}",
-                                            entry_path.display(),
-                                            e
-                                        ),
-                                    }
-                                }
-                                None => log::warn!(
-                                    "Skipping {} as it as no extension",
-                                    entry_path.display()
-                                ),
-                            }
-                        } else {
-                            log::warn!("Skipping {} as it is not a file", entry_path.display());
-                        }
-                    }
-                    Err(e) => log::warn!("Unable to access extension file: {}", e),
-                }
-            }
-        } else {
-            log::warn!(
-                "The extension parameter: {} is not a directory",
-                ext_dir.display()
-            );
-        }
-
-        // Generates the RuntimeConfig
-        let rt_config = RuntimeConfig {
-            pid_file: config.pid_file,
-            path: config.path,
-            name,
-            uuid,
-            zenoh: zconfig.clone(),
-            loader: extensions.clone(),
-        };
-
-        // Creates the zenoh session.
-        let session = Arc::new(zenoh::open(zconfig).wait()?);
-
-        // Creates the HLC.
-        let uhlc_id = ID::try_from(uuid.as_bytes())
-            .map_err(|e| zferror!(ErrorKind::InvalidData, "Unable to create ID {:?}", e))?;
-        let hlc = Arc::new(HLCBuilder::new().with_id(uhlc_id).build());
-
-        // Creates the loader.
-        let loader = Arc::new(Loader::new(extensions));
-
-        let ctx = RuntimeContext {
-            session: session.clone(),
-            hlc,
-            loader,
-            runtime_name: rt_config.name.clone().into(),
-            runtime_uuid: uuid,
-        };
-
-        Ok(Self::new(session, ctx, rt_config))
-    }
-}
-
-#[znserver]
-impl Runtime for Daemon {
     async fn create_instance(
         &self,
         flow: FlattenDataFlowDescriptor,
@@ -724,48 +727,49 @@ impl Runtime for Daemon {
         Ok(record)
     }
 
-    async fn start(&self, record_id: Uuid) -> DaemonResult<()> {
-        log::info!(
-            "Starting nodes (not sources) for Instance UUID: {}",
-            record_id
-        );
+    // async fn start_instance(&self, record_id: Uuid) -> DaemonResult<()> {
+    //     log::info!(
+    //         "Starting nodes (not sources) for Instance UUID: {}",
+    //         record_id
+    //     );
 
-        let mut _state = self.state.lock().await;
+    //     let mut _state = self.state.lock().await;
 
-        let mut rt_status = self
-            .store
-            .get_runtime_status(&self.ctx.runtime_uuid)
-            .await?;
+    //     let mut rt_status = self
+    //         .store
+    //         .get_runtime_status(&self.ctx.runtime_uuid)
+    //         .await?;
 
-        match _state.graphs.get_mut(&record_id) {
-            Some(mut instance) => {
-                let mut sinks = instance.get_sinks();
-                for id in sinks.drain(..) {
-                    instance.start_node(&id).await?;
-                    rt_status.running_sinks += 1;
-                }
+    //     match _state.graphs.get_mut(&record_id) {
+    //         Some(mut instance) => {
+    //             let mut sinks = instance.get_sinks();
+    //             for id in sinks.drain(..) {
+    //                 instance.start_node(&id).await?;
+    //                 rt_status.running_sinks += 1;
+    //             }
 
-                let mut operators = instance.get_operators();
-                for id in operators.drain(..) {
-                    instance.start_node(&id).await?;
-                    rt_status.running_operators += 1;
-                }
+    //             let mut operators = instance.get_operators();
+    //             for id in operators.drain(..) {
+    //                 instance.start_node(&id).await?;
+    //                 rt_status.running_operators += 1;
+    //             }
 
-                let mut connectors = instance.get_connectors();
-                for id in connectors.drain(..) {
-                    instance.start_node(&id).await?;
-                    rt_status.running_connectors += 1;
-                }
+    //             let mut connectors = instance.get_connectors();
+    //             for id in connectors.drain(..) {
+    //                 instance.start_node(&id).await?;
+    //                 rt_status.running_connectors += 1;
+    //             }
 
-                self.store
-                    .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
-                    .await?;
+    //             self.store
+    //                 .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
+    //                 .await?;
 
-                Ok(())
-            }
-            None => Err(ErrorKind::InstanceNotFound(record_id)),
-        }
-    }
+    //             Ok(())
+    //         }
+    //         None => Err(ErrorKind::InstanceNotFound(record_id)),
+    //     }
+    // }
+
     async fn start_sources(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!("Starting sources for Instance UUID: {}", record_id);
 
@@ -795,48 +799,48 @@ impl Runtime for Daemon {
             None => Err(ErrorKind::InstanceNotFound(record_id)),
         }
     }
-    async fn stop(&self, record_id: Uuid) -> DaemonResult<()> {
-        log::info!(
-            "Stopping nodes (not sources) for Instance UUID: {}",
-            record_id
-        );
+    // async fn stop(&self, record_id: Uuid) -> DaemonResult<()> {
+    //     log::info!(
+    //         "Stopping nodes (not sources) for Instance UUID: {}",
+    //         record_id
+    //     );
 
-        let mut _state = self.state.lock().await;
+    //     let mut _state = self.state.lock().await;
 
-        let mut rt_status = self
-            .store
-            .get_runtime_status(&self.ctx.runtime_uuid)
-            .await?;
+    //     let mut rt_status = self
+    //         .store
+    //         .get_runtime_status(&self.ctx.runtime_uuid)
+    //         .await?;
 
-        match _state.graphs.get_mut(&record_id) {
-            Some(mut instance) => {
-                let mut sinks = instance.get_sinks();
-                for id in sinks.drain(..) {
-                    instance.stop_node(&id).await?;
-                    rt_status.running_sinks -= 1;
-                }
+    //     match _state.graphs.get_mut(&record_id) {
+    //         Some(mut instance) => {
+    //             let mut sinks = instance.get_sinks();
+    //             for id in sinks.drain(..) {
+    //                 instance.stop_node(&id).await?;
+    //                 rt_status.running_sinks -= 1;
+    //             }
 
-                let mut operators = instance.get_operators();
-                for id in operators.drain(..) {
-                    instance.stop_node(&id).await?;
-                    rt_status.running_operators -= 1;
-                }
+    //             let mut operators = instance.get_operators();
+    //             for id in operators.drain(..) {
+    //                 instance.stop_node(&id).await?;
+    //                 rt_status.running_operators -= 1;
+    //             }
 
-                let mut connectors = instance.get_connectors();
-                for id in connectors.drain(..) {
-                    instance.stop_node(&id).await?;
-                    rt_status.running_connectors -= 1;
-                }
+    //             let mut connectors = instance.get_connectors();
+    //             for id in connectors.drain(..) {
+    //                 instance.stop_node(&id).await?;
+    //                 rt_status.running_connectors -= 1;
+    //             }
 
-                self.store
-                    .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
-                    .await?;
+    //             self.store
+    //                 .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
+    //                 .await?;
 
-                Ok(())
-            }
-            None => Err(ErrorKind::InstanceNotFound(record_id)),
-        }
-    }
+    //             Ok(())
+    //         }
+    //         None => Err(ErrorKind::InstanceNotFound(record_id)),
+    //     }
+    // }
     async fn stop_sources(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!("Stopping sources for Instance UUID: {}", record_id);
 
@@ -987,48 +991,5 @@ impl Runtime for Daemon {
     }
     async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> DaemonResult<bool> {
         Err(ErrorKind::Unimplemented)
-    }
-}
-
-#[derive(Clone)]
-pub struct Worker {
-    id: usize,
-    incoming_jobs: Arc<Receiver<Job>>,
-    hlc: Arc<HLC>,
-    store: DataStore,
-}
-
-unsafe impl Send for Worker {}
-unsafe impl Sync for Worker {}
-
-impl Worker {
-    fn new(id: usize, incoming_jobs: Arc<Receiver<Job>>, hlc: Arc<HLC>, store: DataStore) -> Self {
-        Self {
-            id,
-            incoming_jobs,
-            hlc,
-            store,
-        }
-    }
-}
-
-impl std::fmt::Debug for Worker {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "id: {:?} incoming_jobs: {:?}",
-            self.id, self.incoming_jobs
-        )
-    }
-}
-
-#[async_trait]
-impl WorkerTrait for Worker {
-    async fn run(&self) -> ZFResult<()> {
-        log::info!("Worker [{}]: Started", self.id);
-        while let Ok(j) = self.incoming_jobs.recv_async().await {
-            log::info!("Worker [{}]: Received Job {j:?}", self.id);
-        }
-        Ok(())
     }
 }
