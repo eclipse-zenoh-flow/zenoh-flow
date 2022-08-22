@@ -14,85 +14,85 @@
 
 use std::sync::Arc;
 
-use super::{resources::DataStore, Job};
 use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
+use crate::runtime::{resources::DataStore, Job};
 use crate::Result as ZFResult;
 use async_std::{stream::StreamExt, task::JoinHandle};
+use async_trait::async_trait;
 use flume::{unbounded, Receiver, Sender};
 use futures::stream::{AbortHandle, Abortable, Aborted};
 use uhlc::HLC;
 use uuid::Uuid;
 
-#[derive(Clone)]
-pub struct Worker {
-    id: usize,
-    incoming_jobs: Arc<Receiver<Job>>,
-    hlc: Arc<HLC>,
+#[async_trait]
+pub trait WorkerTrait: Send + Sync {
+    async fn run(&self) -> ZFResult<()>;
 }
 
-impl Worker {
-    fn new(id: usize, incoming_jobs: Arc<Receiver<Job>>, hlc: Arc<HLC>) -> Self {
-        Self {
-            id,
-            incoming_jobs,
-            hlc,
-        }
-    }
+pub trait FnNewWorkerTrait: Send + Sync {
+    fn call(&self, id: usize, rx: Arc<Receiver<Job>>, hlc: Arc<HLC>) -> Box<dyn WorkerTrait>;
+}
 
-    async fn run(&self) -> ZFResult<()> {
-        log::info!("Worker [{}]: Started", self.id);
-        while let Ok(j) = self.incoming_jobs.recv_async().await {
-            log::info!("Worker [{}]: Received Job {j:?}", self.id);
-        }
-        Ok(())
-    }
-
-    pub(crate) fn get_id(&self) -> &usize {
-        &self.id
+impl<F> FnNewWorkerTrait for F
+where
+    F: FnOnce(usize, Arc<Receiver<Job>>, Arc<HLC>) -> Box<dyn WorkerTrait> + Clone + Send + Sync,
+{
+    fn call(&self, id: usize, rx: Arc<Receiver<Job>>, hlc: Arc<HLC>) -> Box<dyn WorkerTrait> {
+        self.clone()(id, rx, hlc)
     }
 }
 
-impl std::fmt::Debug for Worker {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "id: {:?} incoming_jobs: {:?}",
-            self.id, self.incoming_jobs
-        )
-    }
-}
+pub type FnNewWorker = Arc<dyn FnNewWorkerTrait>;
+//Box<dyn Fn(usize, Arc<Receiver<Job>>, Arc<HLC>) -> Box<dyn WorkerTrait>>;
 
 pub struct WorkerPool {
     rtid: Uuid,
-    workers: Vec<Worker>,
+    pool_size: usize,
+    new_worker_fn: FnNewWorker,
+    workers: Vec<Box<dyn WorkerTrait>>,
     handlers: Vec<JoinHandle<Result<ZFResult<()>, Aborted>>>,
     handle: Option<JoinHandle<Result<ZFResult<()>, Aborted>>>,
     abort_handle: Option<AbortHandle>,
     abort_handlers: Vec<AbortHandle>,
     tx: Sender<Job>,
+    rx: Arc<Receiver<Job>>,
     session: DataStore,
     hlc: Arc<HLC>,
 }
 
+unsafe impl Send for WorkerPool {}
+unsafe impl Sync for WorkerPool {}
+
 impl WorkerPool {
-    pub fn new(size: usize, session: DataStore, rtid: Uuid, hlc: Arc<HLC>) -> Self {
+    pub fn new(
+        pool_size: usize,
+        session: DataStore,
+        rtid: Uuid,
+        hlc: Arc<HLC>,
+        new_worker_fn: FnNewWorker,
+    ) -> Self {
         let (tx, rx) = unbounded();
         let rx = Arc::new(rx);
 
-        let mut workers = Vec::with_capacity(size);
+        let mut workers = Vec::with_capacity(pool_size);
 
-        for i in 0..size {
-            workers.push(Worker::new(i, rx.clone(), hlc.clone()));
+        for i in 0..pool_size {
+            let new_fn_clone = Arc::clone(&new_worker_fn);
+            let worker = new_fn_clone.call(i, rx.clone(), hlc.clone());
+            workers.push(worker);
         }
 
         Self {
             rtid,
+            new_worker_fn,
+            pool_size,
             workers,
-            handlers: Vec::with_capacity(size),
-            abort_handlers: Vec::with_capacity(size),
+            handlers: Vec::with_capacity(pool_size),
+            abort_handlers: Vec::with_capacity(pool_size),
             handle: None,
             abort_handle: None,
             tx,
+            rx,
             session,
             hlc,
         }
@@ -107,14 +107,11 @@ impl WorkerPool {
             return;
         }
 
-        for w in &self.workers {
-            let c_w = w.clone();
+        for worker in self.workers.drain(..).into_iter() {
+            let worker_loop = async move { worker.run().await };
 
             let (abort_handle, abort_registration) = AbortHandle::new_pair();
-            let handle = async_std::task::spawn(Abortable::new(
-                async move { c_w.run().await },
-                abort_registration,
-            ));
+            let handle = async_std::task::spawn(Abortable::new(worker_loop, abort_registration));
             self.handlers.push(handle);
             self.abort_handlers.push(abort_handle);
         }
@@ -169,6 +166,12 @@ impl WorkerPool {
                 self.rtid,
                 wh.await
             );
+        }
+
+        for i in 0..self.pool_size {
+            let new_fn_clone = Arc::clone(&self.new_worker_fn);
+            let worker = new_fn_clone.call(i, self.rx.clone(), self.hlc.clone());
+            self.workers.push(worker);
         }
     }
 

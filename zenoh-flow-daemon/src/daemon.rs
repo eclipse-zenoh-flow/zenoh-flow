@@ -17,13 +17,15 @@ use std::convert::TryFrom;
 use std::fs;
 use std::path::Path;
 
-use uhlc::{HLCBuilder, ID};
-use uuid::Uuid;
-use zenoh::prelude::*;
+use async_trait::async_trait;
 
 use async_std::sync::Mutex;
+use flume::Receiver;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use uhlc::{HLCBuilder, HLC, ID};
+use uuid::Uuid;
+use zenoh::prelude::*;
 use zenoh_flow::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use zenoh_flow::model::{
     dataflow::record::DataFlowRecord,
@@ -37,9 +39,9 @@ use zenoh_flow::runtime::dataflow::loader::{
 use zenoh_flow::runtime::dataflow::Dataflow;
 use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
-use zenoh_flow::runtime::worker_pool::WorkerPool;
+use zenoh_flow::runtime::worker_pool::{WorkerPool, WorkerTrait};
 use zenoh_flow::runtime::{
-    Runtime, RuntimeClient, RuntimeConfig, RuntimeContext, RuntimeInfo, RuntimeStatus,
+    Job, Runtime, RuntimeClient, RuntimeConfig, RuntimeContext, RuntimeInfo, RuntimeStatus,
     RuntimeStatusKind,
 };
 use zenoh_flow::DaemonResult;
@@ -93,7 +95,18 @@ impl Daemon {
     pub fn new(z: Arc<zenoh::Session>, ctx: RuntimeContext, config: RuntimeConfig) -> Self {
         let store = DataStore::new(z);
 
-        let mut workers = WorkerPool::new(5, store.clone(), config.uuid.clone(), ctx.hlc.clone());
+        let c_store = store.clone();
+        let new_worker = Arc::new(move |id, rx, hlc| {
+            Box::new(Worker::new(id, rx, hlc, c_store)) as Box<dyn WorkerTrait>
+        });
+
+        let mut workers = WorkerPool::new(
+            5,
+            store.clone(),
+            config.uuid.clone(),
+            ctx.hlc.clone(),
+            new_worker,
+        );
         workers.start();
 
         async_std::task::spawn(async move {
@@ -974,5 +987,48 @@ impl Runtime for Daemon {
     }
     async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> DaemonResult<bool> {
         Err(ErrorKind::Unimplemented)
+    }
+}
+
+#[derive(Clone)]
+pub struct Worker {
+    id: usize,
+    incoming_jobs: Arc<Receiver<Job>>,
+    hlc: Arc<HLC>,
+    store: DataStore,
+}
+
+unsafe impl Send for Worker {}
+unsafe impl Sync for Worker {}
+
+impl Worker {
+    fn new(id: usize, incoming_jobs: Arc<Receiver<Job>>, hlc: Arc<HLC>, store: DataStore) -> Self {
+        Self {
+            id,
+            incoming_jobs,
+            hlc,
+            store,
+        }
+    }
+}
+
+impl std::fmt::Debug for Worker {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "id: {:?} incoming_jobs: {:?}",
+            self.id, self.incoming_jobs
+        )
+    }
+}
+
+#[async_trait]
+impl WorkerTrait for Worker {
+    async fn run(&self) -> ZFResult<()> {
+        log::info!("Worker [{}]: Started", self.id);
+        while let Ok(j) = self.incoming_jobs.recv_async().await {
+            log::info!("Worker [{}]: Received Job {j:?}", self.id);
+        }
+        Ok(())
     }
 }
