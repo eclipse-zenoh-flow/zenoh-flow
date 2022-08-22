@@ -80,6 +80,9 @@ pub static KEY_JOB_STARTED: &str = "started";
 /// Token for the done jobs job queue in the key expression.
 pub static KEY_JOB_DONE: &str = "done";
 
+/// Token for the failed jobs job queue in the key expression.
+pub static KEY_JOB_FAILED: &str = "failed";
+
 /// Generates the runtime info key expression.
 #[macro_export]
 macro_rules! RT_INFO_PATH {
@@ -280,6 +283,22 @@ macro_rules! JQ_DONE_JOB {
             $rid,
             $crate::runtime::resources::KEY_JOB_QUEUE,
             $crate::runtime::resources::KEY_JOB_DONE,
+            $jid
+        )
+    };
+}
+
+/// Generates the done job key expression
+#[macro_export]
+macro_rules! JQ_FAILED_JOB {
+    ($prefix:expr, $rid:expr, $jid: expr) => {
+        format!(
+            "{}/{}/{}/{}/{}/{}",
+            $prefix,
+            $crate::runtime::resources::KEY_RUNTIMES,
+            $rid,
+            $crate::runtime::resources::KEY_JOB_QUEUE,
+            $crate::runtime::resources::KEY_JOB_FAILED,
             $jid
         )
     };
