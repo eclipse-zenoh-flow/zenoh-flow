@@ -111,7 +111,7 @@ impl WorkerPool {
             return;
         }
 
-        for worker in self.workers.drain(..).into_iter() {
+        for worker in self.workers.drain(..) {
             let worker_loop = async move { worker.run().await };
 
             let (abort_handle, abort_registration) = AbortHandle::new_pair();
@@ -122,7 +122,7 @@ impl WorkerPool {
 
         let c_tx = self.tx.clone();
         let c_session = self.session.clone();
-        let c_id = self.rtid.clone();
+        let c_id = self.rtid;
 
         let run_loop = async move {
             let mut j_stream = c_session.subscribe_sumbitted_jobs(&c_id).await?;
@@ -152,7 +152,7 @@ impl WorkerPool {
             abort_handle.abort()
         }
 
-        for ah in self.abort_handlers.drain(..).into_iter() {
+        for ah in self.abort_handlers.drain(..) {
             ah.abort()
         }
 
@@ -164,7 +164,7 @@ impl WorkerPool {
             );
         }
 
-        for wh in self.handlers.drain(..).into_iter() {
+        for wh in self.handlers.drain(..) {
             log::trace!(
                 "[Job Queue: {:?} - Worker] handler finished with {:?}",
                 self.rtid,
@@ -185,12 +185,7 @@ impl WorkerPool {
         instance_id: &Uuid,
     ) -> ZFResult<Job> {
         let jid = Uuid::new_v4();
-        let job = Job::new_instantiate(
-            dfd.clone(),
-            instance_id.clone(),
-            jid.clone(),
-            self.hlc.new_timestamp(),
-        );
+        let job = Job::new_instantiate(dfd.clone(), *instance_id, jid, self.hlc.new_timestamp());
 
         self.session.add_submitted_job(&self.rtid, &job).await?;
 
@@ -203,12 +198,7 @@ impl WorkerPool {
         instance_id: &Uuid,
     ) -> ZFResult<Job> {
         let jid = Uuid::new_v4();
-        let job = Job::new_create(
-            dfd.clone(),
-            instance_id.clone(),
-            jid.clone(),
-            self.hlc.new_timestamp(),
-        );
+        let job = Job::new_create(dfd.clone(), *instance_id, jid, self.hlc.new_timestamp());
 
         self.session.add_submitted_job(&self.rtid, &job).await?;
 
@@ -217,7 +207,7 @@ impl WorkerPool {
 
     pub async fn submit_teardown(&self, fid: &Uuid) -> ZFResult<Job> {
         let jid = Uuid::new_v4();
-        let job = Job::new_teardown(fid.clone(), jid.clone(), self.hlc.new_timestamp());
+        let job = Job::new_teardown(*fid, jid, self.hlc.new_timestamp());
 
         self.session.add_submitted_job(&self.rtid, &job).await?;
 
@@ -226,7 +216,7 @@ impl WorkerPool {
 
     pub async fn submit_delete(&self, fid: &Uuid) -> ZFResult<Job> {
         let jid = Uuid::new_v4();
-        let job = Job::new_delete(fid.clone(), jid.clone(), self.hlc.new_timestamp());
+        let job = Job::new_delete(*fid, jid, self.hlc.new_timestamp());
 
         self.session.add_submitted_job(&self.rtid, &job).await?;
 

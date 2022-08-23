@@ -836,11 +836,10 @@ impl DataStore {
     /// - fails to deserialize
     pub async fn subscribe_sumbitted_jobs(&self, rtid: &Uuid) -> Result<ZFJobStream> {
         let selector = JQ_SUMBITTED_SEL!(ROOT_STANDALONE, rtid);
-        Ok(self
-            .z
+        self.z
             .subscribe(&selector)
             .await
-            .map(|sub| ZFJobStream { sub })?)
+            .map(|sub| ZFJobStream { sub })
     }
 
     /// Submits the given [`Job`](`Job`) in the queue

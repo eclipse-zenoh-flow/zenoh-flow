@@ -55,14 +55,10 @@ impl Runtime {
 
         let state = Arc::new(Mutex::new(RTState {
             graphs: HashMap::new(),
-            config: config.clone(),
+            config,
         }));
 
-        Self {
-            store: store.clone(),
-            ctx: ctx.clone(),
-            state,
-        }
+        Self { store, ctx, state }
     }
 
     pub(crate) async fn start(&self) -> ZFResult<()> {
