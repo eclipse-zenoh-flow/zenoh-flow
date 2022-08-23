@@ -1,0 +1,36 @@
+flow: test-recursion
+
+sources:
+  - id: source-1
+    descriptor: ./src/model/dataflow/tests/source-1.yml
+
+operators:
+  - id: operator-1
+    descriptor: ./src/model/dataflow/tests/operator-1.yml
+
+  - id: operator-infinite
+    descriptor: ./src/model/dataflow/tests/operator-infinite.yml
+
+sinks:
+  - id: sink-1
+    descriptor: ./src/model/dataflow/tests/sink-1.yml
+
+links:
+  - from:
+      node: source-1
+      output: source-1-out
+    to:
+      node: operator-1
+      input: operator-1-in
+  - from:
+      node: operator-1
+      output: operator-out-1
+    to:
+      node: operator-infinite
+      input: infinite-input
+  - from:
+      node: operator-infinite
+      output: infinite-output
+    to:
+      node: sink-1
+      input: sink-1-in

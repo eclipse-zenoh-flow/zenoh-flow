@@ -165,7 +165,9 @@ impl DataFlowDescriptor {
                 merge_configurations(global_configuration.clone(), operator.configuration.clone());
 
             let id = operator.id.clone();
-            let mut flattened = operator.flatten(id, &mut links, config).await?;
+            let mut flattened = operator
+                .flatten(id, &mut links, config, &mut Vec::new())
+                .await?;
             flattened_operators.append(&mut flattened);
         }
 

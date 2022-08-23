@@ -23,8 +23,7 @@ use std::{
     io::{BufReader, Read},
 };
 
-// env variable CARGO_MANIFEST_DIR puts us in zenoh-flow/zenoh-flow
-const DATA_FLOW_YAML: &str = "/src/model/dataflow/tests/data-flow.yml";
+const BASE_PATH: &str = "src/model/dataflow/tests/";
 
 // We are testing quite a few things within this function:
 //
@@ -38,7 +37,13 @@ const DATA_FLOW_YAML: &str = "/src/model/dataflow/tests/data-flow.yml";
 #[test]
 fn test_flatten_descriptor() {
     // FIXME Use Path to join both?
-    let path = env!("CARGO_MANIFEST_DIR").to_string() + DATA_FLOW_YAML;
+    // env variable CARGO_MANIFEST_DIR puts us in zenoh-flow/zenoh-flow
+    let path = format!(
+        "{}/{}/{}",
+        env!("CARGO_MANIFEST_DIR"),
+        BASE_PATH,
+        "data-flow.yml"
+    );
 
     let file = File::open(path).expect("Could not open file");
     let mut buf_reader = BufReader::new(file);
@@ -297,4 +302,47 @@ fn test_flatten_descriptor() {
     });
 
     assert_eq!(expected_links, flatten.links);
+}
+
+#[test]
+fn test_detect_recursion() {
+    // FIXME Use Path to join them?
+    let path = format!(
+        "{}/{}/{}",
+        env!("CARGO_MANIFEST_DIR"),
+        BASE_PATH,
+        "data-flow-recursion.yml"
+    );
+
+    let file = File::open(path).expect("Could not open file");
+    let mut buf_reader = BufReader::new(file);
+    let mut yaml = String::new();
+    buf_reader
+        .read_to_string(&mut yaml)
+        .expect("Could not read file contents");
+
+    let descriptor = DataFlowDescriptor::from_yaml(&yaml).expect("Unexpected error");
+    let res_flatten = async_std::task::block_on(async { descriptor.flatten().await });
+    assert!(res_flatten.is_err());
+}
+
+#[test]
+fn test_duplicate_composite_at_same_level_not_detected_as_recursion() {
+    // FIXME Use Path to join them?
+    let path = format!(
+        "{}/{}/{}",
+        env!("CARGO_MANIFEST_DIR"),
+        BASE_PATH,
+        "data-flow-recursion-ok.yml"
+    );
+
+    let file = File::open(path).expect("Could not open file");
+    let mut buf_reader = BufReader::new(file);
+    let mut yaml = String::new();
+    buf_reader
+        .read_to_string(&mut yaml)
+        .expect("Could not read file contents");
+
+    let descriptor = DataFlowDescriptor::from_yaml(&yaml).expect("Unexpected error");
+    assert!(async_std::task::block_on(async { descriptor.flatten().await }).is_ok());
 }

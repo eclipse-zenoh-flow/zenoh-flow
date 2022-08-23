@@ -73,7 +73,7 @@ fn test_flatten_composite_descriptor_non_nested() {
 
     let operators = async_std::task::block_on(async {
         composite_descriptor
-            .flatten("composite".into(), &mut flow_links, None)
+            .flatten("composite".into(), &mut flow_links, None, &mut Vec::new())
             .await
     })
     .expect("Unexpected error while calling `flatten`");
@@ -208,7 +208,7 @@ fn test_flatten_composite_descriptor_nested() {
 
     let operators = async_std::task::block_on(async {
         nested_composite_descriptor
-            .flatten("composite".into(), &mut flow_links, None)
+            .flatten("composite".into(), &mut flow_links, None, &mut Vec::new())
             .await
     })
     .expect("Unexpected error while calling `flatten`");

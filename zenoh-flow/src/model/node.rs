@@ -16,9 +16,9 @@ use crate::model::link::{LinkDescriptor, PortRecord};
 use crate::model::PortDescriptor;
 use crate::types::{merge_configurations, PortType};
 use crate::types::{Configuration, NodeId, RuntimeId};
-use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result;
+use crate::{bail, zferror};
 use async_recursion::async_recursion;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -345,6 +345,7 @@ impl CompositeOperatorDescriptor {
         composite_id: NodeId,
         links: &mut Vec<LinkDescriptor>,
         global_configuration: Option<Configuration>,
+        ancestors: &mut Vec<String>,
     ) -> Result<Vec<SimpleOperatorDescriptor>> {
         let mut simple_operators = vec![];
 
@@ -412,14 +413,28 @@ impl CompositeOperatorDescriptor {
 
                 // Adding in the list of operators
                 simple_operators.push(simple_operator);
-
                 continue;
             }
 
             let res_composite = CompositeOperatorDescriptor::from_yaml(&description);
             if let Ok(composite_operator) = res_composite {
+                if let Ok(index) = ancestors.binary_search(&o.descriptor) {
+                    bail!(
+                        ErrorKind::GenericError, // FIXME Dedicated error?
+                        "Possible recursion detected, < {} > would be included again after: {:?}",
+                        o.descriptor,
+                        &ancestors[index..]
+                    );
+                }
+                ancestors.push(o.descriptor.clone());
+
                 let mut operators = composite_operator
-                    .flatten(o.id, &mut self.links, global_configuration.clone())
+                    .flatten(
+                        o.id,
+                        &mut self.links,
+                        global_configuration.clone(),
+                        ancestors,
+                    )
                     .await?;
 
                 for operator in operators.iter_mut() {
@@ -441,6 +456,7 @@ impl CompositeOperatorDescriptor {
 
                 simple_operators.append(&mut operators);
 
+                ancestors.pop();
                 continue;
             }
 
@@ -452,12 +468,11 @@ impl CompositeOperatorDescriptor {
             log::error!("Simple: {:?}", res_simple.err().unwrap());
             log::error!("Composite: {:?}", res_composite.err().unwrap());
 
-            return Err(zferror!(
+            bail!(
                 ErrorKind::ParsingError,
                 "Could not parse < {} >",
                 o.descriptor
-            )
-            .into());
+            );
         }
 
         links.append(&mut self.links);
@@ -533,12 +548,13 @@ impl NodeDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if loading operators fails. Or if the
-    ///  node does not contains an operator
+    /// node does not contains an operator
     pub async fn flatten(
         self,
         id: NodeId,
         links: &mut Vec<LinkDescriptor>,
         global_configuration: Option<Configuration>,
+        ancestors: &mut Vec<String>,
     ) -> Result<Vec<SimpleOperatorDescriptor>> {
         let description = async_std::fs::read_to_string(&self.descriptor).await?;
 
@@ -553,21 +569,33 @@ impl NodeDescriptor {
 
         let res_composite = CompositeOperatorDescriptor::from_yaml(&description);
         if let Ok(composite_operator) = res_composite {
-            return composite_operator
-                .flatten(id, links, global_configuration)
+            if let Ok(index) = ancestors.binary_search(&self.descriptor) {
+                bail!(
+                    ErrorKind::GenericError, // FIXME Dedicated error?
+                    "Possible recursion detected, < {} > would be included again after: {:?}",
+                    self.descriptor,
+                    &ancestors[index..]
+                );
+            }
+
+            ancestors.push(self.descriptor.clone());
+            let res = composite_operator
+                .flatten(id, links, global_configuration, ancestors)
                 .await;
+            ancestors.pop();
+
+            return res;
         }
 
         log::error!("Could not parse operator < {} >", self.descriptor);
         log::error!("(Operator) {:?}", res_simple.err().unwrap());
         log::error!("(Composite) {:?}", res_composite.err().unwrap());
 
-        Err(zferror!(
+        bail!(
             ErrorKind::ParsingError,
             "Could not parse operator < {} >",
             self.descriptor
         )
-        .into())
     }
 
     /// Loads the source from the `NodeDescriptor`

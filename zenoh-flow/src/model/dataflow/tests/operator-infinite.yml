@@ -1,0 +1,39 @@
+id: operator-infinite
+
+
+inputs:
+ - id: infinite-input
+   node: operator-1
+   input: operator-1-in
+
+
+outputs:
+  - id: infinite-output
+    node: operator-2
+    output: operator-2-out
+
+
+operators:
+  - id: operator-1
+    descriptor: ./src/model/dataflow/tests/operator-1.yml
+
+  - id: operator-infinite
+    descriptor: ./src/model/dataflow/tests/operator-infinite.yml
+
+  - id: operator-2
+    descriptor: ./src/model/dataflow/tests/operator-2.yml
+
+
+links:
+  - from:
+      node: operator-1
+      output: operator-1-out
+    to:
+      node: operator-infinite
+      input: infinite-input
+  - from:
+      node: operator-infinite
+      output: infinite-output
+    to:
+      node: operator-2
+      input: operator-2-out
