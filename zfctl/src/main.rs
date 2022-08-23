@@ -33,7 +33,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 use zenoh::Session;
 use zenoh_flow::runtime::resources::DataStore;
-use zenoh_flow::runtime::RuntimeClient;
+use zenoh_flow::runtime::DaemonInterfaceClient;
 const GIT_VERSION: &str = git_version!(prefix = "v", cargo_prefix = "v");
 
 const DEFAULT_ZENOH_CFG: &str = ".config/zenoh-flow/zfctl-zenoh.json";
@@ -293,9 +293,9 @@ async fn main() {
                 df.validate().unwrap();
 
                 let client = get_client(zsession.clone()).await;
-                let record = client.create_instance(df).await.unwrap().unwrap();
-                log::debug!("Created: {:?}", record);
-                println!("{}", record.uuid);
+                let instance_uuid = client.create_instance(df).await.unwrap().unwrap();
+                log::debug!("Created: {:?}", instance_uuid);
+                println!("{}", instance_uuid);
             } // When registry will be in place the code below will be used
               // AddKind::Instance { flow_id, rt_id } => {
               //     println!(
@@ -566,9 +566,9 @@ async fn main() {
             df.validate().unwrap();
 
             let client = get_client(zsession.clone()).await;
-            let record = client.instantiate(df).await.unwrap().unwrap();
-            log::debug!("Launched: {:?}", record);
-            println!("{}", record.uuid);
+            let instance_uuid = client.instantiate(df).await.unwrap().unwrap();
+            log::debug!("Launched: {:?}", instance_uuid);
+            println!("{}", instance_uuid);
         }
         ZFCtl::Destroy { id } => {
             log::debug!("This is going to destroy the instance {}", id);
@@ -595,9 +595,11 @@ async fn get_zenoh() -> Result<Session, Box<dyn Error + Send + Sync + 'static>> 
     Ok(zenoh::open(zconfig).await.unwrap())
 }
 
-async fn get_client(zsession: Arc<Session>) -> RuntimeClient {
-    let servers = RuntimeClient::find_servers(zsession.clone()).await.unwrap();
+async fn get_client(zsession: Arc<Session>) -> DaemonInterfaceClient {
+    let servers = DaemonInterfaceClient::find_servers(zsession.clone())
+        .await
+        .unwrap();
     let entry_point = servers.choose(&mut rand::thread_rng()).unwrap();
     log::debug!("Selected entrypoint runtime: {:?}", entry_point);
-    RuntimeClient::new(zsession.clone(), *entry_point)
+    DaemonInterfaceClient::new(zsession.clone(), *entry_point)
 }

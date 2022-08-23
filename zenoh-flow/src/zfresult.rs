@@ -82,7 +82,7 @@ pub enum ErrorKind {
     NotFound,
     Duplicate,
     MissingConfiguration,
-    ConfigurationError(String),
+    ConfigurationError,
     VersionMismatch,
     Disconnected,
     Uncompleted,

@@ -12,27 +12,24 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::convert::TryFrom;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use flume::Receiver;
 use uhlc::HLC;
-use uuid::Uuid;
-use zenoh_flow::model::dataflow::descriptor::FlattenDataFlowDescriptor;
-use zenoh_flow::model::dataflow::record::DataFlowRecord;
-use zenoh_flow::runtime::{worker_pool::WorkerTrait, Job, Runtime, RuntimeClient};
-use zenoh_flow::zfresult::ErrorKind;
-use zenoh_flow::{DaemonResult, Result as ZFResult};
 
-use crate::daemon::Daemon;
+use zenoh_flow::runtime::{worker_pool::WorkerTrait, Job};
+use zenoh_flow::zfresult::ErrorKind;
+use zenoh_flow::Result as ZFResult;
+
+use crate::runtime::Runtime;
 
 #[derive(Clone)]
 pub struct Worker {
     id: usize,
     incoming_jobs: Arc<Receiver<Job>>,
     hlc: Arc<HLC>,
-    daemon: Daemon,
+    runtime: Runtime,
 }
 
 unsafe impl Send for Worker {}
@@ -43,59 +40,14 @@ impl Worker {
         id: usize,
         incoming_jobs: Arc<Receiver<Job>>,
         hlc: Arc<HLC>,
-        daemon: Daemon,
+        runtime: Runtime,
     ) -> Self {
         Self {
             id,
             incoming_jobs,
             hlc,
-            daemon,
+            runtime,
         }
-    }
-
-    async fn create_instance(
-        &self,
-        dfd: FlattenDataFlowDescriptor,
-        instance_id: Uuid,
-    ) -> DaemonResult<DataFlowRecord> {
-        let mut rt_clients = vec![];
-        let mapped =
-            zenoh_flow::runtime::map_to_infrastructure(dfd, &self.daemon.ctx.runtime_name).await?;
-
-        // Getting runtime involved in this instance
-        let involved_runtimes = mapped.get_runtimes();
-        let involved_runtimes = involved_runtimes
-            .into_iter()
-            .filter(|rt| *rt != self.daemon.ctx.runtime_name);
-
-        // Creating the record
-        let dfr = DataFlowRecord::try_from((mapped, instance_id))?;
-
-        self.daemon
-            .store
-            .add_runtime_flow(&self.daemon.ctx.runtime_uuid, &dfr)
-            .await?;
-
-        // Creating clients to talk with other runtimes
-        for rt in involved_runtimes {
-            let rt_info = self.daemon.store.get_runtime_info_by_name(&rt).await?;
-            let client = RuntimeClient::new(self.daemon.ctx.session.clone(), rt_info.id);
-            rt_clients.push(client);
-        }
-
-        // remote prepare
-        for client in rt_clients.iter() {
-            client.prepare(dfr.uuid).await??;
-        }
-
-        // self prepare
-        Runtime::prepare(&self.daemon, dfr.uuid).await?;
-
-        Ok(dfr)
-    }
-
-    async fn start_instance(&self, instance_id: Uuid) -> DaemonResult<()> {
-        Runtime::start_instance(&self.daemon, instance_id).await
     }
 
     async fn store_error(&self, job: &mut Job, e: ErrorKind) -> ZFResult<()> {
@@ -106,9 +58,9 @@ impl Worker {
             e
         );
         job.failed(self.hlc.new_timestamp(), format!("{:?}", e));
-        self.daemon
+        self.runtime
             .store
-            .add_failed_job(&self.daemon.ctx.runtime_uuid, &job)
+            .add_failed_job(&self.runtime.ctx.runtime_uuid, &job)
             .await?;
         Ok(())
     }
@@ -131,9 +83,9 @@ impl WorkerTrait for Worker {
         while let Ok(mut job) = self.incoming_jobs.recv_async().await {
             log::trace!("Worker [{}]: Received Job {job:?}", self.id);
             job.started(self.id, self.hlc.new_timestamp());
-            self.daemon
+            self.runtime
                 .store
-                .add_started_job(&self.daemon.ctx.runtime_uuid, &job)
+                .add_started_job(&self.runtime.ctx.runtime_uuid, &job)
                 .await?;
 
             match job.get_kind() {
@@ -146,7 +98,7 @@ impl WorkerTrait for Worker {
                         inst_uuid
                     );
 
-                    match self.create_instance(dfd.clone(), *inst_uuid).await {
+                    match self.runtime.create_instance(dfd.clone(), *inst_uuid).await {
                         Ok(dfr) => {
                             log::info!(
                                 "[Worker: {}] Created Flow {} - Instance UUID: {}",
@@ -162,7 +114,29 @@ impl WorkerTrait for Worker {
                     }
                 }
 
-                zenoh_flow::runtime::JobKind::DeleteInstance(_) => todo!(),
+                zenoh_flow::runtime::JobKind::DeleteInstance(inst_uuid) => {
+                    log::info!(
+                        "[Worker: {}] Job: {} Deleting Flow Instance {}",
+                        self.id,
+                        job.get_id(),
+                        inst_uuid
+                    );
+
+                    match self.runtime.delete_instance(*inst_uuid).await {
+                        Ok(dfr) => {
+                            log::info!(
+                                "[Worker: {}] Deleted Flow {} - Instance UUID: {}",
+                                self.id,
+                                dfr.flow,
+                                dfr.uuid
+                            );
+                        }
+                        Err(e) => {
+                            self.store_error(&mut job, e).await?;
+                            continue;
+                        }
+                    }
+                }
                 zenoh_flow::runtime::JobKind::Instantiate(dfd, inst_uuid) => {
                     log::info!(
                         "[Worker: {}] Job: {} Instantiating Flow {} : {}",
@@ -172,34 +146,50 @@ impl WorkerTrait for Worker {
                         inst_uuid
                     );
 
-                    match self.create_instance(dfd.clone(), *inst_uuid).await {
-                        Ok(dfr) => match self.start_instance(dfr.uuid).await {
-                            Ok(_) => {
-                                log::info!(
-                                    "[Worker: {}] Instantiated Flow {} - Instance UUID: {}",
-                                    self.id,
-                                    dfr.flow,
-                                    dfr.uuid
-                                );
-                            }
-                            Err(e) => {
-                                self.store_error(&mut job, e).await?;
-                                continue;
-                            }
-                        },
+                    match self.runtime.instantiate(dfd.clone(), *inst_uuid).await {
+                        Ok(dfr) => {
+                            log::info!(
+                                "[Worker: {}] Instantiated Flow {} - Instance UUID: {}",
+                                self.id,
+                                dfr.flow,
+                                dfr.uuid
+                            );
+                        }
                         Err(e) => {
                             self.store_error(&mut job, e).await?;
                             continue;
                         }
                     }
                 }
-                zenoh_flow::runtime::JobKind::Teardown(_) => todo!(),
+                zenoh_flow::runtime::JobKind::Teardown(inst_uuid) => {
+                    log::info!(
+                        "[Worker: {}] Job: {} Teardown Flow Instance {}",
+                        self.id,
+                        job.get_id(),
+                        inst_uuid
+                    );
+
+                    match self.runtime.teardown(*inst_uuid).await {
+                        Ok(dfr) => {
+                            log::info!(
+                                "[Worker: {}] Teardown Flow {} - Instance UUID: {}",
+                                self.id,
+                                dfr.flow,
+                                dfr.uuid
+                            );
+                        }
+                        Err(e) => {
+                            self.store_error(&mut job, e).await?;
+                            continue;
+                        }
+                    }
+                }
             }
 
             job.done(self.hlc.new_timestamp());
-            self.daemon
+            self.runtime
                 .store
-                .add_done_job(&self.daemon.ctx.runtime_uuid, &job)
+                .add_done_job(&self.runtime.ctx.runtime_uuid, &job)
                 .await?;
         }
         Ok(())

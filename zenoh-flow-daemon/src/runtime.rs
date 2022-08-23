@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 //
 // Copyright (c) 2022 ZettaScale Technology
 //
@@ -12,8 +13,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 use std::convert::TryFrom;
+use std::sync::Arc;
 
-use crate::daemon::Daemon;
+use async_std::sync::Mutex;
 use uuid::Uuid;
 use zenoh_flow::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use zenoh_flow::model::{
@@ -23,20 +25,116 @@ use zenoh_flow::model::{
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::Dataflow;
 use zenoh_flow::runtime::message::ControlMessage;
-use zenoh_flow::runtime::{Runtime, RuntimeClient};
+use zenoh_flow::runtime::resources::DataStore;
+use zenoh_flow::runtime::{
+    DaemonInterfaceInternalClient, RuntimeConfig, RuntimeContext, RuntimeInfo, RuntimeStatus,
+    RuntimeStatusKind,
+};
 use zenoh_flow::zfresult::ErrorKind;
 use zenoh_flow::DaemonResult;
-use zrpc_macros::znserver;
+use zenoh_flow::Result as ZFResult;
 
-// Implementation of [`Runtime`](`Runtime`) trait for the Daemon
-// This implementation does asynchronous operations, via zrpc/REST.
-// The deamon implements the actual logic for each operation.
+/// The internal runtime state.
+///
+/// It keeps track of running instances and runtime configuration.
+pub struct RTState {
+    pub graphs: HashMap<Uuid, DataflowInstance>,
+    pub config: RuntimeConfig,
+}
 
-#[znserver]
-impl Runtime for Daemon {
-    async fn create_instance(
+#[derive(Clone)]
+pub struct Runtime {
+    pub store: DataStore,
+    pub state: Arc<Mutex<RTState>>,
+    pub ctx: RuntimeContext,
+}
+
+impl Runtime {
+    pub(crate) fn new(z: Arc<zenoh::Session>, ctx: RuntimeContext, config: RuntimeConfig) -> Self {
+        let store = DataStore::new(z);
+
+        let state = Arc::new(Mutex::new(RTState {
+            graphs: HashMap::new(),
+            config: config.clone(),
+        }));
+
+        Self {
+            store: store.clone(),
+            ctx: ctx.clone(),
+            state,
+        }
+    }
+
+    pub(crate) async fn start(&self) -> ZFResult<()> {
+        let rt_info = RuntimeInfo {
+            id: self.ctx.runtime_uuid,
+            name: self.ctx.runtime_name.clone(),
+            tags: Vec::new(),
+            status: RuntimeStatusKind::NotReady,
+        };
+
+        let rt_status = RuntimeStatus {
+            id: self.ctx.runtime_uuid,
+            status: RuntimeStatusKind::NotReady,
+            running_flows: 0,
+            running_operators: 0,
+            running_sources: 0,
+            running_sinks: 0,
+            running_connectors: 0,
+        };
+
+        let self_state = self.state.lock().await;
+        self.store
+            .add_runtime_config(&self.ctx.runtime_uuid, &self_state.config)
+            .await?;
+        drop(self_state);
+
+        self.store
+            .add_runtime_info(&self.ctx.runtime_uuid, &rt_info)
+            .await?;
+
+        self.store
+            .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
+            .await
+    }
+
+    pub(crate) async fn ready(&self) -> ZFResult<()> {
+        let mut rt_info = self.store.get_runtime_info(&self.ctx.runtime_uuid).await?;
+        let mut rt_status = self
+            .store
+            .get_runtime_status(&self.ctx.runtime_uuid)
+            .await?;
+
+        rt_info.status = RuntimeStatusKind::Ready;
+        rt_status.status = RuntimeStatusKind::Ready;
+
+        self.store
+            .add_runtime_info(&self.ctx.runtime_uuid, &rt_info)
+            .await?;
+        self.store
+            .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn stop(&self) -> ZFResult<()> {
+        self.store
+            .remove_runtime_config(&self.ctx.runtime_uuid)
+            .await?;
+        self.store
+            .remove_runtime_info(&self.ctx.runtime_uuid)
+            .await?;
+        self.store
+            .remove_runtime_status(&self.ctx.runtime_uuid)
+            .await
+    }
+
+    // Zenoh Flow runtime operations
+
+    pub(crate) async fn create_instance(
         &self,
         flow: FlattenDataFlowDescriptor,
+        record_uuid: Uuid,
     ) -> DaemonResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow (when
         // the registry will be in place)
@@ -49,7 +147,6 @@ impl Runtime for Daemon {
         // once it knows the Uuid.
         // Therefore instantiation errors should be logged as instance status
 
-        let record_uuid = Uuid::new_v4();
         let flow_name = flow.flow.clone();
 
         log::info!(
@@ -73,7 +170,7 @@ impl Runtime for Daemon {
             .filter(|rt| *rt != self.ctx.runtime_name);
 
         // Creating the record
-        let mut dfr = DataFlowRecord::try_from((mapped, record_uuid))?;
+        let dfr = DataFlowRecord::try_from((mapped, record_uuid))?;
 
         self.store
             .add_runtime_flow(&self.ctx.runtime_uuid, &dfr)
@@ -82,7 +179,7 @@ impl Runtime for Daemon {
         // Creating clients to talk with other runtimes
         for rt in involved_runtimes {
             let rt_info = self.store.get_runtime_info_by_name(&rt).await?;
-            let client = RuntimeClient::new(self.ctx.session.clone(), rt_info.id);
+            let client = DaemonInterfaceInternalClient::new(self.ctx.session.clone(), rt_info.id);
             rt_clients.push(client);
         }
 
@@ -92,7 +189,7 @@ impl Runtime for Daemon {
         }
 
         // self prepare
-        Runtime::prepare(self, dfr.uuid).await?;
+        self.prepare(dfr.uuid).await?;
 
         log::info!(
             "Created Flow {} - Instance UUID: {}",
@@ -103,7 +200,7 @@ impl Runtime for Daemon {
         Ok(dfr)
     }
 
-    async fn delete_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
+    pub(crate) async fn delete_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
         log::info!("Delete Instance UUID: {}", record_id);
         let record = self.store.get_flow_by_instance(&record_id).await?;
 
@@ -118,7 +215,7 @@ impl Runtime for Daemon {
             .filter(|rt| *rt != self.ctx.runtime_uuid);
 
         for rt in remote_involved_runtimes {
-            let client = RuntimeClient::new(self.ctx.session.clone(), rt);
+            let client = DaemonInterfaceInternalClient::new(self.ctx.session.clone(), rt);
             rt_clients.push(client);
         }
 
@@ -129,7 +226,7 @@ impl Runtime for Daemon {
 
         // local clean
         if is_also_local {
-            self.clean(record_id).await;
+            self.clean(record_id).await?;
         }
 
         self.store
@@ -141,7 +238,11 @@ impl Runtime for Daemon {
         Ok(record)
     }
 
-    async fn instantiate(&self, flow: FlattenDataFlowDescriptor) -> DaemonResult<DataFlowRecord> {
+    pub(crate) async fn instantiate(
+        &self,
+        flow: FlattenDataFlowDescriptor,
+        record_uuid: Uuid,
+    ) -> DaemonResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow (when
         // the registry will be in place)
         //TODO: this has to run asynchronously, this means that it must
@@ -156,10 +257,10 @@ impl Runtime for Daemon {
         log::info!("Instantiating: {}", flow.flow);
 
         // Creating
-        let dfr = Runtime::create_instance(self, flow.clone()).await?;
+        let dfr = self.create_instance(flow.clone(), record_uuid).await?;
 
         // Starting
-        Runtime::start_instance(self, dfr.uuid).await?;
+        self.start_instance(dfr.uuid).await?;
 
         log::info!(
             "Done Instantiation Flow {} - Instance UUID: {}",
@@ -170,21 +271,21 @@ impl Runtime for Daemon {
         Ok(dfr)
     }
 
-    async fn teardown(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
+    pub(crate) async fn teardown(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
         log::info!("Tearing down Instance UUID: {}", record_id);
 
         // Stopping
-        Runtime::stop_instance(self, record_id).await?;
+        self.stop_instance(record_id).await?;
 
         // Clean-up
-        let dfr = Runtime::delete_instance(self, record_id).await?;
+        let dfr = self.delete_instance(record_id).await?;
 
         log::info!("Done teardown down Instance UUID: {}", record_id);
 
         Ok(dfr)
     }
 
-    async fn prepare(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
+    pub(crate) async fn prepare(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
         log::info!("Preparing for Instance UUID: {}", record_id);
 
         let dfr = self.store.get_flow_by_instance(&record_id).await?;
@@ -192,8 +293,8 @@ impl Runtime for Daemon {
             .add_runtime_flow(&self.ctx.runtime_uuid, &dfr)
             .await?;
 
-        let mut dataflow = Dataflow::try_new(self.ctx.clone(), dfr.clone())?;
-        let mut instance = DataflowInstance::try_instantiate(dataflow, self.ctx.hlc.clone())?;
+        let dataflow = Dataflow::try_new(self.ctx.clone(), dfr.clone())?;
+        let instance = DataflowInstance::try_instantiate(dataflow, self.ctx.hlc.clone())?;
 
         let mut self_state = self.state.lock().await;
         self_state.graphs.insert(dfr.uuid, instance);
@@ -203,13 +304,13 @@ impl Runtime for Daemon {
 
         Ok(dfr)
     }
-    async fn clean(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
+    pub(crate) async fn clean(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
         log::info!("Cleaning for Instance UUID: {}", record_id);
 
         let mut _state = self.state.lock().await;
         let data = _state.graphs.remove(&record_id);
         match data {
-            Some(mut dfg) => {
+            Some(_dfi) => {
                 // Calling finalize on all nodes of a the graph.
 
                 let record = self
@@ -231,7 +332,7 @@ impl Runtime for Daemon {
         }
     }
 
-    async fn start_instance(&self, record_id: Uuid) -> DaemonResult<()> {
+    pub(crate) async fn start_instance(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!("Staring Instance UUID: {}", record_id);
 
         let mut rt_clients = vec![];
@@ -245,7 +346,7 @@ impl Runtime for Daemon {
             .filter(|rt| *rt != self.ctx.runtime_uuid);
 
         for rt in all_involved_runtimes {
-            let client = RuntimeClient::new(self.ctx.session.clone(), rt);
+            let client = DaemonInterfaceInternalClient::new(self.ctx.session.clone(), rt);
             rt_clients.push(client);
         }
 
@@ -256,7 +357,7 @@ impl Runtime for Daemon {
 
         if is_also_local {
             // self start
-            Runtime::start(self, record_id).await?;
+            self.start_nodes(record_id).await?;
         }
 
         // remote start sources
@@ -266,7 +367,7 @@ impl Runtime for Daemon {
 
         if is_also_local {
             // self start sources
-            Runtime::start_sources(self, record_id).await?;
+            self.start_sources(record_id).await?;
         }
 
         log::info!("Started Instance UUID: {}", record_id);
@@ -274,7 +375,7 @@ impl Runtime for Daemon {
         Ok(())
     }
 
-    async fn stop_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
+    pub(crate) async fn stop_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
         log::info!("Stopping Instance UUID: {}", record_id);
         let record = self.store.get_flow_by_instance(&record_id).await?;
 
@@ -289,7 +390,7 @@ impl Runtime for Daemon {
             .filter(|rt| *rt != self.ctx.runtime_uuid);
 
         for rt in all_involved_runtimes {
-            let client = RuntimeClient::new(self.ctx.session.clone(), rt);
+            let client = DaemonInterfaceInternalClient::new(self.ctx.session.clone(), rt);
             rt_clients.push(client);
         }
 
@@ -310,7 +411,7 @@ impl Runtime for Daemon {
 
         // local stop
         if is_also_local {
-            Runtime::stop(self, record_id).await?;
+            self.stop_nodes(record_id).await?;
         }
 
         log::info!("Stopped Instance UUID: {}", record_id);
@@ -318,7 +419,7 @@ impl Runtime for Daemon {
         Ok(record)
     }
 
-    async fn start(&self, record_id: Uuid) -> DaemonResult<()> {
+    pub(crate) async fn start_nodes(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!(
             "Starting nodes (not sources) for Instance UUID: {}",
             record_id
@@ -332,7 +433,7 @@ impl Runtime for Daemon {
             .await?;
 
         match _state.graphs.get_mut(&record_id) {
-            Some(mut instance) => {
+            Some(instance) => {
                 let mut sinks = instance.get_sinks();
                 for id in sinks.drain(..) {
                     instance.start_node(&id).await?;
@@ -360,7 +461,8 @@ impl Runtime for Daemon {
             None => Err(ErrorKind::InstanceNotFound(record_id)),
         }
     }
-    async fn start_sources(&self, record_id: Uuid) -> DaemonResult<()> {
+
+    pub(crate) async fn start_sources(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!("Starting sources for Instance UUID: {}", record_id);
 
         let mut _state = self.state.lock().await;
@@ -371,7 +473,7 @@ impl Runtime for Daemon {
             .await?;
 
         match _state.graphs.get_mut(&record_id) {
-            Some(mut instance) => {
+            Some(instance) => {
                 let mut sources = instance.get_sources();
                 for id in sources.drain(..) {
                     instance.start_node(&id).await?;
@@ -389,7 +491,8 @@ impl Runtime for Daemon {
             None => Err(ErrorKind::InstanceNotFound(record_id)),
         }
     }
-    async fn stop(&self, record_id: Uuid) -> DaemonResult<()> {
+
+    pub(crate) async fn stop_nodes(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!(
             "Stopping nodes (not sources) for Instance UUID: {}",
             record_id
@@ -403,7 +506,7 @@ impl Runtime for Daemon {
             .await?;
 
         match _state.graphs.get_mut(&record_id) {
-            Some(mut instance) => {
+            Some(instance) => {
                 let mut sinks = instance.get_sinks();
                 for id in sinks.drain(..) {
                     instance.stop_node(&id).await?;
@@ -431,7 +534,8 @@ impl Runtime for Daemon {
             None => Err(ErrorKind::InstanceNotFound(record_id)),
         }
     }
-    async fn stop_sources(&self, record_id: Uuid) -> DaemonResult<()> {
+
+    pub(crate) async fn stop_sources(&self, record_id: Uuid) -> DaemonResult<()> {
         log::info!("Stopping sources for Instance UUID: {}", record_id);
 
         let mut _state = self.state.lock().await;
@@ -441,7 +545,7 @@ impl Runtime for Daemon {
             .await?;
 
         match _state.graphs.get_mut(&record_id) {
-            Some(mut instance) => {
+            Some(instance) => {
                 let mut sources = instance.get_sources();
                 for id in sources.drain(..) {
                     instance.stop_node(&id).await?;
@@ -459,32 +563,36 @@ impl Runtime for Daemon {
             None => Err(ErrorKind::InstanceNotFound(record_id)),
         }
     }
-    async fn start_node(&self, instance_id: Uuid, node: String) -> DaemonResult<()> {
+
+    #[allow(dead_code)]
+    pub(crate) async fn start_node(&self, instance_id: Uuid, node: String) -> DaemonResult<()> {
         let mut _state = self.state.lock().await;
-        let mut rt_status = self
-            .store
-            .get_runtime_status(&self.ctx.runtime_uuid)
-            .await?;
+        // let mut rt_status = self
+        //     .store
+        //     .get_runtime_status(&self.ctx.runtime_uuid)
+        //     .await?;
 
         match _state.graphs.get_mut(&instance_id) {
-            Some(mut instance) => Ok(instance.start_node(&node.into()).await?),
-            None => Err(ErrorKind::InstanceNotFound(instance_id)),
-        }
-    }
-    async fn stop_node(&self, instance_id: Uuid, node: String) -> DaemonResult<()> {
-        let mut _state = self.state.lock().await;
-        let mut rt_status = self
-            .store
-            .get_runtime_status(&self.ctx.runtime_uuid)
-            .await?;
-
-        match _state.graphs.get_mut(&instance_id) {
-            Some(mut instance) => Ok(instance.stop_node(&node.into()).await?),
+            Some(instance) => Ok(instance.start_node(&node.into()).await?),
             None => Err(ErrorKind::InstanceNotFound(instance_id)),
         }
     }
 
-    // async fn start_record(&self, instance_id: Uuid, source_id: NodeId) -> DaemonResult<String> {
+    #[allow(dead_code)]
+    pub(crate) async fn stop_node(&self, instance_id: Uuid, node: String) -> DaemonResult<()> {
+        let mut _state = self.state.lock().await;
+        // let mut rt_status = self
+        //     .store
+        //     .get_runtime_status(&self.ctx.runtime_uuid)
+        //     .await?;
+
+        match _state.graphs.get_mut(&instance_id) {
+            Some(instance) => Ok(instance.stop_node(&node.into()).await?),
+            None => Err(ErrorKind::InstanceNotFound(instance_id)),
+        }
+    }
+
+    // pub(crate) async fn start_record(&self, instance_id: Uuid, source_id: NodeId) -> DaemonResult<String> {
     //     let mut _state = self.state.lock().await;
     //     let mut rt_status = self
     //         .store
@@ -500,7 +608,7 @@ impl Runtime for Daemon {
     //     }
     // }
 
-    // async fn stop_record(&self, instance_id: Uuid, source_id: NodeId) -> DaemonResult<String> {
+    // pub(crate) sync fn stop_record(&self, instance_id: Uuid, source_id: NodeId) -> DaemonResult<String> {
     //     let mut _state = self.state.lock().await;
     //     let mut rt_status = self
     //         .store
@@ -516,7 +624,7 @@ impl Runtime for Daemon {
     //     }
     // }
 
-    // async fn start_replay(
+    // pub(crate) async fn start_replay(
     //     &self,
     //     instance_id: Uuid,
     //     source_id: NodeId,
@@ -541,7 +649,7 @@ impl Runtime for Daemon {
     //     }
     // }
 
-    // async fn stop_replay(
+    // pub(crate) async fn stop_replay(
     //     &self,
     //     instance_id: Uuid,
     //     source_id: NodeId,
@@ -562,24 +670,30 @@ impl Runtime for Daemon {
     //     }
     // }
 
-    async fn notify_runtime(
+    pub(crate) async fn notify_runtime(
         &self,
-        record_id: Uuid,
-        node: String,
-        message: ControlMessage,
+        _record_id: Uuid,
+        _node: String,
+        _message: ControlMessage,
     ) -> DaemonResult<()> {
         Err(ErrorKind::Unimplemented)
     }
-    async fn check_operator_compatibility(
+    pub(crate) async fn check_operator_compatibility(
         &self,
-        operator: SimpleOperatorDescriptor,
+        _operator: SimpleOperatorDescriptor,
     ) -> DaemonResult<bool> {
         Err(ErrorKind::Unimplemented)
     }
-    async fn check_source_compatibility(&self, source: SourceDescriptor) -> DaemonResult<bool> {
+    pub(crate) async fn check_source_compatibility(
+        &self,
+        _source: SourceDescriptor,
+    ) -> DaemonResult<bool> {
         Err(ErrorKind::Unimplemented)
     }
-    async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> DaemonResult<bool> {
+    pub(crate) async fn check_sink_compatibility(
+        &self,
+        _sink: SinkDescriptor,
+    ) -> DaemonResult<bool> {
         Err(ErrorKind::Unimplemented)
     }
 }

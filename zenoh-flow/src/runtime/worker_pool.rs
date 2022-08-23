@@ -223,4 +223,13 @@ impl WorkerPool {
 
         Ok(job)
     }
+
+    pub async fn submit_delete(&self, fid: &Uuid) -> ZFResult<Job> {
+        let jid = Uuid::new_v4();
+        let job = Job::new_delete(fid.clone(), jid.clone(), self.hlc.new_timestamp());
+
+        self.session.add_submitted_job(&self.rtid, &job).await?;
+
+        Ok(job)
+    }
 }

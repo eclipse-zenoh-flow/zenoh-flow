@@ -255,6 +255,15 @@ impl Job {
         }
     }
 
+    fn new_delete(fid: Uuid, id: Uuid, ts: Timestamp) -> Self {
+        Self {
+            id,
+            job: JobKind::DeleteInstance(fid),
+            status: JobStatus::Submitted(ts),
+            assignee: None,
+        }
+    }
+
     pub fn get_id(&self) -> &Uuid {
         &self.id
     }
@@ -293,18 +302,18 @@ impl Job {
     }
 }
 
-/// The interface the Runtime expose to a client
-/// (eg. another runtime, the cli, the mgmt API)[^note]
+/// The interface the Daemon expose to a client
+/// (eg. the cli, or, the mgmt API)[^note]
 /// The service is exposed using zenoh-rpc, the server and client
 /// are generated automatically.
 ///
 /// [^note]: We may split this interface in the future.
 #[znservice(
     timeout_s = 60,
-    prefix = "/zf/runtime",
+    prefix = "/zf/daemon",
     service_uuid = "00000000-0000-0000-0000-000000000001"
 )]
-pub trait Runtime {
+pub trait DaemonInterface {
     /// Creates the instance (`DataFlowRecord`) from the
     /// given [`FlattenDataFlowDescriptor`][^note].
     ///
@@ -316,7 +325,7 @@ pub trait Runtime {
     /// 5) Stores the record in Zenoh
     /// 6) Prepares all the involved runtimes to host the data flow instance
     ///
-    /// Returns the `DataFlowRecord` associted with the instance
+    /// Returns the [`Uuid`] associated with the instance
     ///
     /// [^note]: When the registry will be in place it will take
     /// the Flow identifier as parameter
@@ -326,10 +335,7 @@ pub trait Runtime {
     /// - error on zenoh-rpc
     /// - unable to map
     /// - unable to prepare nodes
-    async fn create_instance(
-        &self,
-        flow: FlattenDataFlowDescriptor,
-    ) -> DaemonResult<DataFlowRecord>;
+    async fn create_instance(&self, flow: FlattenDataFlowDescriptor) -> DaemonResult<Uuid>;
     //TODO: workaround - it should just take the ID of the flow (when
     // the registry will be in place)
 
@@ -351,6 +357,8 @@ pub trait Runtime {
     /// The record contains an [`Uuid`] that identifies the record.
     /// The actual instantiation process runs asynchronously in the runtime.
     ///
+    /// Returns the [`Uuid`] associated with the instance
+    ///
     /// It is equivalent to calling `create_instance` and
     /// then `start_instance`.
     ///
@@ -361,7 +369,7 @@ pub trait Runtime {
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to instantiate
-    async fn instantiate(&self, flow: FlattenDataFlowDescriptor) -> DaemonResult<DataFlowRecord>;
+    async fn instantiate(&self, flow: FlattenDataFlowDescriptor) -> DaemonResult<Uuid>;
     //TODO: workaround - it should just take the ID of the flow (when
     // the registry will be in place)
 
@@ -377,26 +385,6 @@ pub trait Runtime {
     /// - unable to teardown
     /// - instance not found
     async fn teardown(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
-
-    /// Prepares the runtime host the instance identified by the [`Uuid`].
-    /// Preparing a runtime means, fetch the operators/source/sinks libraries,
-    /// create the needed structures in memory, the links.
-    /// Once everything is prepared the runtime should return the [`DataFlowRecord`]
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - error on zenoh-rpc
-    /// - unable to prepare
-    async fn prepare(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
-
-    /// Cleans the runtime from the remains of the given record.
-    /// Cleans means unload the libraries, drop data structures and destroy links.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - error on zenoh-rpc
-    /// - unable to clean
-    async fn clean(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
 
     /// Starts the instance on all involved nodes.
     ///
@@ -418,46 +406,6 @@ pub trait Runtime {
     /// - error on zenoh-rpc
     /// - unable to clean
     async fn stop_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
-
-    /// Starts the sinks, connectors, and operators for the given record.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - error on zenoh-rpc
-    /// - record not found
-    /// - record already started
-    async fn start(&self, record_id: Uuid) -> DaemonResult<()>;
-
-    /// Starts the sources for the given record.
-    /// Note that this should be called only after the `start(record)` has returned
-    /// successfully otherwise data may be lost.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - error on zenoh-rpc
-    /// - record not found
-    /// - sources already started
-    async fn start_sources(&self, record_id: Uuid) -> DaemonResult<()>;
-
-    /// Stops the sinks, connectors, and operators for the given record.
-    /// Note that this should be called after the `stop_sources(record)` has returned
-    /// successfully otherwise data may be lost.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - error on zenoh-rpc
-    /// - record not found
-    /// - record already stopped
-    async fn stop(&self, record_id: Uuid) -> DaemonResult<()>;
-
-    /// Stops the sources for the given record.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - error on zenoh-rpc
-    /// - record not found
-    /// - sources already stopped
-    async fn stop_sources(&self, record_id: Uuid) -> DaemonResult<()>;
 
     /// Starts the given graph node for the given instance.
     /// A graph node can be a source, a sink, a connector, or an operator.
@@ -540,11 +488,82 @@ pub trait Runtime {
     //     replay_id: NodeId,
     // ) -> DaemonResult<NodeId>;
 
-    /// Gets the state of the given graph node for the given instance.
-    /// A graph node can be a source, a sink, a connector, or an operator.
-    /// The node state represents the current state of the node:
-    /// `enum NodeState { Running, Stopped, Error(err) }`
+    // /// Gets the state of the given graph node for the given instance.
+    // /// A graph node can be a source, a sink, a connector, or an operator.
+    // /// The node state represents the current state of the node:
+    // /// `enum NodeState { Running, Stopped, Error(err) }`
     // async fn get_node_state(&self, record_id: Uuid, node: String) -> DaemonResult<NodeState>;
+}
+
+/// The interface the Daemon expose to other daemons.
+/// The service is exposed using zenoh-rpc, the server and client
+/// are generated automatically.
+///
+#[znservice(
+    timeout_s = 600,
+    prefix = "/zf/daemon",
+    service_uuid = "00000000-0000-0000-0000-000000000002"
+)]
+pub trait DaemonInterfaceInternal {
+    /// Prepares the runtime host the instance identified by the [`Uuid`].
+    /// Preparing a runtime means, fetch the operators/source/sinks libraries,
+    /// create the needed structures in memory, the links.
+    /// Once everything is prepared the runtime should return the [`DataFlowRecord`]
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - unable to prepare
+    async fn prepare(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
+
+    /// Cleans the runtime from the remains of the given record.
+    /// Cleans means unload the libraries, drop data structures and destroy links.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - unable to clean
+    async fn clean(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
+
+    /// Starts the sinks, connectors, and operators for the given record.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - record already started
+    async fn start(&self, record_id: Uuid) -> DaemonResult<()>;
+
+    /// Starts the sources for the given record.
+    /// Note that this should be called only after the `start(record)` has returned
+    /// successfully otherwise data may be lost.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - sources already started
+    async fn start_sources(&self, record_id: Uuid) -> DaemonResult<()>;
+
+    /// Stops the sinks, connectors, and operators for the given record.
+    /// Note that this should be called after the `stop_sources(record)` has returned
+    /// successfully otherwise data may be lost.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - record already stopped
+    async fn stop(&self, record_id: Uuid) -> DaemonResult<()>;
+
+    /// Stops the sources for the given record.
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - error on zenoh-rpc
+    /// - record not found
+    /// - sources already stopped
+    async fn stop_sources(&self, record_id: Uuid) -> DaemonResult<()>;
 
     /// Sends the `message` to `node` for the given record.
     /// This is useful for sending out-of-band notification to a node.
