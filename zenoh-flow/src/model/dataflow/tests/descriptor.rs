@@ -333,7 +333,7 @@ fn test_duplicate_composite_at_same_level_not_detected_as_recursion() {
         "{}/{}/{}",
         env!("CARGO_MANIFEST_DIR"),
         BASE_PATH,
-        "data-flow-recursion-ok.yml"
+        "data-flow-recursion-duplicate-composite.yml"
     );
 
     let file = File::open(path).expect("Could not open file");
