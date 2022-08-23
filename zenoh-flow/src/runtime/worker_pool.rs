@@ -222,4 +222,40 @@ impl WorkerPool {
 
         Ok(job)
     }
+
+    pub async fn submit_start(&self, fid: &Uuid) -> ZFResult<Job> {
+        let jid = Uuid::new_v4();
+        let job = Job::new_start(*fid, jid, self.hlc.new_timestamp());
+
+        self.session.add_submitted_job(&self.rtid, &job).await?;
+
+        Ok(job)
+    }
+
+    pub async fn submit_stop(&self, fid: &Uuid) -> ZFResult<Job> {
+        let jid = Uuid::new_v4();
+        let job = Job::new_stop(*fid, jid, self.hlc.new_timestamp());
+
+        self.session.add_submitted_job(&self.rtid, &job).await?;
+
+        Ok(job)
+    }
+
+    pub async fn submit_start_node(&self, fid: &Uuid, node_id: &str) -> ZFResult<Job> {
+        let jid = Uuid::new_v4();
+        let job = Job::new_start_node(*fid, node_id.to_owned(), jid, self.hlc.new_timestamp());
+
+        self.session.add_submitted_job(&self.rtid, &job).await?;
+
+        Ok(job)
+    }
+
+    pub async fn submit_stop_node(&self, fid: &Uuid, node_id: &str) -> ZFResult<Job> {
+        let jid = Uuid::new_v4();
+        let job = Job::new_stop_node(*fid, node_id.to_owned(), jid, self.hlc.new_timestamp());
+
+        self.session.add_submitted_job(&self.rtid, &job).await?;
+
+        Ok(job)
+    }
 }

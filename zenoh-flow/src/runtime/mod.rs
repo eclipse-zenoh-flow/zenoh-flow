@@ -197,6 +197,10 @@ pub enum JobKind {
     DeleteInstance(Uuid),
     Instantiate(FlattenDataFlowDescriptor, Uuid),
     Teardown(Uuid),
+    StartInstance(Uuid),
+    StopInstance(Uuid),
+    StartNode(Uuid, String),
+    StopNode(Uuid, String),
 }
 
 /// The status of a [`Job`](`Job`), associated with a timestamp from when the status change happenend
@@ -259,6 +263,42 @@ impl Job {
         Self {
             id,
             job: JobKind::DeleteInstance(fid),
+            status: JobStatus::Submitted(ts),
+            assignee: None,
+        }
+    }
+
+    fn new_start(fid: Uuid, id: Uuid, ts: Timestamp) -> Self {
+        Self {
+            id,
+            job: JobKind::StartInstance(fid),
+            status: JobStatus::Submitted(ts),
+            assignee: None,
+        }
+    }
+
+    fn new_stop(fid: Uuid, id: Uuid, ts: Timestamp) -> Self {
+        Self {
+            id,
+            job: JobKind::StopInstance(fid),
+            status: JobStatus::Submitted(ts),
+            assignee: None,
+        }
+    }
+
+    fn new_start_node(fid: Uuid, node_id: String, id: Uuid, ts: Timestamp) -> Self {
+        Self {
+            id,
+            job: JobKind::StartNode(fid, node_id),
+            status: JobStatus::Submitted(ts),
+            assignee: None,
+        }
+    }
+
+    fn new_stop_node(fid: Uuid, node_id: String, id: Uuid, ts: Timestamp) -> Self {
+        Self {
+            id,
+            job: JobKind::StopNode(fid, node_id),
             status: JobStatus::Submitted(ts),
             assignee: None,
         }

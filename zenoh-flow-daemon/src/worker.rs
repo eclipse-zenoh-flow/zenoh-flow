@@ -18,6 +18,7 @@ use async_trait::async_trait;
 use flume::Receiver;
 use uhlc::HLC;
 
+use zenoh_flow::runtime::JobKind;
 use zenoh_flow::runtime::{worker_pool::WorkerTrait, Job};
 use zenoh_flow::zfresult::ErrorKind;
 use zenoh_flow::Result as ZFResult;
@@ -89,7 +90,7 @@ impl WorkerTrait for Worker {
                 .await?;
 
             match job.get_kind() {
-                zenoh_flow::runtime::JobKind::CreateInstance(dfd, inst_uuid) => {
+                JobKind::CreateInstance(dfd, inst_uuid) => {
                     log::info!(
                         "[Worker: {}] Job: {} Creating Flow {} : {}",
                         self.id,
@@ -114,7 +115,7 @@ impl WorkerTrait for Worker {
                     }
                 }
 
-                zenoh_flow::runtime::JobKind::DeleteInstance(inst_uuid) => {
+                JobKind::DeleteInstance(inst_uuid) => {
                     log::info!(
                         "[Worker: {}] Job: {} Deleting Flow Instance {}",
                         self.id,
@@ -137,7 +138,7 @@ impl WorkerTrait for Worker {
                         }
                     }
                 }
-                zenoh_flow::runtime::JobKind::Instantiate(dfd, inst_uuid) => {
+                JobKind::Instantiate(dfd, inst_uuid) => {
                     log::info!(
                         "[Worker: {}] Job: {} Instantiating Flow {} : {}",
                         self.id,
@@ -161,7 +162,7 @@ impl WorkerTrait for Worker {
                         }
                     }
                 }
-                zenoh_flow::runtime::JobKind::Teardown(inst_uuid) => {
+                JobKind::Teardown(inst_uuid) => {
                     log::info!(
                         "[Worker: {}] Job: {} Teardown Flow Instance {}",
                         self.id,
@@ -176,6 +177,98 @@ impl WorkerTrait for Worker {
                                 self.id,
                                 dfr.flow,
                                 dfr.uuid
+                            );
+                        }
+                        Err(e) => {
+                            self.store_error(&mut job, e).await?;
+                            continue;
+                        }
+                    }
+                }
+                JobKind::StartInstance(inst_uuid) => {
+                    log::info!(
+                        "[Worker: {}] Job: {} Start Flow Instance {}",
+                        self.id,
+                        job.get_id(),
+                        inst_uuid
+                    );
+
+                    match self.runtime.start_instance(*inst_uuid).await {
+                        Ok(_) => {
+                            log::info!(
+                                "[Worker: {}] Started Flow Instance UUID: {}",
+                                self.id,
+                                inst_uuid
+                            );
+                        }
+                        Err(e) => {
+                            self.store_error(&mut job, e).await?;
+                            continue;
+                        }
+                    }
+                }
+                JobKind::StopInstance(inst_uuid) => {
+                    log::info!(
+                        "[Worker: {}] Job: {} Stop Flow Instance {}",
+                        self.id,
+                        job.get_id(),
+                        inst_uuid
+                    );
+
+                    match self.runtime.stop_instance(*inst_uuid).await {
+                        Ok(dfr) => {
+                            log::info!(
+                                "[Worker: {}] Stopped Flow Instance UUID: {}",
+                                self.id,
+                                dfr.uuid
+                            );
+                        }
+                        Err(e) => {
+                            self.store_error(&mut job, e).await?;
+                            continue;
+                        }
+                    }
+                }
+                JobKind::StartNode(inst_uuid, node_id) => {
+                    log::info!(
+                        "[Worker: {}] Job: {} Start Node {} Instance {}",
+                        self.id,
+                        job.get_id(),
+                        node_id,
+                        inst_uuid
+                    );
+
+                    match self.runtime.start_node(*inst_uuid, node_id.clone()).await {
+                        Ok(_) => {
+                            log::info!(
+                                "[Worker: {}] Started Node {}  Instance UUID: {}",
+                                self.id,
+                                node_id,
+                                inst_uuid,
+                            );
+                        }
+                        Err(e) => {
+                            self.store_error(&mut job, e).await?;
+                            continue;
+                        }
+                    }
+                }
+                JobKind::StopNode(inst_uuid, node_id) => {
+                    log::info!(
+                        "[Worker: {}] Job: {} Start Node {} Instance {}",
+                        self.id,
+                        job.get_id(),
+                        node_id,
+                        inst_uuid
+                    );
+
+                    match self.runtime.start_node(*inst_uuid, node_id.clone()).await {
+                        Ok(_) => {
+                            log::info!(
+                                "[Worker: {}] Started Node {}  Instance UUID: {}",
+                                self.id,
+                                node_id,
+                                inst_uuid
                             );
                         }
                         Err(e) => {

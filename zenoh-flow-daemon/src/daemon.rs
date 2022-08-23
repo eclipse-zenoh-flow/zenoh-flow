@@ -16,7 +16,7 @@ use std::convert::TryFrom;
 use std::fs;
 use std::path::Path;
 
-use async_std::sync::Mutex;
+use async_std::sync::RwLock;
 // use futures::stream::{AbortHandle, Abortable, Aborted};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -78,7 +78,7 @@ pub struct DaemonConfig {
 #[derive(Clone)]
 pub struct Daemon {
     runtime: Runtime,
-    worker_pool: Arc<Mutex<WorkerPool>>,
+    worker_pool: Arc<RwLock<WorkerPool>>,
     ctx: RuntimeContext,
 }
 
@@ -267,7 +267,7 @@ impl Daemon {
 
         Self {
             runtime,
-            worker_pool: Arc::new(Mutex::new(workers)),
+            worker_pool: Arc::new(RwLock::new(workers)),
             ctx,
         }
     }
@@ -425,7 +425,7 @@ impl Daemon {
     ) -> ZFResult<()> {
         // Taking the lock to stop the workers,
         // stopping them and releasing the lock
-        let mut workers = self.worker_pool.lock().await;
+        let mut workers = self.worker_pool.write().await;
         workers.stop().await;
         drop(workers);
 
@@ -453,7 +453,7 @@ impl DaemonInterface for Daemon {
 
         let res = self
             .worker_pool
-            .lock()
+            .read()
             .await
             .submit_create(&flow, &instance_uuid)
             .await?;
@@ -472,7 +472,7 @@ impl DaemonInterface for Daemon {
 
         let res = self
             .worker_pool
-            .lock()
+            .read()
             .await
             .submit_delete(&record_id)
             .await?;
@@ -491,7 +491,7 @@ impl DaemonInterface for Daemon {
 
         let res = self
             .worker_pool
-            .lock()
+            .read()
             .await
             .submit_instantiate(&flow, &instance_uuid)
             .await?;
@@ -510,7 +510,7 @@ impl DaemonInterface for Daemon {
 
         let res = self
             .worker_pool
-            .lock()
+            .read()
             .await
             .submit_teardown(&record_id)
             .await?;
@@ -525,18 +525,74 @@ impl DaemonInterface for Daemon {
     }
 
     async fn start_instance(&self, record_id: Uuid) -> DaemonResult<()> {
-        Err(ErrorKind::Unimplemented)
+        let res = self
+            .worker_pool
+            .read()
+            .await
+            .submit_start(&record_id)
+            .await?;
+        log::info!(
+            "[Daemon {}]: Sent job for start instance {}, JobId: {}",
+            self.ctx.runtime_uuid,
+            record_id,
+            res.get_id()
+        );
+
+        Ok(())
     }
 
     async fn stop_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
-        Err(ErrorKind::Unimplemented)
+        let record = self.runtime.store.get_flow_by_instance(&record_id).await?;
+
+        let res = self
+            .worker_pool
+            .read()
+            .await
+            .submit_stop(&record_id)
+            .await?;
+        log::info!(
+            "[Daemon {}]: Sent job to stop instance {}, JobId: {}",
+            self.ctx.runtime_uuid,
+            record_id,
+            res.get_id()
+        );
+
+        Ok(record)
     }
 
     async fn start_node(&self, instance_id: Uuid, node: String) -> DaemonResult<()> {
-        Err(ErrorKind::Unimplemented)
+        let res = self
+            .worker_pool
+            .read()
+            .await
+            .submit_start_node(&instance_id, &node)
+            .await?;
+        log::info!(
+            "[Daemon {}]: Sent job for start node {} in instance {}, JobId: {}",
+            self.ctx.runtime_uuid,
+            node,
+            instance_id,
+            res.get_id()
+        );
+
+        Ok(())
     }
     async fn stop_node(&self, instance_id: Uuid, node: String) -> DaemonResult<()> {
-        Err(ErrorKind::Unimplemented)
+        let res = self
+            .worker_pool
+            .read()
+            .await
+            .submit_stop_node(&instance_id, &node)
+            .await?;
+        log::info!(
+            "[Daemon {}]: Sent job for start node {} in instance {}, JobId: {}",
+            self.ctx.runtime_uuid,
+            node,
+            instance_id,
+            res.get_id()
+        );
+
+        Ok(())
     }
 
     // async fn start_record(&self, instance_id: Uuid, source_id: NodeId) -> DaemonResult<String> {
