@@ -12,18 +12,17 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::runtime::dataflow::instance::io::Output;
+use crate::prelude::Outputs;
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::SourceLoaded;
 use crate::runtime::InstanceContext;
 use crate::traits::Source;
-use crate::types::{Configuration, Context, NodeId, PortId};
+use crate::types::{Configuration, Context, NodeId};
 use crate::zfresult::Error;
 use crate::Result as ZFResult;
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -44,7 +43,7 @@ pub struct SourceRunner {
     pub(crate) id: NodeId,
     pub(crate) configuration: Option<Configuration>,
     pub(crate) context: Context,
-    pub(crate) outputs: HashMap<PortId, Output>,
+    pub(crate) outputs: Outputs,
     pub(crate) source: Arc<dyn Source>,
     pub(crate) _library: Option<Arc<Library>>,
     pub(crate) handle: Option<JoinHandle<Result<Error, Aborted>>>,
@@ -63,7 +62,7 @@ impl SourceRunner {
     pub fn new(
         instance_context: Arc<InstanceContext>,
         source: SourceLoaded,
-        outputs: HashMap<PortId, Output>,
+        outputs: Outputs,
     ) -> Self {
         Self {
             id: source.id,

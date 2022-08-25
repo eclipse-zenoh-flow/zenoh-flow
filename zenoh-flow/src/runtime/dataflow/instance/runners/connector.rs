@@ -13,11 +13,12 @@
 //
 
 use crate::model::connector::ZFConnectorRecord;
+use crate::prelude::{Inputs, Outputs};
 use crate::runtime::dataflow::instance::io::{Input, Output};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
-use crate::types::{NodeId, PortId};
+use crate::types::NodeId;
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;
@@ -25,7 +26,6 @@ use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::stream::{AbortHandle, Abortable, Aborted};
 use futures::StreamExt;
-use std::collections::HashMap;
 use std::sync::Arc;
 use zenoh::prelude::*;
 use zenoh::publication::CongestionControl;
@@ -52,7 +52,7 @@ impl ZenohSender {
     pub fn try_new(
         instance_context: Arc<InstanceContext>,
         record: ZFConnectorRecord,
-        mut inputs: HashMap<PortId, Input>,
+        mut inputs: Inputs,
     ) -> ZFResult<Self> {
         let port_id = record.link_id.port_id.clone();
         let input = inputs.remove(&port_id).ok_or_else(|| {
@@ -211,7 +211,7 @@ impl ZenohReceiver {
     pub fn try_new(
         instance_context: Arc<InstanceContext>,
         record: ZFConnectorRecord,
-        mut outputs: HashMap<PortId, Output>,
+        mut outputs: Outputs,
     ) -> ZFResult<Self> {
         let port_id = record.link_id.port_id.clone();
         let output = outputs.remove(&port_id).ok_or_else(|| {

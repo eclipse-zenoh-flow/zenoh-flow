@@ -34,6 +34,8 @@ pub trait Streams {
     type Item;
 
     fn take(&mut self, port_id: impl AsRef<str>) -> Option<Self::Item>;
+
+    fn take_into_arc(&mut self, port_id: impl AsRef<str>) -> Option<Arc<Self::Item>>;
 }
 
 impl Streams for Inputs {
@@ -42,6 +44,10 @@ impl Streams for Inputs {
     fn take(&mut self, port_id: impl AsRef<str>) -> Option<Self::Item> {
         self.remove(port_id.as_ref())
     }
+
+    fn take_into_arc(&mut self, port_id: impl AsRef<str>) -> Option<Arc<Self::Item>> {
+        self.remove(port_id.as_ref()).map(Arc::new)
+    }
 }
 
 impl Streams for Outputs {
@@ -49,6 +55,10 @@ impl Streams for Outputs {
 
     fn take(&mut self, port_id: impl AsRef<str>) -> Option<Self::Item> {
         self.remove(port_id.as_ref())
+    }
+
+    fn take_into_arc(&mut self, port_id: impl AsRef<str>) -> Option<Arc<Self::Item>> {
+        self.remove(port_id.as_ref()).map(Arc::new)
     }
 }
 
@@ -72,7 +82,7 @@ impl Input {
     ///
     /// The callback function will be called as soon as data is received on any of the channels of
     /// this Input.
-    pub fn into_callback(self, context: &mut Context, callback: Arc<dyn AsyncCallbackRx>) {
+    pub fn into_callback(self, context: &mut Context, callback: Box<dyn AsyncCallbackRx>) {
         context.callback_receivers.push(AsyncCallbackReceiver {
             index: context.callback_receivers.len(),
             input: self,
@@ -162,7 +172,7 @@ pub trait AsyncCallbackRx: Send + Sync {
 /// are going to call the closure more than once.
 impl<Fut, Fun> AsyncCallbackRx for Fun
 where
-    Fun: FnOnce(Message) -> Fut + Sync + Send + Clone,
+    Fun: FnMut(Message) -> Fut + Sync + Send + Clone,
     Fut: Future<Output = ZFResult<()>> + 'static + Send + Sync,
 {
     fn call(
@@ -176,15 +186,14 @@ where
 /// The `AsyncCallbackReceiver` wraps the `Input` and the `AsyncCallbackRx`.
 ///
 /// It is used to trigger the user callback when a new message is available.
-#[derive(Clone)]
 pub struct AsyncCallbackReceiver {
     index: usize,
     input: Input,
-    cb: Arc<dyn AsyncCallbackRx>,
+    cb: Box<dyn AsyncCallbackRx>,
 }
 
 impl AsyncCallbackReceiver {
-    pub fn new(index: usize, input: Input, cb: Arc<dyn AsyncCallbackRx>) -> Self {
+    pub fn new(index: usize, input: Input, cb: Box<dyn AsyncCallbackRx>) -> Self {
         Self { index, input, cb }
     }
 
@@ -217,7 +226,7 @@ impl Output {
     }
 
     /// Turns the Output from a Stream to a Callback.
-    pub fn into_callback(self, context: &mut Context, callback: Arc<dyn AsyncCallbackTx>) {
+    pub fn into_callback(self, context: &mut Context, callback: Box<dyn AsyncCallbackTx>) {
         context.callback_senders.push(AsyncCallbackSender {
             index: context.callback_senders.len(),
             output: self,
@@ -380,7 +389,7 @@ pub trait AsyncCallbackTx: Send + Sync {
 /// has to be `Clone` as we are going to call the closure more than once.
 impl<Fut, Fun> AsyncCallbackTx for Fun
 where
-    Fun: FnOnce() -> Fut + Sync + Send + Clone,
+    Fun: FnMut() -> Fut + Sync + Send + Clone,
     Fut: Future<Output = ZFResult<(Data, Option<u64>)>> + Send + Sync + 'static,
 {
     fn call(
@@ -396,11 +405,11 @@ where
 pub struct AsyncCallbackSender {
     index: usize,
     output: Output,
-    cb: Arc<dyn AsyncCallbackTx>,
+    cb: Box<dyn AsyncCallbackTx>,
 }
 
 impl AsyncCallbackSender {
-    pub fn new(index: usize, output: Output, cb: Arc<dyn AsyncCallbackTx>) -> Self {
+    pub fn new(index: usize, output: Output, cb: Box<dyn AsyncCallbackTx>) -> Self {
         Self { index, output, cb }
     }
 

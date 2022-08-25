@@ -12,6 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::prelude::{Inputs, Outputs};
 use crate::runtime::dataflow::instance::io::{Input, Output};
 use crate::types::{Configuration, Context, PortId};
 use crate::Result;
@@ -21,7 +22,6 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::pin::Pin;
-use std::sync::Arc;
 
 /// This trait is used to ensure the data can donwcast to [`Any`](`Any`)
 /// NOTE: This trait is separate from `ZFDataTrait` so that we can provide
@@ -111,8 +111,8 @@ pub trait Source: Send + Sync {
         &self,
         context: &mut Context,
         configuration: &Option<Configuration>,
-        outputs: HashMap<PortId, Output>,
-    ) -> Result<Option<Arc<dyn AsyncIteration>>>;
+        outputs: Outputs,
+    ) -> Result<Option<Box<dyn AsyncIteration>>>;
 }
 
 /// The `Operator` trait represents an Operator inside Zenoh Flow.
@@ -122,9 +122,9 @@ pub trait Operator: Send + Sync {
         &self,
         context: &mut Context,
         configuration: &Option<Configuration>,
-        inputs: HashMap<PortId, Input>,
-        outputs: HashMap<PortId, Output>,
-    ) -> Result<Option<Arc<dyn AsyncIteration>>>;
+        inputs: Inputs,
+        outputs: Outputs,
+    ) -> Result<Option<Box<dyn AsyncIteration>>>;
 }
 
 /// The `Sink` trait represents a Sink inside Zenoh Flow.
@@ -134,8 +134,8 @@ pub trait Sink: Send + Sync {
         &self,
         context: &mut Context,
         configuration: &Option<Configuration>,
-        inputs: HashMap<PortId, Input>,
-    ) -> Result<Option<Arc<dyn AsyncIteration>>>;
+        inputs: Inputs,
+    ) -> Result<Option<Box<dyn AsyncIteration>>>;
 }
 
 /// A `SourceSink` represents Nodes that access the same physical interface to
@@ -148,7 +148,7 @@ pub trait SourceSink: Send + Sync {
         configuration: &Option<Configuration>,
         inputs: HashMap<PortId, Input>,
         outputs: HashMap<PortId, Output>,
-    ) -> Result<Option<Arc<dyn AsyncIteration>>>;
+    ) -> Result<Option<Box<dyn AsyncIteration>>>;
 }
 
 /// Trait wrapping an async closures for node iteration, it requires rust-nightly because of
@@ -167,7 +167,7 @@ pub trait AsyncIteration: Send + Sync {
 /// has to be `Clone` as we are going to call the closure more than once.
 impl<Fut, Fun> AsyncIteration for Fun
 where
-    Fun: FnOnce() -> Fut + Sync + Send + Clone,
+    Fun: FnMut() -> Fut + Sync + Send + Clone,
     Fut: Future<Output = Result<()>> + Send + Sync + 'static,
 {
     fn call(&self) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>> {

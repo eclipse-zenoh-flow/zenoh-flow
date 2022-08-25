@@ -83,25 +83,31 @@ impl Source for CountSource {
         _ctx: &mut Context,
         _configuration: &Option<Configuration>,
         mut outputs: Outputs,
-    ) -> Result<Option<Arc<dyn AsyncIteration>>> {
-        let output = outputs.take(SOURCE).unwrap();
-        let output_callback = outputs.take(PORT_CALLBACK).unwrap();
+    ) -> Result<Option<Box<dyn AsyncIteration>>> {
+        let output = outputs.take_into_arc(SOURCE).unwrap();
+        let output_callback = outputs.take_into_arc(PORT_CALLBACK).unwrap();
         let c_trigger_rx = self.rx.clone();
 
-        Ok(Some(Arc::new(move || async move {
-            c_trigger_rx.recv_async().await.unwrap();
-            COUNTER.fetch_add(1, Ordering::AcqRel);
-            let d = ZFUsize(COUNTER.load(Ordering::Relaxed));
-            let data = Data::from(d);
-            output.send_async(data, None).await?;
+        Ok(Some(Box::new(move || {
+            let output_cloned = Arc::clone(&output);
+            let output_callback_cloned = Arc::clone(&output_callback);
+            let c_trigger_cloned = c_trigger_rx.clone();
 
-            COUNTER_CALLBACK.fetch_add(1, Ordering::AcqRel);
-            output_callback
-                .send_async(
-                    Data::from(ZFUsize(COUNTER_CALLBACK.load(Ordering::Relaxed))),
-                    None,
-                )
-                .await
+            async move {
+                c_trigger_cloned.recv_async().await.unwrap();
+                COUNTER.fetch_add(1, Ordering::AcqRel);
+                let d = ZFUsize(COUNTER.load(Ordering::Relaxed));
+                let data = Data::from(d);
+                output_cloned.send_async(data, None).await?;
+
+                COUNTER_CALLBACK.fetch_add(1, Ordering::AcqRel);
+                output_callback_cloned
+                    .send_async(
+                        Data::from(ZFUsize(COUNTER_CALLBACK.load(Ordering::Relaxed))),
+                        None,
+                    )
+                    .await
+            }
         })))
     }
 }
@@ -117,23 +123,28 @@ impl Sink for ExampleGenericSink {
         _ctx: &mut Context,
         _configuration: &Option<Configuration>,
         mut inputs: Inputs,
-    ) -> Result<Option<Arc<dyn AsyncIteration>>> {
-        let input = inputs.take(SOURCE).unwrap();
-        let input_callback = inputs.take(PORT_CALLBACK).unwrap();
+    ) -> Result<Option<Box<dyn AsyncIteration>>> {
+        let input = inputs.take_into_arc(SOURCE).unwrap();
+        let input_callback = inputs.take_into_arc(PORT_CALLBACK).unwrap();
 
-        Ok(Some(Arc::new(move || async move {
-            if let Ok(Message::Data(mut msg)) = input.recv_async().await {
-                let data = msg.get_inner_data().try_get::<ZFUsize>()?;
-                assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
-                println!("Example Generic Sink Received: {:?}", input);
+        Ok(Some(Box::new(move || {
+            let input_cloned = Arc::clone(&input);
+            let input_callback_cloned = Arc::clone(&input_callback);
+
+            async move {
+                if let Ok(Message::Data(mut msg)) = input_cloned.recv_async().await {
+                    let data = msg.get_inner_data().try_get::<ZFUsize>()?;
+                    assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
+                    println!("Example Generic Sink Received: {:?}", input_cloned);
+                }
+
+                if let Ok(Message::Data(mut msg)) = input_callback_cloned.recv_async().await {
+                    let data = msg.get_inner_data().try_get::<ZFUsize>()?;
+                    assert_eq!(data.0, COUNTER_CALLBACK.load(Ordering::Relaxed));
+                }
+
+                Ok(())
             }
-
-            if let Ok(Message::Data(mut msg)) = input_callback.recv_async().await {
-                let data = msg.get_inner_data().try_get::<ZFUsize>()?;
-                assert_eq!(data.0, COUNTER_CALLBACK.load(Ordering::Relaxed));
-            }
-
-            Ok(())
         })))
     }
 }
@@ -151,18 +162,23 @@ impl Operator for NoOp {
         _configuration: &Option<Configuration>,
         mut inputs: Inputs,
         mut outputs: Outputs,
-    ) -> Result<Option<Arc<dyn AsyncIteration>>> {
-        let input = inputs.take(SOURCE).unwrap();
-        let output = outputs.take(DESTINATION).unwrap();
+    ) -> Result<Option<Box<dyn AsyncIteration>>> {
+        let input = inputs.take_into_arc(SOURCE).unwrap();
+        let output = outputs.take_into_arc(DESTINATION).unwrap();
 
-        Ok(Some(Arc::new(move || async move {
-            if let Ok(Message::Data(mut msg)) = input.recv_async().await {
-                let data = msg.get_inner_data().try_get::<ZFUsize>()?;
-                assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
-                let out_data = Data::from(data.clone());
-                output.send_async(out_data, None).await?;
+        Ok(Some(Box::new(move || {
+            let input_cloned = Arc::clone(&input);
+            let output_cloned = Arc::clone(&output);
+
+            async move {
+                if let Ok(Message::Data(mut msg)) = input_cloned.recv_async().await {
+                    let data = msg.get_inner_data().try_get::<ZFUsize>()?;
+                    assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
+                    let out_data = Data::from(data.clone());
+                    output_cloned.send_async(out_data, None).await?;
+                }
+                Ok(())
             }
-            Ok(())
         })))
     }
 }
@@ -178,22 +194,28 @@ impl Operator for NoOpCallback {
         _configuration: &Option<Configuration>,
         mut inputs: Inputs,
         mut outputs: Outputs,
-    ) -> Result<Option<Arc<dyn AsyncIteration>>> {
+    ) -> Result<Option<Box<dyn AsyncIteration>>> {
         let input = inputs.take(PORT_CALLBACK).unwrap();
-        let output = outputs.take(PORT_CALLBACK).unwrap();
+        let output = outputs.take_into_arc(PORT_CALLBACK).unwrap();
 
         input.into_callback(
             context,
-            Arc::new(move |message| async move {
-                println!("Entering callback");
-                let data = match message {
-                    Message::Data(mut data) => data.get_inner_data().try_get::<ZFUsize>()?.clone(),
-                    _ => return Err(zferror!(ErrorKind::Unsupported).into()),
-                };
+            Box::new(move |message| {
+                let output_cloned = Arc::clone(&output);
 
-                assert_eq!(data.0, COUNTER_CALLBACK.load(Ordering::Relaxed));
-                output.send_async(Data::from(data), None).await?;
-                Ok(())
+                async move {
+                    println!("Entering callback");
+                    let data = match message {
+                        Message::Data(mut data) => {
+                            data.get_inner_data().try_get::<ZFUsize>()?.clone()
+                        }
+                        _ => return Err(zferror!(ErrorKind::Unsupported).into()),
+                    };
+
+                    assert_eq!(data.0, COUNTER_CALLBACK.load(Ordering::Relaxed));
+                    output_cloned.send_async(Data::from(data), None).await?;
+                    Ok(())
+                }
             }),
         );
 

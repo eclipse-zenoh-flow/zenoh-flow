@@ -12,18 +12,17 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::runtime::dataflow::instance::io::{Input, Output};
+use crate::prelude::{Inputs, Outputs};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
 use crate::runtime::dataflow::node::OperatorLoaded;
 use crate::runtime::InstanceContext;
 use crate::traits::Operator;
-use crate::types::{Configuration, Context, NodeId, PortId};
+use crate::types::{Configuration, Context, NodeId};
 use crate::zfresult::Error;
 use crate::Result as ZFResult;
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -44,8 +43,8 @@ pub struct OperatorRunner {
     pub(crate) id: NodeId,
     pub(crate) context: Context,
     pub(crate) configuration: Option<Configuration>,
-    pub(crate) inputs: HashMap<PortId, Input>,
-    pub(crate) outputs: HashMap<PortId, Output>,
+    pub(crate) inputs: Inputs,
+    pub(crate) outputs: Outputs,
     pub(crate) operator: Arc<dyn Operator>,
     pub(crate) _library: Option<Arc<Library>>,
     pub(crate) handle: Option<JoinHandle<Result<Error, Aborted>>>,
@@ -66,8 +65,8 @@ impl OperatorRunner {
     pub fn new(
         instance_context: Arc<InstanceContext>,
         operator: OperatorLoaded,
-        inputs: HashMap<PortId, Input>,
-        outputs: HashMap<PortId, Output>,
+        inputs: Inputs,
+        outputs: Outputs,
     ) -> Self {
         // TODO Check that all ports are used.
         Self {
