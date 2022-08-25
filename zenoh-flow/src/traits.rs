@@ -151,26 +151,20 @@ pub trait SourceSink: Send + Sync {
     ) -> Result<Option<Box<dyn AsyncIteration>>>;
 }
 
-/// Trait wrapping an async closures for node iteration, it requires rust-nightly because of
-/// https://github.com/rust-lang/rust/issues/62290
+/// Trait wrapping an async closures for node iteration.
 ///
-/// * Note: * not intended to be directly used by users.
+/// Note: not intended to be directly used by users.
 pub trait AsyncIteration: Send + Sync {
-    fn call(&self) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>;
+    fn call(&mut self) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>;
 }
 
-/// Implementation of AsyncCallbackTx for any async closure that returns
-/// `Result<()>`.
-/// This "converts" any `async move { ... }` to `AsyncCallbackTx`
-///
-/// *Note:* It takes an `FnOnce` because of the `move` keyword. The closure
-/// has to be `Clone` as we are going to call the closure more than once.
+/// Implementation of AsyncCallbackTx for any async closure that returns `Result<()>`.
 impl<Fut, Fun> AsyncIteration for Fun
 where
-    Fun: FnMut() -> Fut + Sync + Send + Clone,
+    Fun: FnMut() -> Fut + Sync + Send,
     Fut: Future<Output = Result<()>> + Send + Sync + 'static,
 {
-    fn call(&self) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>> {
-        Box::pin(self.clone()())
+    fn call(&mut self) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>> {
+        Box::pin((self)())
     }
 }

@@ -166,7 +166,7 @@ impl Runner for SinkRunner {
         }
 
         /* Streams */
-        if let Some(iteration) = iteration {
+        if let Some(mut iteration) = iteration {
             let c_id = self.id.clone();
             let run_loop = async move {
                 let mut instant: Instant;
