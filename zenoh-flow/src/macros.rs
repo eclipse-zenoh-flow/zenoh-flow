@@ -33,7 +33,7 @@
 ///         configuration: &Option<Configuration>,
 ///         mut inputs: Inputs,
 ///         mut outputs: Outputs,
-///     ) -> Result<Option<Arc<dyn AsyncIteration>>> {
+///     ) -> Result<Option<Box<dyn AsyncIteration>>> {
 ///         todo!()
 ///     }
 /// }
@@ -79,7 +79,7 @@ macro_rules! export_operator {
 ///         _context: &mut Context,
 ///         configuration: &Option<Configuration>,
 ///         mut outputs: Outputs,
-///     ) -> Result<Option<Arc<dyn AsyncIteration>>> {
+///     ) -> Result<Option<Box<dyn AsyncIteration>>> {
 ///         todo!()
 ///     }
 /// }
@@ -126,7 +126,7 @@ macro_rules! export_source {
 ///         _context: &mut Context,
 ///         configuration: &Option<Configuration>,
 ///         mut inputs: Inputs,
-///     ) -> Result<Option<Arc<dyn AsyncIteration>>> {
+///     ) -> Result<Option<Box<dyn AsyncIteration>>> {
 ///         todo!()
 ///     }
 /// }
