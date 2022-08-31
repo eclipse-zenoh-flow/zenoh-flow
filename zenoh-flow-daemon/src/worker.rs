@@ -255,7 +255,7 @@ impl WorkerTrait for Worker {
                 }
                 JobKind::StopNode(inst_uuid, node_id) => {
                     log::info!(
-                        "[Worker: {}] Job: {} Start Node {} Instance {}",
+                        "[Worker: {}] Job: {} Stop Node {} Instance {}",
                         self.id,
                         job.get_id(),
                         node_id,
@@ -265,7 +265,7 @@ impl WorkerTrait for Worker {
                     match self.runtime.stop_node(*inst_uuid, node_id.clone()).await {
                         Ok(_) => {
                             log::info!(
-                                "[Worker: {}] Started Node {}  Instance UUID: {}",
+                                "[Worker: {}] Stopped Node {}  Instance UUID: {}",
                                 self.id,
                                 node_id,
                                 inst_uuid
