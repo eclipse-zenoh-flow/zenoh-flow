@@ -455,14 +455,14 @@ impl Stream for ZFJobStream {
                     }
                     _ => {
                         log::warn!(
-                            "Received sample with wrong encoding {:?}, dropping",
+                            "Received sample with wrong encoding {:?}. Dropping",
                             sample.value.encoding
                         );
                         Poll::Ready(None)
                     }
                 },
                 SampleKind::Delete => {
-                    log::warn!("Received delete sample drop it");
+                    log::warn!("Received delete sample. Dropping.");
                     Poll::Ready(None)
                 }
             },

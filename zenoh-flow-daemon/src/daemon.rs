@@ -337,8 +337,6 @@ impl Daemon {
 
         log::trace!("Running...");
 
-        // std::future::pending::<()>().await;
-
         stop.recv()
             .await
             .map_err(|e| zferror!(ErrorKind::RecvError, e))?;
@@ -387,12 +385,17 @@ impl Daemon {
     ) -> ZFResult<(
         async_std::channel::Sender<()>,
         async_std::task::JoinHandle<ZFResult<()>>,
-        // AbortHandle,
-        // async_std::task::JoinHandle<Result<ZFResult<()>, Aborted>>,
     )> {
         // Starting main loop in a task
         //@TODO: use Abortable and AbortHandle here.
+        // Currently is not in place because it does not compile.
+        // Further investigation in needed.
+        // AbortHandle,
+        // async_std::task::JoinHandle<Result<ZFResult<()>, Aborted>>,
         // let (abort_handle, abort_registration) = AbortHandle::new_pair();
+        // let run_future = async { daemon.run(r).await };
+        // let handle = async_std::task::spawn(Abortable::new(run_future, abort_registration));
+        // Ok((abort_handle, handle))
 
         let (s, r) = async_std::channel::bounded::<()>(1);
 
@@ -400,14 +403,10 @@ impl Daemon {
 
         self.runtime.start().await?;
 
-        // let run_future = async { daemon.run(r).await };
-        // let handle = async_std::task::spawn(Abortable::new(run_future, abort_registration));
-
         let handle = async_std::task::spawn_blocking(move || {
             async_std::task::block_on(async { daemon.run(r).await })
         });
 
-        // Ok((abort_handle, handle))
         Ok((s, handle))
     }
 
@@ -458,10 +457,10 @@ impl DaemonInterface for Daemon {
             .submit_create(&flow, &instance_uuid)
             .await?;
         log::info!(
-            "[Daemon {}]: Sent job for create instance {}, JobId: {}",
+            "[Daemon: {}][Job: {}] Creating instance < {} >",
             self.ctx.runtime_uuid,
+            res.get_id(),
             instance_uuid,
-            res.get_id()
         );
 
         Ok(instance_uuid)
@@ -477,10 +476,10 @@ impl DaemonInterface for Daemon {
             .submit_delete(&record_id)
             .await?;
         log::info!(
-            "[Daemon {}]: Sent job for delete instance {}, JobId: {}",
+            "[Daemon: {}][Job: {}] Deleting instance < {} >",
             self.ctx.runtime_uuid,
+            res.get_id(),
             record_id,
-            res.get_id()
         );
 
         Ok(record)
@@ -496,10 +495,10 @@ impl DaemonInterface for Daemon {
             .submit_instantiate(&flow, &instance_uuid)
             .await?;
         log::info!(
-            "[Daemon {}]: Sent job for instantiate (crate+start) {}, JobId: {}",
+            "[Daemon: {}][Job: {}] Instantiating flow < {} >",
             self.ctx.runtime_uuid,
+            res.get_id(),
             instance_uuid,
-            res.get_id()
         );
 
         Ok(instance_uuid)
@@ -515,10 +514,10 @@ impl DaemonInterface for Daemon {
             .submit_teardown(&record_id)
             .await?;
         log::info!(
-            "[Daemon {}]: Sent job for teardown instance (stop+delete) {}, JobId: {}",
+            "[Daemon: {}][Job: {}] Teardown flow < {} >",
             self.ctx.runtime_uuid,
+            res.get_id(),
             record_id,
-            res.get_id()
         );
 
         Ok(record)
@@ -532,10 +531,10 @@ impl DaemonInterface for Daemon {
             .submit_start(&record_id)
             .await?;
         log::info!(
-            "[Daemon {}]: Sent job for start instance {}, JobId: {}",
+            "[Daemon: {}][Job: {}] Start instance < {} >",
             self.ctx.runtime_uuid,
+            res.get_id(),
             record_id,
-            res.get_id()
         );
 
         Ok(())
@@ -551,10 +550,10 @@ impl DaemonInterface for Daemon {
             .submit_stop(&record_id)
             .await?;
         log::info!(
-            "[Daemon {}]: Sent job to stop instance {}, JobId: {}",
+            "[Daemon: {}][Job: {}] Stop instance < {} >",
             self.ctx.runtime_uuid,
+            res.get_id(),
             record_id,
-            res.get_id()
         );
 
         Ok(record)
@@ -568,11 +567,11 @@ impl DaemonInterface for Daemon {
             .submit_start_node(&instance_id, &node)
             .await?;
         log::info!(
-            "[Daemon {}]: Sent job for start node {} in instance {}, JobId: {}",
+            "[Daemon: {}][Job: {}] Start node < {}:{} >",
             self.ctx.runtime_uuid,
-            node,
+            res.get_id(),
             instance_id,
-            res.get_id()
+            node,
         );
 
         Ok(())
@@ -585,11 +584,11 @@ impl DaemonInterface for Daemon {
             .submit_stop_node(&instance_id, &node)
             .await?;
         log::info!(
-            "[Daemon {}]: Sent job for start node {} in instance {}, JobId: {}",
+            "[Daemon: {}][Job: {}] Stop node < {}:{} >",
             self.ctx.runtime_uuid,
-            node,
+            res.get_id(),
             instance_id,
-            res.get_id()
+            node,
         );
 
         Ok(())

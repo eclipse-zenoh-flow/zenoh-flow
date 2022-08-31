@@ -375,7 +375,7 @@ async fn main() {
                 table.add_row(row![
                     runtime_status.id,
                     runtime_info.name,
-                    format!("{:?}", runtime_status.status),
+                    format!("{:?}", runtime_info.status),
                     runtime_status.running_flows,
                     runtime_status.running_operators,
                     runtime_status.running_sources,

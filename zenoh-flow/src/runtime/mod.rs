@@ -131,7 +131,6 @@ pub struct RuntimeInfo {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RuntimeStatus {
     pub id: Uuid,
-    pub status: RuntimeStatusKind,
     pub running_flows: usize,
     pub running_operators: usize,
     pub running_sources: usize,

@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2022 ZettaScale Technology
 //
-// This progr&am and the accompanying materials are made available under the
+// This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
 // which is available at https://www.apache.org/licenses/LICENSE-2.0.
@@ -262,7 +262,7 @@ impl WorkerTrait for Worker {
                         inst_uuid
                     );
 
-                    match self.runtime.start_node(*inst_uuid, node_id.clone()).await {
+                    match self.runtime.stop_node(*inst_uuid, node_id.clone()).await {
                         Ok(_) => {
                             log::info!(
                                 "[Worker: {}] Started Node {}  Instance UUID: {}",

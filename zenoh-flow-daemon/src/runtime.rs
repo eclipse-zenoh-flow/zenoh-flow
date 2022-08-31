@@ -1,8 +1,7 @@
-use std::collections::HashMap;
 //
 // Copyright (c) 2022 ZettaScale Technology
 //
-// This progr&am and the accompanying materials are made available under the
+// This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
 // http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
 // which is available at https://www.apache.org/licenses/LICENSE-2.0.
@@ -12,6 +11,7 @@ use std::collections::HashMap;
 // Contributors:
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::Arc;
 
@@ -71,7 +71,6 @@ impl Runtime {
 
         let rt_status = RuntimeStatus {
             id: self.ctx.runtime_uuid,
-            status: RuntimeStatusKind::NotReady,
             running_flows: 0,
             running_operators: 0,
             running_sources: 0,
@@ -96,20 +95,13 @@ impl Runtime {
 
     pub(crate) async fn ready(&self) -> ZFResult<()> {
         let mut rt_info = self.store.get_runtime_info(&self.ctx.runtime_uuid).await?;
-        let mut rt_status = self
-            .store
-            .get_runtime_status(&self.ctx.runtime_uuid)
-            .await?;
 
         rt_info.status = RuntimeStatusKind::Ready;
-        rt_status.status = RuntimeStatusKind::Ready;
 
         self.store
             .add_runtime_info(&self.ctx.runtime_uuid, &rt_info)
             .await?;
-        self.store
-            .add_runtime_status(&self.ctx.runtime_uuid, &rt_status)
-            .await?;
+
         Ok(())
     }
 
@@ -134,14 +126,6 @@ impl Runtime {
     ) -> DaemonResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow (when
         // the registry will be in place)
-        //TODO: this has to run asynchronously, this means that it must
-        // create the record and return it, in order to not block the caller.
-        // Creating an instance can involved downloading nodes from different
-        // locations, communication towards others runtimes, therefore
-        // the caller should not be blocked.
-        // The status of an instance can be check asynchronously by the caller
-        // once it knows the Uuid.
-        // Therefore instantiation errors should be logged as instance status
 
         let flow_name = flow.flow.clone();
 
@@ -241,14 +225,6 @@ impl Runtime {
     ) -> DaemonResult<DataFlowRecord> {
         //TODO: workaround - it should just take the ID of the flow (when
         // the registry will be in place)
-        //TODO: this has to run asynchronously, this means that it must
-        // create the record and return it, in order to not block the caller.
-        // Creating an instance can involved downloading nodes from different
-        // locations, communication towards others runtimes, therefore
-        // the caller should not be blocked.
-        // The status of an instance can be check asynchronously by the caller
-        // once it knows the Uuid.
-        // Therefore instantiation errors should be logged as instance status
 
         log::info!("Instantiating: {}", flow.flow);
 
@@ -285,9 +261,6 @@ impl Runtime {
         log::info!("Preparing for Instance UUID: {}", record_id);
 
         let dfr = self.store.get_flow_by_instance(&record_id).await?;
-        self.store
-            .add_runtime_flow(&self.ctx.runtime_uuid, &dfr)
-            .await?;
 
         let dataflow = Dataflow::try_new(self.ctx.clone(), dfr.clone())?;
         let instance = DataflowInstance::try_instantiate(dataflow, self.ctx.hlc.clone())?;
@@ -295,6 +268,10 @@ impl Runtime {
         let mut self_state = self.state.lock().await;
         self_state.graphs.insert(dfr.uuid, instance);
         drop(self_state);
+
+        self.store
+            .add_runtime_flow(&self.ctx.runtime_uuid, &dfr)
+            .await?;
 
         log::info!("Done preparation for Instance UUID: {}", record_id);
 
@@ -345,6 +322,13 @@ impl Runtime {
             let client = DaemonInterfaceInternalClient::new(self.ctx.session.clone(), rt);
             rt_clients.push(client);
         }
+
+        //Note: We need to first start the nodes of the graphs in all the
+        // involved runtimes before starting the sources.
+        // Otherwise it may happen that operators inputs are filled with data
+        // while the operator is not yet started.
+        // Thus, first we start all the operators (and sinks) across the runtimes
+        // then we can safely start the sources.
 
         // remote start
         for client in rt_clients.iter() {
