@@ -13,8 +13,7 @@
 //
 
 use crate::prelude::{Data, Inputs, Message, Outputs};
-use crate::runtime::dataflow::instance::io::{Input, Output};
-use crate::types::{Configuration, Context, PortId};
+use crate::types::{Configuration, Context, Input, Output, PortId};
 use crate::Result as ZFResult;
 use async_trait::async_trait;
 use futures::Future;

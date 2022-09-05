@@ -12,10 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-pub mod io;
 pub mod runners;
 
-use super::instance::io::{Input, Inputs, Output, Outputs};
 use super::instance::runners::connector::{ZenohReceiver, ZenohSender};
 use super::instance::runners::operator::OperatorRunner;
 use super::instance::runners::sink::SinkRunner;
@@ -25,7 +23,7 @@ use crate::model::connector::ZFConnectorKind;
 use crate::model::link::LinkRecord;
 use crate::runtime::dataflow::Dataflow;
 use crate::runtime::InstanceContext;
-use crate::types::NodeId;
+use crate::types::{Input, Inputs, NodeId, Output, Outputs};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result;

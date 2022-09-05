@@ -12,9 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::runtime::dataflow::instance::io::{CallbackInput, CallbackOutput};
+pub(crate) mod io;
+pub use io::*;
+pub(crate) mod message;
+pub use message::*;
+
 use crate::runtime::InstanceContext;
 use crate::traits::ZFData;
+use crate::types::io::{CallbackInput, CallbackOutput};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result;

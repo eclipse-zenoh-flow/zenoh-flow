@@ -34,12 +34,12 @@ use zenoh_flow::runtime::dataflow::loader::{
     ExtensibleImplementation, Loader, LoaderConfig, EXT_FILE_EXTENSION,
 };
 
-use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::worker_pool::{WorkerPool, WorkerTrait};
 use zenoh_flow::runtime::{
     DaemonInterface, DaemonInterfaceInternal, RuntimeConfig, RuntimeContext,
 };
+use zenoh_flow::types::ControlMessage;
 use zenoh_flow::{bail, DaemonResult};
 use zrpc::ZServe;
 use zrpc_macros::znserver;

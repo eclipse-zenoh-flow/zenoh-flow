@@ -24,12 +24,12 @@ use zenoh_flow::model::{
 };
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::Dataflow;
-use zenoh_flow::runtime::message::ControlMessage;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::{
     DaemonInterfaceInternalClient, RuntimeConfig, RuntimeContext, RuntimeInfo, RuntimeStatus,
     RuntimeStatusKind,
 };
+use zenoh_flow::types::ControlMessage;
 use zenoh_flow::zfresult::ErrorKind;
 use zenoh_flow::DaemonResult;
 use zenoh_flow::Result as ZFResult;

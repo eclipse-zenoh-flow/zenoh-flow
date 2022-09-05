@@ -12,9 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::runtime::message::Message;
 use crate::traits::{InputCallback, OutputCallback};
-use crate::types::{Context, Data, PortId};
+use crate::types::{Context, Data, Message, PortId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;

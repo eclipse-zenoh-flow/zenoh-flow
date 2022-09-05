@@ -27,8 +27,7 @@ use uuid::Uuid;
 
 use self::dataflow::loader::LoaderConfig;
 use crate::runtime::dataflow::loader::Loader;
-use crate::runtime::message::ControlMessage;
-use crate::types::{FlowId, RuntimeId};
+use crate::types::{ControlMessage, FlowId, RuntimeId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::{DaemonResult, Result as ZFResult};
@@ -39,7 +38,6 @@ use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 use zrpc_macros::znservice;
 
 pub mod dataflow;
-pub mod message;
 pub mod resources;
 pub mod worker_pool;
 

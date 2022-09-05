@@ -14,11 +14,9 @@
 
 use crate::model::connector::ZFConnectorRecord;
 use crate::prelude::{Inputs, Outputs};
-use crate::runtime::dataflow::instance::io::{Input, Output};
 use crate::runtime::dataflow::instance::runners::{Runner, RunnerKind};
-use crate::runtime::message::Message;
 use crate::runtime::InstanceContext;
-use crate::types::NodeId;
+use crate::types::{Input, Message, NodeId, Output};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;

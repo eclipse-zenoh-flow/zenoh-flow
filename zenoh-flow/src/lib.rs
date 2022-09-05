@@ -52,12 +52,13 @@ pub use zfresult::{DaemonResult, ZFResult as Result};
 
 pub mod prelude {
 
-    pub use crate::runtime::dataflow::instance::io::{Input, Inputs, Output, Outputs, Streams};
-    pub use crate::runtime::message::{DataMessage, Message};
     pub use crate::traits::{
         AsyncIteration, Deserializable, DowncastAny, Operator, Sink, Source, ZFData,
     };
-    pub use crate::types::{Configuration, Context, Data, NodeId, PortId, RuntimeId};
+    pub use crate::types::{
+        Configuration, Context, Data, DataMessage, Input, Inputs, Message, NodeId, Output, Outputs,
+        PortId, RuntimeId, Streams,
+    };
     pub use crate::{export_operator, export_sink, export_source, zferror};
 
     pub use crate::zfresult::{Error, ErrorKind, ZFResult as Result};
