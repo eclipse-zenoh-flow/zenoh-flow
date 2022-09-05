@@ -49,10 +49,10 @@ pub struct OperatorRunner {
     pub(crate) _library: Option<Arc<Library>>,
     pub(crate) handle: Option<JoinHandle<Result<Error, Aborted>>>,
     pub(crate) abort_handle: Option<AbortHandle>,
-    pub(crate) callbacks_senders_handle: Option<JoinHandle<Result<Error, Aborted>>>,
-    pub(crate) callbacks_senders_abort_handle: Option<AbortHandle>,
-    pub(crate) callbacks_receivers_handle: Option<JoinHandle<Result<Error, Aborted>>>,
-    pub(crate) callbacks_receivers_abort_handle: Option<AbortHandle>,
+    pub(crate) outputs_callbacks_handle: Option<JoinHandle<Result<Error, Aborted>>>,
+    pub(crate) outputs_callbacks_abort_handle: Option<AbortHandle>,
+    pub(crate) inputs_callbacks_handle: Option<JoinHandle<Result<Error, Aborted>>>,
+    pub(crate) inputs_callbacks_abort_handle: Option<AbortHandle>,
 }
 
 impl OperatorRunner {
@@ -79,10 +79,10 @@ impl OperatorRunner {
             _library: operator.library,
             handle: None,
             abort_handle: None,
-            callbacks_senders_handle: None,
-            callbacks_senders_abort_handle: None,
-            callbacks_receivers_handle: None,
-            callbacks_receivers_abort_handle: None,
+            outputs_callbacks_handle: None,
+            outputs_callbacks_abort_handle: None,
+            inputs_callbacks_handle: None,
+            inputs_callbacks_abort_handle: None,
         }
     }
 }
@@ -107,9 +107,9 @@ impl Runner for OperatorRunner {
             }
         }
 
-        if let Some(cb_senders_handle) = self.callbacks_senders_abort_handle.take() {
+        if let Some(cb_senders_handle) = self.outputs_callbacks_abort_handle.take() {
             cb_senders_handle.abort();
-            if let Some(handle) = self.callbacks_senders_handle.take() {
+            if let Some(handle) = self.outputs_callbacks_handle.take() {
                 log::trace!(
                     "Operator callback sender handler finished with {:?}",
                     handle.await
@@ -117,9 +117,9 @@ impl Runner for OperatorRunner {
             }
         }
 
-        if let Some(cb_receivers_handle) = self.callbacks_receivers_abort_handle.take() {
+        if let Some(cb_receivers_handle) = self.inputs_callbacks_abort_handle.take() {
             cb_receivers_handle.abort();
-            if let Some(handle) = self.callbacks_receivers_handle.take() {
+            if let Some(handle) = self.inputs_callbacks_handle.take() {
                 log::trace!(
                     "Operator callback receiver handler finished with {:?}",
                     handle.await
@@ -132,8 +132,8 @@ impl Runner for OperatorRunner {
 
     async fn is_running(&self) -> bool {
         self.handle.is_some()
-            || self.callbacks_receivers_handle.is_some()
-            || self.callbacks_senders_handle.is_some()
+            || self.inputs_callbacks_handle.is_some()
+            || self.outputs_callbacks_handle.is_some()
     }
 
     async fn start(&mut self) -> ZFResult<()> {
@@ -160,81 +160,88 @@ impl Runner for OperatorRunner {
             .await?;
 
         /* Callbacks */
-        // Senders
-        let cb_senders = std::mem::take(&mut self.context.callback_senders);
-        if !cb_senders.is_empty() {
-            let c_id = self.id.clone();
+        let outputs_callbacks = std::mem::take(&mut self.context.outputs_callbacks);
+        if !outputs_callbacks.is_empty() {
+            let operator_id = Arc::clone(&self.id);
 
-            let callbacks_senders_loop = async move {
-                let mut cbs: Vec<_> = cb_senders
+            let callbacks_loop = async move {
+                let mut running_callbacks = outputs_callbacks
                     .iter()
-                    .map(|callback| Box::pin(callback.trigger()))
-                    .collect();
+                    .enumerate()
+                    .map(|(index, callback)| Box::pin(callback.run(index)))
+                    .collect::<Vec<_>>();
 
                 loop {
-                    let (res, _, remainings) = futures::future::select_all(cbs).await;
-                    cbs = remainings;
+                    let (res, _, remainings) = futures::future::select_all(running_callbacks).await;
+
+                    running_callbacks = remainings;
                     match res {
+                        Ok(index) => {
+                            let finished_callback = &outputs_callbacks[index];
+                            running_callbacks.push(Box::pin(finished_callback.run(index)));
+                        }
                         Err(e) => {
-                            log::error!("[Source: {c_id}] {:?}", e);
+                            log::error!(
+                                "[Operator: {}] Output callback error: {:?}",
+                                operator_id,
+                                e
+                            );
                             return e;
                         }
-                        Ok(index) => {
-                            cbs.push(Box::pin(cb_senders[index].trigger()));
-                        }
-                    }
-
-                    async_std::task::yield_now().await;
+                    };
                 }
             };
 
             let (cb_abort_handle, cb_abort_registration) = AbortHandle::new_pair();
-            let cb_handle = async_std::task::spawn(Abortable::new(
-                callbacks_senders_loop,
-                cb_abort_registration,
-            ));
-            self.callbacks_senders_handle = Some(cb_handle);
-            self.callbacks_senders_abort_handle = Some(cb_abort_handle);
+            let cb_handle =
+                async_std::task::spawn(Abortable::new(callbacks_loop, cb_abort_registration));
+
+            self.outputs_callbacks_handle = Some(cb_handle);
+            self.outputs_callbacks_abort_handle = Some(cb_abort_handle);
         }
 
-        // Receivers
-        let cb_receivers = std::mem::take(&mut self.context.callback_receivers);
-        if !cb_receivers.is_empty() {
-            let c_id = Arc::clone(&self.id);
-            let callbacks_receivers_loop = async move {
-                let mut cbs: Vec<_> = cb_receivers
+        let inputs_callbacks = std::mem::take(&mut self.context.inputs_callbacks);
+        if !inputs_callbacks.is_empty() {
+            let operator_id = Arc::clone(&self.id);
+
+            let callbacks_loop = async move {
+                let mut running_callbacks = inputs_callbacks
                     .iter()
-                    .map(|callback| Box::pin(callback.run()))
-                    .collect();
+                    .enumerate()
+                    .map(|(index, callback)| Box::pin(callback.run(index)))
+                    .collect::<Vec<_>>();
 
                 loop {
-                    let (res, _, remainings) = futures::future::select_all(cbs).await;
-                    cbs = remainings;
+                    let (res, _, remainings) = futures::future::select_all(running_callbacks).await;
+
+                    running_callbacks = remainings;
+
                     match res {
+                        Ok(index) => {
+                            let finished_callback = &inputs_callbacks[index];
+                            running_callbacks.push(Box::pin(finished_callback.run(index)));
+                        }
                         Err(e) => {
-                            log::error!("[Source: {c_id}] {:?}", e);
+                            log::error!(
+                                "[Operator: {}] Input callback error: {:?}",
+                                operator_id,
+                                e
+                            );
                             return e;
                         }
-                        Ok(index) => {
-                            cbs.push(Box::pin(cb_receivers[index].run()));
-                        }
                     }
-
-                    async_std::task::yield_now().await;
                 }
             };
 
             let (cb_abort_handle, cb_abort_registration) = AbortHandle::new_pair();
-            let cb_handle = async_std::task::spawn(Abortable::new(
-                callbacks_receivers_loop,
-                cb_abort_registration,
-            ));
-            self.callbacks_receivers_handle = Some(cb_handle);
-            self.callbacks_receivers_abort_handle = Some(cb_abort_handle);
+            let cb_handle =
+                async_std::task::spawn(Abortable::new(callbacks_loop, cb_abort_registration));
+            self.inputs_callbacks_handle = Some(cb_handle);
+            self.inputs_callbacks_abort_handle = Some(cb_abort_handle);
         }
 
         /* Streams */
-        if let Some(mut iteration) = iteration {
+        if let Some(iteration) = iteration {
             let c_id = self.id.clone();
             let run_loop = async move {
                 let mut instant: Instant;

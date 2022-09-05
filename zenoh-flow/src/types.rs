@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::runtime::dataflow::instance::io::{AsyncCallbackReceiver, AsyncCallbackSender};
+use crate::runtime::dataflow::instance::io::{CallbackInput, CallbackOutput};
 use crate::runtime::InstanceContext;
 use crate::traits::ZFData;
 use crate::zferror;
@@ -41,16 +41,16 @@ pub(crate) const PORT_TYPE_ANY: &str = "_any_";
 /// nodes. It contains the `mode` as usize.
 pub struct Context {
     instance: Arc<InstanceContext>,
-    pub(crate) callback_receivers: Vec<AsyncCallbackReceiver>,
-    pub(crate) callback_senders: Vec<AsyncCallbackSender>,
+    pub(crate) inputs_callbacks: Vec<CallbackInput>,
+    pub(crate) outputs_callbacks: Vec<CallbackOutput>,
 }
 
 impl Context {
     pub(crate) fn new(instance_context: Arc<InstanceContext>) -> Self {
         Self {
             instance: instance_context,
-            callback_receivers: vec![],
-            callback_senders: vec![],
+            inputs_callbacks: vec![],
+            outputs_callbacks: vec![],
         }
     }
 }

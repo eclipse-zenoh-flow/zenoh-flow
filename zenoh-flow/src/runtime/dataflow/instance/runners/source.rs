@@ -262,30 +262,31 @@ impl Runner for SourceRunner {
             .await?;
 
         /* Callbacks */
+        let output_callbacks = std::mem::take(&mut self.context.outputs_callbacks);
+        if !output_callbacks.is_empty() {
+            let source_id = Arc::clone(&self.id);
 
-        let callbacks = std::mem::take(&mut self.context.callback_senders);
-        if !callbacks.is_empty() {
-            let c_id = self.id.clone();
             let callbacks_loop = async move {
-                let mut cbs: Vec<_> = callbacks
+                let mut running_callbacks = output_callbacks
                     .iter()
-                    .map(|callback| Box::pin(callback.trigger()))
-                    .collect();
+                    .enumerate()
+                    .map(|(index, callback)| Box::pin(callback.run(index)))
+                    .collect::<Vec<_>>();
 
                 loop {
-                    let (res, _, remainings) = futures::future::select_all(cbs).await;
-                    cbs = remainings;
+                    let (res, _, remainings) = futures::future::select_all(running_callbacks).await;
+
+                    running_callbacks = remainings;
                     match res {
+                        Ok(index) => {
+                            let finished_callback = &output_callbacks[index];
+                            running_callbacks.push(Box::pin(finished_callback.run(index)));
+                        }
                         Err(e) => {
-                            log::error!("[Source: {c_id}] {:?}", e);
+                            log::error!("[Source: {}] Output callback error: {:?}", source_id, e);
                             return e;
                         }
-                        Ok(index) => {
-                            cbs.push(Box::pin(callbacks[index].trigger()));
-                        }
-                    }
-
-                    async_std::task::yield_now().await;
+                    };
                 }
             };
 
@@ -298,7 +299,7 @@ impl Runner for SourceRunner {
         }
 
         /* Streams */
-        if let Some(mut iteration) = iteration {
+        if let Some(iteration) = iteration {
             let c_id = self.id.clone();
 
             let run_loop = async move {

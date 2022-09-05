@@ -12,10 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::prelude::{Inputs, Outputs};
+use crate::prelude::{Data, Inputs, Message, Outputs};
 use crate::runtime::dataflow::instance::io::{Input, Output};
 use crate::types::{Configuration, Context, PortId};
-use crate::Result;
+use crate::Result as ZFResult;
 use async_trait::async_trait;
 use futures::Future;
 use std::any::Any;
@@ -66,7 +66,7 @@ pub trait ZFData: DowncastAny + Debug + Send + Sync {
     ///
     /// # Errors
     /// If it fails to serialize an error variant will be returned.
-    fn try_serialize(&self) -> Result<Vec<u8>>;
+    fn try_serialize(&self) -> ZFResult<Vec<u8>>;
 }
 
 /// This trait abstract user's type deserialization.
@@ -99,7 +99,7 @@ pub trait Deserializable {
     ///
     /// # Errors
     /// If it fails to deserialize an error variant will be returned.
-    fn try_deserialize(bytes: &[u8]) -> Result<Self>
+    fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
     where
         Self: Sized;
 }
@@ -112,7 +112,7 @@ pub trait Source: Send + Sync {
         context: &mut Context,
         configuration: &Option<Configuration>,
         outputs: Outputs,
-    ) -> Result<Option<Box<dyn AsyncIteration>>>;
+    ) -> ZFResult<Option<Box<dyn AsyncIteration>>>;
 }
 
 /// The `Operator` trait represents an Operator inside Zenoh Flow.
@@ -124,7 +124,7 @@ pub trait Operator: Send + Sync {
         configuration: &Option<Configuration>,
         inputs: Inputs,
         outputs: Outputs,
-    ) -> Result<Option<Box<dyn AsyncIteration>>>;
+    ) -> ZFResult<Option<Box<dyn AsyncIteration>>>;
 }
 
 /// The `Sink` trait represents a Sink inside Zenoh Flow.
@@ -135,11 +135,10 @@ pub trait Sink: Send + Sync {
         context: &mut Context,
         configuration: &Option<Configuration>,
         inputs: Inputs,
-    ) -> Result<Option<Box<dyn AsyncIteration>>>;
+    ) -> ZFResult<Option<Box<dyn AsyncIteration>>>;
 }
 
-/// A `SourceSink` represents Nodes that access the same physical interface to
-/// read and write.
+/// A `SourceSink` represents Nodes that access the same physical interface to read and write.
 #[async_trait]
 pub trait SourceSink: Send + Sync {
     async fn setup(
@@ -148,23 +147,97 @@ pub trait SourceSink: Send + Sync {
         configuration: &Option<Configuration>,
         inputs: HashMap<PortId, Input>,
         outputs: HashMap<PortId, Output>,
-    ) -> Result<Option<Box<dyn AsyncIteration>>>;
+    ) -> ZFResult<Option<Box<dyn AsyncIteration>>>;
 }
 
 /// Trait wrapping an async closures for node iteration.
 ///
 /// Note: not intended to be directly used by users.
 pub trait AsyncIteration: Send + Sync {
-    fn call(&mut self) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>;
+    fn call(&self) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>>;
 }
 
 /// Implementation of AsyncCallbackTx for any async closure that returns `Result<()>`.
 impl<Fut, Fun> AsyncIteration for Fun
 where
-    Fun: FnMut() -> Fut + Sync + Send,
-    Fut: Future<Output = Result<()>> + Send + Sync + 'static,
+    Fun: Fn() -> Fut + Sync + Send,
+    Fut: Future<Output = ZFResult<()>> + Send + Sync + 'static,
 {
-    fn call(&mut self) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>> {
+    fn call(&self) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>> {
+        Box::pin((self)())
+    }
+}
+
+/// Trait wrapping an async closures for sender callback, it requires rust-nightly because of
+/// https://github.com/rust-lang/rust/issues/62290
+///
+/// * Note: * not intended to be directly used by users.
+type AsyncCallbackOutput = ZFResult<(Data, Option<u64>)>;
+
+pub trait AsyncCallbackTx: Send + Sync {
+    fn call(&self) -> Pin<Box<dyn Future<Output = AsyncCallbackOutput> + Send + Sync + 'static>>;
+}
+
+/// Implementation of AsyncCallbackTx for any async closure that returns
+/// `ZFResult<()>`.
+/// This "converts" any `async move { ... }` to `AsyncCallbackTx`
+///
+/// *Note:* It takes an `FnOnce` because of the `move` keyword. The closure
+/// has to be `Clone` as we are going to call the closure more than once.
+impl<Fut, Fun> AsyncCallbackTx for Fun
+where
+    Fun: Fn() -> Fut + Sync + Send,
+    Fut: Future<Output = ZFResult<(Data, Option<u64>)>> + Send + Sync + 'static,
+{
+    fn call(
+        &self,
+    ) -> Pin<Box<dyn Future<Output = ZFResult<(Data, Option<u64>)>> + Send + Sync + 'static>> {
+        Box::pin((self)())
+    }
+}
+
+/// Trait describing the functions we are expecting to call upon receiving a message.
+///
+/// NOTE: Users are encouraged to provide a closure instead of implementing this trait.
+pub trait InputCallback: Send + Sync {
+    fn call(
+        &self,
+        arg: Message,
+    ) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>>;
+}
+
+/// Implementation of InputCallback for any async closure that takes `Message` as parameter and
+/// returns `ZFResult<()>`. This "converts" any `async move |msg| { ... Ok() }` into an
+/// `InputCallback`.
+///
+/// This allows users to provide a closure instead of implementing the trait.
+impl<Fut, Fun> InputCallback for Fun
+where
+    Fun: Fn(Message) -> Fut + Sync + Send,
+    Fut: Future<Output = ZFResult<()>> + Send + Sync + 'static,
+{
+    fn call(
+        &self,
+        message: Message,
+    ) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>> {
+        Box::pin((self)(message))
+    }
+}
+
+/// TODO Documentation: Output callback expects nothing (except for a trigger) and returns some
+/// Data. As it’s a callback, Zenoh-Flow will take care of sending it.
+pub trait OutputCallback: Send + Sync {
+    fn call(&self) -> Pin<Box<dyn Future<Output = ZFResult<Data>> + Send + Sync + 'static>>;
+}
+
+/// TODO Documentation: implementation of OutputCallback for closures, it makes it easier to write
+/// these functions.
+impl<Fut, Fun> OutputCallback for Fun
+where
+    Fun: Fn() -> Fut + Sync + Send,
+    Fut: Future<Output = ZFResult<Data>> + Send + Sync + 'static,
+{
+    fn call(&self) -> Pin<Box<dyn Future<Output = ZFResult<Data>> + Send + Sync + 'static>> {
         Box::pin((self)())
     }
 }

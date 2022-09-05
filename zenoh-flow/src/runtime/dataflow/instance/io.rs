@@ -13,16 +13,15 @@
 //
 
 use crate::runtime::message::Message;
+use crate::traits::{InputCallback, OutputCallback};
 use crate::types::{Context, Data, PortId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;
 use flume::TryRecvError;
-use futures::Future;
 use std::sync::Arc;
 use std::{
     collections::HashMap,
-    pin::Pin,
     sync::atomic::{AtomicU64, Ordering},
 };
 use uhlc::{Timestamp, HLC};
@@ -82,11 +81,10 @@ impl Input {
     ///
     /// The callback function will be called as soon as data is received on any of the channels of
     /// this Input.
-    pub fn into_callback(self, context: &mut Context, callback: Box<dyn AsyncCallbackRx>) {
-        context.callback_receivers.push(AsyncCallbackReceiver {
-            index: context.callback_receivers.len(),
+    pub fn into_callback(self, context: &mut Context, callback: Box<dyn InputCallback>) {
+        context.inputs_callbacks.push(CallbackInput {
             input: self,
-            cb: callback,
+            callback,
         })
     }
 
@@ -154,53 +152,18 @@ impl Input {
     }
 }
 
-/// Trait wrapping an async closures for receiver callback, it requires rust-nightly because of
-/// https://github.com/rust-lang/rust/issues/62290
-///
-/// * Note: * not intended to be directly used by users.
-pub trait AsyncCallbackRx: Send + Sync {
-    fn call(
-        &self,
-        arg: Message,
-    ) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>>;
+/// The `CallbackInput` wraps the `Input` and the callback provided by the user.
+pub(crate) struct CallbackInput {
+    pub(crate) input: Input,
+    pub(crate) callback: Box<dyn InputCallback>,
 }
 
-/// Implementation of AsyncCallbackRx for any async closure that takes `Message` as parameter and
-/// returns `ZFResult<()>`. This "converts" any `async move |msg| { ... Ok() }` to `AsyncCallbackRx`
-///
-/// *Note:* It takes an `FnOnce` because of the `move` keyword. The closure has to be `Clone` as we
-/// are going to call the closure more than once.
-impl<Fut, Fun> AsyncCallbackRx for Fun
-where
-    Fun: FnMut(Message) -> Fut + Sync + Send + Clone,
-    Fut: Future<Output = ZFResult<()>> + 'static + Send + Sync,
-{
-    fn call(
-        &self,
-        arg: Message,
-    ) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>> {
-        Box::pin(self.clone()(arg))
-    }
-}
+impl CallbackInput {
+    pub(crate) async fn run(&self, index: usize) -> ZFResult<usize> {
+        let message = self.input.recv_async().await?;
+        self.callback.call(message).await?;
 
-/// The `AsyncCallbackReceiver` wraps the `Input` and the `AsyncCallbackRx`.
-///
-/// It is used to trigger the user callback when a new message is available.
-pub struct AsyncCallbackReceiver {
-    index: usize,
-    input: Input,
-    cb: Box<dyn AsyncCallbackRx>,
-}
-
-impl AsyncCallbackReceiver {
-    pub fn new(index: usize, input: Input, cb: Box<dyn AsyncCallbackRx>) -> Self {
-        Self { index, input, cb }
-    }
-
-    pub async fn run(&self) -> ZFResult<usize> {
-        let msg = self.input.recv_async().await?;
-        self.cb.call(msg).await?;
-        Ok(self.index)
+        Ok(index)
     }
 }
 
@@ -226,11 +189,10 @@ impl Output {
     }
 
     /// Turns the Output from a Stream to a Callback.
-    pub fn into_callback(self, context: &mut Context, callback: Box<dyn AsyncCallbackTx>) {
-        context.callback_senders.push(AsyncCallbackSender {
-            index: context.callback_senders.len(),
+    pub fn into_callback(self, context: &mut Context, callback: Box<dyn OutputCallback>) {
+        context.outputs_callbacks.push(CallbackOutput {
             output: self,
-            cb: callback,
+            callback,
         })
     }
 
@@ -371,51 +333,18 @@ impl Output {
     }
 }
 
-/// Trait wrapping an async closures for sender callback, it requires rust-nightly because of
-/// https://github.com/rust-lang/rust/issues/62290
-///
-/// * Note: * not intended to be directly used by users.
-type AsyncCallbackOutput = ZFResult<(Data, Option<u64>)>;
-
-pub trait AsyncCallbackTx: Send + Sync {
-    fn call(&self) -> Pin<Box<dyn Future<Output = AsyncCallbackOutput> + Send + Sync + 'static>>;
+/// The `CallbackOutput` wraps the `Output` and the callback provided by the user.
+pub(crate) struct CallbackOutput {
+    pub(crate) output: Output,
+    pub(crate) callback: Box<dyn OutputCallback>,
 }
 
-/// Implementation of AsyncCallbackTx for any async closure that returns
-/// `ZFResult<()>`.
-/// This "converts" any `async move { ... }` to `AsyncCallbackTx`
-///
-/// *Note:* It takes an `FnOnce` because of the `move` keyword. The closure
-/// has to be `Clone` as we are going to call the closure more than once.
-impl<Fut, Fun> AsyncCallbackTx for Fun
-where
-    Fun: FnMut() -> Fut + Sync + Send + Clone,
-    Fut: Future<Output = ZFResult<(Data, Option<u64>)>> + Send + Sync + 'static,
-{
-    fn call(
-        &self,
-    ) -> Pin<Box<dyn Future<Output = ZFResult<(Data, Option<u64>)>> + Send + Sync + 'static>> {
-        Box::pin(self.clone()())
-    }
-}
+impl CallbackOutput {
+    pub(crate) async fn run(&self, index: usize) -> ZFResult<usize> {
+        let data = self.callback.call().await?;
+        // NOTE: As no timestamp is provided, `send_async` adds one.
+        self.output.send_async(data, None).await?;
 
-/// The `AsyncCallbackSender` wraps the `LinkSender` and the `AsyncCallbackTx`.
-///
-/// It is used to trigger the user callback with the given schedule.
-pub struct AsyncCallbackSender {
-    index: usize,
-    output: Output,
-    cb: Box<dyn AsyncCallbackTx>,
-}
-
-impl AsyncCallbackSender {
-    pub fn new(index: usize, output: Output, cb: Box<dyn AsyncCallbackTx>) -> Self {
-        Self { index, output, cb }
-    }
-
-    pub async fn trigger(&self) -> ZFResult<usize> {
-        let (data, timestamp) = self.cb.call().await?;
-        self.output.send_async(data, timestamp).await?;
-        Ok(self.index)
+        Ok(index)
     }
 }
