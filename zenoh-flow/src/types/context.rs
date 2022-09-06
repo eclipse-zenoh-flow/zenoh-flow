@@ -30,8 +30,6 @@ use uuid::Uuid;
 /// - `instance_id`: the generated unique identifier of this instanciation of the flow.
 ///
 /// The HLC is directly accessible thanks to a `Deref` implementation.
-///
-/// TODO: `register_input_callback` & `register_output_callback` + documentation
 pub struct Context {
     pub(crate) runtime_name: RuntimeId,
     pub(crate) runtime_uuid: Uuid,
