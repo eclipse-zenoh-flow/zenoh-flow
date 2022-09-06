@@ -13,7 +13,8 @@
 //
 
 use crate::runtime::InstanceContext;
-use crate::types::{CallbackInput, CallbackOutput, FlowId, RuntimeId};
+use crate::traits::{InputCallback, OutputCallback};
+use crate::types::{CallbackInput, CallbackOutput, FlowId, Input, Output, RuntimeId};
 use std::ops::Deref;
 use std::sync::Arc;
 use uhlc::HLC;
@@ -78,6 +79,25 @@ impl Context {
     /// Returns the unique identifier of the running instance of the data flow.
     pub fn get_instance_id(&self) -> &Uuid {
         &self.instance_id
+    }
+
+    /// Register the `callback` to be called whenever the `input` receives data.
+    ///
+    /// Zenoh-Flow will execute the callback whenever new data is received. If additional
+    /// constraints should be enforced, it is up to the developer to add them in the implementation
+    /// of the callback (for instance, to add a minimum periodicity between consecutive executions).
+    pub fn register_input_callback(&mut self, input: Input, callback: Box<dyn InputCallback>) {
+        self.inputs_callbacks
+            .push(CallbackInput { input, callback })
+    }
+
+    /// Register the `callback` to repeatedly call to send data on the `output`.
+    ///
+    /// Zenoh-Flow will continuously execute the callback so it is up to the developer to add
+    /// constraints to the callback’s implementation (for instance, to make it periodic).
+    pub fn register_output_callback(&mut self, output: Output, callback: Box<dyn OutputCallback>) {
+        self.outputs_callbacks
+            .push(CallbackOutput { output, callback })
     }
 }
 

@@ -196,8 +196,8 @@ impl Operator for NoOpCallback {
         let input = inputs.take(PORT_CALLBACK).unwrap();
         let output = outputs.take_into_arc(PORT_CALLBACK).unwrap();
 
-        input.into_callback(
-            context,
+        context.register_input_callback(
+            input,
             Box::new(move |message| {
                 let output_cloned = Arc::clone(&output);
 

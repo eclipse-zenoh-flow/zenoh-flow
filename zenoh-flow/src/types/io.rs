@@ -13,7 +13,7 @@
 //
 
 use crate::traits::{InputCallback, OutputCallback};
-use crate::types::{Context, Data, Message, PortId};
+use crate::types::{Data, Message, PortId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;
@@ -74,17 +74,6 @@ impl Input {
     /// Returns the number of channels associated with this Input.
     pub fn channels_count(&self) -> usize {
         self.receivers.len()
-    }
-
-    /// Turns the `Input` from a Stream to a Callback.
-    ///
-    /// The callback function will be called as soon as data is received on any of the channels of
-    /// this Input.
-    pub fn into_callback(self, context: &mut Context, callback: Box<dyn InputCallback>) {
-        context.inputs_callbacks.push(CallbackInput {
-            input: self,
-            callback,
-        })
     }
 
     /// Returns the first `Message` that was received, *asynchronously*, on any of the channels
@@ -185,14 +174,6 @@ impl Output {
     /// Returns the number of channels associated with this Output.
     pub fn channels_count(&self) -> usize {
         self.senders.len()
-    }
-
-    /// Turns the Output from a Stream to a Callback.
-    pub fn into_callback(self, context: &mut Context, callback: Box<dyn OutputCallback>) {
-        context.outputs_callbacks.push(CallbackOutput {
-            output: self,
-            callback,
-        })
     }
 
     /// Creates a new Output, providing its id and a reference to the HLC.
