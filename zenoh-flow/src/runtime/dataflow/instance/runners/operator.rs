@@ -71,7 +71,7 @@ impl OperatorRunner {
         // TODO Check that all ports are used.
         Self {
             id: operator.id,
-            context: Context::new(instance_context),
+            context: Context::new(&instance_context),
             configuration: operator.configuration,
             inputs,
             outputs,

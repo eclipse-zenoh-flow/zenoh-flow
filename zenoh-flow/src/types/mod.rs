@@ -16,8 +16,9 @@ pub(crate) mod io;
 pub use io::*;
 pub(crate) mod message;
 pub use message::*;
+pub(crate) mod context;
+pub use context::*;
 
-use crate::runtime::InstanceContext;
 use crate::traits::ZFData;
 use crate::types::io::{CallbackInput, CallbackOutput};
 use crate::zferror;
@@ -25,7 +26,6 @@ use crate::zfresult::ErrorKind;
 use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::convert::From;
-use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -41,32 +41,6 @@ pub type FlowId = Arc<str>;
 pub type PortType = Arc<str>;
 /// Special port type that matches any other port type.
 pub(crate) const PORT_TYPE_ANY: &str = "_any_";
-
-/// Context is a structure provided by Zenoh Flow to access the execution context directly from the
-/// nodes. It contains the `mode` as usize.
-pub struct Context {
-    instance: Arc<InstanceContext>,
-    pub(crate) inputs_callbacks: Vec<CallbackInput>,
-    pub(crate) outputs_callbacks: Vec<CallbackOutput>,
-}
-
-impl Context {
-    pub(crate) fn new(instance_context: Arc<InstanceContext>) -> Self {
-        Self {
-            instance: instance_context,
-            inputs_callbacks: vec![],
-            outputs_callbacks: vec![],
-        }
-    }
-}
-
-impl Deref for Context {
-    type Target = InstanceContext;
-
-    fn deref(&self) -> &Self::Target {
-        &self.instance
-    }
-}
 
 /// The Zenoh Flow data.
 /// It is an `enum` that can contain both the serialized data (if received from

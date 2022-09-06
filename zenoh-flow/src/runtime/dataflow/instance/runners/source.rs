@@ -66,7 +66,7 @@ impl SourceRunner {
     ) -> Self {
         Self {
             id: source.id,
-            context: Context::new(instance_context),
+            context: Context::new(&instance_context),
             configuration: source.configuration,
             outputs,
             source: source.source,

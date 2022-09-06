@@ -63,7 +63,7 @@ impl SinkRunner {
         Self {
             id: sink.id,
             configuration: sink.configuration,
-            context: Context::new(instance_context),
+            context: Context::new(&instance_context),
             inputs,
             sink: sink.sink,
             _library: sink.library,
