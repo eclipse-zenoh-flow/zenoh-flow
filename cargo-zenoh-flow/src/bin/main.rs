@@ -249,7 +249,6 @@ async fn main() {
                         outputs: outputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
-                        flags: None,
                         tags: vec![],
                     };
 
@@ -311,7 +310,6 @@ async fn main() {
                         outputs: outputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
-                        flags: None,
                         tags: vec![],
                     };
 
@@ -373,7 +371,6 @@ async fn main() {
                         inputs: inputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
-                        flags: None,
                         tags: vec![],
                     };
 

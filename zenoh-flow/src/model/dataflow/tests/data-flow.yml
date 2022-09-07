@@ -7,8 +7,6 @@ sources:
 
   - id: source-2
     descriptor: ./src/model/dataflow/tests/source-2.yml
-    flags:
-      - flag-2
 
   - id: source-composite
     descriptor: ./src/model/dataflow/tests/source-composite.yml
@@ -20,8 +18,6 @@ operators:
 
   - id: operator-2
     descriptor: ./src/model/dataflow/tests/operator-2.yml
-    flags:
-      - flag-2
 
   - id: operator-composite
     descriptor: ./src/model/dataflow/tests/operator-composite.yml
@@ -33,8 +29,6 @@ sinks:
 
   - id: sink-2
     descriptor: ./src/model/dataflow/tests/sink-2.yml
-    flags:
-      - flag-2
 
   - id: sink-composite
     descriptor: ./src/model/dataflow/tests/sink-composite.yml

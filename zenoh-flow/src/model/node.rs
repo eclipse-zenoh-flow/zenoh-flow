@@ -48,7 +48,6 @@ pub struct SinkDescriptor {
     pub inputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
-    pub flags: Option<Vec<String>>,
     pub tags: Vec<String>,
 }
 
@@ -118,7 +117,6 @@ pub struct SourceDescriptor {
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
-    pub flags: Option<Vec<String>>,
     pub tags: Vec<String>,
 }
 
@@ -192,7 +190,6 @@ pub struct SimpleOperatorDescriptor {
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
-    pub flags: Option<Vec<String>>,
     pub tags: Vec<String>,
 }
 
@@ -493,7 +490,6 @@ impl CompositeOperatorDescriptor {
 pub struct NodeDescriptor {
     pub id: NodeId,
     pub descriptor: String,
-    pub flags: Option<Vec<String>>,
     pub configuration: Option<Configuration>,
 }
 
@@ -563,7 +559,6 @@ impl NodeDescriptor {
         let res_simple = SimpleOperatorDescriptor::from_yaml(&description);
         if let Ok(simple_operator) = res_simple {
             // TODO Handle configuration
-            // TODO Handle flags
             return Ok(vec![simple_operator]);
         }
 
@@ -615,7 +610,6 @@ impl NodeDescriptor {
             Ok(mut desc) => {
                 desc.id = self.id;
                 desc.configuration = merge_configurations(global_configuration, desc.configuration);
-                desc.flags = self.flags;
                 Ok(desc)
             }
             Err(e) => {
@@ -643,7 +637,6 @@ impl NodeDescriptor {
             Ok(mut desc) => {
                 desc.id = self.id;
                 desc.configuration = merge_configurations(global_configuration, desc.configuration);
-                desc.flags = self.flags;
                 Ok(desc)
             }
             Err(e) => {

@@ -35,13 +35,11 @@ fn test_flatten_composite_descriptor_non_nested() {
             NodeDescriptor {
                 id: "my-operator-1".into(),
                 descriptor: "./src/model/tests/operator-1.yml".into(),
-                flags: None,
                 configuration: None,
             },
             NodeDescriptor {
                 id: "my-operator-2".into(),
                 descriptor: "./src/model/tests/operator-2.yml".into(),
-                flags: None,
                 configuration: None,
             },
         ],
@@ -98,7 +96,6 @@ fn test_flatten_composite_descriptor_non_nested() {
             outputs: vec![PortDescriptor::new("operator-1-out", "_any_")],
             uri: Some("file://operator-1.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
         SimpleOperatorDescriptor {
@@ -107,7 +104,6 @@ fn test_flatten_composite_descriptor_non_nested() {
             outputs: vec![PortDescriptor::new("operator-2-out", "_any_")],
             uri: Some("file://operator-2.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
     ];
@@ -166,19 +162,16 @@ fn test_flatten_composite_descriptor_nested() {
             NodeDescriptor {
                 id: "composite-outer-o".into(),
                 descriptor: "./src/model/tests/composite-outer.yml".into(),
-                flags: None,
                 configuration: None,
             },
             NodeDescriptor {
                 id: "composite-nested".into(),
                 descriptor: "./src/model/tests/composite-nested.yml".into(),
-                flags: None,
                 configuration: None,
             },
             NodeDescriptor {
                 id: "composite-outer-i".into(),
                 descriptor: "./src/model/tests/composite-outer.yml".into(),
-                flags: None,
                 configuration: None,
             },
         ],
@@ -223,7 +216,6 @@ fn test_flatten_composite_descriptor_nested() {
             outputs: vec![PortDescriptor::new("composite-outer-out", "_any_")],
             uri: Some("file://composite-outer.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
         SimpleOperatorDescriptor {
@@ -235,7 +227,6 @@ fn test_flatten_composite_descriptor_nested() {
             outputs: vec![PortDescriptor::new("operator-1-out", "_any_")],
             uri: Some("file://operator-1.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
         SimpleOperatorDescriptor {
@@ -244,7 +235,6 @@ fn test_flatten_composite_descriptor_nested() {
             outputs: vec![PortDescriptor::new("operator-2-out", "_any_")],
             uri: Some("file://operator-2.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
         SimpleOperatorDescriptor {
@@ -253,7 +243,6 @@ fn test_flatten_composite_descriptor_nested() {
             outputs: vec![PortDescriptor::new("composite-outer-out", "_any_")],
             uri: Some("file://composite-outer.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
     ];

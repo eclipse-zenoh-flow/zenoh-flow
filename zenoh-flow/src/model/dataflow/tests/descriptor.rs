@@ -27,7 +27,7 @@ const BASE_PATH: &str = "src/model/dataflow/tests/";
 
 // We are testing quite a few things within this function:
 //
-// - TODO the fact that flags are propagated,
+
 // - TODO the fact that the configuration is propagated --- correctly,
 // - the naming of the composite operators,
 // - the naming of the ports,
@@ -63,19 +63,13 @@ fn test_flatten_descriptor() {
             outputs: vec![PortDescriptor::new("source-1-out", "_any_")],
             uri: Some("file://source-1.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
-        /*
-        "source-2" is kept even though its associated flag is set to `false`.
-        Disabled nodes are removed when the FlattenDescriptor is turned into a Record.
-         */
         SourceDescriptor {
             id: "source-2".into(),
             outputs: vec![PortDescriptor::new("source-2-out", "_any_")],
             uri: Some("file://source-2.so".into()),
             configuration: None,
-            flags: Some(vec!["flag-2".into()]),
             tags: vec![],
         },
         SourceDescriptor {
@@ -86,7 +80,6 @@ fn test_flatten_descriptor() {
             ],
             uri: Some("file://source-composite.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
     ];
@@ -101,7 +94,6 @@ fn test_flatten_descriptor() {
             outputs: vec![PortDescriptor::new("operator-1-out", "_any_")],
             uri: Some("file://operator-1.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
         SimpleOperatorDescriptor {
@@ -110,9 +102,6 @@ fn test_flatten_descriptor() {
             outputs: vec![PortDescriptor::new("operator-2-out", "_any_")],
             uri: Some("file://operator-2.so".into()),
             configuration: None,
-            // FIXME Update once the flags are properly handled.
-            // flags: Some(vec!["flag-2".into()]),
-            flags: None,
             tags: vec![],
         },
         /*
@@ -133,7 +122,6 @@ fn test_flatten_descriptor() {
             outputs: vec![PortDescriptor::new("sub-operator-1-out", "_any_")],
             uri: Some("file://sub-operator-1.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
         /*
@@ -148,7 +136,6 @@ fn test_flatten_descriptor() {
             outputs: vec![PortDescriptor::new("sub-sub-operator-1-out", "_any_")],
             uri: Some("file://sub-sub-operator-1.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
         /*
@@ -160,7 +147,6 @@ fn test_flatten_descriptor() {
             outputs: vec![PortDescriptor::new("sub-sub-operator-2-out", "_any_")],
             uri: Some("file://sub-sub-operator-2.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
         /*
@@ -175,7 +161,6 @@ fn test_flatten_descriptor() {
             ],
             uri: Some("file://sub-operator-2.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
     ];
@@ -189,19 +174,13 @@ fn test_flatten_descriptor() {
             inputs: vec![PortDescriptor::new("sink-1-in", "_any_")],
             uri: Some("file://sink-1.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
-        /*
-         * "sink-2" is kept even though its associated flag is set to `false`.
-         * Disabled nodes are removed when the FlattenDescriptor is turned into a Record.
-         */
         SinkDescriptor {
             id: "sink-2".into(),
             inputs: vec![PortDescriptor::new("sink-2-in", "_any_")],
             uri: Some("file://sink-2.so".into()),
             configuration: None,
-            flags: Some(vec!["flag-2".into()]),
             tags: vec![],
         },
         SinkDescriptor {
@@ -212,7 +191,6 @@ fn test_flatten_descriptor() {
             ],
             uri: Some("file://sink-composite.so".into()),
             configuration: None,
-            flags: None,
             tags: vec![],
         },
     ];

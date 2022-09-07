@@ -12,7 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::dataflow::flag::Flag;
 use crate::model::dataflow::validator::DataflowValidator;
 use crate::model::link::LinkDescriptor;
 use crate::model::node::{
@@ -78,7 +77,6 @@ pub struct DataFlowDescriptor {
     pub mapping: Option<HashMap<NodeId, RuntimeId>>,
     #[serde(alias = "configuration")]
     pub global_configuration: Option<Configuration>,
-    pub flags: Option<Vec<Flag>>,
 }
 
 impl DataFlowDescriptor {
@@ -142,7 +140,6 @@ impl DataFlowDescriptor {
             mut links,
             mapping,
             global_configuration,
-            flags,
         } = self;
 
         let mut flattened_sources = Vec::with_capacity(sources.len());
@@ -179,7 +176,6 @@ impl DataFlowDescriptor {
             links,
             mapping,
             global_configuration,
-            flags,
         })
     }
 }
@@ -210,7 +206,6 @@ pub struct FlattenDataFlowDescriptor {
     pub mapping: Option<HashMap<NodeId, RuntimeId>>,
     #[serde(alias = "configuration")]
     pub global_configuration: Option<Configuration>,
-    pub flags: Option<Vec<Flag>>,
 }
 
 impl FlattenDataFlowDescriptor {

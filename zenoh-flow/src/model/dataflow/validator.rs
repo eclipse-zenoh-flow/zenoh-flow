@@ -13,7 +13,6 @@
 //
 
 use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
-use crate::model::dataflow::flag::{get_nodes_to_remove, Flag};
 use crate::model::link::PortDescriptor;
 use crate::model::{InputDescriptor, OutputDescriptor};
 use crate::types::{NodeId, PortId, PortType, PORT_TYPE_ANY};
@@ -105,41 +104,23 @@ impl TryFrom<&FlattenDataFlowDescriptor> for DataflowValidator {
         all_node_ids.extend(descriptor.operators.iter().map(|s| s.id.clone()));
         all_node_ids.extend(descriptor.sinks.iter().map(|s| s.id.clone()));
 
-        let mut nodes_to_remove = HashSet::new();
-        if let Some(flags) = &descriptor.flags {
-            flags
-                .iter()
-                .try_for_each(|flag| validator.validate_flag(&all_node_ids, flag))?;
-
-            nodes_to_remove = get_nodes_to_remove(flags);
-        }
-
         descriptor
             .sources
             .iter()
-            .filter(|&s| !nodes_to_remove.contains(&s.id))
             .try_for_each(|source| validator.try_add_source(source.id.clone(), &source.outputs))?;
 
-        descriptor
-            .operators
-            .iter()
-            .filter(|&o| !nodes_to_remove.contains(&o.id))
-            .try_for_each(|operator| {
-                validator.try_add_operator(operator.id.clone(), &operator.inputs, &operator.outputs)
-            })?;
+        descriptor.operators.iter().try_for_each(|operator| {
+            validator.try_add_operator(operator.id.clone(), &operator.inputs, &operator.outputs)
+        })?;
 
         descriptor
             .sinks
             .iter()
-            .filter(|&s| !nodes_to_remove.contains(&s.id))
             .try_for_each(|sink| validator.try_add_sink(sink.id.clone(), &sink.inputs))?;
 
         descriptor
             .links
             .iter()
-            .filter(|&l| {
-                !nodes_to_remove.contains(&l.from.node) && !nodes_to_remove.contains(&l.to.node)
-            })
             .try_for_each(|link| validator.try_add_link(&link.from, &link.to))?;
 
         Ok(validator)
@@ -435,24 +416,5 @@ impl DataflowValidator {
             .into()),
             false => Ok(()),
         }
-    }
-
-    /// Validate flag.
-    ///
-    /// A flag is valid if and only if all the nodes it references exist. We return an error if the
-    /// flag is toggled, if not we simply emit a warning.
-    pub(crate) fn validate_flag(&self, node_ids: &[NodeId], flag: &Flag) -> ZFResult<()> {
-        for node in &flag.nodes {
-            if !node_ids.contains(node) {
-                if flag.toggle {
-                    log::error!("Flag < {} >: unknown node {}", flag.id, node);
-                    return Err(zferror!(ErrorKind::NodeNotFound(node.clone())).into());
-                }
-
-                log::warn!("Flag < {} >: unknown node {}", flag.id, node);
-            }
-        }
-
-        Ok(())
     }
 }

@@ -22,7 +22,7 @@ use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -160,14 +160,8 @@ impl DataFlowRecord {
     ///
     ///  # Errors
     /// A variant error is returned if validation fails.
-    fn add_links(
-        &mut self,
-        links: &[LinkDescriptor],
-        nodes_to_remove: &HashSet<NodeId>,
-    ) -> ZFResult<()> {
-        for l in links.iter().filter(|&l| {
-            !nodes_to_remove.contains(&l.from.node) && !nodes_to_remove.contains(&l.to.node)
-        }) {
+    fn add_links(&mut self, links: &[LinkDescriptor]) -> ZFResult<()> {
+        for l in links.iter() {
             log::debug!("Adding link: {:?}…", l);
             let from_runtime = match self.find_node_runtime(&l.from.node) {
                 Some(rt) => rt,
@@ -352,16 +346,9 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
             links,
             mapping,
             global_configuration,
-            flags,
         } = dataflow;
 
         let mapping = mapping.map_or(HashMap::new(), |m| m);
-
-        let nodes_to_remove = if let Some(flags) = flags {
-            super::flag::get_nodes_to_remove(&flags)
-        } else {
-            HashSet::new()
-        };
 
         let mut dfr = DataFlowRecord {
             uuid: id,
@@ -374,10 +361,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
             counter: 0u32,
         };
 
-        for o in operators
-            .into_iter()
-            .filter(|o| !nodes_to_remove.contains(&o.id))
-        {
+        for o in operators.into_iter() {
             // Converting inputs
             let mut inputs: Vec<PortRecord> = vec![];
             for i in o.inputs {
@@ -408,10 +392,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
             dfr.counter += 1;
         }
 
-        for s in sources
-            .into_iter()
-            .filter(|s| !nodes_to_remove.contains(&s.id))
-        {
+        for s in sources.into_iter() {
             let mut outputs: Vec<PortRecord> = vec![];
             for o in s.outputs {
                 outputs.push((o, dfr.counter).into());
@@ -433,10 +414,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
             dfr.counter += 1;
         }
 
-        for s in sinks
-            .into_iter()
-            .filter(|s| !nodes_to_remove.contains(&s.id))
-        {
+        for s in sinks.into_iter() {
             let mut inputs: Vec<PortRecord> = Vec::with_capacity(s.inputs.len());
             for i in s.inputs {
                 inputs.push((i, dfr.counter).into());
@@ -458,7 +436,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
             dfr.counter += 1;
         }
 
-        dfr.add_links(&links, &nodes_to_remove)?;
+        dfr.add_links(&links)?;
 
         Ok(dfr)
     }
