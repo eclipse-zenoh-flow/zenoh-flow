@@ -12,6 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use serde_json::json;
+
 use super::DataFlowDescriptor;
 use crate::model::{
     link::{LinkDescriptor, PortDescriptor},
@@ -25,15 +27,15 @@ use std::{
 
 const BASE_PATH: &str = "src/model/dataflow/tests/";
 
-// We are testing quite a few things within this function:
+// This test is trying to be thorough when it comes to a data flow descriptor. In particular, we
+// want to make sure of the following:
 //
-
-// - TODO the fact that the configuration is propagated --- correctly,
+// - the fact that the configuration is propagated --- correctly,
 // - the naming of the composite operators,
 // - the naming of the ports,
 // - the links.
 //
-// Look at the comments around the "expected" structures for more information.
+// See the comments around the "expected" structures for more information.
 #[test]
 fn test_flatten_descriptor() {
     // FIXME Use Path to join both?
@@ -62,14 +64,14 @@ fn test_flatten_descriptor() {
             id: "source-1".into(),
             outputs: vec![PortDescriptor::new("source-1-out", "_any_")],
             uri: Some("file://source-1.so".into()),
-            configuration: None,
+            configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
         SourceDescriptor {
             id: "source-2".into(),
             outputs: vec![PortDescriptor::new("source-2-out", "_any_")],
             uri: Some("file://source-2.so".into()),
-            configuration: None,
+            configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
         SourceDescriptor {
@@ -79,13 +81,23 @@ fn test_flatten_descriptor() {
                 PortDescriptor::new("source-composite-out-2", "_any_"),
             ],
             uri: Some("file://source-composite.so".into()),
-            configuration: None,
+            configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
     ];
 
-    // NOTE: The order matters!
-    assert_eq!(expected_sources, flatten.sources);
+    expected_sources.iter().for_each(|expected_source| {
+        assert!(
+            flatten.sources.contains(expected_source),
+            "Source missing or incorrect: \n\n (expected) {:?} \n\n {:?}",
+            expected_source,
+            flatten
+                .sources
+                .iter()
+                .find(|source| source.id == expected_source.id)
+        )
+    });
+    assert_eq!(expected_sources.len(), flatten.sources.len());
 
     let expected_operators = vec![
         SimpleOperatorDescriptor {
@@ -93,7 +105,7 @@ fn test_flatten_descriptor() {
             inputs: vec![PortDescriptor::new("operator-1-in", "_any_")],
             outputs: vec![PortDescriptor::new("operator-1-out", "_any_")],
             uri: Some("file://operator-1.so".into()),
-            configuration: None,
+            configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
         SimpleOperatorDescriptor {
@@ -101,7 +113,7 @@ fn test_flatten_descriptor() {
             inputs: vec![PortDescriptor::new("operator-2-in", "_any_")],
             outputs: vec![PortDescriptor::new("operator-2-out", "_any_")],
             uri: Some("file://operator-2.so".into()),
-            configuration: None,
+            configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
         /*
@@ -121,7 +133,9 @@ fn test_flatten_descriptor() {
             ],
             outputs: vec![PortDescriptor::new("sub-operator-1-out", "_any_")],
             uri: Some("file://sub-operator-1.so".into()),
-            configuration: None,
+            configuration: Some(
+                json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" }),
+            ),
             tags: vec![],
         },
         /*
@@ -135,7 +149,9 @@ fn test_flatten_descriptor() {
             inputs: vec![PortDescriptor::new("sub-sub-operator-1-in", "_any_")],
             outputs: vec![PortDescriptor::new("sub-sub-operator-1-out", "_any_")],
             uri: Some("file://sub-sub-operator-1.so".into()),
-            configuration: None,
+            configuration: Some(
+                json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner", "baz": "leaf" }),
+            ),
             tags: vec![],
         },
         /*
@@ -146,7 +162,9 @@ fn test_flatten_descriptor() {
             inputs: vec![PortDescriptor::new("sub-sub-operator-2-in", "_any_")],
             outputs: vec![PortDescriptor::new("sub-sub-operator-2-out", "_any_")],
             uri: Some("file://sub-sub-operator-2.so".into()),
-            configuration: None,
+            configuration: Some(
+                json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner" }),
+            ),
             tags: vec![],
         },
         /*
@@ -160,27 +178,39 @@ fn test_flatten_descriptor() {
                 PortDescriptor::new("sub-operator-2-out-2", "_any_"),
             ],
             uri: Some("file://sub-operator-2.so".into()),
-            configuration: None,
+            configuration: Some(
+                json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" }),
+            ),
             tags: vec![],
         },
     ];
 
-    // NOTE: The order matters!
-    assert_eq!(expected_operators, flatten.operators);
+    expected_operators.iter().for_each(|expected_operator| {
+        assert!(
+            flatten.operators.contains(expected_operator),
+            "Operator missing or incorrect: \n\n (expected) {:?} \n\n {:?}",
+            expected_operator,
+            flatten
+                .operators
+                .iter()
+                .find(|operator| operator.id == expected_operator.id)
+        )
+    });
+    assert_eq!(expected_operators.len(), flatten.operators.len());
 
     let expected_sinks = vec![
         SinkDescriptor {
             id: "sink-1".into(),
             inputs: vec![PortDescriptor::new("sink-1-in", "_any_")],
             uri: Some("file://sink-1.so".into()),
-            configuration: None,
+            configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
         SinkDescriptor {
             id: "sink-2".into(),
             inputs: vec![PortDescriptor::new("sink-2-in", "_any_")],
             uri: Some("file://sink-2.so".into()),
-            configuration: None,
+            configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
         SinkDescriptor {
@@ -190,13 +220,20 @@ fn test_flatten_descriptor() {
                 PortDescriptor::new("sink-composite-in-2", "_any_"),
             ],
             uri: Some("file://sink-composite.so".into()),
-            configuration: None,
+            configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
     ];
 
-    // NOTE: The order matters!
-    assert_eq!(expected_sinks, flatten.sinks);
+    expected_sinks.iter().for_each(|expected_sink| {
+        assert!(
+            flatten.sinks.contains(expected_sink),
+            "Sink missing or incorrect: \n\n (expected) {:?} \n\n {:?}",
+            expected_sink,
+            flatten.sinks
+        )
+    });
+    assert_eq!(expected_sinks.len(), flatten.sinks.len());
 
     let expected_links = vec![
         // source 1 -> operator 1 -> sink 1
@@ -274,12 +311,15 @@ fn test_flatten_descriptor() {
         ),
     ];
 
-    expected_links.iter().for_each(|link| {
-        println!("{:?}", link);
-        assert!(flatten.links.contains(link))
+    expected_links.iter().for_each(|expected_link| {
+        assert!(
+            flatten.links.contains(expected_link),
+            "Link missing or incorrect: \n\n (expected) {:?} \n\n {:?}",
+            expected_link,
+            flatten.links
+        )
     });
-
-    assert_eq!(expected_links, flatten.links);
+    assert_eq!(expected_links.len(), flatten.links.len());
 }
 
 #[test]

@@ -17,7 +17,7 @@ use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use crate::model::link::{LinkDescriptor, LinkRecord, PortRecord};
 use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::model::{InputDescriptor, OutputDescriptor};
-use crate::types::{merge_configurations, NodeId, PortId, PortType, RuntimeId, PORT_TYPE_ANY};
+use crate::types::{NodeId, PortId, PortType, RuntimeId, PORT_TYPE_ANY};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;
@@ -345,7 +345,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
             sinks,
             links,
             mapping,
-            global_configuration,
+            global_configuration: _,
         } = dataflow;
 
         let mapping = mapping.map_or(HashMap::new(), |m| m);
@@ -382,7 +382,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 inputs,
                 outputs,
                 uri: o.uri,
-                configuration: merge_configurations(global_configuration.clone(), o.configuration),
+                configuration: o.configuration,
                 runtime: mapping
                     .get(&o.id)
                     .ok_or_else(|| zferror!(ErrorKind::MissingConfiguration))
@@ -404,7 +404,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 uid: dfr.counter,
                 outputs,
                 uri: s.uri,
-                configuration: merge_configurations(global_configuration.clone(), s.configuration),
+                configuration: s.configuration,
                 runtime: mapping
                     .get(&s.id)
                     .ok_or_else(|| zferror!(ErrorKind::MissingConfiguration))
@@ -426,7 +426,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 uid: dfr.counter,
                 inputs,
                 uri: s.uri,
-                configuration: merge_configurations(global_configuration.clone(), s.configuration),
+                configuration: s.configuration,
                 runtime: mapping
                     .get(&s.id)
                     .ok_or_else(|| zferror!(ErrorKind::MissingConfiguration))

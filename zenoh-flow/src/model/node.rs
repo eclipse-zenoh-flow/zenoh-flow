@@ -12,10 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use super::{CompositeInputDescriptor, CompositeOutputDescriptor};
 use crate::model::link::{LinkDescriptor, PortRecord};
 use crate::model::PortDescriptor;
-use crate::types::{merge_configurations, PortType};
-use crate::types::{Configuration, NodeId, RuntimeId};
+use crate::types::configuration::Merge;
+use crate::types::{Configuration, NodeId, PortType, RuntimeId};
 use crate::zfresult::ErrorKind;
 use crate::Result;
 use crate::{bail, zferror};
@@ -23,8 +24,6 @@ use async_recursion::async_recursion;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-use super::{CompositeInputDescriptor, CompositeOutputDescriptor};
 
 /// Describes a sink.
 ///
@@ -345,35 +344,42 @@ impl CompositeOperatorDescriptor {
         ancestors: &mut Vec<String>,
     ) -> Result<Vec<SimpleOperatorDescriptor>> {
         let mut simple_operators = vec![];
+        self.configuration = global_configuration.merge_overwrite(self.configuration);
 
         for o in self.operators {
-            let description = async_std::fs::read_to_string(&o.descriptor).await?;
+            let NodeDescriptor {
+                id: operator_id,
+                descriptor,
+                configuration,
+            } = o;
+            let description = async_std::fs::read_to_string(&descriptor).await?;
+            let configuration = self.configuration.clone().merge_overwrite(configuration);
 
             let res_simple = SimpleOperatorDescriptor::from_yaml(&description);
             if let Ok(mut simple_operator) = res_simple {
-                let new_id: NodeId = format!("{}/{}", composite_id, o.id).into();
+                let new_id: NodeId = format!("{}/{}", composite_id, operator_id).into();
 
                 let output_ids: HashMap<_, _> = self
                     .outputs
                     .iter()
-                    .filter(|&output| output.node == o.id)
+                    .filter(|&output| output.node == operator_id)
                     .map(|output| (&output.id, &output.output))
                     .collect();
 
                 let input_ids: HashMap<_, _> = self
                     .inputs
                     .iter()
-                    .filter(|&input| input.node == o.id)
+                    .filter(|&input| input.node == operator_id)
                     .map(|input| (&input.id, &input.input))
                     .collect();
 
                 // Updating all the links with the old id to the new ID
                 for l in &mut self.links {
-                    if l.from.node == o.id {
+                    if l.from.node == operator_id {
                         log::trace!("Updating {} to {}", l.from.node, new_id);
                         l.from.node = new_id.clone();
                     }
-                    if l.to.node == o.id {
+                    if l.to.node == operator_id {
                         log::trace!("Updating {} to {}", l.to.node, new_id);
                         l.to.node = new_id.clone();
                     }
@@ -403,10 +409,9 @@ impl CompositeOperatorDescriptor {
                 // Updating the new id
                 simple_operator.id = new_id;
 
-                simple_operator.configuration = merge_configurations(
-                    global_configuration.clone(),
-                    merge_configurations(simple_operator.configuration, self.configuration.clone()),
-                );
+                simple_operator.configuration = configuration
+                    .clone()
+                    .merge_overwrite(simple_operator.configuration);
 
                 // Adding in the list of operators
                 simple_operators.push(simple_operator);
@@ -415,23 +420,18 @@ impl CompositeOperatorDescriptor {
 
             let res_composite = CompositeOperatorDescriptor::from_yaml(&description);
             if let Ok(composite_operator) = res_composite {
-                if let Ok(index) = ancestors.binary_search(&o.descriptor) {
+                if let Ok(index) = ancestors.binary_search(&descriptor) {
                     bail!(
                         ErrorKind::GenericError, // FIXME Dedicated error?
                         "Possible recursion detected, < {} > would be included again after: {:?}",
-                        o.descriptor,
+                        descriptor,
                         &ancestors[index..]
                     );
                 }
-                ancestors.push(o.descriptor.clone());
+                ancestors.push(descriptor.clone());
 
                 let mut operators = composite_operator
-                    .flatten(
-                        o.id,
-                        &mut self.links,
-                        global_configuration.clone(),
-                        ancestors,
-                    )
+                    .flatten(operator_id, &mut self.links, configuration, ancestors)
                     .await?;
 
                 for operator in operators.iter_mut() {
@@ -460,7 +460,7 @@ impl CompositeOperatorDescriptor {
             // If we arrive at that code it means that both attempts to parse the descriptor failed.
             log::error!(
                 "Could not parse < {} > as either a Simple or a Composite Operator:",
-                o.descriptor
+                operator_id
             );
             log::error!("Simple: {:?}", res_simple.err().unwrap());
             log::error!("Composite: {:?}", res_composite.err().unwrap());
@@ -468,7 +468,7 @@ impl CompositeOperatorDescriptor {
             bail!(
                 ErrorKind::ParsingError,
                 "Could not parse < {} >",
-                o.descriptor
+                operator_id
             );
         }
 
@@ -557,8 +557,10 @@ impl NodeDescriptor {
         // We try to load the descriptor, first we try as simple one, if it fails we try as a
         // composite one, if that also fails it is malformed.
         let res_simple = SimpleOperatorDescriptor::from_yaml(&description);
-        if let Ok(simple_operator) = res_simple {
-            // TODO Handle configuration
+        if let Ok(mut simple_operator) = res_simple {
+            simple_operator.configuration = global_configuration
+                .clone()
+                .merge_overwrite(simple_operator.configuration);
             return Ok(vec![simple_operator]);
         }
 
@@ -609,7 +611,7 @@ impl NodeDescriptor {
         match SourceDescriptor::from_yaml(&descriptor_path) {
             Ok(mut desc) => {
                 desc.id = self.id;
-                desc.configuration = merge_configurations(global_configuration, desc.configuration);
+                desc.configuration = global_configuration.merge_overwrite(desc.configuration);
                 Ok(desc)
             }
             Err(e) => {
@@ -636,7 +638,7 @@ impl NodeDescriptor {
         match SinkDescriptor::from_yaml(&descriptor_path) {
             Ok(mut desc) => {
                 desc.id = self.id;
-                desc.configuration = merge_configurations(global_configuration, desc.configuration);
+                desc.configuration = global_configuration.merge_overwrite(desc.configuration);
                 Ok(desc)
             }
             Err(e) => {

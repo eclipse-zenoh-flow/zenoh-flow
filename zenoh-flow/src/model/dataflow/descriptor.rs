@@ -17,7 +17,8 @@ use crate::model::link::LinkDescriptor;
 use crate::model::node::{
     NodeDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
-use crate::types::{merge_configurations, Configuration, NodeId, RuntimeId};
+use crate::types::configuration::Merge;
+use crate::types::{Configuration, NodeId, RuntimeId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result;
@@ -144,22 +145,25 @@ impl DataFlowDescriptor {
 
         let mut flattened_sources = Vec::with_capacity(sources.len());
         for source in sources {
-            let config =
-                merge_configurations(global_configuration.clone(), source.configuration.clone());
+            let config = global_configuration
+                .clone()
+                .merge_overwrite(source.configuration.clone());
             flattened_sources.push(source.load_source(config).await?);
         }
 
         let mut flattened_sinks = Vec::with_capacity(sinks.len());
         for sink in sinks {
-            let config =
-                merge_configurations(global_configuration.clone(), sink.configuration.clone());
+            let config = global_configuration
+                .clone()
+                .merge_overwrite(sink.configuration.clone());
             flattened_sinks.push(sink.load_sink(config).await?);
         }
 
         let mut flattened_operators = Vec::new();
         for operator in operators {
-            let config =
-                merge_configurations(global_configuration.clone(), operator.configuration.clone());
+            let config = global_configuration
+                .clone()
+                .merge_overwrite(operator.configuration.clone());
 
             let id = operator.id.clone();
             let mut flattened = operator
@@ -294,5 +298,5 @@ impl PartialEq for FlattenDataFlowDescriptor {
 impl Eq for FlattenDataFlowDescriptor {}
 
 #[cfg(test)]
-#[path = "./tests/descriptor.rs"]
+#[path = "./tests/flatten-descriptor.rs"]
 mod tests;

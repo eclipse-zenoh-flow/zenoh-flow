@@ -18,6 +18,8 @@ pub(crate) mod message;
 pub use message::*;
 pub(crate) mod context;
 pub use context::*;
+pub(crate) mod configuration;
+pub use configuration::Configuration;
 
 use crate::traits::ZFData;
 use crate::types::io::{CallbackInput, CallbackOutput};
@@ -160,56 +162,6 @@ impl From<Vec<u8>> for Data {
 impl From<&[u8]> for Data {
     fn from(bytes: &[u8]) -> Self {
         Self::Bytes(Arc::new(bytes.to_vec()))
-    }
-}
-
-/// The generic configuration of a graph node.
-/// It is a re-export of `serde_json::Value`
-pub type Configuration = serde_json::Value;
-
-/// Merges two configurations, keeping the values of the `local` Configuration in case of duplicated
-/// keys.
-///
-/// This function was created with the idea of merging (and overwriting) a `global` Configuration,
-/// common to all nodes of a graph, with a `local` one, i.e. specific to a node.
-pub(crate) fn merge_configurations(
-    global: Option<Configuration>,
-    local: Option<Configuration>,
-) -> Option<Configuration> {
-    match (global, local) {
-        (None, None) => None,
-        (None, Some(local)) => Some(local),
-        (Some(global), None) => Some(global),
-        (Some(mut global), Some(mut local)) => {
-            global
-                .as_object_mut()
-                .unwrap()
-                .append(local.as_object_mut().unwrap());
-            Some(global)
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::types::merge_configurations;
-    use serde_json::json;
-
-    #[test]
-    fn test_merge_configurations() {
-        let global = json!({ "a": { "nested": true }, "b": ["an", "array"] });
-        let local = json!({ "a": { "not-nested": false }, "c": 1 });
-
-        assert_eq!(
-            merge_configurations(Some(global.clone()), Some(local.clone())),
-            Some(json!({ "a": { "not-nested": false }, "b": ["an", "array"], "c": 1 }))
-        );
-
-        assert_eq!(merge_configurations(None, Some(local.clone())), Some(local));
-        assert_eq!(
-            merge_configurations(Some(global.clone()), None),
-            Some(global)
-        );
     }
 }
 

@@ -1,5 +1,7 @@
 flow: test
 
+configuration:
+  foo: "global-outer"
 
 sources:
   - id: source-1
@@ -21,6 +23,8 @@ operators:
 
   - id: operator-composite
     descriptor: ./src/model/dataflow/tests/operator-composite.yml
+    configuration:
+      quux: "global-inner"
 
 
 sinks:
