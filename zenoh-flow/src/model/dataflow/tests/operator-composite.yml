@@ -1,4 +1,4 @@
-id: operator-composite
+id: composite
 
 configuration:
   foo: "composite-outer"

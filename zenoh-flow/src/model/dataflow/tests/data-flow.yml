@@ -5,10 +5,10 @@ configuration:
 
 sources:
   - id: source-1
-    descriptor: ./src/model/dataflow/tests/source-1.yml
+    descriptor: ./src/model/dataflow/tests/source.yml
 
   - id: source-2
-    descriptor: ./src/model/dataflow/tests/source-2.yml
+    descriptor: ./src/model/dataflow/tests/source.yml
 
   - id: source-composite
     descriptor: ./src/model/dataflow/tests/source-composite.yml
@@ -16,10 +16,10 @@ sources:
 
 operators:
   - id: operator-1
-    descriptor: ./src/model/dataflow/tests/operator-1.yml
+    descriptor: ./src/model/dataflow/tests/operator.yml
 
   - id: operator-2
-    descriptor: ./src/model/dataflow/tests/operator-2.yml
+    descriptor: ./src/model/dataflow/tests/operator.yml
 
   - id: operator-composite
     descriptor: ./src/model/dataflow/tests/operator-composite.yml
@@ -29,10 +29,10 @@ operators:
 
 sinks:
   - id: sink-1
-    descriptor: ./src/model/dataflow/tests/sink-1.yml
+    descriptor: ./src/model/dataflow/tests/sink.yml
 
   - id: sink-2
-    descriptor: ./src/model/dataflow/tests/sink-2.yml
+    descriptor: ./src/model/dataflow/tests/sink.yml
 
   - id: sink-composite
     descriptor: ./src/model/dataflow/tests/sink-composite.yml
@@ -41,29 +41,29 @@ sinks:
 links:
   - from:
       node: source-1
-      output: source-1-out
+      output: source-out
     to:
       node: operator-1
-      input: operator-1-in
+      input: operator-in
   - from:
       node: operator-1
-      output: operator-1-out
+      output: operator-out
     to:
       node: sink-1
-      input: sink-1-in
+      input: sink-in
 
   - from:
       node: source-2
-      output: source-2-out
+      output: source-out
     to:
       node: operator-2
-      input: operator-2-in
+      input: operator-in
   - from:
       node: operator-2
-      output: operator-2-out
+      output: operator-out
     to:
       node: sink-2
-      input: sink-2-in
+      input: sink-in
 
   - from:
       node: source-composite

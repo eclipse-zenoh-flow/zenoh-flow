@@ -1,4 +1,4 @@
-id: sink-composite
+id: composite-sink
 
 uri: file://sink-composite.so
 

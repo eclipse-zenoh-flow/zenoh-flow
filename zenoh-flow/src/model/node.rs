@@ -561,6 +561,7 @@ impl NodeDescriptor {
             simple_operator.configuration = global_configuration
                 .clone()
                 .merge_overwrite(simple_operator.configuration);
+            simple_operator.id = id;
             return Ok(vec![simple_operator]);
         }
 
@@ -606,8 +607,7 @@ impl NodeDescriptor {
     ) -> Result<SourceDescriptor> {
         let descriptor_path = async_std::fs::read_to_string(&self.descriptor).await?;
         log::trace!("Loading source {}", self.descriptor);
-        // We try to load the descriptor, first we try as simple one, if it fails
-        // we try as a composite one, if that also fails it is malformed.
+
         match SourceDescriptor::from_yaml(&descriptor_path) {
             Ok(mut desc) => {
                 desc.id = self.id;

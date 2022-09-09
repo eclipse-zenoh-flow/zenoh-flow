@@ -62,15 +62,15 @@ fn test_flatten_descriptor() {
     let expected_sources = vec![
         SourceDescriptor {
             id: "source-1".into(),
-            outputs: vec![PortDescriptor::new("source-1-out", "_any_")],
-            uri: Some("file://source-1.so".into()),
+            outputs: vec![PortDescriptor::new("source-out", "_any_")],
+            uri: Some("file://source.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
         SourceDescriptor {
             id: "source-2".into(),
-            outputs: vec![PortDescriptor::new("source-2-out", "_any_")],
-            uri: Some("file://source-2.so".into()),
+            outputs: vec![PortDescriptor::new("source-out", "_any_")],
+            uri: Some("file://source.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
@@ -102,17 +102,17 @@ fn test_flatten_descriptor() {
     let expected_operators = vec![
         SimpleOperatorDescriptor {
             id: "operator-1".into(),
-            inputs: vec![PortDescriptor::new("operator-1-in", "_any_")],
-            outputs: vec![PortDescriptor::new("operator-1-out", "_any_")],
-            uri: Some("file://operator-1.so".into()),
+            inputs: vec![PortDescriptor::new("operator-in", "_any_")],
+            outputs: vec![PortDescriptor::new("operator-out", "_any_")],
+            uri: Some("file://operator.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
         SimpleOperatorDescriptor {
             id: "operator-2".into(),
-            inputs: vec![PortDescriptor::new("operator-2-in", "_any_")],
-            outputs: vec![PortDescriptor::new("operator-2-out", "_any_")],
-            uri: Some("file://operator-2.so".into()),
+            inputs: vec![PortDescriptor::new("operator-in", "_any_")],
+            outputs: vec![PortDescriptor::new("operator-out", "_any_")],
+            uri: Some("file://operator.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
@@ -201,15 +201,15 @@ fn test_flatten_descriptor() {
     let expected_sinks = vec![
         SinkDescriptor {
             id: "sink-1".into(),
-            inputs: vec![PortDescriptor::new("sink-1-in", "_any_")],
-            uri: Some("file://sink-1.so".into()),
+            inputs: vec![PortDescriptor::new("sink-in", "_any_")],
+            uri: Some("file://sink.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
         SinkDescriptor {
             id: "sink-2".into(),
-            inputs: vec![PortDescriptor::new("sink-2-in", "_any_")],
-            uri: Some("file://sink-2.so".into()),
+            inputs: vec![PortDescriptor::new("sink-in", "_any_")],
+            uri: Some("file://sink.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
@@ -238,21 +238,21 @@ fn test_flatten_descriptor() {
     let expected_links = vec![
         // source 1 -> operator 1 -> sink 1
         LinkDescriptor::new(
-            OutputDescriptor::new("source-1", "source-1-out"),
-            InputDescriptor::new("operator-1", "operator-1-in"),
+            OutputDescriptor::new("source-1", "source-out"),
+            InputDescriptor::new("operator-1", "operator-in"),
         ),
         LinkDescriptor::new(
-            OutputDescriptor::new("operator-1", "operator-1-out"),
-            InputDescriptor::new("sink-1", "sink-1-in"),
+            OutputDescriptor::new("operator-1", "operator-out"),
+            InputDescriptor::new("sink-1", "sink-in"),
         ),
         // source 2 -> operator 2 -> sink 2
         LinkDescriptor::new(
-            OutputDescriptor::new("source-2", "source-2-out"),
-            InputDescriptor::new("operator-2", "operator-2-in"),
+            OutputDescriptor::new("source-2", "source-out"),
+            InputDescriptor::new("operator-2", "operator-in"),
         ),
         LinkDescriptor::new(
-            OutputDescriptor::new("operator-2", "operator-2-out"),
-            InputDescriptor::new("sink-2", "sink-2-in"),
+            OutputDescriptor::new("operator-2", "operator-out"),
+            InputDescriptor::new("sink-2", "sink-in"),
         ),
         // source-composite -> operator-composite-sub-1
         /*
@@ -320,6 +320,11 @@ fn test_flatten_descriptor() {
         )
     });
     assert_eq!(expected_links.len(), flatten.links.len());
+
+    // let expected_mappings = HashMap::from([
+    //     ("source-composite", "runtime-source-composite"),
+    //     ("operator-composite/sub-operator-1", "runtime-operator-composite"),
+    // ]);
 }
 
 #[test]
