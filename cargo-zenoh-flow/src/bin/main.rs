@@ -275,7 +275,6 @@ async fn main() {
                         tags: vec![metadata_tag],
                         inputs,
                         outputs,
-                        period: None,
                     };
 
                     let yml_descriptor = match serde_yaml::to_string(&descriptor) {
@@ -336,7 +335,6 @@ async fn main() {
                         tags: vec![metadata_tag],
                         inputs: vec![],
                         outputs,
-                        period: None,
                     };
 
                     let yml_descriptor = match serde_yaml::to_string(&descriptor) {
@@ -397,7 +395,6 @@ async fn main() {
                         tags: vec![metadata_tag],
                         inputs,
                         outputs: vec![],
-                        period: None,
                     };
                     let yml_descriptor = match serde_yaml::to_string(&descriptor) {
                         Ok(yml) => yml,

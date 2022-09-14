@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::descriptor::{DurationDescriptor, PortDescriptor};
+use crate::model::descriptor::PortDescriptor;
 use crate::types::NodeId;
 use crate::zferror;
 use crate::zfresult::ErrorKind;
@@ -70,7 +70,6 @@ pub struct RegistryNode {
     pub tags: Vec<RegistryNodeTag>,
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
-    pub period: Option<DurationDescriptor>,
 }
 
 impl RegistryNode {
