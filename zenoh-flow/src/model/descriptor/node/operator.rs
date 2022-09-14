@@ -44,7 +44,7 @@ use std::collections::HashMap;
 /// ```
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct SimpleOperatorDescriptor {
+pub struct OperatorDescriptor {
     pub id: NodeId,
     pub inputs: Vec<PortDescriptor>,
     pub outputs: Vec<PortDescriptor>,
@@ -53,19 +53,19 @@ pub struct SimpleOperatorDescriptor {
     pub tags: Vec<String>,
 }
 
-impl std::fmt::Display for SimpleOperatorDescriptor {
+impl std::fmt::Display for OperatorDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Operator (Simple)", self.id)
     }
 }
 
-impl SimpleOperatorDescriptor {
+impl OperatorDescriptor {
     /// Creates a new `OperatorDescriptor` from its YAML representation.
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
     pub fn from_yaml(data: &str) -> Result<Self> {
-        let dataflow_descriptor = serde_yaml::from_str::<SimpleOperatorDescriptor>(data)
+        let dataflow_descriptor = serde_yaml::from_str::<OperatorDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
@@ -75,7 +75,7 @@ impl SimpleOperatorDescriptor {
     ///  # Errors
     /// A variant error is returned if deserialization fails.
     pub fn from_json(data: &str) -> Result<Self> {
-        let dataflow_descriptor = serde_json::from_str::<SimpleOperatorDescriptor>(data)
+        let dataflow_descriptor = serde_json::from_str::<OperatorDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
@@ -203,7 +203,7 @@ impl CompositeOperatorDescriptor {
         links: &mut Vec<LinkDescriptor>,
         global_configuration: Option<Configuration>,
         ancestors: &mut Vec<String>,
-    ) -> Result<Vec<SimpleOperatorDescriptor>> {
+    ) -> Result<Vec<OperatorDescriptor>> {
         let mut simple_operators = vec![];
         self.configuration = global_configuration.merge_overwrite(self.configuration);
 
@@ -216,7 +216,7 @@ impl CompositeOperatorDescriptor {
             let description = async_std::fs::read_to_string(&descriptor).await?;
             let configuration = self.configuration.clone().merge_overwrite(configuration);
 
-            let res_simple = SimpleOperatorDescriptor::from_yaml(&description);
+            let res_simple = OperatorDescriptor::from_yaml(&description);
             if let Ok(mut simple_operator) = res_simple {
                 let new_id: NodeId = format!("{}/{}", composite_id, operator_id).into();
 

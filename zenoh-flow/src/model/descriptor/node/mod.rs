@@ -13,7 +13,7 @@
 //
 
 pub mod operator;
-pub use operator::{CompositeOperatorDescriptor, SimpleOperatorDescriptor};
+pub use operator::{CompositeOperatorDescriptor, OperatorDescriptor};
 pub mod sink;
 pub use sink::SinkDescriptor;
 pub mod source;
@@ -99,12 +99,12 @@ impl NodeDescriptor {
         links: &mut Vec<LinkDescriptor>,
         global_configuration: Option<Configuration>,
         ancestors: &mut Vec<String>,
-    ) -> ZFResult<Vec<SimpleOperatorDescriptor>> {
+    ) -> ZFResult<Vec<OperatorDescriptor>> {
         let description = async_std::fs::read_to_string(&self.descriptor).await?;
 
         // We try to load the descriptor, first we try as simple one, if it fails we try as a
         // composite one, if that also fails it is malformed.
-        let res_simple = SimpleOperatorDescriptor::from_yaml(&description);
+        let res_simple = OperatorDescriptor::from_yaml(&description);
         if let Ok(mut simple_operator) = res_simple {
             simple_operator.configuration = global_configuration
                 .clone()

@@ -24,7 +24,7 @@ use uhlc::{HLCBuilder, ID};
 use uuid::Uuid;
 use zenoh::prelude::*;
 use zenoh_flow::model::descriptor::{
-    FlattenDataFlowDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
+    FlattenDataFlowDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
 use zenoh_flow::model::record::DataFlowRecord;
 use zenoh_flow::prelude::{zferror, ErrorKind, Result as ZFResult};
@@ -656,7 +656,7 @@ impl DaemonInterfaceInternal for Daemon {
     }
     async fn check_operator_compatibility(
         &self,
-        operator: SimpleOperatorDescriptor,
+        operator: OperatorDescriptor,
     ) -> DaemonResult<bool> {
         self.runtime.check_operator_compatibility(operator).await
     }

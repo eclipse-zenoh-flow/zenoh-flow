@@ -14,7 +14,7 @@
 
 use crate::model::descriptor::validator::DataFlowValidator;
 use crate::model::descriptor::{
-    LinkDescriptor, NodeDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
+    LinkDescriptor, NodeDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId, RuntimeId};
@@ -200,7 +200,7 @@ impl Eq for DataFlowDescriptor {}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FlattenDataFlowDescriptor {
     pub flow: String,
-    pub operators: Vec<SimpleOperatorDescriptor>,
+    pub operators: Vec<OperatorDescriptor>,
     pub sources: Vec<SourceDescriptor>,
     pub sinks: Vec<SinkDescriptor>,
     pub links: Vec<LinkDescriptor>,

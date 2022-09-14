@@ -18,9 +18,7 @@ use std::sync::Arc;
 use async_std::sync::Mutex;
 use uuid::Uuid;
 use zenoh_flow::model::{
-    descriptor::{
-        FlattenDataFlowDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
-    },
+    descriptor::{FlattenDataFlowDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor},
     record::DataFlowRecord,
 };
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
@@ -661,7 +659,7 @@ impl Runtime {
     }
     pub(crate) async fn check_operator_compatibility(
         &self,
-        _operator: SimpleOperatorDescriptor,
+        _operator: OperatorDescriptor,
     ) -> DaemonResult<bool> {
         Err(ErrorKind::Unimplemented)
     }

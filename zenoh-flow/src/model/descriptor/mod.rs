@@ -21,7 +21,7 @@ pub use link::{
 };
 pub mod node;
 pub use node::{
-    CompositeOperatorDescriptor, NodeDescriptor, SimpleOperatorDescriptor, SinkDescriptor,
+    CompositeOperatorDescriptor, NodeDescriptor, OperatorDescriptor, SinkDescriptor,
     SourceDescriptor,
 };
 pub mod validator;

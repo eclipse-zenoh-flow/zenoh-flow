@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use crate::model::descriptor::{
-    FlattenDataFlowDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
+    FlattenDataFlowDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
 use crate::model::record::DataFlowRecord;
 use serde::{Deserialize, Serialize};
@@ -624,7 +624,7 @@ pub trait DaemonInterfaceInternal {
     /// - error on zenoh-rpc
     async fn check_operator_compatibility(
         &self,
-        operator: SimpleOperatorDescriptor,
+        operator: OperatorDescriptor,
     ) -> DaemonResult<bool>;
 
     /// Checks the compatibility for the given `source`

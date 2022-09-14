@@ -17,7 +17,7 @@ use clap::Parser;
 use colored::*;
 
 use cargo_zenoh_flow::error::CZFError;
-use zenoh_flow::model::descriptor::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor};
+use zenoh_flow::model::descriptor::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use zenoh_flow::model::registry::{
     NodeKind, RegistryNode, RegistryNodeArchitecture, RegistryNodeTag,
 };
@@ -245,7 +245,7 @@ async fn main() {
                         exit(-1);
                     }
 
-                    let descriptor = SimpleOperatorDescriptor {
+                    let descriptor = OperatorDescriptor {
                         id: NodeId::from(node_info.id.clone()),
                         inputs: inputs.clone(),
                         outputs: outputs.clone(),

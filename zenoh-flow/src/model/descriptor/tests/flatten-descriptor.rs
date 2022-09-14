@@ -15,8 +15,8 @@
 use serde_json::json;
 
 use crate::model::descriptor::{
-    DataFlowDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor, PortDescriptor,
-    SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
+    DataFlowDescriptor, InputDescriptor, LinkDescriptor, OperatorDescriptor, OutputDescriptor,
+    PortDescriptor, SinkDescriptor, SourceDescriptor,
 };
 use std::{
     fs::File,
@@ -98,7 +98,7 @@ fn test_flatten_descriptor() {
     assert_eq!(expected_sources.len(), flatten.sources.len());
 
     let expected_operators = vec![
-        SimpleOperatorDescriptor {
+        OperatorDescriptor {
             id: "operator-1".into(),
             inputs: vec![PortDescriptor::new("operator-in", "_any_")],
             outputs: vec![PortDescriptor::new("operator-out", "_any_")],
@@ -106,7 +106,7 @@ fn test_flatten_descriptor() {
             configuration: Some(json!({ "foo": "global-outer" })),
             tags: vec![],
         },
-        SimpleOperatorDescriptor {
+        OperatorDescriptor {
             id: "operator-2".into(),
             inputs: vec![PortDescriptor::new("operator-in", "_any_")],
             outputs: vec![PortDescriptor::new("operator-out", "_any_")],
@@ -123,7 +123,7 @@ fn test_flatten_descriptor() {
          *
          * The names of the ports are left intact.
          */
-        SimpleOperatorDescriptor {
+        OperatorDescriptor {
             id: "operator-composite/sub-operator-1".into(),
             inputs: vec![
                 PortDescriptor::new("sub-operator-1-in-1", "_any_"),
@@ -142,7 +142,7 @@ fn test_flatten_descriptor() {
          *
          * operator-composite/sub-operator-composite/sub-sub-operator-1
          */
-        SimpleOperatorDescriptor {
+        OperatorDescriptor {
             id: "operator-composite/sub-operator-composite/sub-sub-operator-1".into(),
             inputs: vec![PortDescriptor::new("sub-sub-operator-1-in", "_any_")],
             outputs: vec![PortDescriptor::new("sub-sub-operator-1-out", "_any_")],
@@ -155,7 +155,7 @@ fn test_flatten_descriptor() {
         /*
          * Idem as above: operator-composite/sub-operator-composite/sub-sub-operator-2.
          */
-        SimpleOperatorDescriptor {
+        OperatorDescriptor {
             id: "operator-composite/sub-operator-composite/sub-sub-operator-2".into(),
             inputs: vec![PortDescriptor::new("sub-sub-operator-2-in", "_any_")],
             outputs: vec![PortDescriptor::new("sub-sub-operator-2-out", "_any_")],
@@ -168,7 +168,7 @@ fn test_flatten_descriptor() {
         /*
          * Similarly, we check that the name is the composition: operator-composite/sub-operator-2.
          */
-        SimpleOperatorDescriptor {
+        OperatorDescriptor {
             id: "operator-composite/sub-operator-2".into(),
             inputs: vec![PortDescriptor::new("sub-operator-2-in", "_any_")],
             outputs: vec![
