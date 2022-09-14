@@ -16,11 +16,10 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
-use crate::model::{
-    dataflow::record::DataFlowRecord,
-    node::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor},
+use crate::model::descriptor::{
+    FlattenDataFlowDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
+use crate::model::record::DataFlowRecord;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;

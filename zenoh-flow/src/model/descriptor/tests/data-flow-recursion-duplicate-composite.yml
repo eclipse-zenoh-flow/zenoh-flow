@@ -2,18 +2,18 @@ flow: test-recursion-ok
 
 sources:
   - id: source-composite
-    descriptor: ./src/model/dataflow/tests/source-composite.yml
+    descriptor: ./src/model/descriptor/tests/source-composite.yml
 
 operators:
   - id: operator-composite-1
-    descriptor: ./src/model/dataflow/tests/operator-composite.yml
+    descriptor: ./src/model/descriptor/tests/operator-composite.yml
 
   - id: operator-composite-2
-    descriptor: ./src/model/dataflow/tests/operator-composite.yml
+    descriptor: ./src/model/descriptor/tests/operator-composite.yml
 
 sinks:
   - id: sink-composite
-    descriptor: ./src/model/dataflow/tests/sink-composite.yml
+    descriptor: ./src/model/descriptor/tests/sink-composite.yml
 
 links:
   - from:

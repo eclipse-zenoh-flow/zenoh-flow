@@ -20,8 +20,8 @@ use async_std::prelude::*;
 // use git2::Repository;
 use serde::Deserialize;
 use std::process::Command;
-use zenoh_flow::model::link::PortDescriptor;
-use zenoh_flow::model::{NodeKind, RegistryNode};
+use zenoh_flow::model::descriptor::PortDescriptor;
+use zenoh_flow::model::registry::{NodeKind, RegistryNode};
 
 pub static ZF_OUTPUT_DIRECTORY: &str = "zenoh-flow";
 static ZF_CPP_REPO: &str = "https://github.com/ZettaScaleLabs/zenoh-flow-cxx";

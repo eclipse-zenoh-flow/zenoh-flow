@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
+use crate::model::descriptor::FlattenDataFlowDescriptor;
 use crate::runtime::{resources::DataStore, Job};
 use crate::Result as ZFResult;
 use async_std::{stream::StreamExt, task::JoinHandle};

@@ -284,12 +284,9 @@ async fn main() {
                     descriptor_path
                 );
                 let yaml_df = read_to_string(descriptor_path).unwrap();
-                let df = zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor::from_yaml(
-                    &yaml_df,
-                )
-                .unwrap();
+                let df =
+                    zenoh_flow::model::descriptor::DataFlowDescriptor::from_yaml(&yaml_df).unwrap();
                 let df = df.flatten().await.unwrap();
-
                 df.validate().unwrap();
 
                 let client = get_client(zsession.clone()).await;
@@ -559,10 +556,8 @@ async fn main() {
             );
             let yaml_df = read_to_string(descriptor_path).unwrap();
             let df =
-                zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor::from_yaml(&yaml_df)
-                    .unwrap();
+                zenoh_flow::model::descriptor::DataFlowDescriptor::from_yaml(&yaml_df).unwrap();
             let df = df.flatten().await.unwrap();
-
             df.validate().unwrap();
 
             let client = get_client(zsession.clone()).await;

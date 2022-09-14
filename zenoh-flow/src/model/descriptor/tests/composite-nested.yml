@@ -15,10 +15,10 @@ outputs:
 
 operators:
   - id: operator-1
-    descriptor: ./src/model/tests/operator-1.yml
+    descriptor: ./src/model/descriptor/tests/operator-1.yml
 
   - id: operator-2
-    descriptor: ./src/model/tests/operator-2.yml
+    descriptor: ./src/model/descriptor/tests/operator-2.yml
 
 
 links:

@@ -12,9 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
-use crate::model::link::PortDescriptor;
-use crate::model::{InputDescriptor, OutputDescriptor};
+use crate::model::descriptor::{
+    FlattenDataFlowDescriptor, InputDescriptor, OutputDescriptor, PortDescriptor,
+};
 use crate::types::{NodeId, PortId, PortType, PORT_TYPE_ANY};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
@@ -350,7 +350,7 @@ impl DataflowValidator {
 
     /// Validate that all ports respect the constraints.
     ///
-    /// - an input port has one and only one incoming link,
+    /// - an input port has at least one incoming link,
     /// - an output port has at least one outgoing link.
     ///
     /// A link is represented by an "edge" in Petgraph vocabulary.
@@ -371,14 +371,7 @@ impl DataflowValidator {
                         port.port_id.clone(),
                     ))))
                 }
-                1 => Ok(()),
-                _ => {
-                    let port = self.node_checker.node_weight(*idx).unwrap();
-                    Err(zferror!(ErrorKind::MultipleOutputsToInput((
-                        port.node_id.clone(),
-                        port.port_id.clone(),
-                    ))))
-                }
+                _ => Ok(()),
             }
         })?;
 
@@ -399,22 +392,5 @@ impl DataflowValidator {
                 _ => Ok(()),
             }
         })
-    }
-
-    //@TODO: remove?
-    /// Validates that, without the Loops, the Dataflow is a Directed Acyclic Graph.
-    ///
-    /// # Errors
-    /// A variant error is returned if validation fails.
-    pub(crate) fn validate_dag(&self) -> ZFResult<()> {
-        match petgraph::algo::is_cyclic_directed(&self.graph_checker) {
-            true => Err(zferror!(
-                ErrorKind::InvalidData,
-                "The dataflow contains a cycle, please use the \
-                 `Loops` section to express this behavior."
-            )
-            .into()),
-            false => Ok(()),
-        }
     }
 }

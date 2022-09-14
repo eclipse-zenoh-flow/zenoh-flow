@@ -17,8 +17,10 @@ use clap::Parser;
 use colored::*;
 
 use cargo_zenoh_flow::error::CZFError;
-use zenoh_flow::model::node::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor};
-use zenoh_flow::model::{NodeKind, RegistryNode, RegistryNodeArchitecture, RegistryNodeTag};
+use zenoh_flow::model::descriptor::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor};
+use zenoh_flow::model::registry::{
+    NodeKind, RegistryNode, RegistryNodeArchitecture, RegistryNodeTag,
+};
 use zenoh_flow::types::NodeId;
 
 #[cfg(feature = "local_registry")]

@@ -12,6 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-pub mod descriptor;
-pub mod record;
-pub mod validator;
+pub(crate) mod connector;
+pub use connector::{ZFConnectorKind, ZFConnectorRecord};
+pub(crate) mod link;
+pub use link::{LinkRecord, PortRecord};
+pub(crate) mod dataflow;
+pub use dataflow::DataFlowRecord;
+pub(crate) mod node;
+pub use node::{OperatorRecord, SinkRecord, SourceRecord};

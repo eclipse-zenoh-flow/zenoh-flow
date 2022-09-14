@@ -5,37 +5,37 @@ configuration:
 
 sources:
   - id: source-1
-    descriptor: ./src/model/dataflow/tests/source.yml
+    descriptor: ./src/model/descriptor/tests/source.yml
 
   - id: source-2
-    descriptor: ./src/model/dataflow/tests/source.yml
+    descriptor: ./src/model/descriptor/tests/source.yml
 
   - id: source-composite
-    descriptor: ./src/model/dataflow/tests/source-composite.yml
+    descriptor: ./src/model/descriptor/tests/source-composite.yml
 
 
 operators:
   - id: operator-1
-    descriptor: ./src/model/dataflow/tests/operator.yml
+    descriptor: ./src/model/descriptor/tests/operator.yml
 
   - id: operator-2
-    descriptor: ./src/model/dataflow/tests/operator.yml
+    descriptor: ./src/model/descriptor/tests/operator.yml
 
   - id: operator-composite
-    descriptor: ./src/model/dataflow/tests/operator-composite.yml
+    descriptor: ./src/model/descriptor/tests/operator-composite.yml
     configuration:
       quux: "global-inner"
 
 
 sinks:
   - id: sink-1
-    descriptor: ./src/model/dataflow/tests/sink.yml
+    descriptor: ./src/model/descriptor/tests/sink.yml
 
   - id: sink-2
-    descriptor: ./src/model/dataflow/tests/sink.yml
+    descriptor: ./src/model/descriptor/tests/sink.yml
 
   - id: sink-composite
-    descriptor: ./src/model/dataflow/tests/sink-composite.yml
+    descriptor: ./src/model/descriptor/tests/sink-composite.yml
 
 
 links:
@@ -92,3 +92,11 @@ links:
     to:
       node: sink-composite
       input: sink-composite-in-2
+
+
+mapping:
+  source-1: runtime-1
+  sink-2: runtime-2
+  source-composite: runtime-source
+  operator-composite: runtime-composite
+  sink-composite: runtime-sink

@@ -12,10 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::dataflow::validator::DataflowValidator;
-use crate::model::link::LinkDescriptor;
-use crate::model::node::{
-    NodeDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
+use crate::model::descriptor::validator::DataflowValidator;
+use crate::model::descriptor::{
+    LinkDescriptor, NodeDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId, RuntimeId};
@@ -88,7 +87,6 @@ impl DataFlowDescriptor {
     pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<DataFlowDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
-        // dataflow_descriptor.validate()?;
         Ok(dataflow_descriptor)
     }
 
@@ -99,7 +97,6 @@ impl DataFlowDescriptor {
     pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<DataFlowDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
-        // dataflow_descriptor.validate()?;
         Ok(dataflow_descriptor)
     }
 
@@ -274,11 +271,7 @@ impl FlattenDataFlowDescriptor {
     /// A variant error is returned if validation fails.
     pub fn validate(&self) -> Result<()> {
         let validator = DataflowValidator::try_from(self)?;
-
         validator.validate_ports()?;
-
-        validator.validate_dag()?;
-
         Ok(())
     }
 }

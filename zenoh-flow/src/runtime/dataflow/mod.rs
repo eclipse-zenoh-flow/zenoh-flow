@@ -20,11 +20,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::model::connector::ZFConnectorRecord;
-use crate::model::dataflow::record::DataFlowRecord;
-use crate::model::dataflow::validator::DataflowValidator;
-use crate::model::link::{LinkRecord, PortDescriptor};
-use crate::model::{InputDescriptor, OutputDescriptor};
+use crate::model::record::{DataFlowRecord, ZFConnectorRecord};
+// use crate::model::dataflow::validator::DataflowValidator;
+use crate::model::descriptor::{InputDescriptor, OutputDescriptor, PortDescriptor};
+use crate::model::record::LinkRecord;
 use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
 use crate::runtime::RuntimeContext;
 use crate::traits::{Operator, Sink, Source};
@@ -46,7 +45,7 @@ pub struct Dataflow {
     pub(crate) sinks: HashMap<NodeId, SinkLoaded>,
     pub(crate) connectors: HashMap<NodeId, ZFConnectorRecord>,
     pub(crate) links: Vec<LinkRecord>,
-    validator: DataflowValidator,
+    // validator: DataflowValidator,
     counter: u32,
 }
 
@@ -73,7 +72,7 @@ impl Dataflow {
             sinks: HashMap::default(),
             connectors: HashMap::default(),
             links: Vec::default(),
-            validator: DataflowValidator::new(),
+            // validator: DataflowValidator::new(),
             counter: 0u32,
         }
     }
@@ -139,7 +138,7 @@ impl Dataflow {
             sinks,
             connectors,
             links: record.links,
-            validator: DataflowValidator::new(),
+            // validator: DataflowValidator::new(),
             counter: record.counter,
         })
     }
@@ -157,11 +156,11 @@ impl Dataflow {
         &mut self,
         id: NodeId,
         configuration: Option<Configuration>,
-        outputs: Vec<PortDescriptor>,
+        _outputs: Vec<PortDescriptor>,
         source: Arc<dyn Source>,
     ) -> ZFResult<()> {
         // self.validator.try_add_source(id.clone(), output.clone())?;
-        self.validator.try_add_source(id.clone(), &outputs)?;
+        // self.validator.try_add_source(id.clone(), &outputs)?;
 
         self.sources.insert(
             id.clone(),
@@ -191,12 +190,13 @@ impl Dataflow {
         &mut self,
         id: NodeId,
         configuration: Option<Configuration>,
-        inputs: Vec<PortDescriptor>,
-        outputs: Vec<PortDescriptor>,
+        _inputs: Vec<PortDescriptor>,
+        _outputs: Vec<PortDescriptor>,
         operator: Arc<dyn Operator>,
     ) -> ZFResult<()> {
-        self.validator
-            .try_add_operator(id.clone(), &inputs, &outputs)?;
+        // TODO Add validator again.
+        // self.validator
+        //     .try_add_operator(id.clone(), &inputs, &outputs)?;
 
         // let inputs: HashMap<PortId, PortType> = inputs
         //     .into_iter()
@@ -235,11 +235,11 @@ impl Dataflow {
         &mut self,
         id: NodeId,
         configuration: Option<Configuration>,
-        inputs: Vec<PortDescriptor>,
+        _inputs: Vec<PortDescriptor>,
         sink: Arc<dyn Sink>,
     ) -> ZFResult<()> {
-        // self.validator.try_add_sink(id.clone(), input.clone())?;
-        self.validator.try_add_sink(id.clone(), &inputs)?;
+        // TODO Add validator again.
+        // self.validator.try_add_sink(id.clone(), &inputs)?;
 
         self.sinks.insert(
             id.clone(),
@@ -274,7 +274,8 @@ impl Dataflow {
         queueing_policy: Option<String>,
         priority: Option<usize>,
     ) -> ZFResult<()> {
-        self.validator.try_add_link(&from, &to)?;
+        // TODO Add validator again.
+        // self.validator.try_add_link(&from, &to)?;
 
         self.links.push(LinkRecord {
             uid: self.counter,

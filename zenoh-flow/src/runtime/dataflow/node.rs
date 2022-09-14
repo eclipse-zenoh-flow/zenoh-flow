@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
+use crate::model::record::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::traits::{Operator, Sink, Source};
 use crate::types::{Configuration, NodeId};
 use crate::Result;

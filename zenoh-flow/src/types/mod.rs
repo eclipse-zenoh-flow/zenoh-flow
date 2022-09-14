@@ -29,7 +29,6 @@ use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 use std::sync::Arc;
-use std::time::Duration;
 
 /// A NodeId identifies a node inside a Zenoh Flow graph
 pub type NodeId = Arc<str>;
@@ -162,42 +161,5 @@ impl From<Vec<u8>> for Data {
 impl From<&[u8]> for Data {
     fn from(bytes: &[u8]) -> Self {
         Self::Bytes(Arc::new(bytes.to_vec()))
-    }
-}
-
-/// The unit of duration used in different descriptors.
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum DurationUnit {
-    #[serde(alias = "s")]
-    #[serde(alias = "second")]
-    #[serde(alias = "seconds")]
-    Second,
-    #[serde(alias = "ms")]
-    #[serde(alias = "millisecond")]
-    #[serde(alias = "milliseconds")]
-    Millisecond,
-    #[serde(alias = "us")]
-    #[serde(alias = "µs")]
-    #[serde(alias = "microsecond")]
-    #[serde(alias = "microseconds")]
-    Microsecond,
-}
-
-/// The descriptor for a duration.
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DurationDescriptor {
-    #[serde(alias = "duration")]
-    pub(crate) length: u64,
-    pub(crate) unit: DurationUnit,
-}
-
-impl DurationDescriptor {
-    /// Converts the [`DurationDescriptor`](`DurationDescriptor`) to a [`Duration`](`Duration`).
-    pub fn to_duration(&self) -> Duration {
-        match self.unit {
-            DurationUnit::Second => Duration::from_secs(self.length),
-            DurationUnit::Millisecond => Duration::from_millis(self.length),
-            DurationUnit::Microsecond => Duration::from_micros(self.length),
-        }
     }
 }

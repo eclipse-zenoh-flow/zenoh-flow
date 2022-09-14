@@ -12,81 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::{InputDescriptor, OutputDescriptor};
+use crate::model::descriptor::{InputDescriptor, LinkDescriptor, OutputDescriptor, PortDescriptor};
 use crate::types::{PortId, PortType};
 use serde::{Deserialize, Serialize};
-
-/// The description of a link.
-///
-/// Example:
-///
-/// ```yaml
-///
-/// from:
-///   node : Counter
-///   output : Counter
-/// to:
-///   node : SumOperator
-///   input : Number
-///
-/// ```
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct LinkDescriptor {
-    pub from: OutputDescriptor,
-    pub to: InputDescriptor,
-    pub size: Option<usize>,
-    pub queueing_policy: Option<String>,
-    pub priority: Option<usize>,
-}
-
-impl std::fmt::Display for LinkDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} => {}", self.from, self.to)
-    }
-}
-
-impl LinkDescriptor {
-    pub fn new(from: OutputDescriptor, to: InputDescriptor) -> Self {
-        Self {
-            from,
-            to,
-            size: None,
-            queueing_policy: None,
-            priority: None,
-        }
-    }
-}
-
-/// The description of a port.
-///
-/// Example:
-///
-/// ```yaml
-/// id: Counter
-/// type: usize
-/// ```
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct PortDescriptor {
-    #[serde(alias = "id")]
-    pub port_id: PortId,
-    #[serde(alias = "type")]
-    pub port_type: PortType,
-}
-
-impl std::fmt::Display for PortDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}:{}", self.port_id, self.port_type)
-    }
-}
-
-impl PortDescriptor {
-    pub fn new(port_id: impl AsRef<str>, port_type: impl AsRef<str>) -> Self {
-        Self {
-            port_id: port_id.as_ref().into(),
-            port_type: port_type.as_ref().into(),
-        }
-    }
-}
 
 /// The record of a link.
 ///

@@ -14,18 +14,16 @@
 
 use serde_json::json;
 
-use super::DataFlowDescriptor;
-use crate::model::{
-    link::{LinkDescriptor, PortDescriptor},
-    node::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor},
-    InputDescriptor, OutputDescriptor,
+use crate::model::descriptor::{
+    DataFlowDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor, PortDescriptor,
+    SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
 use std::{
     fs::File,
     io::{BufReader, Read},
 };
 
-const BASE_PATH: &str = "src/model/dataflow/tests/";
+const BASE_PATH: &str = "src/model/descriptor/tests/";
 
 // This test is trying to be thorough when it comes to a data flow descriptor. In particular, we
 // want to make sure of the following:

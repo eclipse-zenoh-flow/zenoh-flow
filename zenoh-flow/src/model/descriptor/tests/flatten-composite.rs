@@ -12,10 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::{CompositeOperatorDescriptor, NodeDescriptor, SimpleOperatorDescriptor};
-use crate::model::{
-    link::{LinkDescriptor, PortDescriptor},
-    CompositeInputDescriptor, CompositeOutputDescriptor, InputDescriptor, OutputDescriptor,
+use crate::model::descriptor::{
+    CompositeInputDescriptor, CompositeOperatorDescriptor, CompositeOutputDescriptor,
+    InputDescriptor, LinkDescriptor, NodeDescriptor, OutputDescriptor, PortDescriptor,
+    SimpleOperatorDescriptor,
 };
 
 #[test]
@@ -34,12 +34,12 @@ fn test_flatten_composite_descriptor_non_nested() {
         operators: vec![
             NodeDescriptor {
                 id: "my-operator-1".into(),
-                descriptor: "./src/model/tests/operator-1.yml".into(),
+                descriptor: "./src/model/descriptor/tests/operator-1.yml".into(),
                 configuration: None,
             },
             NodeDescriptor {
                 id: "my-operator-2".into(),
-                descriptor: "./src/model/tests/operator-2.yml".into(),
+                descriptor: "./src/model/descriptor/tests/operator-2.yml".into(),
                 configuration: None,
             },
         ],
@@ -161,17 +161,17 @@ fn test_flatten_composite_descriptor_nested() {
         operators: vec![
             NodeDescriptor {
                 id: "composite-outer-o".into(),
-                descriptor: "./src/model/tests/composite-outer.yml".into(),
+                descriptor: "./src/model/descriptor/tests/composite-outer.yml".into(),
                 configuration: None,
             },
             NodeDescriptor {
                 id: "composite-nested".into(),
-                descriptor: "./src/model/tests/composite-nested.yml".into(),
+                descriptor: "./src/model/descriptor/tests/composite-nested.yml".into(),
                 configuration: None,
             },
             NodeDescriptor {
                 id: "composite-outer-i".into(),
-                descriptor: "./src/model/tests/composite-outer.yml".into(),
+                descriptor: "./src/model/descriptor/tests/composite-outer.yml".into(),
                 configuration: None,
             },
         ],

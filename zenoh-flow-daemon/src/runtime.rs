@@ -17,10 +17,11 @@ use std::sync::Arc;
 
 use async_std::sync::Mutex;
 use uuid::Uuid;
-use zenoh_flow::model::dataflow::descriptor::FlattenDataFlowDescriptor;
 use zenoh_flow::model::{
-    dataflow::record::DataFlowRecord,
-    node::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor},
+    descriptor::{
+        FlattenDataFlowDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
+    },
+    record::DataFlowRecord,
 };
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
 use zenoh_flow::runtime::dataflow::Dataflow;

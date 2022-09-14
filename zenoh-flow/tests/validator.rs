@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use zenoh_flow::model::dataflow::descriptor::FlattenDataFlowDescriptor;
+use zenoh_flow::model::descriptor::FlattenDataFlowDescriptor;
 use zenoh_flow::prelude::ErrorKind;
 
 static DESCRIPTOR_OK: &str = r#"

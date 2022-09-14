@@ -12,11 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::connector::{ZFConnectorKind, ZFConnectorRecord};
-use crate::model::dataflow::descriptor::FlattenDataFlowDescriptor;
-use crate::model::link::{LinkDescriptor, LinkRecord, PortRecord};
-use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::model::{InputDescriptor, OutputDescriptor};
+use crate::model::descriptor::{
+    FlattenDataFlowDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor,
+};
+use crate::model::record::connector::{ZFConnectorKind, ZFConnectorRecord};
+use crate::model::record::{LinkRecord, OperatorRecord, PortRecord, SinkRecord, SourceRecord};
 use crate::types::{NodeId, PortId, PortType, RuntimeId, PORT_TYPE_ANY};
 use crate::zferror;
 use crate::zfresult::ErrorKind;

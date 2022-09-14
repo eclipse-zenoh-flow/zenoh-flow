@@ -13,7 +13,7 @@
 //
 
 use super::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
-use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
+use crate::model::record::{OperatorRecord, SinkRecord, SourceRecord};
 use crate::traits::{Operator, Sink, Source};
 use crate::types::Configuration;
 use crate::zferror;

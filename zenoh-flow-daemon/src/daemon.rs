@@ -23,11 +23,10 @@ use std::sync::Arc;
 use uhlc::{HLCBuilder, ID};
 use uuid::Uuid;
 use zenoh::prelude::*;
-use zenoh_flow::model::dataflow::descriptor::FlattenDataFlowDescriptor;
-use zenoh_flow::model::{
-    dataflow::record::DataFlowRecord,
-    node::{SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor},
+use zenoh_flow::model::descriptor::{
+    FlattenDataFlowDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
+use zenoh_flow::model::record::DataFlowRecord;
 use zenoh_flow::prelude::{zferror, ErrorKind, Result as ZFResult};
 
 use zenoh_flow::runtime::dataflow::loader::{
