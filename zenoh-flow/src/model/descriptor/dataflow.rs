@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::descriptor::validator::DataflowValidator;
+use crate::model::descriptor::validator::DataFlowValidator;
 use crate::model::descriptor::{
     LinkDescriptor, NodeDescriptor, SimpleOperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
@@ -270,7 +270,7 @@ impl FlattenDataFlowDescriptor {
     ///  # Errors
     /// A variant error is returned if validation fails.
     pub fn validate(&self) -> Result<()> {
-        let validator = DataflowValidator::try_from(self)?;
+        let validator = DataFlowValidator::try_from(self)?;
         validator.validate_ports()?;
         Ok(())
     }

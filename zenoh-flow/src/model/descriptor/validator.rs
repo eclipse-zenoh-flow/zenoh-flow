@@ -60,7 +60,7 @@ use std::sync::Arc;
 /// - `validate_dag`
 /// - `validate_deadline`
 /// - `validate_loop`
-pub(crate) struct DataflowValidator {
+pub(crate) struct DataFlowValidator {
     graph_checker: Graph<(NodeId, NodeKind), (PortId, PortId, EdgeIndex)>,
     node_checker: Graph<PortUniqueId, PortType>,
     input_indexes: HashSet<NodeIndex>,
@@ -93,11 +93,11 @@ struct PortUniqueId {
     kind: PortKind,
 }
 
-impl TryFrom<&FlattenDataFlowDescriptor> for DataflowValidator {
+impl TryFrom<&FlattenDataFlowDescriptor> for DataFlowValidator {
     type Error = crate::zfresult::Error;
 
     fn try_from(descriptor: &FlattenDataFlowDescriptor) -> Result<Self, Self::Error> {
-        let mut validator = DataflowValidator::new();
+        let mut validator = DataFlowValidator::new();
 
         let mut all_node_ids = vec![];
         all_node_ids.extend(descriptor.sources.iter().map(|s| s.id.clone()));
@@ -127,7 +127,7 @@ impl TryFrom<&FlattenDataFlowDescriptor> for DataflowValidator {
     }
 }
 
-impl DataflowValidator {
+impl DataFlowValidator {
     /// Creates an empty `DataflowValidator`/
     pub(crate) fn new() -> Self {
         Self {
