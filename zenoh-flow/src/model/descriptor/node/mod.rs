@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 /// configuration:
 ///   start: 10
 ///
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct NodeDescriptor {
     pub id: NodeId,
     pub descriptor: String,
