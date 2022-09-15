@@ -1,11 +1,14 @@
 id: composite-sink
 
+vars:
+  any: _any_
+
 uri: file://sink-composite.so
 
 inputs:
   - id: sink-composite-in-1
-    type: _any_
+    type: "{{  any }}"
   - id: sink-composite-in-2
-    type: _any_
+    type: "{{ any    }}"
 
 tags: []

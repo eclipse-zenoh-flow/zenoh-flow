@@ -13,14 +13,14 @@
 //
 
 use crate::model::descriptor::validator::DataFlowValidator;
+use crate::model::descriptor::Vars;
 use crate::model::descriptor::{
     LinkDescriptor, NodeDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId, RuntimeId};
-use crate::zferror;
 use crate::zfresult::ErrorKind;
-use crate::Result;
+use crate::{zferror, Result};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -85,7 +85,8 @@ impl DataFlowDescriptor {
     ///  # Errors
     /// A variant error is returned if deserialization fails.
     pub fn from_yaml(data: &str) -> Result<Self> {
-        let dataflow_descriptor = serde_yaml::from_str::<DataFlowDescriptor>(data)
+        let descriptor = Vars::expand_mustache_yaml(data)?;
+        let dataflow_descriptor = serde_yaml::from_str::<DataFlowDescriptor>(&descriptor)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
@@ -95,7 +96,8 @@ impl DataFlowDescriptor {
     ///  # Errors
     /// A variant error is returned if deserialization fails.
     pub fn from_json(data: &str) -> Result<Self> {
-        let dataflow_descriptor = serde_json::from_str::<DataFlowDescriptor>(data)
+        let descriptor = Vars::expand_mustache_json(data)?;
+        let dataflow_descriptor = serde_json::from_str::<DataFlowDescriptor>(&descriptor)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }

@@ -1,41 +1,44 @@
 flow: test
 
+vars:
+  PATH: ./src/model/descriptor/tests
+
 configuration:
   foo: "global-outer"
 
 sources:
   - id: source-1
-    descriptor: ./src/model/descriptor/tests/source.yml
+    descriptor: "{{ PATH }}/source.yml"
 
   - id: source-2
-    descriptor: ./src/model/descriptor/tests/source.yml
+    descriptor: "{{    PATH }}/source.yml"
 
   - id: source-composite
-    descriptor: ./src/model/descriptor/tests/source-composite.yml
+    descriptor: "{{ PATH   }}/source-composite.yml"
 
 
 operators:
   - id: operator-1
-    descriptor: ./src/model/descriptor/tests/operator.yml
+    descriptor: "{{PATH }}/operator.yml"
 
   - id: operator-2
-    descriptor: ./src/model/descriptor/tests/operator.yml
+    descriptor: "{{ PATH}}/operator.yml"
 
   - id: operator-composite
-    descriptor: ./src/model/descriptor/tests/operator-composite.yml
+    descriptor: "{{PATH}}/operator-composite.yml"
     configuration:
       quux: "global-inner"
 
 
 sinks:
   - id: sink-1
-    descriptor: ./src/model/descriptor/tests/sink.yml
+    descriptor: "{{ PATH }}/sink.yml"
 
   - id: sink-2
-    descriptor: ./src/model/descriptor/tests/sink.yml
+    descriptor: "{{ PATH }}/sink.yml"
 
   - id: sink-composite
-    descriptor: ./src/model/descriptor/tests/sink-composite.yml
+    descriptor: "{{ PATH }}/sink-composite.yml"
 
 
 links:

@@ -26,8 +26,10 @@ pub use node::{
 };
 pub mod validator;
 
+use crate::zfresult::{ErrorKind, ZFResult as Result};
+use crate::{bail, zferror};
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 /// The unit of duration used in different descriptors.
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -63,5 +65,54 @@ impl DurationDescriptor {
             DurationUnit::Millisecond => Duration::from_millis(self.length),
             DurationUnit::Microsecond => Duration::from_micros(self.length),
         }
+    }
+}
+
+/// `Vars` is an internal structure that we use to expand the "mustache variables" in a descriptor
+/// file.
+///
+/// Mustache variables take the form: "{{ var }}..." where the number of spaces after the '{{' and
+/// before the '}}' do not matter.
+///
+/// We first parse the descriptor file to only extract the `vars` section and build a
+/// `HashMap<String, String>` out of it.
+///
+/// We then load the descriptor file as a template and "render" it, substituting every "mustache
+/// variable" with its corresponding value in the HashMap.
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub(crate) struct Vars {
+    vars: Option<HashMap<String, String>>,
+}
+
+impl Vars {
+    fn expand_mustache(&self, data: &str) -> Result<String> {
+        let mut descriptor = data.to_owned();
+        if let Some(vars) = &self.vars {
+            match ramhorns::Template::new(data) {
+                Ok(template) => descriptor = template.render(vars),
+                Err(e) => bail!(
+                    ErrorKind::ParsingError,
+                    "Could not parse ramhorns::Template:\n(error) {:?}\n(yaml) {}",
+                    e,
+                    data
+                ),
+            }
+        }
+
+        Ok(descriptor)
+    }
+
+    pub(crate) fn expand_mustache_yaml(data: &str) -> Result<String> {
+        let vars =
+            serde_yaml::from_str::<Vars>(data).map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+
+        vars.expand_mustache(data)
+    }
+
+    pub(crate) fn expand_mustache_json(data: &str) -> Result<String> {
+        let vars =
+            serde_json::from_str::<Vars>(data).map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+
+        vars.expand_mustache(data)
     }
 }

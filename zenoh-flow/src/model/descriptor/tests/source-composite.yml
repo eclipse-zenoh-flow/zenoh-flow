@@ -1,11 +1,15 @@
 id: composite-source
 
-uri: file://source-composite.so
+vars:
+  file-uri: file://
+  any: _any_
+
+uri: "{{ file-uri }}source-composite.so"
 
 outputs:
   - id: source-composite-out-1
-    type: _any_
+    type: "{{ any }}"
   - id: source-composite-out-2
-    type: _any_
+    type: "{{ any }}"
 
 tags: []

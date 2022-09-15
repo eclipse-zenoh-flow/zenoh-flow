@@ -19,7 +19,7 @@ pub use sink::SinkDescriptor;
 pub mod source;
 pub use source::SourceDescriptor;
 
-use crate::model::descriptor::LinkDescriptor;
+use crate::model::descriptor::{LinkDescriptor, Vars};
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId};
 use crate::zfresult::{ErrorKind, ZFResult};
@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 /// configuration:
 ///   start: 10
 ///
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct NodeDescriptor {
     pub id: NodeId,
     pub descriptor: String,
@@ -100,7 +100,8 @@ impl NodeDescriptor {
         global_configuration: Option<Configuration>,
         ancestors: &mut Vec<String>,
     ) -> ZFResult<Vec<OperatorDescriptor>> {
-        let description = async_std::fs::read_to_string(&self.descriptor).await?;
+        let data = async_std::fs::read_to_string(&self.descriptor).await?;
+        let description = Vars::expand_mustache_yaml(&data)?;
 
         // We try to load the descriptor, first we try as simple one, if it fails we try as a
         // composite one, if that also fails it is malformed.
@@ -153,10 +154,12 @@ impl NodeDescriptor {
         self,
         global_configuration: Option<Configuration>,
     ) -> ZFResult<SourceDescriptor> {
-        let descriptor_path = async_std::fs::read_to_string(&self.descriptor).await?;
+        let data = async_std::fs::read_to_string(&self.descriptor).await?;
+        let descriptor = Vars::expand_mustache_yaml(&data)?;
+
         log::trace!("Loading source {}", self.descriptor);
 
-        match SourceDescriptor::from_yaml(&descriptor_path) {
+        match SourceDescriptor::from_yaml(&descriptor) {
             Ok(mut desc) => {
                 desc.id = self.id;
                 desc.configuration = global_configuration.merge_overwrite(desc.configuration);
@@ -178,12 +181,13 @@ impl NodeDescriptor {
         self,
         global_configuration: Option<Configuration>,
     ) -> ZFResult<SinkDescriptor> {
-        let descriptor_path = async_std::fs::read_to_string(&self.descriptor).await?;
+        let data = async_std::fs::read_to_string(&self.descriptor).await?;
+        let descriptor = Vars::expand_mustache_yaml(&data)?;
         log::trace!("Loading sink {}", self.descriptor);
 
         // We try to load the descriptor, first we try as simple one, if it fails
         // we try as a composite one, if that also fails it is malformed.
-        match SinkDescriptor::from_yaml(&descriptor_path) {
+        match SinkDescriptor::from_yaml(&descriptor) {
             Ok(mut desc) => {
                 desc.id = self.id;
                 desc.configuration = global_configuration.merge_overwrite(desc.configuration);

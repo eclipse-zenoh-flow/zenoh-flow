@@ -1,16 +1,19 @@
 id: leaf-operator-1
 
+vars:
+  type-any: _any_
+
 uri: file://sub-operator-1.so
 
 inputs:
   - id: sub-operator-1-in-1
-    type: _any_
+    type: "{{ type-any }}"
 
   - id: sub-operator-1-in-2
-    type: _any_
+    type: "{{ type-any }}"
 
 outputs:
   - id: sub-operator-1-out
-    type: _any_
+    type: "{{ type-any }}"
 
 tags: []

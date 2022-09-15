@@ -1,5 +1,8 @@
 id: composite
 
+vars:
+  path: ./src/model/descriptor/tests
+
 configuration:
   foo: "composite-outer"
   bar: "composite-outer"
@@ -27,16 +30,16 @@ outputs:
 
 operators:
   - id: sub-operator-1
-    descriptor: ./src/model/descriptor/tests/sub-operator-1.yml
+    descriptor: "{{ path }}/sub-operator-1.yml"
 
   - id: sub-operator-composite
-    descriptor: ./src/model/descriptor/tests/sub-operator-composite.yml
+    descriptor: "{{ path }}/sub-operator-composite.yml"
     configuration:
       foo: "composite-inner"
       buzz: "composite-inner"
 
   - id: sub-operator-2
-    descriptor: ./src/model/descriptor/tests/sub-operator-2.yml
+    descriptor: "{{ path }}/sub-operator-2.yml"
 
 
 links:
