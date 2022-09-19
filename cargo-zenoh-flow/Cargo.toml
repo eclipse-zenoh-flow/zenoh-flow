@@ -31,8 +31,8 @@ readme = "README.md"
 
 [dependencies]
 async-std = { version = "=1.11.0", features = ["attributes"] }
-zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master", optional = true}
-zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master", optional = true }
+zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", rev = "45b7ad70bddf45dfcdcae80e9c9a7680c70ac289", optional = true}
+zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", rev = "45b7ad70bddf45dfcdcae80e9c9a7680c70ac289", optional = true }
 zenoh-flow = {path = "../zenoh-flow"}
 clap = { version = "3.1", features = ["derive"] }
 serde_derive = "1.0"

@@ -47,11 +47,11 @@ serde_derive = "1.0.55"
 serde_json = "1.0.55"
 serde_yaml = "0.8.13"
 uuid = { version = "0.8.1", features = ["serde", "v4"] }
-zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
+zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", rev = "45b7ad70bddf45dfcdcae80e9c9a7680c70ac289" }
 zenoh-flow = {path = "../zenoh-flow"}
-zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
-znrpc-macros = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
-zrpc = { git = "https://github.com/atolab/zenoh-rpc.git", branch = "master" }
+zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", rev = "45b7ad70bddf45dfcdcae80e9c9a7680c70ac289" }
+zrpc-macros = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "tag/0.3.2" }
+zrpc = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "tag/0.3.2" }
 
 # Debian package configuration
 
