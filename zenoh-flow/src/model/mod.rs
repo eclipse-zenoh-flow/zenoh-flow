@@ -34,7 +34,7 @@ use std::fmt;
 /// output : Counter
 /// ```
 ///
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OutputDescriptor {
     pub node: NodeId,
     pub output: PortId,
@@ -54,7 +54,7 @@ impl fmt::Display for OutputDescriptor {
 /// node : SumOperator
 /// input : Number
 /// ```
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct InputDescriptor {
     pub node: NodeId,
     pub input: PortId,

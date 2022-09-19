@@ -17,7 +17,7 @@ use crate::serde::{Deserialize, Serialize};
 use crate::{NodeId, RuntimeId};
 
 /// The type of the connector.
-#[derive(PartialEq, Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ZFConnectorKind {
     Sender,
     Receiver,

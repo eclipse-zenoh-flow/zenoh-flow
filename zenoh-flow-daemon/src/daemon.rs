@@ -154,8 +154,7 @@ impl Daemon {
 
         log::trace!("Running...");
 
-        let _ = stop
-            .recv()
+        stop.recv()
             .await
             .map_err(|e| ZFError::RecvError(format!("{}", e)))?;
 

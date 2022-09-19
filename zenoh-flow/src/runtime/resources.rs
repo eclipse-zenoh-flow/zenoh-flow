@@ -296,7 +296,7 @@ impl Stream for ZFRuntimeConfigStream {
                 SampleKind::Put | SampleKind::Patch => match sample.value.encoding {
                     Encoding::APP_OCTET_STREAM => {
                         match deserialize_data::<crate::runtime::RuntimeConfig>(
-                            &sample.value.payload.contiguous().to_vec(),
+                            &sample.value.payload.contiguous(),
                         ) {
                             Ok(info) => Poll::Ready(Some(info)),
                             Err(_) => Poll::Pending,
@@ -693,8 +693,7 @@ impl DataStore {
                 let kv = &data[0];
                 match &kv.sample.value.encoding {
                     &Encoding::APP_OCTET_STREAM => {
-                        let ni =
-                            deserialize_data::<T>(&kv.sample.value.payload.contiguous().to_vec())?;
+                        let ni = deserialize_data::<T>(&kv.sample.value.payload.contiguous())?;
                         Ok(ni)
                     }
                     _ => Err(ZFError::DeseralizationError),
@@ -722,7 +721,7 @@ impl DataStore {
         for kv in data.into_iter() {
             match &kv.sample.value.encoding {
                 &Encoding::APP_OCTET_STREAM => {
-                    let ni = deserialize_data::<T>(&kv.sample.value.payload.contiguous().to_vec())?;
+                    let ni = deserialize_data::<T>(&kv.sample.value.payload.contiguous())?;
                     zf_data.push(ni);
                 }
                 _ => return Err(ZFError::DeseralizationError),

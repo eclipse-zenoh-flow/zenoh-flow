@@ -58,7 +58,7 @@ impl E2EDeadlineMiss {
 }
 
 /// An `E2EDeadline` represents the maximum time that can elapse between the nodes `from` and `to`.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct E2EDeadline {
     pub duration: Duration,
     pub from: OutputDescriptor,

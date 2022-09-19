@@ -37,7 +37,7 @@ use std::task::{Context, Poll};
 /// Type of the Runner.
 ///
 /// The runner is the one actually running the nodes.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RunnerKind {
     Source,
     Operator,
