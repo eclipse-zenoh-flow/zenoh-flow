@@ -40,8 +40,8 @@ use zenoh_flow::serde::{Deserialize, Serialize};
 use zenoh_flow::runtime::{Runtime, RuntimeConfig, RuntimeInfo, RuntimeStatus, RuntimeStatusKind};
 use zenoh_flow::types::{ZFError, ZFResult};
 use zenoh_flow::NodeId;
-use znrpc_macros::znserver;
-use zrpc::ZNServe;
+use zrpc::ZServe;
+use zrpc_macros::znserver;
 
 use crate::util::{get_zenoh_config, read_file};
 
@@ -154,8 +154,7 @@ impl Daemon {
 
         log::trace!("Running...");
 
-        let _ = stop
-            .recv()
+        stop.recv()
             .await
             .map_err(|e| ZFError::RecvError(format!("{}", e)))?;
 
