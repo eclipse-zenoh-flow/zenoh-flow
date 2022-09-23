@@ -14,17 +14,15 @@
 
 [package]
 name = "zfctl"
-version = "0.4.0"
-repository = "https://github.com/eclipse-zenoh/zenoh-flow"
-homepage = "http://zenoh.io"
-authors = ["kydos <angelo@icorsaro.net>",
-           "gabrik <gabriele.baldoni@gmail.com>",
-           "Julien Loudet <julien.loudet@zettascale.tech>",]
-edition = "2018"
-license = " EPL-2.0 OR Apache-2.0"
-categories = ["network-programming"]
-description = "Zenoh-Flow command line tool"
-readme = "README.md"
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
 
 [dependencies]
 async-std = { version = "=1.12.0", features = ["attributes"] }
