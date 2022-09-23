@@ -40,10 +40,10 @@ log = "0.4"
 async-std = { version = "=1.12.0", features = ["attributes"] }
 uuid = { version = "1.1", features = ["serde", "v4"] }
 uhlc = "0.5"
-zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master"}
-zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
-zrpc = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "api-changes" }
-zrpc-macros = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "api-changes" }
+zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", rev = "45b7ad70bddf45dfcdcae80e9c9a7680c70ac289"}
+zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", rev = "45b7ad70bddf45dfcdcae80e9c9a7680c70ac289" }
+zrpc = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "tag/0.3.2" }
+zrpc-macros = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "0.3.1" }
 clap = { version = "3.1", features = ["derive"] }
 hostname = "0.3.1"
 machine-uid = "0.2.0"
