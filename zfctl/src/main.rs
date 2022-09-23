@@ -31,9 +31,10 @@ use std::error::Error;
 use std::fs::read_to_string;
 use std::sync::Arc;
 use uuid::Uuid;
-use zenoh::Session;
+use zenoh::prelude::r#async::*;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::DaemonInterfaceClient;
+
 const GIT_VERSION: &str = git_version!(prefix = "v", cargo_prefix = "v");
 
 const DEFAULT_ZENOH_CFG: &str = ".config/zenoh-flow/zfctl-zenoh.json";
@@ -587,7 +588,7 @@ async fn get_zenoh() -> Result<Session, Box<dyn Error + Send + Sync + 'static>> 
     });
     let zconfig = zenoh::config::Config::from_file(z_config_file)?;
 
-    Ok(zenoh::open(zconfig).await.unwrap())
+    Ok(zenoh::open(zconfig).res().await.unwrap())
 }
 
 async fn get_client(zsession: Arc<Session>) -> DaemonInterfaceClient {

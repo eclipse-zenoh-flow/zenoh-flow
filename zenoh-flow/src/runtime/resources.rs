@@ -40,8 +40,7 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 use uhlc::HLC;
 use uuid::Uuid;
-use zenoh::net::protocol::io::SplitBuffer;
-use zenoh::prelude::*;
+use zenoh::prelude::r#async::*;
 use zenoh::query::Reply;
 
 use super::Job;
@@ -49,11 +48,11 @@ use super::Job;
 //NOTE: this should be pub(crate)
 
 /// Root prefix for key expressions when running as a router plugin.
-pub static ROOT_PLUGIN_RUNTIME_PREFIX: &str = "/@/router/";
+pub static ROOT_PLUGIN_RUNTIME_PREFIX: &str = "@/router/";
 /// Root suffix for key expression when running as router plugin.
-pub static ROOT_PLUGIN_RUNTIME_SUFFIX: &str = "/plugin/zenoh-flow";
+pub static ROOT_PLUGIN_RUNTIME_SUFFIX: &str = "plugin/zenoh-flow";
 /// Root for key expression when running as standalone.
-pub static ROOT_STANDALONE: &str = "/zenoh-flow";
+pub static ROOT_STANDALONE: &str = "zenoh-flow";
 
 /// Token for the runtime in the key expression.
 pub static KEY_RUNTIMES: &str = "runtimes";
@@ -376,7 +375,7 @@ pin_project! {
     /// Custom stream to lister for Runtime Configuration changes.
     pub struct ZFRuntimeConfigStream {
         #[pin]
-        sample_stream: zenoh::subscriber::SampleReceiver,
+        sample_stream: zenoh::subscriber::Subscriber<'static, flume::Receiver<Sample>>,
     }
 }
 
@@ -391,18 +390,15 @@ impl Stream for ZFRuntimeConfigStream {
 
     #[inline(always)]
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        match async_std::pin::Pin::new(self)
-            .sample_stream
-            .poll_next_unpin(cx)
-        {
-            Poll::Ready(Some(sample)) => match sample.kind {
-                SampleKind::Put | SampleKind::Patch => match sample.value.encoding {
+        match self.sample_stream.recv_async().poll(cx) {
+            Poll::Ready(Ok(sample)) => match sample.kind {
+                SampleKind::Put => match sample.value.encoding {
                     Encoding::APP_OCTET_STREAM => {
                         match deserialize_data::<crate::runtime::RuntimeConfig>(
                             &sample.value.payload.contiguous(),
                         ) {
                             Ok(info) => Poll::Ready(Some(info)),
-                            Err(_) => Poll::Pending,
+                            Err(_) => Poll::Ready(None),
                         }
                     }
                     _ => {
@@ -410,15 +406,15 @@ impl Stream for ZFRuntimeConfigStream {
                             "Received sample with wrong encoding {:?}, dropping",
                             sample.value.encoding
                         );
-                        Poll::Pending
+                        Poll::Ready(None)
                     }
                 },
                 SampleKind::Delete => {
                     log::warn!("Received delete sample drop it");
-                    Poll::Pending
+                    Poll::Ready(None)
                 }
             },
-            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Ready(Err(_)) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
         }
     }
@@ -429,7 +425,7 @@ pin_project! {
     /// Converts [`zenoh::Subscriber`][`zenoh::Subscriber`] to a stream of [`Job`](`Job`)
     pub struct ZFJobStream {
         #[pin]
-        sub: zenoh::subscriber::Subscriber<'static>,
+        sub: zenoh::subscriber::Subscriber<'static, flume::Receiver<Sample>>,
     }
 }
 
@@ -444,9 +440,9 @@ impl Stream for ZFJobStream {
 
     #[inline(always)]
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        match self.sub.next().poll(cx) {
-            Poll::Ready(Some(sample)) => match sample.kind {
-                SampleKind::Put | SampleKind::Patch => match sample.value.encoding {
+        match self.sub.recv_async().poll(cx) {
+            Poll::Ready(Ok(sample)) => match sample.kind {
+                SampleKind::Put => match sample.value.encoding {
                     Encoding::APP_OCTET_STREAM => {
                         match deserialize_data::<Job>(&sample.value.payload.contiguous()) {
                             Ok(info) => Poll::Ready(Some(info)),
@@ -466,7 +462,7 @@ impl Stream for ZFJobStream {
                     Poll::Ready(None)
                 }
             },
-            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Ready(Err(_)) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
         }
     }
@@ -536,7 +532,7 @@ impl DataStore {
     pub async fn remove_runtime_info(&self, rtid: &Uuid) -> Result<()> {
         let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
-        self.z.delete(&path).await
+        self.z.delete(&path).res().await
     }
 
     /// Stores the given  [`RuntimeInfo`](`RuntimeInfo`) for the given `rtid`
@@ -550,7 +546,7 @@ impl DataStore {
         let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
-        self.z.put(&path, encoded_info).await
+        self.z.put(&path, encoded_info).res().await
     }
 
     /// Gets [`RuntimeConfig`](`RuntimeConfig`) for the given `rtid`
@@ -588,7 +584,7 @@ impl DataStore {
     pub async fn remove_runtime_config(&self, rtid: &Uuid) -> Result<()> {
         let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
 
-        self.z.delete(&path).await
+        self.z.delete(&path).res().await
     }
 
     /// Stores the given [`RuntimeConfig`](`RuntimeConfig`) for the given
@@ -602,7 +598,7 @@ impl DataStore {
         let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
-        self.z.put(&path, encoded_info).await
+        self.z.put(&path, encoded_info).res().await
     }
 
     /// Gets the `RuntimeStatus` for the given runtime `rtid`.
@@ -623,7 +619,7 @@ impl DataStore {
     pub async fn remove_runtime_status(&self, rtid: &Uuid) -> Result<()> {
         let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
 
-        self.z.delete(&path).await
+        self.z.delete(&path).res().await
     }
 
     /// Stores the given [`RuntimeStatus`](`RuntimeStatus`) for the given `rtid`
@@ -638,7 +634,7 @@ impl DataStore {
         let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
-        self.z.put(&path, encoded_info).await
+        self.z.put(&path, encoded_info).res().await
     }
 
     /// Gets the [`DataFlowRecord`](`DataFlowRecord`) running on the given
@@ -712,28 +708,28 @@ impl DataStore {
     pub async fn get_flow_instance_runtimes(&self, iid: &Uuid) -> Result<Vec<Uuid>> {
         let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid);
 
-        let mut ds = self.z.get(&selector).await?;
+        let mut ds = self.z.get(&selector).res().await?;
 
-        let data = ds.collect::<Vec<Reply>>().await;
         let mut runtimes = Vec::new();
 
-        for kv in data.into_iter() {
-            let id = kv
-                .sample
-                .key_expr
-                .as_str()
-                .split('/')
-                .nth(3) // The way the key_expr are built, the 3rd "token" is the instance id
-                .ok_or_else(|| {
-                    log::error!(
-                        "Could not extract the instance id from key expression: {}",
-                        kv.sample.key_expr.as_str()
-                    );
-                    zferror!(ErrorKind::DeseralizationError)
-                })?;
-            runtimes.push(
-                Uuid::parse_str(id).map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?,
-            );
+        for kv in ds.into_iter() {
+            if let Ok(sample) = &kv.sample {
+                let id = sample
+                    .key_expr
+                    .as_str()
+                    .split('/')
+                    .nth(2) // The way the key_expr are built, the 3rd "token" is the instance id
+                    .ok_or_else(|| {
+                        log::error!(
+                            "Could not extract the instance id from key expression: {}",
+                            sample.key_expr.as_str()
+                        );
+                        zferror!(ErrorKind::DeseralizationError)
+                    })?;
+                runtimes.push(
+                    Uuid::parse_str(id).map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?,
+                );
+            }
         }
 
         Ok(runtimes)
@@ -752,7 +748,7 @@ impl DataStore {
     ) -> Result<()> {
         let path = RT_FLOW_PATH!(ROOT_STANDALONE, rtid, fid, iid);
 
-        self.z.delete(&path).await
+        self.z.delete(&path).res().await
     }
 
     /// Stores the given [`DataFlowRecord`](`DataFlowRecord`) running on the
@@ -775,7 +771,7 @@ impl DataStore {
         );
 
         let encoded_info = serialize_data(flow_instance)?;
-        self.z.put(&path, encoded_info).await
+        self.z.put(&path, encoded_info).res().await
     }
 
     // Registry Related, registry is not yet in place.
@@ -791,7 +787,7 @@ impl DataStore {
         let path = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph.id);
 
         let encoded_info = serialize_data(graph)?;
-        self.z.put(&path, encoded_info).await
+        self.z.put(&path, encoded_info).res().await
     }
 
     /// Gets the [`RegistryNode`](`RegistryNode`) associated with the given
@@ -823,7 +819,7 @@ impl DataStore {
     pub async fn delete_graph(&self, graph_id: &str) -> Result<()> {
         let path = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph_id);
 
-        self.z.delete(&path).await
+        self.z.delete(&path).res().await
     }
 
     // Job Queue
@@ -837,7 +833,8 @@ impl DataStore {
     pub async fn subscribe_sumbitted_jobs(&self, rtid: &Uuid) -> Result<ZFJobStream> {
         let selector = JQ_SUMBITTED_SEL!(ROOT_STANDALONE, rtid);
         self.z
-            .subscribe(&selector)
+            .declare_subscriber(&selector)
+            .res()
             .await
             .map(|sub| ZFJobStream { sub })
     }
@@ -851,12 +848,12 @@ impl DataStore {
     pub async fn add_submitted_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
         let path = JQ_SUMBITTED_JOB!(ROOT_STANDALONE, rtid, &job.id);
         let encoded_info = serialize_data(job)?;
-        self.z.put(&path, encoded_info).await
+        self.z.put(&path, encoded_info).res().await
     }
 
     pub async fn del_submitted_job(&self, rtid: &Uuid, id: &Uuid) -> Result<()> {
         let path = JQ_SUMBITTED_JOB!(ROOT_STANDALONE, rtid, id);
-        self.z.delete(&path).await
+        self.z.delete(&path).res().await
     }
 
     /// Sets as started the given [`Job`](`Job`) in the queue
@@ -868,7 +865,7 @@ impl DataStore {
     pub async fn add_started_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
         let path = JQ_STARTED_JOB!(ROOT_STANDALONE, rtid, &job.id);
         let encoded_info = serialize_data(job)?;
-        self.z.put(&path, encoded_info).await
+        self.z.put(&path, encoded_info).res().await
     }
 
     /// Sets as completed the given [`Job`](`Job`) in the queue
@@ -880,7 +877,7 @@ impl DataStore {
     pub async fn add_done_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
         let path = JQ_DONE_JOB!(ROOT_STANDALONE, rtid, &job.id);
         let encoded_info = serialize_data(job)?;
-        self.z.put(&path, encoded_info).await
+        self.z.put(&path, encoded_info).res().await
     }
 
     /// Sets as failed the given [`Job`](`Job`) in the queue
@@ -892,7 +889,7 @@ impl DataStore {
     pub async fn add_failed_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
         let path = JQ_FAILED_JOB!(ROOT_STANDALONE, rtid, &job.id);
         let encoded_info = serialize_data(job)?;
-        self.z.put(&path, encoded_info).await
+        self.z.put(&path, encoded_info).res().await
     }
 
     // Helpers
@@ -909,17 +906,20 @@ impl DataStore {
     where
         T: DeserializeOwned,
     {
-        let mut ds = self.z.get(path).await?;
-        let data = ds.collect::<Vec<Reply>>().await;
+        let mut ds = self.z.get(path).res().await?;
+        let data = ds.into_iter().collect::<Vec<Reply>>();
         match data.len() {
             0 => Err(zferror!(ErrorKind::Empty).into()),
             _ => {
                 let kv = &data[0];
-                match &kv.sample.value.encoding {
-                    &Encoding::APP_OCTET_STREAM => {
-                        let ni = deserialize_data::<T>(&kv.sample.value.payload.contiguous())?;
-                        Ok(ni)
-                    }
+                match &kv.sample {
+                    Ok(sample) => match &sample.value.encoding {
+                        &Encoding::APP_OCTET_STREAM => {
+                            let ni = deserialize_data::<T>(&sample.value.payload.contiguous())?;
+                            Ok(ni)
+                        }
+                        _ => Err(zferror!(ErrorKind::DeseralizationError).into()),
+                    },
                     _ => Err(zferror!(ErrorKind::DeseralizationError).into()),
                 }
             }
@@ -937,17 +937,19 @@ impl DataStore {
     where
         T: DeserializeOwned,
     {
-        let mut ds = self.z.get(selector).await?;
+        let mut ds = self.z.get(selector).res().await?;
 
-        let data = ds.collect::<Vec<Reply>>().await;
         let mut zf_data: Vec<T> = Vec::new();
 
-        for kv in data.into_iter() {
-            match &kv.sample.value.encoding {
-                &Encoding::APP_OCTET_STREAM => {
-                    let ni = deserialize_data::<T>(&kv.sample.value.payload.contiguous())?;
-                    zf_data.push(ni);
-                }
+        for kv in ds.into_iter() {
+            match &kv.sample {
+                Ok(sample) => match &sample.value.encoding {
+                    &Encoding::APP_OCTET_STREAM => {
+                        let ni = deserialize_data::<T>(&sample.value.payload.contiguous())?;
+                        zf_data.push(ni);
+                    }
+                    _ => return Err(zferror!(ErrorKind::DeseralizationError).into()),
+                },
                 _ => return Err(zferror!(ErrorKind::DeseralizationError).into()),
             }
         }

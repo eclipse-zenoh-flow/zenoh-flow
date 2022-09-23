@@ -22,10 +22,8 @@ use crate::Result as ZFResult;
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::stream::{AbortHandle, Abortable, Aborted};
-use futures::StreamExt;
 use std::sync::Arc;
 use zenoh::prelude::*;
-use zenoh::publication::CongestionControl;
 
 /// The `ZenohSender` is the connector that sends the data to Zenoh
 /// when nodes are running on different runtimes.
@@ -36,7 +34,7 @@ pub struct ZenohSender {
     pub(crate) handle: Option<JoinHandle<Result<ZFResult<()>, Aborted>>>,
     pub(crate) abort_handle: Option<AbortHandle>,
     pub(crate) link: Input,
-    pub(crate) key_expr: ExprId,
+    pub(crate) key_expr: KeyExpr<'static>,
 }
 
 impl ZenohSender {
@@ -51,6 +49,8 @@ impl ZenohSender {
         record: ZFConnectorRecord,
         mut inputs: Inputs,
     ) -> ZFResult<Self> {
+        use zenoh::prelude::sync::*;
+
         let port_id = record.link_id.port_id.clone();
         let input = inputs.remove(&port_id).ok_or_else(|| {
             zferror!(
@@ -65,8 +65,9 @@ impl ZenohSender {
         let key_expr = instance_context
             .runtime
             .session
-            .declare_expr(&record.resource)
-            .wait()?;
+            .declare_keyexpr(&record.resource)
+            .res()?
+            .into_owned();
 
         Ok(Self {
             id: record.id.clone(),
@@ -91,6 +92,8 @@ impl Runner for ZenohSender {
     }
 
     async fn start(&mut self) -> ZFResult<()> {
+        use zenoh::prelude::r#async::*;
+
         // Start is idempotent, if the node was already started,
         // do nothing and return Ok(())
         if self.handle.is_some() && self.abort_handle.is_some() {
@@ -107,7 +110,7 @@ impl Runner for ZenohSender {
 
         let c_record = self.record.clone();
         let c_link = self.link.clone();
-        let c_keyexpr = self.key_expr;
+        let c_keyexpr = self.key_expr.clone();
         let c_instance_ctx = self.instance_context.clone();
         let c_id = self.id.clone();
 
@@ -117,7 +120,7 @@ impl Runner for ZenohSender {
             async fn iteration(
                 link: &Input,
                 record: &ZFConnectorRecord,
-                key_expr: &u64,
+                key_expr: &KeyExpr<'static>,
                 instance_ctx: &InstanceContext,
                 id: &NodeId,
             ) -> ZFResult<()> {
@@ -137,6 +140,7 @@ impl Runner for ZenohSender {
                         .put(key_expr, serialized)
                         // .put(key_expr, &(**buffer)[0..size])
                         .congestion_control(CongestionControl::Block)
+                        .res()
                         .await?;
                 }
                 Err(zferror!(ErrorKind::Disconnected).into())
@@ -177,12 +181,6 @@ impl Runner for ZenohSender {
             log::trace!("Operator handler finished with {:?}", handle.await);
         }
 
-        self.instance_context
-            .runtime
-            .session
-            .undeclare_expr(self.key_expr)
-            .await?;
-
         Ok(())
     }
 }
@@ -195,7 +193,7 @@ pub struct ZenohReceiver {
     pub(crate) record: ZFConnectorRecord,
     pub(crate) handle: Option<JoinHandle<Result<ZFResult<()>, Aborted>>>,
     pub(crate) abort_handle: Option<AbortHandle>,
-    pub(crate) key_expr: ExprId,
+    pub(crate) key_expr: KeyExpr<'static>,
     pub(crate) link: Output,
 }
 
@@ -210,6 +208,8 @@ impl ZenohReceiver {
         record: ZFConnectorRecord,
         mut outputs: Outputs,
     ) -> ZFResult<Self> {
+        use zenoh::prelude::sync::*;
+
         let port_id = record.link_id.port_id.clone();
         let output = outputs.remove(&port_id).ok_or_else(|| {
             zferror!(
@@ -223,8 +223,9 @@ impl ZenohReceiver {
         let key_expr = instance_context
             .runtime
             .session
-            .declare_expr(&record.resource)
-            .wait()?;
+            .declare_keyexpr(&record.resource)
+            .res()?
+            .into_owned();
 
         Ok(Self {
             id: record.id.clone(),
@@ -249,6 +250,8 @@ impl Runner for ZenohReceiver {
     }
 
     async fn start(&mut self) -> ZFResult<()> {
+        use zenoh::prelude::r#async::*;
+
         // Start is idempotent, if the node was already started,
         // do nothing and return Ok(())
         if self.handle.is_some() && self.abort_handle.is_some() {
@@ -261,7 +264,7 @@ impl Runner for ZenohReceiver {
 
         let c_record = self.record.clone();
         let c_link = self.link.clone();
-        let c_keyexpr = self.key_expr;
+        let c_keyexpr = self.key_expr.clone();
         let c_instance_ctx = self.instance_context.clone();
         let c_id = self.id.clone();
 
@@ -269,14 +272,19 @@ impl Runner for ZenohReceiver {
             async fn iteration(
                 link: &Output,
                 record: &ZFConnectorRecord,
-                key_expr: &u64,
+                key_expr: &KeyExpr<'static>,
                 instance_ctx: &InstanceContext,
                 id: &NodeId,
             ) -> ZFResult<()> {
                 log::debug!("[ZenohReceiver: {id}] - {} - Started", record.resource);
-                let mut subscriber = instance_ctx.runtime.session.subscribe(key_expr).await?;
+                let subscriber = instance_ctx
+                    .runtime
+                    .session
+                    .declare_subscriber(key_expr)
+                    .res()
+                    .await?;
 
-                while let Some(msg) = subscriber.receiver().next().await {
+                while let Ok(msg) = subscriber.recv_async().await {
                     log::trace!("[ZenohReceiver: {id}] - {}<={msg:?} ", record.resource);
                     let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
                         .map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?;
@@ -324,12 +332,6 @@ impl Runner for ZenohReceiver {
         if let Some(handle) = self.handle.take() {
             log::trace!("Operator handler finished with {:?}", handle.await);
         }
-
-        self.instance_context
-            .runtime
-            .session
-            .undeclare_expr(self.key_expr)
-            .await?;
 
         Ok(())
     }

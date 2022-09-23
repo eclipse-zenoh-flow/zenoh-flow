@@ -17,6 +17,7 @@ use flume::{bounded, Receiver};
 use std::convert::TryInto;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use zenoh::prelude::r#async::*;
 use zenoh_flow::model::descriptor::{InputDescriptor, OutputDescriptor, PortDescriptor};
 use zenoh_flow::prelude::*;
 use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
@@ -25,7 +26,6 @@ use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::traits::{AsyncIteration, Deserializable, Operator, Sink, Source, ZFData};
 use zenoh_flow::types::{Configuration, Context, Data, Inputs, Message, Outputs, Streams};
 use zenoh_flow::zenoh_flow_derive::ZFData;
-
 // Data Type
 
 #[derive(Debug, Clone, ZFData)]
@@ -226,7 +226,12 @@ async fn single_runtime() {
 
     let (tx, rx) = bounded::<()>(1); // Channel used to trigger source
 
-    let session = Arc::new(zenoh::open(zenoh::config::Config::default()).await.unwrap());
+    let session = Arc::new(
+        zenoh::open(zenoh::config::Config::default())
+            .res()
+            .await
+            .unwrap(),
+    );
     let hlc = async_std::sync::Arc::new(uhlc::HLC::default());
     let rt_uuid = uuid::Uuid::new_v4();
     let ctx = RuntimeContext {

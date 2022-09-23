@@ -128,14 +128,11 @@ impl WorkerPool {
             let mut j_stream = c_session.subscribe_sumbitted_jobs(&c_id).await?;
             log::info!("[Job Queue {c_id:?} ] Started");
             loop {
-                match j_stream.next().await {
-                    Some(job) => {
-                        // Receiving a Job and sending to the workers via the
-                        // flume channel
-                        log::trace!("[Job Queue: {c_id:?}] Received Job {job:?}");
-                        c_tx.send_async(job).await?;
-                    }
-                    None => (),
+                if let Some(job) = j_stream.next().await {
+                    // Receiving a Job and sending to the workers via the
+                    // flume channel
+                    log::trace!("[Job Queue: {c_id:?}] Received Job {job:?}");
+                    c_tx.send_async(job).await?;
                 }
             }
         };

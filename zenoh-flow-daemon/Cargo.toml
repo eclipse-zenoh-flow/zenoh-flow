@@ -34,16 +34,16 @@ async-trait = "0.1.50"
 env_logger = "0.9.0"
 serde_derive = "1.0"
 serde = { version = "1.0", features = ["derive", "rc"] }
-serde_yaml = {version = "0.8"}
+serde_yaml = {version = "0.9"}
 serde_json = "1.0"
 log = "0.4"
-async-std = { version = "=1.11.0", features = ["attributes"] }
-uuid = { version = "0.8", features = ["serde", "v4"] }
+async-std = { version = "=1.12.0", features = ["attributes"] }
+uuid = { version = "1.1", features = ["serde", "v4"] }
 uhlc = "0.5"
 zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master"}
 zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", branch = "master" }
-zrpc = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "0.3.1" }
-zrpc-macros = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "0.3.1" }
+zrpc = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "api-changes" }
+zrpc-macros = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "api-changes" }
 clap = { version = "3.1", features = ["derive"] }
 hostname = "0.3.1"
 machine-uid = "0.2.0"

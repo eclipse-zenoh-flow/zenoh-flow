@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uhlc::{HLCBuilder, ID};
 use uuid::Uuid;
-use zenoh::prelude::*;
+
 use zenoh_flow::model::descriptor::{
     FlattenDataFlowDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor,
 };
@@ -41,7 +41,7 @@ use zenoh_flow::runtime::{
 use zenoh_flow::types::ControlMessage;
 use zenoh_flow::{bail, DaemonResult};
 use zrpc::ZServe;
-use zrpc_macros::znserver;
+use zrpc_macros::zserver;
 
 use crate::runtime::Runtime;
 use crate::util::{get_zenoh_config, read_file};
@@ -104,6 +104,8 @@ impl TryFrom<DaemonConfig> for Daemon {
     type Error = zenoh_flow::prelude::Error;
 
     fn try_from(config: DaemonConfig) -> std::result::Result<Self, Self::Error> {
+        use zenoh::prelude::sync::*;
+
         // If Uuid is not specified uses machine id.
         let uuid = match &config.uuid {
             Some(u) => *u,
@@ -221,7 +223,7 @@ impl TryFrom<DaemonConfig> for Daemon {
         };
 
         // Creates the zenoh session.
-        let session = Arc::new(zenoh::open(zconfig).wait()?);
+        let session = Arc::new(zenoh::open(zconfig).res()?);
 
         // Creates the HLC.
         let uhlc_id = ID::try_from(uuid.as_bytes())
@@ -444,7 +446,7 @@ impl Daemon {
 // This implementation does asynchronous operations, via zrpc/REST.
 // The runtime implements the actual logic for each operation.
 
-#[znserver]
+#[zserver]
 impl DaemonInterface for Daemon {
     async fn create_instance(&self, flow: FlattenDataFlowDescriptor) -> DaemonResult<Uuid> {
         let instance_uuid = Uuid::new_v4();
@@ -620,7 +622,7 @@ impl DaemonInterface for Daemon {
     // }
 }
 
-#[znserver]
+#[zserver]
 impl DaemonInterfaceInternal for Daemon {
     async fn prepare(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
         self.runtime.prepare(record_id).await

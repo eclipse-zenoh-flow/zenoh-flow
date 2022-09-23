@@ -34,7 +34,7 @@ use uhlc::{Timestamp, HLC};
 use zenoh::config::Config as ZenohConfig;
 use zenoh::Session;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
-use zrpc_macros::znservice;
+use zrpc_macros::zservice;
 
 pub mod dataflow;
 pub mod resources;
@@ -344,7 +344,7 @@ impl Job {
 /// are generated automatically.
 ///
 /// [^note]: We may split this interface in the future.
-#[znservice(
+#[zservice(
     timeout_s = 60,
     prefix = "/zf/daemon",
     service_uuid = "00000000-0000-0000-0000-000000000001"
@@ -535,7 +535,7 @@ pub trait DaemonInterface {
 /// The service is exposed using zenoh-rpc, the server and client
 /// are generated automatically.
 ///
-#[znservice(
+#[zservice(
     timeout_s = 600,
     prefix = "/zf/daemon",
     service_uuid = "00000000-0000-0000-0000-000000000002"
