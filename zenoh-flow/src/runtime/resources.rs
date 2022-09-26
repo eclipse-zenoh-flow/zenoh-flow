@@ -637,8 +637,8 @@ impl DataStore {
         self.z.put(&path, encoded_info).res().await
     }
 
-    /// Gets the [`DataFlowRecord`](`DataFlowRecord`) running on the given
-    /// runtime `rtid` for the given instance `iid`.
+    /// Gets the [`DataFlowRecord`](`DataFlowRecord`) running on the given runtime `rtid` for the
+    /// given instance `iid`.
     ///
     /// # Errors
     /// An error variant is returned in case of:

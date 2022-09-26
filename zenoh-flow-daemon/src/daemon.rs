@@ -467,20 +467,24 @@ impl DaemonInterface for Daemon {
         Ok(instance_uuid)
     }
 
-    async fn delete_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
-        let record = self.runtime.store.get_flow_by_instance(&record_id).await?;
+    async fn delete_instance(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord> {
+        let record = self
+            .runtime
+            .store
+            .get_flow_by_instance(&instance_id)
+            .await?;
 
         let res = self
             .worker_pool
             .read()
             .await
-            .submit_delete(&record_id)
+            .submit_delete(&instance_id)
             .await?;
         log::info!(
             "[Daemon: {}][Job: {}] Deleting instance < {} >",
             self.ctx.runtime_uuid,
             res.get_id(),
-            record_id,
+            instance_id,
         );
 
         Ok(record)
@@ -505,56 +509,64 @@ impl DaemonInterface for Daemon {
         Ok(instance_uuid)
     }
 
-    async fn teardown(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
-        let record = self.runtime.store.get_flow_by_instance(&record_id).await?;
+    async fn teardown(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord> {
+        let record = self
+            .runtime
+            .store
+            .get_flow_by_instance(&instance_id)
+            .await?;
 
         let res = self
             .worker_pool
             .read()
             .await
-            .submit_teardown(&record_id)
+            .submit_teardown(&instance_id)
             .await?;
         log::info!(
             "[Daemon: {}][Job: {}] Teardown flow < {} >",
             self.ctx.runtime_uuid,
             res.get_id(),
-            record_id,
+            instance_id,
         );
 
         Ok(record)
     }
 
-    async fn start_instance(&self, record_id: Uuid) -> DaemonResult<()> {
+    async fn start_instance(&self, instance_id: Uuid) -> DaemonResult<()> {
         let res = self
             .worker_pool
             .read()
             .await
-            .submit_start(&record_id)
+            .submit_start(&instance_id)
             .await?;
         log::info!(
             "[Daemon: {}][Job: {}] Start instance < {} >",
             self.ctx.runtime_uuid,
             res.get_id(),
-            record_id,
+            instance_id,
         );
 
         Ok(())
     }
 
-    async fn stop_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
-        let record = self.runtime.store.get_flow_by_instance(&record_id).await?;
+    async fn stop_instance(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord> {
+        let record = self
+            .runtime
+            .store
+            .get_flow_by_instance(&instance_id)
+            .await?;
 
         let res = self
             .worker_pool
             .read()
             .await
-            .submit_stop(&record_id)
+            .submit_stop(&instance_id)
             .await?;
         log::info!(
             "[Daemon: {}][Job: {}] Stop instance < {} >",
             self.ctx.runtime_uuid,
             res.get_id(),
-            record_id,
+            instance_id,
         );
 
         Ok(record)
@@ -624,47 +636,52 @@ impl DaemonInterface for Daemon {
 
 #[zserver]
 impl DaemonInterfaceInternal for Daemon {
-    async fn prepare(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
-        self.runtime.prepare(record_id).await
+    async fn prepare(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord> {
+        self.runtime.prepare(instance_id).await
     }
 
-    async fn clean(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
-        self.runtime.clean(record_id).await
+    async fn clean(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord> {
+        self.runtime.clean(instance_id).await
     }
 
-    async fn start(&self, record_id: Uuid) -> DaemonResult<()> {
-        self.runtime.start_nodes(record_id).await
+    async fn start(&self, instance_id: Uuid) -> DaemonResult<()> {
+        self.runtime.start_nodes(instance_id).await
     }
 
-    async fn start_sources(&self, record_id: Uuid) -> DaemonResult<()> {
-        self.runtime.start_sources(record_id).await
+    async fn start_sources(&self, instance_id: Uuid) -> DaemonResult<()> {
+        self.runtime.start_sources(instance_id).await
     }
 
-    async fn stop(&self, record_id: Uuid) -> DaemonResult<()> {
-        self.runtime.stop_nodes(record_id).await
+    async fn stop(&self, instance_id: Uuid) -> DaemonResult<()> {
+        self.runtime.stop_nodes(instance_id).await
     }
 
-    async fn stop_sources(&self, record_id: Uuid) -> DaemonResult<()> {
-        self.runtime.stop_sources(record_id).await
+    async fn stop_sources(&self, instance_id: Uuid) -> DaemonResult<()> {
+        self.runtime.stop_sources(instance_id).await
     }
 
     async fn notify_runtime(
         &self,
-        record_id: Uuid,
+        instance_id: Uuid,
         node: String,
         message: ControlMessage,
     ) -> DaemonResult<()> {
-        self.runtime.notify_runtime(record_id, node, message).await
+        self.runtime
+            .notify_runtime(instance_id, node, message)
+            .await
     }
+
     async fn check_operator_compatibility(
         &self,
         operator: OperatorDescriptor,
     ) -> DaemonResult<bool> {
         self.runtime.check_operator_compatibility(operator).await
     }
+
     async fn check_source_compatibility(&self, source: SourceDescriptor) -> DaemonResult<bool> {
         self.runtime.check_source_compatibility(source).await
     }
+
     async fn check_sink_compatibility(&self, sink: SinkDescriptor) -> DaemonResult<bool> {
         self.runtime.check_sink_compatibility(sink).await
     }

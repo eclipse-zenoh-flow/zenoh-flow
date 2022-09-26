@@ -350,23 +350,21 @@ impl Job {
     service_uuid = "00000000-0000-0000-0000-000000000001"
 )]
 pub trait DaemonInterface {
-    /// Creates the instance (`DataFlowRecord`) from the
-    /// given [`FlattenDataFlowDescriptor`][^note].
+    /// Creates an instance of the given [`FlattenDataFlowDescriptor`][^note].
     ///
     /// This function:
     /// 1) Generates the instance `Uuid`
-    /// 2) Flattens the descriptor
-    /// 3) Maps the flow into the infrastructure
-    /// 4) Creates the associated record
-    /// 5) Stores the record in Zenoh
-    /// 6) Prepares all the involved runtimes to host the data flow instance
+    /// 2) Maps the flow into the infrastructure
+    /// 3) Creates the associated record
+    /// 4) Stores the record in Zenoh
+    /// 5) Prepares all the involved runtimes to host the data flow instance
     ///
-    /// Returns the [`Uuid`] associated with the instance
+    /// Returns the [`Uuid`] associated with the instance.
     ///
-    /// [^note]: When the registry will be in place it will take
-    /// the Flow identifier as parameter
+    /// [^note]: When the registry will be in place it will take the Flow identifier as parameter
     ///
     /// # Errors
+    ///
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to map
@@ -375,33 +373,34 @@ pub trait DaemonInterface {
     //TODO: workaround - it should just take the ID of the flow (when
     // the registry will be in place)
 
-    /// Deletes the given instance].
+    /// Deletes the given instance.
+    ///
     /// This function:
     /// 1) Cleans the instance nodes from all the involved runtimes.
     /// 2) Deletes the record from zenoh
     ///
     /// # Errors
+    ///
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - instance not stopped
     /// - unable to clean
     /// - zenoh error
-    async fn delete_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
+    async fn delete_instance(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord>;
 
     /// Instantiates the given [`FlattenDataFlowDescriptor`][^note].
-    /// and, creates the associated [`DataFlowRecord`].
-    /// The record contains an [`Uuid`] that identifies the record.
+    ///
+    /// The instance contains an [`Uuid`] that identifies it uniquely.
     /// The actual instantiation process runs asynchronously in the runtime.
     ///
-    /// Returns the [`Uuid`] associated with the instance
+    /// Returns the [`Uuid`] associated with the instance.
     ///
-    /// It is equivalent to calling `create_instance` and
-    /// then `start_instance`.
+    /// It is equivalent to calling `create_instance` and then `start_instance`.
     ///
-    /// [^note]: When the registry will be in place it will take
-    /// the Flow identifier as parameter
+    /// [^note]: When the registry will be in place it will take the Flow identifier as parameter.
     ///
     /// # Errors
+    ///
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to instantiate
@@ -409,29 +408,31 @@ pub trait DaemonInterface {
     //TODO: workaround - it should just take the ID of the flow (when
     // the registry will be in place)
 
-    /// Sends a teardown request for the given record identified by the [`Uuid`]
-    /// Note the request is asynchronous, the runtime that receives the request will
-    /// return immediately, but the teardown process will run asynchronously in the runtime.
+    /// Sends a teardown request for the given instance identified by the [`Uuid`].
     ///
-    /// It is equivalent to calling `stop_instance` and then `delete_delete`.
+    /// Note that the request is asynchronous, the runtime that receives the request will return
+    /// immediately, but the teardown process will run asynchronously in the runtime.
+    ///
+    /// It is equivalent to calling `stop_instance` and then `delete_instance`.
     ///
     /// # Errors
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to teardown
     /// - instance not found
-    async fn teardown(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
+    async fn teardown(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord>;
 
     /// Starts the instance on all involved nodes.
     ///
     /// It first starts all the nodes and then the sources.
     ///
     /// # Errors
+    ///
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
-    /// - record not found
-    /// - record already started
-    async fn start_instance(&self, record_id: Uuid) -> DaemonResult<()>;
+    /// - instance not found
+    /// - instance already started
+    async fn start_instance(&self, instance_id: Uuid) -> DaemonResult<()>;
 
     /// Stops the instance on all involved nodes.
     ///
@@ -441,7 +442,7 @@ pub trait DaemonInterface {
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to clean
-    async fn stop_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
+    async fn stop_instance(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord>;
 
     /// Starts the given graph node for the given instance.
     /// A graph node can be a source, a sink, a connector, or an operator.
@@ -452,7 +453,7 @@ pub trait DaemonInterface {
     /// - record not found
     /// - node already started
     /// - node not found
-    async fn start_node(&self, record_id: Uuid, node: String) -> DaemonResult<()>;
+    async fn start_node(&self, instance_id: Uuid, node: String) -> DaemonResult<()>;
 
     /// Stops the given graph node from the given instance.
     /// A graph node can be a source, a sink, a connector, or an operator.
@@ -460,10 +461,10 @@ pub trait DaemonInterface {
     /// # Errors
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
-    /// - record not found
-    /// - node already started
+    /// - instance not found
     /// - node not found
-    async fn stop_node(&self, record_id: Uuid, node: String) -> DaemonResult<()>;
+    /// - node already stopped
+    async fn stop_node(&self, instance_id: Uuid, node: String) -> DaemonResult<()>;
 
     // FIXME A source now has several outputs.
 
@@ -528,7 +529,7 @@ pub trait DaemonInterface {
     // /// A graph node can be a source, a sink, a connector, or an operator.
     // /// The node state represents the current state of the node:
     // /// `enum NodeState { Running, Stopped, Error(err) }`
-    // async fn get_node_state(&self, record_id: Uuid, node: String) -> DaemonResult<NodeState>;
+    // async fn get_node_state(&self, instance_id: Uuid, node: String) -> DaemonResult<NodeState>;
 }
 
 /// The interface the Daemon expose to other daemons.
@@ -542,6 +543,7 @@ pub trait DaemonInterface {
 )]
 pub trait DaemonInterfaceInternal {
     /// Prepares the runtime host the instance identified by the [`Uuid`].
+    ///
     /// Preparing a runtime means, fetch the operators/source/sinks libraries,
     /// create the needed structures in memory, the links.
     /// Once everything is prepared the runtime should return the [`DataFlowRecord`]
@@ -550,74 +552,77 @@ pub trait DaemonInterfaceInternal {
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to prepare
-    async fn prepare(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
+    async fn prepare(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord>;
 
-    /// Cleans the runtime from the remains of the given record.
-    /// Cleans means unload the libraries, drop data structures and destroy links.
+    /// Cleans the "remains" of the given instance: unload the libraries, drop data structures and
+    /// destroy links.
     ///
     /// # Errors
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
     /// - unable to clean
-    async fn clean(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord>;
+    async fn clean(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord>;
 
-    /// Starts the sinks, connectors, and operators for the given record.
+    /// Starts the sinks, connectors, and operators for the given instance.
     ///
     /// # Errors
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
-    /// - record not found
-    /// - record already started
-    async fn start(&self, record_id: Uuid) -> DaemonResult<()>;
+    /// - instance not found
+    /// - instance already started
+    async fn start(&self, instance_id: Uuid) -> DaemonResult<()>;
 
-    /// Starts the sources for the given record.
-    /// Note that this should be called only after the `start(record)` has returned
+    /// Starts the sources for the given instance.
+    /// Note that this should be called only after the `start(instance)` has returned
     /// successfully otherwise data may be lost.
     ///
     /// # Errors
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
-    /// - record not found
+    /// - instance not found
     /// - sources already started
-    async fn start_sources(&self, record_id: Uuid) -> DaemonResult<()>;
+    async fn start_sources(&self, instance_id: Uuid) -> DaemonResult<()>;
 
-    /// Stops the sinks, connectors, and operators for the given record.
-    /// Note that this should be called after the `stop_sources(record)` has returned
+    /// Stops the sinks, connectors, and operators for the given instance.
+    ///
+    /// Note that this should be called after the `stop_sources(instance)` has returned
     /// successfully otherwise data may be lost.
     ///
     /// # Errors
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
-    /// - record not found
-    /// - record already stopped
-    async fn stop(&self, record_id: Uuid) -> DaemonResult<()>;
+    /// - instance not found
+    /// - instance already stopped
+    async fn stop(&self, instance_id: Uuid) -> DaemonResult<()>;
 
-    /// Stops the sources for the given record.
+    /// Stops the sources for the given instance.
     ///
     /// # Errors
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
-    /// - record not found
+    /// - instance not found
     /// - sources already stopped
-    async fn stop_sources(&self, record_id: Uuid) -> DaemonResult<()>;
+    async fn stop_sources(&self, instance_id: Uuid) -> DaemonResult<()>;
 
-    /// Sends the `message` to `node` for the given record.
-    /// This is useful for sending out-of-band notification to a node.
-    /// eg. in the case of deadline miss notification.
+    /// Sends the `message` to `node` for the given instance.
+    ///
+    /// This is useful for sending out-of-band notification to a node (eg. in the case of deadline
+    /// miss notification).
     ///
     /// # Errors
     /// An error variant is returned in case of:
     /// - error on zenoh-rpc
-    /// - record not found
+    /// - instance not found
     async fn notify_runtime(
         &self,
-        record_id: Uuid,
+        instance_id: Uuid,
         runtime: String,
         message: ControlMessage,
     ) -> DaemonResult<()>;
 
-    /// Checks the compatibility for the given `operator`
-    /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
+    /// Checks the compatibility for the given `operator`.
+    ///
+    /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS).
     ///
     /// # Errors
     /// An error variant is returned in case of:
@@ -627,7 +632,8 @@ pub trait DaemonInterfaceInternal {
         operator: OperatorDescriptor,
     ) -> DaemonResult<bool>;
 
-    /// Checks the compatibility for the given `source`
+    /// Checks the compatibility for the given `source`.
+    ///
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
     ///
     /// # Errors
@@ -635,7 +641,8 @@ pub trait DaemonInterfaceInternal {
     /// - error on zenoh-rpc
     async fn check_source_compatibility(&self, source: SourceDescriptor) -> DaemonResult<bool>;
 
-    /// Checks the compatibility for the given `sink`
+    /// Checks the compatibility for the given `sink`.
+    ///
     /// Compatibility is based on tags and some machine characteristics (eg. CPU architecture, OS)
     ///
     /// # Errors

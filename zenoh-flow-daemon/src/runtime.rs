@@ -179,13 +179,13 @@ impl Runtime {
         Ok(dfr)
     }
 
-    pub(crate) async fn delete_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
-        log::info!("Delete Instance UUID: {}", record_id);
-        let record = self.store.get_flow_by_instance(&record_id).await?;
+    pub(crate) async fn delete_instance(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord> {
+        log::info!("Delete Instance UUID: {}", instance_id);
+        let record = self.store.get_flow_by_instance(&instance_id).await?;
 
         let mut rt_clients = vec![];
 
-        let all_involved_runtimes = self.store.get_flow_instance_runtimes(&record_id).await?;
+        let all_involved_runtimes = self.store.get_flow_instance_runtimes(&instance_id).await?;
 
         let is_also_local = all_involved_runtimes.contains(&self.ctx.runtime_uuid);
 
@@ -200,19 +200,19 @@ impl Runtime {
 
         // remote clean
         for client in rt_clients.iter() {
-            client.clean(record_id).await??;
+            client.clean(instance_id).await??;
         }
 
         // local clean
         if is_also_local {
-            self.clean(record_id).await?;
+            self.clean(instance_id).await?;
         }
 
         self.store
             .remove_runtime_flow_instance(&self.ctx.runtime_uuid, &record.flow, &record.uuid)
             .await?;
 
-        log::info!("Done delete Instance UUID: {}", record_id);
+        log::info!("Done delete Instance UUID: {}", instance_id);
 
         Ok(record)
     }
@@ -242,24 +242,24 @@ impl Runtime {
         Ok(dfr)
     }
 
-    pub(crate) async fn teardown(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
-        log::info!("Tearing down Instance UUID: {}", record_id);
+    pub(crate) async fn teardown(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord> {
+        log::info!("Tearing down Instance UUID: {}", instance_id);
 
         // Stopping
-        self.stop_instance(record_id).await?;
+        self.stop_instance(instance_id).await?;
 
         // Clean-up
-        let dfr = self.delete_instance(record_id).await?;
+        let dfr = self.delete_instance(instance_id).await?;
 
-        log::info!("Done teardown down Instance UUID: {}", record_id);
+        log::info!("Done teardown down Instance UUID: {}", instance_id);
 
         Ok(dfr)
     }
 
-    pub(crate) async fn prepare(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
-        log::info!("Preparing for Instance UUID: {}", record_id);
+    pub(crate) async fn prepare(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord> {
+        log::info!("Preparing for Instance UUID: {}", instance_id);
 
-        let dfr = self.store.get_flow_by_instance(&record_id).await?;
+        let dfr = self.store.get_flow_by_instance(&instance_id).await?;
 
         let dataflow = Dataflow::try_new(self.ctx.clone(), dfr.clone())?;
         let instance = DataflowInstance::try_instantiate(dataflow, self.ctx.hlc.clone())?;
@@ -272,22 +272,22 @@ impl Runtime {
             .add_runtime_flow(&self.ctx.runtime_uuid, &dfr)
             .await?;
 
-        log::info!("Done preparation for Instance UUID: {}", record_id);
+        log::info!("Done preparation for Instance UUID: {}", instance_id);
 
         Ok(dfr)
     }
-    pub(crate) async fn clean(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
-        log::info!("Cleaning for Instance UUID: {}", record_id);
+    pub(crate) async fn clean(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord> {
+        log::info!("Cleaning for Instance UUID: {}", instance_id);
 
         let mut _state = self.state.lock().await;
-        let data = _state.graphs.remove(&record_id);
+        let data = _state.graphs.remove(&instance_id);
         match data {
             Some(_dfi) => {
                 // Calling finalize on all nodes of a the graph.
 
                 let record = self
                     .store
-                    .get_runtime_flow_by_instance(&self.ctx.runtime_uuid, &record_id)
+                    .get_runtime_flow_by_instance(&self.ctx.runtime_uuid, &instance_id)
                     .await?;
 
                 self.store
@@ -300,16 +300,16 @@ impl Runtime {
 
                 Ok(record)
             }
-            None => Err(ErrorKind::InstanceNotFound(record_id)),
+            None => Err(ErrorKind::InstanceNotFound(instance_id)),
         }
     }
 
-    pub(crate) async fn start_instance(&self, record_id: Uuid) -> DaemonResult<()> {
-        log::info!("Staring Instance UUID: {}", record_id);
+    pub(crate) async fn start_instance(&self, instance_id: Uuid) -> DaemonResult<()> {
+        log::info!("Staring Instance UUID: {}", instance_id);
 
         let mut rt_clients = vec![];
 
-        let all_involved_runtimes = self.store.get_flow_instance_runtimes(&record_id).await?;
+        let all_involved_runtimes = self.store.get_flow_instance_runtimes(&instance_id).await?;
 
         let is_also_local = all_involved_runtimes.contains(&self.ctx.runtime_uuid);
 
@@ -331,36 +331,36 @@ impl Runtime {
 
         // remote start
         for client in rt_clients.iter() {
-            client.start(record_id).await??;
+            client.start(instance_id).await??;
         }
 
         if is_also_local {
             // self start
-            self.start_nodes(record_id).await?;
+            self.start_nodes(instance_id).await?;
         }
 
         // remote start sources
         for client in rt_clients.iter() {
-            client.start_sources(record_id).await??;
+            client.start_sources(instance_id).await??;
         }
 
         if is_also_local {
             // self start sources
-            self.start_sources(record_id).await?;
+            self.start_sources(instance_id).await?;
         }
 
-        log::info!("Started Instance UUID: {}", record_id);
+        log::info!("Started Instance UUID: {}", instance_id);
 
         Ok(())
     }
 
-    pub(crate) async fn stop_instance(&self, record_id: Uuid) -> DaemonResult<DataFlowRecord> {
-        log::info!("Stopping Instance UUID: {}", record_id);
-        let record = self.store.get_flow_by_instance(&record_id).await?;
+    pub(crate) async fn stop_instance(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord> {
+        log::info!("Stopping Instance UUID: {}", instance_id);
+        let record = self.store.get_flow_by_instance(&instance_id).await?;
 
         let mut rt_clients = vec![];
 
-        let all_involved_runtimes = self.store.get_flow_instance_runtimes(&record_id).await?;
+        let all_involved_runtimes = self.store.get_flow_instance_runtimes(&instance_id).await?;
 
         let is_also_local = all_involved_runtimes.contains(&self.ctx.runtime_uuid);
 
@@ -375,33 +375,33 @@ impl Runtime {
 
         // remote stop sources
         for client in rt_clients.iter() {
-            client.stop_sources(record_id).await??;
+            client.stop_sources(instance_id).await??;
         }
 
         // local stop sources
         if is_also_local {
-            self.stop_sources(record_id).await?;
+            self.stop_sources(instance_id).await?;
         }
 
         // remote stop
         for client in rt_clients.iter() {
-            client.stop(record_id).await??;
+            client.stop(instance_id).await??;
         }
 
         // local stop
         if is_also_local {
-            self.stop_nodes(record_id).await?;
+            self.stop_nodes(instance_id).await?;
         }
 
-        log::info!("Stopped Instance UUID: {}", record_id);
+        log::info!("Stopped Instance UUID: {}", instance_id);
 
         Ok(record)
     }
 
-    pub(crate) async fn start_nodes(&self, record_id: Uuid) -> DaemonResult<()> {
+    pub(crate) async fn start_nodes(&self, instance_id: Uuid) -> DaemonResult<()> {
         log::info!(
             "Starting nodes (not sources) for Instance UUID: {}",
-            record_id
+            instance_id
         );
 
         let mut _state = self.state.lock().await;
@@ -411,7 +411,7 @@ impl Runtime {
             .get_runtime_status(&self.ctx.runtime_uuid)
             .await?;
 
-        match _state.graphs.get_mut(&record_id) {
+        match _state.graphs.get_mut(&instance_id) {
             Some(instance) => {
                 let mut sinks = instance.get_sinks();
                 for id in sinks.drain(..) {
@@ -437,12 +437,12 @@ impl Runtime {
 
                 Ok(())
             }
-            None => Err(ErrorKind::InstanceNotFound(record_id)),
+            None => Err(ErrorKind::InstanceNotFound(instance_id)),
         }
     }
 
-    pub(crate) async fn start_sources(&self, record_id: Uuid) -> DaemonResult<()> {
-        log::info!("Starting sources for Instance UUID: {}", record_id);
+    pub(crate) async fn start_sources(&self, instance_id: Uuid) -> DaemonResult<()> {
+        log::info!("Starting sources for Instance UUID: {}", instance_id);
 
         let mut _state = self.state.lock().await;
 
@@ -451,7 +451,7 @@ impl Runtime {
             .get_runtime_status(&self.ctx.runtime_uuid)
             .await?;
 
-        match _state.graphs.get_mut(&record_id) {
+        match _state.graphs.get_mut(&instance_id) {
             Some(instance) => {
                 let mut sources = instance.get_sources();
                 for id in sources.drain(..) {
@@ -467,14 +467,14 @@ impl Runtime {
 
                 Ok(())
             }
-            None => Err(ErrorKind::InstanceNotFound(record_id)),
+            None => Err(ErrorKind::InstanceNotFound(instance_id)),
         }
     }
 
-    pub(crate) async fn stop_nodes(&self, record_id: Uuid) -> DaemonResult<()> {
+    pub(crate) async fn stop_nodes(&self, instance_id: Uuid) -> DaemonResult<()> {
         log::info!(
             "Stopping nodes (not sources) for Instance UUID: {}",
-            record_id
+            instance_id
         );
 
         let mut _state = self.state.lock().await;
@@ -484,7 +484,7 @@ impl Runtime {
             .get_runtime_status(&self.ctx.runtime_uuid)
             .await?;
 
-        match _state.graphs.get_mut(&record_id) {
+        match _state.graphs.get_mut(&instance_id) {
             Some(instance) => {
                 let mut sinks = instance.get_sinks();
                 for id in sinks.drain(..) {
@@ -510,12 +510,12 @@ impl Runtime {
 
                 Ok(())
             }
-            None => Err(ErrorKind::InstanceNotFound(record_id)),
+            None => Err(ErrorKind::InstanceNotFound(instance_id)),
         }
     }
 
-    pub(crate) async fn stop_sources(&self, record_id: Uuid) -> DaemonResult<()> {
-        log::info!("Stopping sources for Instance UUID: {}", record_id);
+    pub(crate) async fn stop_sources(&self, instance_id: Uuid) -> DaemonResult<()> {
+        log::info!("Stopping sources for Instance UUID: {}", instance_id);
 
         let mut _state = self.state.lock().await;
         let mut rt_status = self
@@ -523,7 +523,7 @@ impl Runtime {
             .get_runtime_status(&self.ctx.runtime_uuid)
             .await?;
 
-        match _state.graphs.get_mut(&record_id) {
+        match _state.graphs.get_mut(&instance_id) {
             Some(instance) => {
                 let mut sources = instance.get_sources();
                 for id in sources.drain(..) {
@@ -539,7 +539,7 @@ impl Runtime {
 
                 Ok(())
             }
-            None => Err(ErrorKind::InstanceNotFound(record_id)),
+            None => Err(ErrorKind::InstanceNotFound(instance_id)),
         }
     }
 
@@ -651,7 +651,7 @@ impl Runtime {
 
     pub(crate) async fn notify_runtime(
         &self,
-        _record_id: Uuid,
+        _instance_id: Uuid,
         _node: String,
         _message: ControlMessage,
     ) -> DaemonResult<()> {
