@@ -62,13 +62,13 @@ impl Streams for Outputs {
 
 #[derive(Clone, Debug)]
 pub struct Input {
-    pub(crate) id: PortId,
+    pub(crate) port_id: PortId,
     pub(crate) receivers: Vec<flume::Receiver<Message>>,
 }
 
 impl Input {
-    pub fn id(&self) -> &PortId {
-        &self.id
+    pub fn port_id(&self) -> &PortId {
+        &self.port_id
     }
 
     /// Returns the number of channels associated with this Input.
@@ -130,7 +130,7 @@ impl Input {
 
     pub(crate) fn new(id: PortId) -> Self {
         Self {
-            id,
+            port_id: id,
             receivers: vec![],
         }
     }
