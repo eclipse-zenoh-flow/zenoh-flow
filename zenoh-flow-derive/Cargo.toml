@@ -34,7 +34,7 @@ futures = "0.3.5"
 syn-serde = { version = "0.2", features = ["json"] }
 syn = { version = "1.0.11", features = ["full"] }
 quote = "1.0.2"
-proc-macro2 = "1.0.6"
+proc-macro2 = "1.0.46"
 serde_derive = "1.0.55"
 serde = { version = "1.0.55", features = ["derive"] }
 darling = "0.14"

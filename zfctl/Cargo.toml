@@ -44,13 +44,13 @@ semver = { version = "1.0.4", features = ["serde"]}
 serde = { version = "1.0.55", features = ["derive"] }
 serde_derive = "1.0.55"
 serde_json = "1.0.55"
-serde_yaml = "0.8.13"
-uuid = { version = "0.8.1", features = ["serde", "v4"] }
-zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", rev = "45b7ad70bddf45dfcdcae80e9c9a7680c70ac289" }
+serde_yaml = "0.9"
+uuid = { version = "1.1", features = ["serde", "v4"] }
+zenoh = { version = "0.6.0-beta.1" }
 zenoh-flow = {path = "../zenoh-flow"}
-zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", rev = "45b7ad70bddf45dfcdcae80e9c9a7680c70ac289"}
-zrpc-macros = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "0.3.1" }
-zrpc = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "tag/0.3.2" }
+zenoh-util = { version = "0.6.0-beta.1" }
+zrpc = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", tag = "v0.5.0-alpha1" }
+zrpc-macros = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", tag = "v0.5.0-alpha1" }
 
 # Debian package configuration
 
