@@ -346,7 +346,7 @@ impl Job {
 /// [^note]: We may split this interface in the future.
 #[zservice(
     timeout_s = 60,
-    prefix = "/zf/daemon",
+    prefix = "zf/daemon",
     service_uuid = "00000000-0000-0000-0000-000000000001"
 )]
 pub trait DaemonInterface {
@@ -538,7 +538,7 @@ pub trait DaemonInterface {
 ///
 #[zservice(
     timeout_s = 600,
-    prefix = "/zf/daemon",
+    prefix = "zf/daemon",
     service_uuid = "00000000-0000-0000-0000-000000000002"
 )]
 pub trait DaemonInterfaceInternal {

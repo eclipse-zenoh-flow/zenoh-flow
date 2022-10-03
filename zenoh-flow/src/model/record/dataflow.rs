@@ -241,7 +241,7 @@ impl DataFlowRecord {
 
                 // creating zenoh resource name
                 let z_resource_name = format!(
-                    "/zf/data/{}/{}/{}/{}",
+                    "zf/data/{}/{}/{}/{}",
                     &self.flow, &self.uuid, &from_uid, &from_port_uid
                 );
 

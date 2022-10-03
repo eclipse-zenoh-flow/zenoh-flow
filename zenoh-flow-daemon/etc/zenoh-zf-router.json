@@ -22,16 +22,16 @@
         "required":true,
         "storages":{
             "zfrpc":{
-                "key_expr":"/zf/runtime/**",
+                "key_expr":"zf/runtime/**",
                 "volume": "memory"
             },
             "zf":{
-                "key_expr":"/zenoh-flow/**",
+                "key_expr":"zenoh-flow/**",
                 "volume": "memory"
             }
             // ,
             // "replay":{
-            //     "key_expr":"/zf/record/**",
+            //     "key_expr":"zf/record/**",
             //     "volume":"influxdb",
             //     "url":"http://localhost:8086",
             //     "db":"zf_log_example",
