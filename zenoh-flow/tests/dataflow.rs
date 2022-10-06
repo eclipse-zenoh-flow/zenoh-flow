@@ -197,7 +197,7 @@ impl Operator for NoOpCallback {
 
         context.register_input_callback(
             input,
-            Box::new(move |message| {
+            Arc::new(move |message| {
                 let output_cloned = Arc::clone(&output);
 
                 async move {

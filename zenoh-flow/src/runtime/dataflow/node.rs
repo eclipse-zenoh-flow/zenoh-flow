@@ -13,15 +13,62 @@
 //
 
 use crate::model::record::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::traits::{Operator, Sink, Source};
+use crate::traits::{self, Operator, Sink, Source};
 use crate::types::{Configuration, NodeId};
 use crate::Result;
+use std::ops::Deref;
 use std::sync::Arc;
 
 #[cfg(target_family = "unix")]
 use libloading::os::unix::Library;
 #[cfg(target_family = "windows")]
 use libloading::Library;
+
+/// TODO(J-Loudet) Improve documentation.
+///
+/// A `NodeFactory` generates `Node`, i.e. objects that implement the `Node` trait.
+///
+/// The `record` holds the metadata associated with the Node. The `factory` is the object that
+/// produces the Nodes. The `_library` is a reference over the dynamically loaded shared library. It
+/// can be `None` when the factory is created programmatically.
+pub(crate) struct NodeFactory<U, T: ?Sized> {
+    pub(crate) record: U,
+    pub(crate) factory: Arc<T>,
+    pub(crate) _library: Option<Arc<Library>>,
+}
+
+/// TODO(J-Loudet) Improve documentation.
+///
+/// Dereferencing to the record (the generic `U`) allows us to access the metadata of the node.
+impl<U, T: ?Sized> Deref for NodeFactory<U, T> {
+    type Target = U;
+
+    fn deref(&self) -> &Self::Target {
+        &self.record
+    }
+}
+
+impl<U, T: ?Sized> NodeFactory<U, T> {
+    /// TODO(J-Loudet) Improve documentation.
+    ///
+    /// This function is, for now, mostly used to generate data flows programmatically.
+    pub(crate) fn new_static(record: U, factory: Arc<T>) -> Self {
+        Self {
+            record,
+            factory,
+            _library: None,
+        }
+    }
+}
+
+/// A `SourceFactory` is a specialized `NodeFactory` generating Source.
+pub(crate) type SourceFactory = NodeFactory<SourceRecord, dyn traits::SourceFactory>;
+
+/// An `OperatorFactory` is a specialized `NodeFactory` generating Operator.
+pub(crate) type OperatorFactory = NodeFactory<OperatorRecord, dyn traits::OperatorFactory>;
+
+/// A `SinkFactory` is a specialized `NodeFactory` generating Sink.
+pub(crate) type SinkFactory = NodeFactory<SinkRecord, dyn traits::SinkFactory>;
 
 /// A Source that was loaded, either dynamically or statically.
 /// When a source is loaded it is first initialized and then can be ran.

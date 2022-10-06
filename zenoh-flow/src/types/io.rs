@@ -141,9 +141,10 @@ impl Input {
 }
 
 /// The `CallbackInput` wraps the `Input` and the callback provided by the user.
+#[derive(Clone)]
 pub(crate) struct CallbackInput {
     pub(crate) input: Input,
-    pub(crate) callback: Box<dyn InputCallback>,
+    pub(crate) callback: Arc<dyn InputCallback>,
 }
 
 impl CallbackInput {
@@ -314,9 +315,10 @@ impl Output {
 }
 
 /// The `CallbackOutput` wraps the `Output` and the callback provided by the user.
+#[derive(Clone)]
 pub(crate) struct CallbackOutput {
     pub(crate) output: Output,
-    pub(crate) callback: Box<dyn OutputCallback>,
+    pub(crate) callback: Arc<dyn OutputCallback>,
 }
 
 impl CallbackOutput {

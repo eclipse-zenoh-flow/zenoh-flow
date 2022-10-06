@@ -19,19 +19,62 @@ use super::instance::runners::operator::OperatorRunner;
 use super::instance::runners::sink::SinkRunner;
 use super::instance::runners::source::SourceRunner;
 use super::instance::runners::RunnerKind;
+use super::DataFlow2;
 use crate::model::record::{LinkRecord, ZFConnectorKind};
 use crate::runtime::dataflow::Dataflow;
 use crate::runtime::InstanceContext;
 use crate::types::{Input, Inputs, NodeId, Output, Outputs};
-use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result;
+use crate::{bail, zferror};
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Arc;
 use uhlc::HLC;
 use uuid::Uuid;
 
-use self::runners::Runner;
+use self::runners::{Runner, Runner2};
+
+pub struct DataFlowInstance2 {
+    pub(crate) _instance_context: Arc<InstanceContext>,
+    pub(crate) data_flow: DataFlow2,
+    pub(crate) runners: HashMap<NodeId, Runner2>,
+}
+
+impl Deref for DataFlowInstance2 {
+    type Target = DataFlow2;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data_flow
+    }
+}
+
+impl DataFlowInstance2 {
+    pub fn get_sinks(&self) -> impl Iterator<Item = &NodeId> {
+        self.sink_factories.keys()
+    }
+
+    pub async fn start_node(&mut self, node_id: &NodeId) -> Result<()> {
+        if let Some(runner) = self.runners.get_mut(node_id) {
+            runner.start();
+            return Ok(());
+        }
+
+        bail!(
+            ErrorKind::NodeNotFound(Arc::clone(node_id)),
+            "Node < {} > not found",
+            node_id
+        )
+    }
+
+    pub fn get_sources(&self) -> impl Iterator<Item = &NodeId> {
+        self.source_factories.keys()
+    }
+
+    pub fn get_operators(&self) -> impl Iterator<Item = &NodeId> {
+        self.operator_factories.keys()
+    }
+}
 
 /// The instance of a data flow graph.
 /// It contains runtime information for the instance
@@ -46,7 +89,7 @@ pub struct DataflowInstance {
 /// # Errors
 /// An error variant is returned in case of:
 /// -  port id is duplicated.
-fn create_links(
+pub(crate) fn create_links(
     nodes: &[NodeId],
     links: &[LinkRecord],
     hlc: Arc<HLC>,

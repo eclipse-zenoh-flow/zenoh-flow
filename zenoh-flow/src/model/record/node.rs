@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SinkRecord {
     pub id: NodeId,
-    pub uid: u32,
+    pub uid: usize,
     pub inputs: Vec<PortRecord>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
@@ -47,7 +47,7 @@ impl SinkRecord {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SourceRecord {
     pub id: NodeId,
-    pub uid: u32,
+    pub uid: usize,
     pub outputs: Vec<PortRecord>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
@@ -74,7 +74,7 @@ impl SourceRecord {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperatorRecord {
     pub(crate) id: NodeId,
-    pub uid: u32,
+    pub uid: usize,
     pub(crate) inputs: Vec<PortRecord>,
     pub(crate) outputs: Vec<PortRecord>,
     pub(crate) uri: Option<String>,

@@ -15,12 +15,14 @@
 use crate::prelude::{Data, Inputs, Message, Outputs};
 use crate::types::{Configuration, Context, Input, Output, PortId};
 use crate::Result as ZFResult;
+use async_std::sync::Mutex;
 use async_trait::async_trait;
 use futures::Future;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::pin::Pin;
+use std::sync::Arc;
 
 /// This trait is used to ensure the data can donwcast to [`Any`](`Any`)
 /// NOTE: This trait is separate from `ZFDataTrait` so that we can provide
@@ -101,6 +103,51 @@ pub trait Deserializable {
     fn try_deserialize(bytes: &[u8]) -> ZFResult<Self>
     where
         Self: Sized;
+}
+
+/// TODO(J-Loudet) Documentation.
+#[async_trait]
+pub trait Node: Send + Sync {
+    async fn iteration(&mut self) -> ZFResult<()>;
+}
+
+/// TODO Discuss: Should we make the traits take `&mut self` to allow modifying the Factory? If not,
+/// then I don’t think I see a point making the Factory into a trait.
+///
+/// We could have it be a simple stateless function that generates the nodes.
+
+/// TODO(J-Loudet) Documentation.
+#[async_trait]
+pub trait SourceFactory {
+    async fn new_source(
+        &self,
+        context: &mut Context,
+        configuration: &Option<Configuration>,
+        outputs: Outputs,
+    ) -> ZFResult<Option<Arc<Mutex<dyn Node>>>>;
+}
+
+/// TODO(J-Loudet) Documentation.
+#[async_trait]
+pub trait OperatorFactory {
+    async fn new_operator(
+        &self,
+        context: &mut Context,
+        configuration: &Option<Configuration>,
+        inputs: Inputs,
+        outputs: Outputs,
+    ) -> ZFResult<Option<Arc<Mutex<dyn Node>>>>;
+}
+
+/// TODO(J-Loudet) Documentation.
+#[async_trait]
+pub trait SinkFactory {
+    async fn new_sink(
+        &self,
+        context: &mut Context,
+        configuration: &Option<Configuration>,
+        inputs: Inputs,
+    ) -> ZFResult<Option<Arc<Mutex<dyn Node>>>>;
 }
 
 /// The `Source` trait represents a Source inside Zenoh Flow.
