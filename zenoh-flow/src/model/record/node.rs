@@ -73,13 +73,13 @@ impl SourceRecord {
 /// An `OperatorRecord` is an instance of an [`OperatorDescriptor`](`OperatorDescriptor`)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperatorRecord {
-    pub(crate) id: NodeId,
+    pub id: NodeId,
     pub uid: usize,
-    pub(crate) inputs: Vec<PortRecord>,
-    pub(crate) outputs: Vec<PortRecord>,
-    pub(crate) uri: Option<String>,
-    pub(crate) configuration: Option<Configuration>,
-    pub(crate) runtime: RuntimeId,
+    pub inputs: Vec<PortRecord>,
+    pub outputs: Vec<PortRecord>,
+    pub uri: Option<String>,
+    pub configuration: Option<Configuration>,
+    pub runtime: RuntimeId,
 }
 
 impl std::fmt::Display for OperatorRecord {
