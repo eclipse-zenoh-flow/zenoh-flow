@@ -15,7 +15,6 @@
 use crate::prelude::{Data, Inputs, Message, Outputs};
 use crate::types::{Configuration, Context, Input, Output, PortId};
 use crate::Result as ZFResult;
-use async_std::sync::Mutex;
 use async_trait::async_trait;
 use futures::Future;
 use std::any::Any;
@@ -108,7 +107,7 @@ pub trait Deserializable {
 /// TODO(J-Loudet) Documentation.
 #[async_trait]
 pub trait Node: Send + Sync {
-    async fn iteration(&mut self) -> ZFResult<()>;
+    async fn iteration(&self) -> ZFResult<()>;
 }
 
 /// TODO Discuss: Should we make the traits take `&mut self` to allow modifying the Factory? If not,
@@ -124,7 +123,7 @@ pub trait SourceFactory {
         context: &mut Context,
         configuration: &Option<Configuration>,
         outputs: Outputs,
-    ) -> ZFResult<Option<Arc<Mutex<dyn Node>>>>;
+    ) -> ZFResult<Option<Arc<dyn Node>>>;
 }
 
 /// TODO(J-Loudet) Documentation.
@@ -136,7 +135,7 @@ pub trait OperatorFactory {
         configuration: &Option<Configuration>,
         inputs: Inputs,
         outputs: Outputs,
-    ) -> ZFResult<Option<Arc<Mutex<dyn Node>>>>;
+    ) -> ZFResult<Option<Arc<dyn Node>>>;
 }
 
 /// TODO(J-Loudet) Documentation.
@@ -147,7 +146,7 @@ pub trait SinkFactory {
         context: &mut Context,
         configuration: &Option<Configuration>,
         inputs: Inputs,
-    ) -> ZFResult<Option<Arc<Mutex<dyn Node>>>>;
+    ) -> ZFResult<Option<Arc<dyn Node>>>;
 }
 
 /// The `Source` trait represents a Source inside Zenoh Flow.

@@ -26,7 +26,6 @@ use crate::traits::Node;
 use crate::types::io::{CallbackInput, CallbackOutput};
 use crate::zfresult::Error;
 use crate::Result as ZFResult;
-use async_lock::Mutex;
 use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
@@ -78,7 +77,7 @@ pub trait Runner: Send + Sync {
 /// A Runner2 takes care of running a node. Regardless of what it is. No need for a trait, no need
 /// for a separation between the types of nodes.
 pub(crate) struct Runner2 {
-    pub(crate) node: Option<Arc<Mutex<dyn Node>>>,
+    pub(crate) node: Option<Arc<dyn Node>>,
     pub(crate) inputs_callbacks: Vec<CallbackInput>,
     pub(crate) outputs_callbacks: Vec<CallbackOutput>,
     pub(crate) run_loop_handle: Option<JoinHandle<Result<Error, Aborted>>>,
@@ -91,7 +90,7 @@ pub(crate) struct Runner2 {
 
 impl Runner2 {
     pub(crate) fn new(
-        node: Option<Arc<Mutex<dyn Node>>>,
+        node: Option<Arc<dyn Node>>,
         inputs_callbacks: Vec<CallbackInput>,
         outputs_callbacks: Vec<CallbackOutput>,
     ) -> Self {
@@ -139,7 +138,6 @@ impl Runner2 {
                 let mut instant: Instant;
                 loop {
                     instant = Instant::now();
-                    let mut node = node.lock().await;
                     if let Err(e) = node.iteration().await {
                         log::error!("Iteration error: {:?}", e);
                         return e;
