@@ -110,7 +110,7 @@ async fn run(runtime: Runtime, config: DaemonConfig, rx: Receiver<()>) -> ZResul
         .await
         .map_err(|e| zerror!("Plugin `zenoh-flow-plugin` unable to start runtime {}", e))?;
 
-    if let Ok(_) = rx.recv_async().await {
+    if (rx.recv_async().await).is_ok() {
         log::debug!("Zenoh-Flow plugin, stopping.");
     } else {
         log::warn!("Zenoh-Flow plugin, stopping, channel sender was dropped!");
