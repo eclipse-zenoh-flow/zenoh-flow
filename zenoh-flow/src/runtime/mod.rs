@@ -31,7 +31,7 @@ use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::{DaemonResult, Result as ZFResult};
 use uhlc::{Timestamp, HLC};
-use zenoh::config::Config as ZenohConfig;
+// use zenoh::config::Config as ZenohConfig;
 use zenoh::Session;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 use zrpc_macros::zservice;
@@ -180,7 +180,7 @@ pub struct RuntimeConfig {
     pub path: String,     //Where the libraries are downloaded/located
     pub name: String,
     pub uuid: Uuid,
-    pub zenoh: ZenohConfig,
+    // pub zenoh: ZenohConfig,
     pub loader: LoaderConfig,
 }
 
