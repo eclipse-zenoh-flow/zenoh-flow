@@ -180,7 +180,6 @@ pub struct RuntimeConfig {
     pub path: String,     //Where the libraries are downloaded/located
     pub name: String,
     pub uuid: Uuid,
-    // pub zenoh: ZenohConfig,
     pub loader: LoaderConfig,
 }
 
