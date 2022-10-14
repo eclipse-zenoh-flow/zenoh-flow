@@ -13,21 +13,19 @@
 //
 
 pub mod connector;
-pub mod operator;
-pub mod replay;
-pub mod sink;
-pub mod source;
+// pub mod operator;
+// pub mod replay;
+// pub mod sink;
+// pub mod source;
 
 use std::sync::Arc;
 use std::time::Instant;
 
-use crate::prelude::NodeId;
 use crate::traits::Node;
 use crate::types::io::{CallbackInput, CallbackOutput};
 use crate::zfresult::Error;
 use crate::Result as ZFResult;
 use async_std::task::JoinHandle;
-use async_trait::async_trait;
 use futures::future::{AbortHandle, Abortable, Aborted};
 
 /// Type of the Runner.
@@ -47,36 +45,11 @@ pub enum RunAction {
     Stop,
 }
 
-/// This traits abstracts the runners, it provides the functions that are
-/// common across the runners.
-///
-///
-#[async_trait]
-pub trait Runner: Send + Sync {
-    /// The actual run where the magic happens.
-    ///
-    /// # Errors
-    /// It can fail to indicate that something went wrong when executing the node.
-    async fn start(&mut self) -> ZFResult<()>;
-
-    /// Returns the type of the runner.
-    fn get_kind(&self) -> RunnerKind;
-
-    /// Returns the `NodeId` of the runner.
-    fn get_id(&self) -> NodeId;
-
-    /// Checks if the `Runner` is running.
-    async fn is_running(&self) -> bool;
-
-    /// Stops the runner.
-    async fn stop(&mut self) -> ZFResult<()>;
-}
-
 /// TODO(J-Loudet) Improve documentation.
 ///
 /// A Runner2 takes care of running a node. Regardless of what it is. No need for a trait, no need
 /// for a separation between the types of nodes.
-pub(crate) struct Runner2 {
+pub(crate) struct Runner {
     pub(crate) node: Option<Arc<dyn Node>>,
     pub(crate) inputs_callbacks: Vec<CallbackInput>,
     pub(crate) outputs_callbacks: Vec<CallbackOutput>,
@@ -88,7 +61,7 @@ pub(crate) struct Runner2 {
     pub(crate) inputs_callbacks_abort_handle: Option<AbortHandle>,
 }
 
-impl Runner2 {
+impl Runner {
     pub(crate) fn new(
         node: Option<Arc<dyn Node>>,
         inputs_callbacks: Vec<CallbackInput>,
@@ -236,7 +209,7 @@ impl Runner2 {
     /// `pause` takes all handles, stops the associated tasks & replaces them with `None`.
     ///
     /// `pause` and not "stop" because we do not drop the `dyn Node` so its state is not lost.
-    pub(crate) async fn _pause(&mut self) -> ZFResult<()> {
+    pub(crate) async fn stop(&mut self) -> ZFResult<()> {
         if !self.is_running() {
             log::warn!("Called `stop` while node is NOT running. Returning.");
             return Ok(()); // TODO Return an error instead?

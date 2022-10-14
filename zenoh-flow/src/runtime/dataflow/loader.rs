@@ -12,11 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::node::{
-    OperatorFactory, OperatorLoaded, SinkFactory, SinkLoaded, SourceFactory, SourceLoaded,
-};
+use super::node::{OperatorFactory, SinkFactory, SourceFactory};
 use crate::model::record::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::traits::{Operator, Sink, Source};
 use crate::types::Configuration;
 use crate::zferror;
 use crate::zfresult::ErrorKind;
@@ -213,51 +210,6 @@ impl Loader {
         Self { config }
     }
 
-    /// Tries to load an operator from the information passed within
-    /// the [`OperatorRecord`](`OperatorRecord`).
-    ///
-    /// # Errors
-    /// It can fail because of:
-    /// - different versions of zenoh flow used to build the operator
-    /// - different versions of rust compiler used to build the operator
-    /// - the library does not contain the symbols.
-    /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
-    pub fn load_operator(&self, record: OperatorRecord) -> Result<OperatorLoaded> {
-        let uri = record.uri.clone().ok_or_else(|| {
-            zferror!(
-                ErrorKind::LoadingError,
-                "Missing URI for dynamically loaded Operator < {} >.",
-                record.id.clone()
-            )
-        })?;
-
-        let uri = Url::parse(&uri).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
-
-        match uri.scheme() {
-            "file" => {
-                let file_path = Self::make_file_path(uri)?;
-                let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-                    zferror!(
-                        ErrorKind::LoadingError,
-                        "Missing file extension for dynamically loaded Operator < {} , {:?}>.",
-                        record.id.clone(),
-                        file_path,
-                    )
-                })?;
-
-                match Self::is_lib(&file_extension) {
-                    true => {
-                        let (lib, op) = unsafe { Self::load_lib_operator(file_path) }?;
-                        Ok(OperatorLoaded::try_new(record, Some(Arc::new(lib)), op)?)
-                    }
-                    _ => Ok(self.load_operator_from_extension(record, file_path)?),
-                }
-            }
-            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
-        }
-    }
-
     /// TODO(J-Loudet) Adapt the documentation + remove the method `load_source` below?
     ///
     /// Tries to load a SourceFactory from the information passed within the
@@ -414,125 +366,28 @@ impl Loader {
         }
     }
 
-    /// Tries to load a source from the information passed within the
-    /// [`SourceRecord`](`SourceRecord`).
-    ///
-    ///
-    /// # Errors
-    /// It can fail because of:
-    /// - different versions of zenoh flow used to build the source
-    /// - different versions of rust compiler used to build the source
-    /// - the library does not contain the symbols.
-    /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
-    pub fn load_source(&self, record: SourceRecord) -> Result<SourceLoaded> {
-        let uri = record.uri.clone().ok_or_else(|| {
-            zferror!(
-                ErrorKind::LoadingError,
-                "Missing URI for dynamically loaded Source < {} >.",
-                record.id.clone()
-            )
-        })?;
-
-        let uri = Url::parse(&uri).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
-
-        match uri.scheme() {
-            "file" => {
-                let file_path = Self::make_file_path(uri)?;
-                let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-                    zferror!(
-                        ErrorKind::LoadingError,
-                        "Missing file extension for dynamically loaded Source < {} , {:?}>.",
-                        record.id.clone(),
-                        file_path,
-                    )
-                })?;
-
-                match Self::is_lib(&file_extension) {
-                    true => {
-                        let (lib, op) = unsafe { Self::load_lib_source(file_path) }?;
-                        Ok(SourceLoaded::try_new(record, Some(Arc::new(lib)), op)?)
-                    }
-                    _ => Ok(self.load_source_from_extension(record, file_path)?),
-                }
-            }
-            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
-        }
-    }
-
-    /// Tries to load a sink from the information passed within
-    /// the [`SinkRecord`](`SinkRecord`).
-    ///
-    /// # Errors
-    /// It can fail because of:
-    /// - different versions of zenoh flow used to build the sink
-    /// - different versions of rust compiler used to build the sink
-    /// - the library does not contain the symbols.
-    /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
-    pub fn load_sink(&self, record: SinkRecord) -> Result<SinkLoaded> {
-        let uri = record.uri.clone().ok_or_else(|| {
-            zferror!(
-                ErrorKind::LoadingError,
-                "Missing URI for dynamically loaded Sink < {} >.",
-                record.id.clone()
-            )
-        })?;
-
-        let uri = Url::parse(&uri).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
-
-        match uri.scheme() {
-            "file" => {
-                let file_path = Self::make_file_path(uri)?;
-                let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-                    zferror!(
-                        ErrorKind::LoadingError,
-                        "Missing file extension for dynamically loaded Sink < {} , {:?}>.",
-                        record.id.clone(),
-                        file_path,
-                    )
-                })?;
-
-                match Self::is_lib(&file_extension) {
-                    true => {
-                        let (lib, op) = unsafe { Self::load_lib_sink(file_path) }?;
-                        Ok(SinkLoaded::try_new(record, Some(Arc::new(lib)), op)?)
-                    }
-                    _ => Ok(self.load_sink_from_extension(record, file_path)?),
-                }
-            }
-            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
-        }
-    }
-
-    unsafe fn load_lib_operator(path: PathBuf) -> Result<(Library, Arc<dyn Operator>)> {
-        Self::load_lib_node::<dyn Operator>(path, NodeSymbol::Operator)
-    }
-
-    unsafe fn load_lib_source(path: PathBuf) -> Result<(Library, Arc<dyn Source>)> {
-        Self::load_lib_node::<dyn Source>(path, NodeSymbol::Source)
-    }
-
-    unsafe fn load_lib_sink(path: PathBuf) -> Result<(Library, Arc<dyn Sink>)> {
-        Self::load_lib_node::<dyn Sink>(path, NodeSymbol::Sink)
-    }
-
     unsafe fn load_lib_source_factory(
         path: PathBuf,
-    ) -> Result<(Library, Arc<dyn crate::traits::SourceFactory>)> {
-        Self::load_lib_node::<dyn crate::traits::SourceFactory>(path, NodeSymbol::SourceFactory)
+    ) -> Result<(Library, Arc<dyn crate::traits::SourceFactoryTrait>)> {
+        Self::load_lib_node::<dyn crate::traits::SourceFactoryTrait>(
+            path,
+            NodeSymbol::SourceFactory,
+        )
     }
 
     unsafe fn load_lib_operator_factory(
         path: PathBuf,
-    ) -> Result<(Library, Arc<dyn crate::traits::OperatorFactory>)> {
-        Self::load_lib_node::<dyn crate::traits::OperatorFactory>(path, NodeSymbol::OperatorFactory)
+    ) -> Result<(Library, Arc<dyn crate::traits::OperatorFactoryTrait>)> {
+        Self::load_lib_node::<dyn crate::traits::OperatorFactoryTrait>(
+            path,
+            NodeSymbol::OperatorFactory,
+        )
     }
 
     unsafe fn load_lib_sink_factory(
         path: PathBuf,
-    ) -> Result<(Library, Arc<dyn crate::traits::SinkFactory>)> {
-        Self::load_lib_node::<dyn crate::traits::SinkFactory>(path, NodeSymbol::SinkFactory)
+    ) -> Result<(Library, Arc<dyn crate::traits::SinkFactoryTrait>)> {
+        Self::load_lib_node::<dyn crate::traits::SinkFactoryTrait>(path, NodeSymbol::SinkFactory)
     }
 
     /// TODO(J-Loudet) Improve documentation.
@@ -600,48 +455,6 @@ impl Loader {
             }
         }
         None
-    }
-
-    /// Loads an operator that is not a dynamic library.
-    /// Using one of the extension configured within the loader.
-    ///
-    /// # Errors
-    /// This function can fail:
-    /// - the extension is not known
-    /// - different versions of zenoh flow used to build the extension
-    /// - different versions of rust compiler used to build the extension
-    /// - the extension library does not contain the symbols.
-    /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
-    /// - the operator does not match the extension interface.
-    fn load_operator_from_extension(
-        &self,
-        mut record: OperatorRecord,
-        file_path: PathBuf,
-    ) -> Result<OperatorLoaded> {
-        let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-            zferror!(
-                ErrorKind::LoadingError,
-                "Missing file extension for dynamically loaded Operator < {} , {:?}>.",
-                record.id.clone(),
-                file_path,
-            )
-        })?;
-
-        match self.config.get_extension_by_file_extension(&file_extension) {
-            Some(e) => {
-                let wrapper_file_path = std::fs::canonicalize(&e.operator_lib)?;
-                record.configuration = Some(Self::generate_wrapper_config(
-                    record.configuration,
-                    e.config_lib_key.clone(),
-                    &file_path,
-                )?);
-
-                let (lib, op) = unsafe { Self::load_lib_operator(wrapper_file_path) }?;
-                Ok(OperatorLoaded::try_new(record, Some(Arc::new(lib)), op)?)
-            }
-            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
-        }
     }
 
     /// TODO(J-Loudet) Update comment + delete the previous `load_source_from_extension`?
@@ -783,90 +596,6 @@ impl Loader {
                     factory,
                     _library: Some(Arc::new(lib)),
                 })
-            }
-            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
-        }
-    }
-
-    /// Loads a source that is not a dynamic library.
-    /// Using one of the extension configured within the loader.
-    ///
-    /// # Errors
-    /// This function can fail:
-    /// - the extension is not known
-    /// - different versions of zenoh flow used to build the extension
-    /// - different versions of rust compiler used to build the extension
-    /// - the extension library does not contain the symbols.
-    /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
-    /// - the source does not match the extension interface.
-    fn load_source_from_extension(
-        &self,
-        mut record: SourceRecord,
-        file_path: PathBuf,
-    ) -> Result<SourceLoaded> {
-        let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-            zferror!(
-                ErrorKind::LoadingError,
-                "Missing file extension for dynamically loaded Source < {} , {:?}>.",
-                record.id.clone(),
-                file_path,
-            )
-        })?;
-
-        match self.config.get_extension_by_file_extension(&file_extension) {
-            Some(e) => {
-                let wrapper_file_path = std::fs::canonicalize(&e.source_lib)?;
-                record.configuration = Some(Self::generate_wrapper_config(
-                    record.configuration,
-                    e.config_lib_key.clone(),
-                    &file_path,
-                )?);
-
-                let (lib, op) = unsafe { Self::load_lib_source(wrapper_file_path) }?;
-                Ok(SourceLoaded::try_new(record, Some(Arc::new(lib)), op)?)
-            }
-            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
-        }
-    }
-
-    /// Loads a sink that is not a dynamic library.
-    /// Using one of the extension configured within the loader.
-    ///
-    /// # Errors
-    /// This function can fail:
-    /// - the extension is not known
-    /// - different versions of zenoh flow used to build the extension
-    /// - different versions of rust compiler used to build the extension
-    /// - the extension library does not contain the symbols.
-    /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
-    /// - the sink does not match the extension interface.
-    fn load_sink_from_extension(
-        &self,
-        mut record: SinkRecord,
-        file_path: PathBuf,
-    ) -> Result<SinkLoaded> {
-        let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-            zferror!(
-                ErrorKind::LoadingError,
-                "Missing file extension for dynamically loaded Sink < {} , {:?}>.",
-                record.id.clone(),
-                file_path,
-            )
-        })?;
-
-        match self.config.get_extension_by_file_extension(&file_extension) {
-            Some(e) => {
-                let wrapper_file_path = std::fs::canonicalize(&e.sink_lib)?;
-                record.configuration = Some(Self::generate_wrapper_config(
-                    record.configuration,
-                    e.config_lib_key.clone(),
-                    &file_path,
-                )?);
-
-                let (lib, op) = unsafe { Self::load_lib_sink(wrapper_file_path) }?;
-                Ok(SinkLoaded::try_new(record, Some(Arc::new(lib)), op)?)
             }
             _ => Err(zferror!(ErrorKind::Unimplemented).into()),
         }

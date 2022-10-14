@@ -21,8 +21,8 @@ use zenoh_flow::model::{
     descriptor::{FlattenDataFlowDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor},
     record::DataFlowRecord,
 };
-use zenoh_flow::runtime::dataflow::instance::DataflowInstance;
-use zenoh_flow::runtime::dataflow::Dataflow;
+use zenoh_flow::runtime::dataflow::instance::DataFlowInstance;
+use zenoh_flow::runtime::dataflow::DataFlow;
 use zenoh_flow::runtime::resources::DataStore;
 use zenoh_flow::runtime::{
     DaemonInterfaceInternalClient, RuntimeConfig, RuntimeContext, RuntimeInfo, RuntimeStatus,
@@ -37,7 +37,7 @@ use zenoh_flow::Result as ZFResult;
 ///
 /// It keeps track of running instances and runtime configuration.
 pub struct RTState {
-    pub graphs: HashMap<Uuid, DataflowInstance>,
+    pub graphs: HashMap<Uuid, DataFlowInstance>,
     pub config: RuntimeConfig,
 }
 
@@ -261,8 +261,9 @@ impl Runtime {
 
         let dfr = self.store.get_flow_by_instance(&instance_id).await?;
 
-        let dataflow = Dataflow::try_new(self.ctx.clone(), dfr.clone())?;
-        let instance = DataflowInstance::try_instantiate(dataflow, self.ctx.hlc.clone())?;
+        let instance = DataFlow::try_new(dfr.clone(), self.ctx.clone())?
+            .try_instantiate(self.ctx.hlc.clone())
+            .await?;
 
         let mut self_state = self.state.lock().await;
         self_state.graphs.insert(dfr.uuid, instance);
@@ -276,6 +277,7 @@ impl Runtime {
 
         Ok(dfr)
     }
+
     pub(crate) async fn clean(&self, instance_id: Uuid) -> DaemonResult<DataFlowRecord> {
         log::info!("Cleaning for Instance UUID: {}", instance_id);
 
@@ -413,21 +415,18 @@ impl Runtime {
 
         match _state.graphs.get_mut(&instance_id) {
             Some(instance) => {
-                let mut sinks = instance.get_sinks();
-                for id in sinks.drain(..) {
-                    instance.start_node(&id).await?;
+                for id in instance.get_sinks() {
+                    instance.start_node(&id)?;
                     rt_status.running_sinks += 1;
                 }
 
-                let mut operators = instance.get_operators();
-                for id in operators.drain(..) {
-                    instance.start_node(&id).await?;
+                for id in instance.get_operators() {
+                    instance.start_node(&id)?;
                     rt_status.running_operators += 1;
                 }
 
-                let mut connectors = instance.get_connectors();
-                for id in connectors.drain(..) {
-                    instance.start_node(&id).await?;
+                for id in instance.get_connectors() {
+                    instance.start_node(&id)?;
                     rt_status.running_connectors += 1;
                 }
 
@@ -453,9 +452,8 @@ impl Runtime {
 
         match _state.graphs.get_mut(&instance_id) {
             Some(instance) => {
-                let mut sources = instance.get_sources();
-                for id in sources.drain(..) {
-                    instance.start_node(&id).await?;
+                for id in instance.get_sources() {
+                    instance.start_node(&id)?;
                     rt_status.running_sources += 1;
                 }
 
@@ -486,20 +484,17 @@ impl Runtime {
 
         match _state.graphs.get_mut(&instance_id) {
             Some(instance) => {
-                let mut sinks = instance.get_sinks();
-                for id in sinks.drain(..) {
+                for id in instance.get_sinks() {
                     instance.stop_node(&id).await?;
                     rt_status.running_sinks -= 1;
                 }
 
-                let mut operators = instance.get_operators();
-                for id in operators.drain(..) {
+                for id in instance.get_operators() {
                     instance.stop_node(&id).await?;
                     rt_status.running_operators -= 1;
                 }
 
-                let mut connectors = instance.get_connectors();
-                for id in connectors.drain(..) {
+                for id in instance.get_connectors() {
                     instance.stop_node(&id).await?;
                     rt_status.running_connectors -= 1;
                 }
@@ -525,8 +520,7 @@ impl Runtime {
 
         match _state.graphs.get_mut(&instance_id) {
             Some(instance) => {
-                let mut sources = instance.get_sources();
-                for id in sources.drain(..) {
+                for id in instance.get_sources() {
                     instance.stop_node(&id).await?;
                     rt_status.running_sources -= 1;
                 }
@@ -552,7 +546,7 @@ impl Runtime {
         //     .await?;
 
         match _state.graphs.get_mut(&instance_id) {
-            Some(instance) => Ok(instance.start_node(&node.into()).await?),
+            Some(instance) => Ok(instance.start_node(&node.into())?),
             None => Err(ErrorKind::InstanceNotFound(instance_id)),
         }
     }

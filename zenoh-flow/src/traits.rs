@@ -13,12 +13,11 @@
 //
 
 use crate::prelude::{Data, Inputs, Message, Outputs};
-use crate::types::{Configuration, Context, Input, Output, PortId};
+use crate::types::{Configuration, Context};
 use crate::Result as ZFResult;
 use async_trait::async_trait;
 use futures::Future;
 use std::any::Any;
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -117,7 +116,7 @@ pub trait Node: Send + Sync {
 
 /// TODO(J-Loudet) Documentation.
 #[async_trait]
-pub trait SourceFactory {
+pub trait SourceFactoryTrait: Send + Sync {
     async fn new_source(
         &self,
         context: &mut Context,
@@ -128,7 +127,7 @@ pub trait SourceFactory {
 
 /// TODO(J-Loudet) Documentation.
 #[async_trait]
-pub trait OperatorFactory {
+pub trait OperatorFactoryTrait: Send + Sync {
     async fn new_operator(
         &self,
         context: &mut Context,
@@ -140,77 +139,13 @@ pub trait OperatorFactory {
 
 /// TODO(J-Loudet) Documentation.
 #[async_trait]
-pub trait SinkFactory {
+pub trait SinkFactoryTrait: Send + Sync {
     async fn new_sink(
         &self,
         context: &mut Context,
         configuration: &Option<Configuration>,
         inputs: Inputs,
     ) -> ZFResult<Option<Arc<dyn Node>>>;
-}
-
-/// The `Source` trait represents a Source inside Zenoh Flow.
-#[async_trait]
-pub trait Source: Send + Sync {
-    async fn setup(
-        &self,
-        context: &mut Context,
-        configuration: &Option<Configuration>,
-        outputs: Outputs,
-    ) -> ZFResult<Option<Box<dyn AsyncIteration>>>;
-}
-
-/// The `Operator` trait represents an Operator inside Zenoh Flow.
-#[async_trait]
-pub trait Operator: Send + Sync {
-    async fn setup(
-        &self,
-        context: &mut Context,
-        configuration: &Option<Configuration>,
-        inputs: Inputs,
-        outputs: Outputs,
-    ) -> ZFResult<Option<Box<dyn AsyncIteration>>>;
-}
-
-/// The `Sink` trait represents a Sink inside Zenoh Flow.
-#[async_trait]
-pub trait Sink: Send + Sync {
-    async fn setup(
-        &self,
-        context: &mut Context,
-        configuration: &Option<Configuration>,
-        inputs: Inputs,
-    ) -> ZFResult<Option<Box<dyn AsyncIteration>>>;
-}
-
-/// A `SourceSink` represents Nodes that access the same physical interface to read and write.
-#[async_trait]
-pub trait SourceSink: Send + Sync {
-    async fn setup(
-        &self,
-        context: &mut Context,
-        configuration: &Option<Configuration>,
-        inputs: HashMap<PortId, Input>,
-        outputs: HashMap<PortId, Output>,
-    ) -> ZFResult<Option<Box<dyn AsyncIteration>>>;
-}
-
-/// Trait wrapping an async closures for node iteration.
-///
-/// Note: not intended to be directly used by users.
-pub trait AsyncIteration: Send + Sync {
-    fn call(&self) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>>;
-}
-
-/// Implementation of AsyncCallbackTx for any async closure that returns `Result<()>`.
-impl<Fut, Fun> AsyncIteration for Fun
-where
-    Fun: Fn() -> Fut + Sync + Send,
-    Fut: Future<Output = ZFResult<()>> + Send + Sync + 'static,
-{
-    fn call(&self) -> Pin<Box<dyn Future<Output = ZFResult<()>> + Send + Sync + 'static>> {
-        Box::pin((self)())
-    }
 }
 
 /// Trait wrapping an async closures for sender callback, it requires rust-nightly because of

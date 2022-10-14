@@ -36,7 +36,7 @@ pub struct DataFlowRecord {
     pub operators: HashMap<NodeId, OperatorRecord>,
     pub sinks: HashMap<NodeId, SinkRecord>,
     pub sources: HashMap<NodeId, SourceRecord>,
-    pub connectors: Vec<ZFConnectorRecord>,
+    pub connectors: HashMap<NodeId, ZFConnectorRecord>,
     pub links: Vec<LinkRecord>,
     pub counter: usize,
 }
@@ -248,19 +248,18 @@ impl DataFlowRecord {
                 // We only create a sender if none was created for the same resource. The rationale
                 // is to avoid creating multiple publisher for the same resource in case an operator
                 // acts as a multiplexor.
-                if !self
-                    .connectors
-                    .iter()
-                    .any(|c| c.kind == ZFConnectorKind::Sender && c.resource == z_resource_name)
-                {
+                if !self.connectors.iter().any(|(_id, c)| {
+                    c.kind == ZFConnectorKind::Sender && c.resource == z_resource_name
+                }) {
                     // creating sender
                     let sender_id = format!(
                         "sender-{}-{}-{}-{}",
                         &self.flow, &self.uuid, &l.from.node, &l.from.output
-                    );
+                    )
+                    .into();
                     let sender = ZFConnectorRecord {
                         kind: ZFConnectorKind::Sender,
-                        id: sender_id.clone().into(),
+                        id: Arc::clone(&sender_id),
                         resource: z_resource_name.clone(),
                         link_id: PortRecord {
                             uid: self.counter,
@@ -276,7 +275,7 @@ impl DataFlowRecord {
                     let link_sender = LinkDescriptor {
                         from: l.from.clone(),
                         to: InputDescriptor {
-                            node: sender_id.into(),
+                            node: Arc::clone(&sender_id),
                             input: l.from.output.clone(),
                         },
                         size: None,
@@ -285,7 +284,7 @@ impl DataFlowRecord {
                     };
 
                     // storing info in the dataflow record
-                    self.connectors.push(sender);
+                    self.connectors.insert(sender_id, sender);
                     self.links.push((link_sender, self.counter).into());
                     self.counter += 1;
                 }
@@ -294,10 +293,11 @@ impl DataFlowRecord {
                 let receiver_id = format!(
                     "receiver-{}-{}-{}-{}",
                     &self.flow, &self.uuid, &l.to.node, &l.to.input
-                );
+                )
+                .into();
                 let receiver = ZFConnectorRecord {
                     kind: ZFConnectorKind::Receiver,
-                    id: receiver_id.clone().into(),
+                    id: Arc::clone(&receiver_id),
                     resource: z_resource_name.clone(),
                     link_id: PortRecord {
                         uid: self.counter,
@@ -312,7 +312,7 @@ impl DataFlowRecord {
                 // Creating link between receiver and node
                 let link_receiver = LinkDescriptor {
                     from: OutputDescriptor {
-                        node: receiver_id.into(),
+                        node: Arc::clone(&receiver_id),
                         output: l.to.input.clone(),
                     },
                     to: l.to.clone(),
@@ -322,7 +322,7 @@ impl DataFlowRecord {
                 };
 
                 // storing info in the data flow record
-                self.connectors.push(receiver);
+                self.connectors.insert(receiver_id, receiver);
                 self.links.push((link_receiver, self.counter).into());
                 self.counter += 1;
             }
@@ -356,7 +356,7 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
             operators: HashMap::with_capacity(operators.len()),
             sinks: HashMap::with_capacity(sinks.len()),
             sources: HashMap::with_capacity(sources.len()),
-            connectors: Vec::new(),
+            connectors: HashMap::new(),
             links: Vec::new(),
             counter: 0,
         };

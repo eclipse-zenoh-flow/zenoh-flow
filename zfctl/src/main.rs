@@ -342,7 +342,7 @@ async fn main() {
                         .join("\n"),
                     instance
                         .connectors
-                        .iter()
+                        .values()
                         .map(|o| format!("{}", o))
                         .collect::<Vec<String>>()
                         .join("\n"),
