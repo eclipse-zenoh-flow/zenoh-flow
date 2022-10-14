@@ -31,7 +31,6 @@ use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::{DaemonResult, Result as ZFResult};
 use uhlc::{Timestamp, HLC};
-// use zenoh::config::Config as ZenohConfig;
 use zenoh::Session;
 use zrpc::zrpcresult::{ZRPCError, ZRPCResult};
 use zrpc_macros::zservice;
