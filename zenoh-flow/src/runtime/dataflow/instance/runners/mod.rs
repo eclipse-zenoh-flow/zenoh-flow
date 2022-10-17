@@ -130,8 +130,12 @@ impl Runner {
         }
 
         if !self.outputs_callbacks.is_empty() {
-            // TODO How is that clone "safe"? The underlying channels are "job stealing" so only the
-            // last copy actually gets the data?
+            // NOTE: We can safely clone the output callbacks as, internally, we rely on flume
+            // channels which can be safely cloned. Specifically, cloned Receivers are "job
+            // stealing", the first receiver that is ready will receive the data.
+            //
+            // In our situation, we only have one "active" Receiver per callback: the one that we
+            // move in the loop.
             let outputs_callbacks = self.outputs_callbacks.clone();
             let callbacks_loop = async move {
                 let mut running_callbacks = outputs_callbacks
@@ -166,8 +170,12 @@ impl Runner {
         }
 
         if !self.inputs_callbacks.is_empty() {
-            // TODO How is that clone "safe"? The underlying channels are "job stealing" so only the
-            // last copy actually gets the data?
+            // NOTE: We can safely clone the output callbacks as, internally, we rely on flume
+            // channels which can be safely cloned. Specifically, cloned Receivers are "job
+            // stealing", the first receiver that is ready will receive the data.
+            //
+            // In our situation, we only have one "active" Receiver per callback: the one that we
+            // move in the loop.
             let inputs_callbacks = self.inputs_callbacks.clone();
             let callbacks_loop = async move {
                 let mut running_callbacks = inputs_callbacks
