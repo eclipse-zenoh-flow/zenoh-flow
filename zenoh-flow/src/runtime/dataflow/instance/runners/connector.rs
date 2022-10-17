@@ -39,16 +39,14 @@ impl ZenohSender {
         session: Arc<Session>,
         mut inputs: Inputs,
     ) -> ZFResult<Self> {
-        let input = inputs
-            .take(record.link_id.port_id.clone())
-            .ok_or_else(|| {
-                zferror!(
-                    ErrorKind::IOError,
-                    "Link < {} > was not created for Connector < {} >.",
-                    record.link_id.port_id,
-                    record.id
-                )
-            })?;
+        let input = inputs.take(record.link_id.port_id.clone()).ok_or_else(|| {
+            zferror!(
+                ErrorKind::IOError,
+                "Link < {} > was not created for Connector < {} >.",
+                record.link_id.port_id,
+                record.id
+            )
+        })?;
 
         let key_expr = session
             .declare_keyexpr(record.resource.clone())
