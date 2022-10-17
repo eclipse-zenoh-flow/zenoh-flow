@@ -82,7 +82,7 @@ impl WorkerPool {
         let mut workers = Vec::with_capacity(pool_size);
 
         for i in 0..pool_size {
-            let new_fn_clone = Arc::clone(&new_worker_fn);
+            let new_fn_clone = new_worker_fn.clone();
             let worker = new_fn_clone.call(i, rx.clone(), hlc.clone());
             workers.push(worker);
         }
@@ -176,7 +176,7 @@ impl WorkerPool {
         }
 
         for i in 0..self.pool_size {
-            let new_fn_clone = Arc::clone(&self.new_worker_fn);
+            let new_fn_clone = self.new_worker_fn.clone();
             let worker = new_fn_clone.call(i, self.rx.clone(), self.hlc.clone());
             self.workers.push(worker);
         }

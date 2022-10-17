@@ -71,7 +71,7 @@ impl DataFlowInstance {
         }
 
         bail!(
-            ErrorKind::NodeNotFound(Arc::clone(node_id)),
+            ErrorKind::NodeNotFound(node_id.clone()),
             "Node < {} > not found",
             node_id
         )
@@ -84,7 +84,7 @@ impl DataFlowInstance {
         }
 
         bail!(
-            ErrorKind::NodeNotFound(Arc::clone(node_id)),
+            ErrorKind::NodeNotFound(node_id.clone()),
             "Node < {} > not found",
             node_id
         )

@@ -190,7 +190,7 @@ impl DataFlowRecord {
             };
 
             let from_type = match self.find_node_output_type(&l.from.node, &l.from.output) {
-                Some(t) => t,
+                Some(t) => t.clone(),
                 None => {
                     return Err(zferror!(ErrorKind::PortNotFound((
                         l.from.node.clone(),
@@ -211,13 +211,18 @@ impl DataFlowRecord {
                 }
             };
 
-            if from_type != &to_type
+            if from_type != to_type
                 && from_type.as_ref() != PORT_TYPE_ANY
                 && to_type.as_ref() != PORT_TYPE_ANY
             {
+                // NOTE `Arc::clone` for two reasons:
+                // - Clippy considers calls to `.clone()` as redundant but rustc complains if there
+                //   is no clone,
+                // - this is just a temporary fix as we will introduce proper types that will
+                //   implement Clone and (under the hood) use Arc::clone
                 return Err(zferror!(ErrorKind::PortTypeNotMatching((
-                    Arc::clone(from_type),
-                    Arc::clone(&to_type),
+                    Arc::clone(&from_type),
+                    Arc::clone(&to_type)
                 )))
                 .into());
             }
@@ -252,14 +257,14 @@ impl DataFlowRecord {
                     c.kind == ZFConnectorKind::Sender && c.resource == z_resource_name
                 }) {
                     // creating sender
-                    let sender_id = format!(
+                    let sender_id: NodeId = format!(
                         "sender-{}-{}-{}-{}",
                         &self.flow, &self.uuid, &l.from.node, &l.from.output
                     )
                     .into();
                     let sender = ZFConnectorRecord {
                         kind: ZFConnectorKind::Sender,
-                        id: Arc::clone(&sender_id),
+                        id: sender_id.clone(),
                         resource: z_resource_name.clone(),
                         link_id: PortRecord {
                             uid: self.counter,
@@ -275,7 +280,7 @@ impl DataFlowRecord {
                     let link_sender = LinkDescriptor {
                         from: l.from.clone(),
                         to: InputDescriptor {
-                            node: Arc::clone(&sender_id),
+                            node: sender_id.clone(),
                             input: l.from.output.clone(),
                         },
                         size: None,
@@ -290,14 +295,14 @@ impl DataFlowRecord {
                 }
 
                 // creating receiver
-                let receiver_id = format!(
+                let receiver_id: NodeId = format!(
                     "receiver-{}-{}-{}-{}",
                     &self.flow, &self.uuid, &l.to.node, &l.to.input
                 )
                 .into();
                 let receiver = ZFConnectorRecord {
                     kind: ZFConnectorKind::Receiver,
-                    id: Arc::clone(&receiver_id),
+                    id: receiver_id.clone(),
                     resource: z_resource_name.clone(),
                     link_id: PortRecord {
                         uid: self.counter,
@@ -312,7 +317,7 @@ impl DataFlowRecord {
                 // Creating link between receiver and node
                 let link_receiver = LinkDescriptor {
                     from: OutputDescriptor {
-                        node: Arc::clone(&receiver_id),
+                        node: receiver_id.clone(),
                         output: l.to.input.clone(),
                     },
                     to: l.to.clone(),

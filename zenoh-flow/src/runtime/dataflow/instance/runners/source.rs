@@ -264,7 +264,7 @@ impl Runner for SourceRunner {
         /* Callbacks */
         let output_callbacks = std::mem::take(&mut self.context.outputs_callbacks);
         if !output_callbacks.is_empty() {
-            let source_id = Arc::clone(&self.id);
+            let source_id = self.id.clone();
 
             let callbacks_loop = async move {
                 let mut running_callbacks = output_callbacks

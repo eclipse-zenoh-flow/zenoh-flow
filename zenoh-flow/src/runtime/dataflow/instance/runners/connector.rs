@@ -40,7 +40,7 @@ impl ZenohSender {
         mut inputs: Inputs,
     ) -> ZFResult<Self> {
         let input = inputs
-            .take(Arc::clone(&record.link_id.port_id))
+            .take(record.link_id.port_id.clone())
             .ok_or_else(|| {
                 zferror!(
                     ErrorKind::IOError,
@@ -57,9 +57,9 @@ impl ZenohSender {
             .into_owned();
 
         Ok(Self {
-            id: Arc::clone(&record.id),
+            id: record.id.clone(),
             input,
-            z_session: Arc::clone(&session),
+            z_session: session.clone(),
             key_expr,
         })
     }
@@ -104,7 +104,7 @@ impl ZenohReceiver {
             .into_owned();
         let subscriber = session.declare_subscriber(key_expr.clone()).res().await?;
         let output = outputs
-            .take(Arc::clone(&record.link_id.port_id))
+            .take(record.link_id.port_id.clone())
             .ok_or_else(|| {
                 zferror!(
                     ErrorKind::IOError,
@@ -115,7 +115,7 @@ impl ZenohReceiver {
             })?;
 
         Ok(Self {
-            id: Arc::clone(&record.id),
+            id: record.id.clone(),
             output,
             subscriber,
         })

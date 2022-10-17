@@ -236,7 +236,7 @@ impl DataFlow {
         node_ids.append(&mut self.sink_factories.keys().cloned().collect::<Vec<_>>());
         node_ids.append(&mut self.connectors.keys().cloned().collect::<Vec<_>>());
 
-        let mut links = create_links(&node_ids, &self.links, Arc::clone(&hlc))?;
+        let mut links = create_links(&node_ids, &self.links, hlc.clone())?;
 
         let ctx = Context::new(&instance_context);
 
@@ -256,7 +256,7 @@ impl DataFlow {
                 .new_source(&mut context, &source_factory.configuration, outputs)
                 .await?;
             let runner = Runner::new(source, context.inputs_callbacks, context.outputs_callbacks);
-            runners.insert(Arc::clone(source_id), runner);
+            runners.insert(source_id.clone(), runner);
         }
 
         for (operator_id, operator_factory) in &self.operator_factories {
@@ -283,7 +283,7 @@ impl DataFlow {
                 context.inputs_callbacks,
                 context.outputs_callbacks,
             );
-            runners.insert(Arc::clone(operator_id), runner);
+            runners.insert(operator_id.clone(), runner);
         }
 
         for (sink_id, sink_factory) in &self.sink_factories {
@@ -301,11 +301,11 @@ impl DataFlow {
                 .new_sink(&mut context, &sink_factory.configuration, inputs)
                 .await?;
             let runner = Runner::new(sink, context.inputs_callbacks, context.outputs_callbacks);
-            runners.insert(Arc::clone(sink_id), runner);
+            runners.insert(sink_id.clone(), runner);
         }
 
         for (connector_id, connector_record) in &self.connectors {
-            let session = Arc::clone(&instance_context.runtime.session);
+            let session = instance_context.runtime.session.clone();
             let node = match &connector_record.kind {
                 ZFConnectorKind::Sender => {
                     let (inputs, _) = links.remove(connector_id).ok_or_else(|| {
@@ -336,7 +336,7 @@ impl DataFlow {
             };
 
             let runner = Runner::new(node, vec![], vec![]);
-            runners.insert(Arc::clone(connector_id), runner);
+            runners.insert(connector_id.clone(), runner);
         }
 
         Ok(DataFlowInstance {

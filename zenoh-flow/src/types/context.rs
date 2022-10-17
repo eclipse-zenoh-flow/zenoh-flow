@@ -44,11 +44,11 @@ pub struct Context {
 impl Context {
     pub(crate) fn new(instance_context: &InstanceContext) -> Self {
         Self {
-            runtime_name: Arc::clone(&instance_context.runtime.runtime_name),
+            runtime_name: instance_context.runtime.runtime_name.clone(),
             runtime_uuid: instance_context.runtime.runtime_uuid,
-            flow_name: Arc::clone(&instance_context.flow_id),
+            flow_name: instance_context.flow_id.clone(),
             instance_id: instance_context.instance_id,
-            hlc: Arc::clone(&instance_context.runtime.hlc),
+            hlc: instance_context.runtime.hlc.clone(),
             inputs_callbacks: vec![],
             outputs_callbacks: vec![],
         }

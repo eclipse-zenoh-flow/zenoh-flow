@@ -180,6 +180,11 @@ impl DataFlowValidator {
             .insert(id.clone(), node_checker_idx)
             .is_some()
         {
+            // NOTE `Arc::clone` for two reasons:
+            // - Clippy considers calls to `.clone()` as redundant but rustc complains if there is
+            //   no clone,
+            // - this is just a temporary fix as we will introduce proper types that will implement
+            //   Clone and (under the hood) use Arc::clone
             return Err(zferror!(ErrorKind::DuplicatedPort((
                 Arc::clone(&node_id),
                 Arc::clone(&port.port_id)

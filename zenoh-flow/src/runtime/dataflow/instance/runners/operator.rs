@@ -162,7 +162,7 @@ impl Runner for OperatorRunner {
         /* Callbacks */
         let outputs_callbacks = std::mem::take(&mut self.context.outputs_callbacks);
         if !outputs_callbacks.is_empty() {
-            let operator_id = Arc::clone(&self.id);
+            let operator_id = self.id.clone();
 
             let callbacks_loop = async move {
                 let mut running_callbacks = outputs_callbacks
@@ -202,7 +202,7 @@ impl Runner for OperatorRunner {
 
         let inputs_callbacks = std::mem::take(&mut self.context.inputs_callbacks);
         if !inputs_callbacks.is_empty() {
-            let operator_id = Arc::clone(&self.id);
+            let operator_id = self.id.clone();
 
             let callbacks_loop = async move {
                 let mut running_callbacks = inputs_callbacks

@@ -132,7 +132,7 @@ impl Runner for SinkRunner {
         /* Callbacks */
         let inputs_callbacks = std::mem::take(&mut self.context.inputs_callbacks);
         if !inputs_callbacks.is_empty() {
-            let sink_id = Arc::clone(&self.id);
+            let sink_id = self.id.clone();
 
             let callbacks_loop = async move {
                 let mut running_callbacks = inputs_callbacks

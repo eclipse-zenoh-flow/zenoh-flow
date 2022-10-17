@@ -208,7 +208,7 @@ impl OperatorFactoryTrait for NoOpCallbackFactory {
         context.register_input_callback(
             input,
             Arc::new(move |message| {
-                let output_cloned = Arc::clone(&output);
+                let output_cloned = output.clone();
 
                 async move {
                     println!("Entering callback");
@@ -244,12 +244,12 @@ async fn single_runtime() {
     );
     let hlc = async_std::sync::Arc::new(uhlc::HLC::default());
     let rt_uuid = uuid::Uuid::new_v4();
-    let runtime_name = format!("test-runtime-{}", rt_uuid).into();
+    let runtime_name: RuntimeId = format!("test-runtime-{}", rt_uuid).into();
     let ctx = RuntimeContext {
         session,
         hlc: hlc.clone(),
         loader: Arc::new(Loader::new(LoaderConfig::new())),
-        runtime_name: Arc::clone(&runtime_name),
+        runtime_name: runtime_name.clone(),
         runtime_uuid: rt_uuid,
     };
 
@@ -272,7 +272,7 @@ async fn single_runtime() {
         ],
         uri: None,
         configuration: None,
-        runtime: Arc::clone(&runtime_name),
+        runtime: runtime_name.clone(),
     };
 
     dataflow.add_source_factory(
@@ -298,7 +298,7 @@ async fn single_runtime() {
         ],
         uri: None,
         configuration: None,
-        runtime: Arc::clone(&runtime_name),
+        runtime: runtime_name.clone(),
     };
 
     dataflow.add_sink_factory("generic-sink", sink_record, Arc::new(GenericSinkFactory));
@@ -318,7 +318,7 @@ async fn single_runtime() {
         }],
         uri: None,
         configuration: None,
-        runtime: Arc::clone(&runtime_name),
+        runtime: runtime_name.clone(),
     };
 
     dataflow.add_operator_factory("noop", no_op_record, Arc::new(NoOpFactory));
@@ -338,7 +338,7 @@ async fn single_runtime() {
         }],
         uri: None,
         configuration: None,
-        runtime: Arc::clone(&runtime_name),
+        runtime: runtime_name.clone(),
     };
 
     dataflow.add_operator_factory(

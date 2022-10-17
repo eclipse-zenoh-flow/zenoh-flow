@@ -106,7 +106,7 @@ impl Runner {
         }
 
         if let Some(node) = &self.node {
-            let node = Arc::clone(node);
+            let node = node.clone();
             let run_loop = async move {
                 let mut instant: Instant;
                 loop {
