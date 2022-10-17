@@ -38,7 +38,7 @@
 ///     }
 /// }
 ///
-/// export_operator!(register);
+/// export_operator_factory!(register);
 ///
 /// fn register() -> Result<Arc<dyn OperatorFactoryTrait>> {
 ///    Ok(Arc::new(MyOperator) as Arc<dyn OperatorFactoryTrait>)
@@ -46,17 +46,17 @@
 /// ```
 ///
 #[macro_export]
-macro_rules! export_operator {
+macro_rules! export_operator_factory {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfoperator_declaration: $crate::runtime::dataflow::loader::NodeDeclaration<
-            OperatorFactoryTrait,
-        > = $crate::runtime::dataflow::loader::NodeDeclaration::<OperatorFactoryTrait> {
-            rustc_version: $crate::runtime::dataflow::loader::RUSTC_VERSION,
-            core_version: $crate::runtime::dataflow::loader::CORE_VERSION,
-            register: $register,
-        };
+        pub static zfoperator_factory_declaration:
+            $crate::runtime::dataflow::loader::NodeDeclaration<OperatorFactoryTrait> =
+            $crate::runtime::dataflow::loader::NodeDeclaration::<OperatorFactoryTrait> {
+                rustc_version: $crate::runtime::dataflow::loader::RUSTC_VERSION,
+                core_version: $crate::runtime::dataflow::loader::CORE_VERSION,
+                register: $register,
+            };
     };
 }
 
@@ -85,7 +85,7 @@ macro_rules! export_operator {
 ///     }
 /// }
 ///
-/// export_source!(register);
+/// export_source_factory!(register);
 ///
 /// fn register() -> Result<Arc<dyn SourceFactoryTrait>> {
 ///    Ok(Arc::new(MySource) as Arc<dyn SourceFactoryTrait>)
@@ -94,17 +94,17 @@ macro_rules! export_operator {
 /// ```
 ///
 #[macro_export]
-macro_rules! export_source {
+macro_rules! export_source_factory {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsource_declaration: $crate::runtime::dataflow::loader::NodeDeclaration<
-            SourceFactoryTrait,
-        > = $crate::runtime::dataflow::loader::NodeDeclaration::<SourceFactoryTrait> {
-            rustc_version: $crate::runtime::dataflow::loader::RUSTC_VERSION,
-            core_version: $crate::runtime::dataflow::loader::CORE_VERSION,
-            register: $register,
-        };
+        pub static zfsource_factory_declaration:
+            $crate::runtime::dataflow::loader::NodeDeclaration<SourceFactoryTrait> =
+            $crate::runtime::dataflow::loader::NodeDeclaration::<SourceFactoryTrait> {
+                rustc_version: $crate::runtime::dataflow::loader::RUSTC_VERSION,
+                core_version: $crate::runtime::dataflow::loader::CORE_VERSION,
+                register: $register,
+            };
     };
 }
 
@@ -133,7 +133,7 @@ macro_rules! export_source {
 ///     }
 /// }
 ///
-/// export_sink!(register);
+/// export_sink_factory!(register);
 ///
 ///
 /// fn register() -> Result<Arc<dyn SinkFactoryTrait>> {
@@ -143,11 +143,11 @@ macro_rules! export_source {
 /// ```
 ///
 #[macro_export]
-macro_rules! export_sink {
+macro_rules! export_sink_factory {
     ($register:expr) => {
         #[doc(hidden)]
         #[no_mangle]
-        pub static zfsink_declaration: $crate::runtime::dataflow::loader::NodeDeclaration<
+        pub static zfsink_factory_declaration: $crate::runtime::dataflow::loader::NodeDeclaration<
             SinkFactoryTrait,
         > = $crate::runtime::dataflow::loader::NodeDeclaration::<SinkFactoryTrait> {
             rustc_version: $crate::runtime::dataflow::loader::RUSTC_VERSION,

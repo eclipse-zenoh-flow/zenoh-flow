@@ -60,7 +60,7 @@ pub mod prelude {
         Configuration, Context, Data, DataMessage, Input, Inputs, Message, NodeId, Output, Outputs,
         PortId, RuntimeId, Streams,
     };
-    pub use crate::{export_operator, export_sink, export_source, zferror};
+    pub use crate::{export_operator_factory, export_sink_factory, export_source_factory, zferror};
 
     pub use crate::zfresult::{Error, ErrorKind, ZFResult as Result};
 }
