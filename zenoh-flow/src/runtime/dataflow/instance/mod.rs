@@ -14,14 +14,16 @@
 
 pub mod runners;
 
+use self::runners::connector::{ZenohReceiver, ZenohSender};
 use self::runners::Runner;
 use super::DataFlow;
-use crate::bail;
-use crate::model::record::LinkRecord;
+use crate::model::record::{LinkRecord, ZFConnectorKind};
+use crate::prelude::{Context, Node};
 use crate::runtime::InstanceContext;
 use crate::types::{Input, Inputs, NodeId, Output, Outputs};
 use crate::zfresult::ErrorKind;
 use crate::Result;
+use crate::{bail, zferror};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -88,6 +90,150 @@ impl DataFlowInstance {
             "Node < {} > not found",
             node_id
         )
+    }
+
+    /// TODO(J-Loudet) Improve documentation.
+    ///
+    /// Try instantiating the DataFlow2, hence generating a DataFlowInstance2.
+    pub async fn try_instantiate(data_flow: DataFlow, hlc: Arc<HLC>) -> Result<Self> {
+        let instance_context = Arc::new(InstanceContext {
+            flow_id: data_flow.flow.clone(),
+            instance_id: data_flow.uuid,
+            runtime: data_flow.context.clone(),
+        });
+
+        let mut node_ids: Vec<NodeId> = Vec::with_capacity(
+            data_flow.source_factories.len()
+                + data_flow.operator_factories.len()
+                + data_flow.sink_factories.len()
+                + data_flow.connectors.len(),
+        );
+
+        node_ids.append(
+            &mut data_flow
+                .source_factories
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>(),
+        );
+        node_ids.append(
+            &mut data_flow
+                .operator_factories
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>(),
+        );
+        node_ids.append(&mut data_flow.sink_factories.keys().cloned().collect::<Vec<_>>());
+        node_ids.append(&mut data_flow.connectors.keys().cloned().collect::<Vec<_>>());
+
+        let mut links = create_links(&node_ids, &data_flow.links, hlc.clone())?;
+
+        let ctx = Context::new(&instance_context);
+
+        let mut runners = HashMap::with_capacity(data_flow.source_factories.len());
+        for (source_id, source_factory) in &data_flow.source_factories {
+            let mut context = ctx.clone();
+            let (_, outputs) = links.remove(source_id).ok_or_else(|| {
+                zferror!(
+                    ErrorKind::IOError,
+                    "Links for Source < {} > were not created.",
+                    &source_id
+                )
+            })?;
+
+            let source = source_factory
+                .factory
+                .new_source(&mut context, &source_factory.configuration, outputs)
+                .await?;
+            let runner = Runner::new(source, context.inputs_callbacks, context.outputs_callbacks);
+            runners.insert(source_id.clone(), runner);
+        }
+
+        for (operator_id, operator_factory) in &data_flow.operator_factories {
+            let mut context = ctx.clone();
+            let (inputs, outputs) = links.remove(operator_id).ok_or_else(|| {
+                zferror!(
+                    ErrorKind::IOError,
+                    "Links for Operator < {} > were not created.",
+                    &operator_id
+                )
+            })?;
+
+            let operator = operator_factory
+                .factory
+                .new_operator(
+                    &mut context,
+                    &operator_factory.configuration,
+                    inputs,
+                    outputs,
+                )
+                .await?;
+            let runner = Runner::new(
+                operator,
+                context.inputs_callbacks,
+                context.outputs_callbacks,
+            );
+            runners.insert(operator_id.clone(), runner);
+        }
+
+        for (sink_id, sink_factory) in &data_flow.sink_factories {
+            let mut context = ctx.clone();
+            let (inputs, _) = links.remove(sink_id).ok_or_else(|| {
+                zferror!(
+                    ErrorKind::IOError,
+                    "Links for Sink < {} > were not created.",
+                    &sink_id
+                )
+            })?;
+
+            let sink = sink_factory
+                .factory
+                .new_sink(&mut context, &sink_factory.configuration, inputs)
+                .await?;
+            let runner = Runner::new(sink, context.inputs_callbacks, context.outputs_callbacks);
+            runners.insert(sink_id.clone(), runner);
+        }
+
+        for (connector_id, connector_record) in &data_flow.connectors {
+            let session = instance_context.runtime.session.clone();
+            let node = match &connector_record.kind {
+                ZFConnectorKind::Sender => {
+                    let (inputs, _) = links.remove(connector_id).ok_or_else(|| {
+                        zferror!(
+                            ErrorKind::IOError,
+                            "Links for Sink < {} > were not created.",
+                            connector_id
+                        )
+                    })?;
+                    Some(
+                        Arc::new(ZenohSender::new(connector_record, session, inputs).await?)
+                            as Arc<dyn Node>,
+                    )
+                }
+                ZFConnectorKind::Receiver => {
+                    let (_, outputs) = links.remove(connector_id).ok_or_else(|| {
+                        zferror!(
+                            ErrorKind::IOError,
+                            "Links for Source < {} > were not created.",
+                            &connector_id
+                        )
+                    })?;
+                    Some(
+                        Arc::new(ZenohReceiver::new(connector_record, session, outputs).await?)
+                            as Arc<dyn Node>,
+                    )
+                }
+            };
+
+            let runner = Runner::new(node, vec![], vec![]);
+            runners.insert(connector_id.clone(), runner);
+        }
+
+        Ok(DataFlowInstance {
+            _instance_context: instance_context,
+            data_flow,
+            runners,
+        })
     }
 }
 

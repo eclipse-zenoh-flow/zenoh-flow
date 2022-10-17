@@ -21,6 +21,7 @@ use zenoh::prelude::r#async::*;
 use zenoh_flow::model::descriptor::{InputDescriptor, OutputDescriptor};
 use zenoh_flow::model::record::{OperatorRecord, PortRecord, SinkRecord, SourceRecord};
 use zenoh_flow::prelude::*;
+use zenoh_flow::runtime::dataflow::instance::DataFlowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::traits::{
@@ -391,7 +392,9 @@ async fn single_runtime() {
         },
     );
 
-    let mut instance = dataflow.try_instantiate(hlc.clone()).await.unwrap();
+    let mut instance = DataFlowInstance::try_instantiate(dataflow, hlc.clone())
+        .await
+        .unwrap();
 
     for id in instance.get_sinks() {
         instance.start_node(&id).unwrap();

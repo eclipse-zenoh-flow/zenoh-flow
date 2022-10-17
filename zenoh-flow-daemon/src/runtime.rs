@@ -261,9 +261,8 @@ impl Runtime {
 
         let dfr = self.store.get_flow_by_instance(&instance_id).await?;
 
-        let instance = DataFlow::try_new(dfr.clone(), self.ctx.clone())?
-            .try_instantiate(self.ctx.hlc.clone())
-            .await?;
+        let data_flow = DataFlow::try_new(dfr.clone(), self.ctx.clone())?;
+        let instance = DataFlowInstance::try_instantiate(data_flow, self.ctx.hlc.clone()).await?;
 
         let mut self_state = self.state.lock().await;
         self_state.graphs.insert(dfr.uuid, instance);
