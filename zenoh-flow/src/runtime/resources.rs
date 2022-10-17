@@ -369,101 +369,46 @@ where
 }
 //
 
-// Streams conversions
-
-pin_project! {
-    /// Custom stream to lister for Runtime Configuration changes.
-    pub struct ZFRuntimeConfigStream {
-        #[pin]
-        sample_stream: zenoh::subscriber::Subscriber<'static, flume::Receiver<Sample>>,
-    }
-}
-
-impl ZFRuntimeConfigStream {
-    pub async fn close(self) -> Result<()> {
-        Ok(())
-    }
-}
-
-impl Stream for ZFRuntimeConfigStream {
-    type Item = crate::runtime::RuntimeConfig;
-
-    #[inline(always)]
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        match self.sample_stream.recv_async().poll(cx) {
-            Poll::Ready(Ok(sample)) => match sample.kind {
-                SampleKind::Put => match sample.value.encoding {
-                    Encoding::APP_OCTET_STREAM => {
-                        match deserialize_data::<crate::runtime::RuntimeConfig>(
-                            &sample.value.payload.contiguous(),
-                        ) {
-                            Ok(info) => Poll::Ready(Some(info)),
-                            Err(_) => Poll::Ready(None),
-                        }
-                    }
-                    _ => {
-                        log::warn!(
-                            "Received sample with wrong encoding {:?}, dropping",
-                            sample.value.encoding
-                        );
-                        Poll::Ready(None)
-                    }
-                },
-                SampleKind::Delete => {
-                    log::warn!("Received delete sample drop it");
-                    Poll::Ready(None)
+/// Converts data from Zenoh samples,
+/// useful when converting data from a subscriber
+///
+/// # Errors
+/// It can return an error in the following cases
+/// - fails to deserialize
+/// - the sample is not an APP_OCTET_STREAM
+/// - the sample is a Delete
+pub fn convert<T>(sample: Sample) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    match sample.kind {
+        SampleKind::Put => match sample.value.encoding {
+            Encoding::APP_OCTET_STREAM => {
+                match deserialize_data::<T>(&sample.value.payload.contiguous()) {
+                    Ok(data) => Ok(data),
+                    Err(e) => Err(e),
                 }
-            },
-            Poll::Ready(Err(_)) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-}
-
-pin_project! {
-    /// Custom stream to lister for Jobs.
-    /// Converts [`zenoh::Subscriber`][`zenoh::Subscriber`] to a stream of [`Job`](`Job`)
-    pub struct ZFJobStream {
-        #[pin]
-        sub: zenoh::subscriber::Subscriber<'static, flume::Receiver<Sample>>,
-    }
-}
-
-impl ZFJobStream {
-    pub async fn close(self) -> Result<()> {
-        Ok(())
-    }
-}
-
-impl Stream for ZFJobStream {
-    type Item = Job;
-
-    #[inline(always)]
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        match self.sub.recv_async().poll(cx) {
-            Poll::Ready(Ok(sample)) => match sample.kind {
-                SampleKind::Put => match sample.value.encoding {
-                    Encoding::APP_OCTET_STREAM => {
-                        match deserialize_data::<Job>(&sample.value.payload.contiguous()) {
-                            Ok(info) => Poll::Ready(Some(info)),
-                            Err(_) => Poll::Ready(None),
-                        }
-                    }
-                    _ => {
-                        log::warn!(
-                            "Received sample with wrong encoding {:?}. Dropping",
-                            sample.value.encoding
-                        );
-                        Poll::Ready(None)
-                    }
-                },
-                SampleKind::Delete => {
-                    log::warn!("Received delete sample. Dropping.");
-                    Poll::Ready(None)
-                }
-            },
-            Poll::Ready(Err(_)) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
+            }
+            _ => {
+                log::warn!(
+                    "Received sample with wrong encoding {:?}, dropping",
+                    sample.value.encoding
+                );
+                Err(zferror!(
+                    ErrorKind::DeseralizationError,
+                    "Received sample with wrong encoding {:?}, dropping",
+                    sample.value.encoding
+                )
+                .into())
+            }
+        },
+        SampleKind::Delete => {
+            log::warn!("Received delete sample drop it");
+            Err(zferror!(
+                ErrorKind::DeseralizationError,
+                "Received delete sample dropping it"
+            )
+            .into())
         }
     }
 }
@@ -567,7 +512,10 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - zenoh subscribe fails
     /// - fails to deserialize
-    pub async fn subscribe_runtime_config(&self, rtid: &Uuid) -> Result<ZFRuntimeConfigStream> {
+    pub async fn subscribe_runtime_config(
+        &self,
+        rtid: &Uuid,
+    ) -> Result<zenoh::subscriber::Subscriber<'static, flume::Receiver<Sample>>> {
         // let selector = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
         //
         // Ok(self.z
@@ -830,13 +778,12 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - zenoh subscribe fails
     /// - fails to deserialize
-    pub async fn subscribe_sumbitted_jobs(&self, rtid: &Uuid) -> Result<ZFJobStream> {
+    pub async fn subscribe_sumbitted_jobs(
+        &self,
+        rtid: &Uuid,
+    ) -> Result<zenoh::subscriber::Subscriber<'static, flume::Receiver<Sample>>> {
         let selector = JQ_SUMBITTED_SEL!(ROOT_STANDALONE, rtid);
-        self.z
-            .declare_subscriber(&selector)
-            .res()
-            .await
-            .map(|sub| ZFJobStream { sub })
+        self.z.declare_subscriber(&selector).res().await
     }
 
     /// Submits the given [`Job`](`Job`) in the queue

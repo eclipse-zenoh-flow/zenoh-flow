@@ -15,9 +15,10 @@
 use std::sync::Arc;
 
 use crate::model::descriptor::FlattenDataFlowDescriptor;
+use crate::runtime::resources::convert;
 use crate::runtime::{resources::DataStore, Job};
 use crate::Result as ZFResult;
-use async_std::{stream::StreamExt, task::JoinHandle};
+use async_std::task::JoinHandle;
 use async_trait::async_trait;
 use flume::{unbounded, Receiver, Sender};
 use futures::stream::{AbortHandle, Abortable, Aborted};
@@ -125,14 +126,19 @@ impl WorkerPool {
         let c_id = self.rtid;
 
         let run_loop = async move {
-            let mut j_stream = c_session.subscribe_sumbitted_jobs(&c_id).await?;
+            let j_stream = c_session.subscribe_sumbitted_jobs(&c_id).await?;
             log::info!("[Job Queue {c_id:?} ] Started");
             loop {
-                if let Some(job) = j_stream.next().await {
-                    // Receiving a Job and sending to the workers via the
-                    // flume channel
-                    log::trace!("[Job Queue: {c_id:?}] Received Job {job:?}");
-                    c_tx.send_async(job).await?;
+                match j_stream.recv_async().await.map(convert::<Job>)? {
+                    Ok(job) => {
+                        // Receiving a Job and sending to the workers via the
+                        // flume channel
+                        log::trace!("[Job Queue: {c_id:?}] Received Job {job:?}");
+                        c_tx.send_async(job).await?;
+                    }
+                    Err(e) => {
+                        log::trace!("[Job Queue: {c_id:?}] Error when receiving job {e:?}");
+                    }
                 }
             }
         };
