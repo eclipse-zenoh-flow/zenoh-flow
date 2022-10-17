@@ -40,8 +40,8 @@ uuid = { version = "1.1", features = ["serde", "v4"] }
 uhlc = "0.5"
 zenoh = { version = "0.6.0-beta.1" }
 zenoh-util = { version = "0.6.0-beta.1" }
-zrpc = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", tag = "v0.5.0-alpha1" }
-zrpc-macros = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", tag = "v0.5.0-alpha1" }
+zrpc = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "0.5.x" }
+zrpc-macros = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "0.5.x" }
 clap = { version = "3.1", features = ["derive"] }
 hostname = "0.3.1"
 machine-uid = "0.2.0"
