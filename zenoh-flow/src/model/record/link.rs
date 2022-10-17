@@ -32,7 +32,7 @@ use serde::{Deserialize, Serialize};
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LinkRecord {
-    pub uid: usize,
+    pub uid: u32,
     pub from: OutputDescriptor,
     pub to: InputDescriptor,
     pub size: Option<usize>,
@@ -46,8 +46,8 @@ impl std::fmt::Display for LinkRecord {
     }
 }
 
-impl From<(LinkDescriptor, usize)> for LinkRecord {
-    fn from(data: (LinkDescriptor, usize)) -> Self {
+impl From<(LinkDescriptor, u32)> for LinkRecord {
+    fn from(data: (LinkDescriptor, u32)) -> Self {
         let (desc, uid) = data;
 
         Self {
@@ -72,7 +72,7 @@ impl From<(LinkDescriptor, usize)> for LinkRecord {
 /// ```
 #[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct PortRecord {
-    pub uid: usize,
+    pub uid: u32,
     #[serde(alias = "id")]
     pub port_id: PortId,
     #[serde(alias = "type")]
@@ -85,8 +85,8 @@ impl std::fmt::Display for PortRecord {
     }
 }
 
-impl From<(PortDescriptor, usize)> for PortRecord {
-    fn from(data: (PortDescriptor, usize)) -> Self {
+impl From<(PortDescriptor, u32)> for PortRecord {
+    fn from(data: (PortDescriptor, u32)) -> Self {
         let (desc, uid) = data;
 
         Self {

@@ -59,7 +59,7 @@ pub struct DataFlow {
     pub(crate) sink_factories: HashMap<NodeId, SinkFactory>,
     pub(crate) connectors: HashMap<NodeId, ZFConnectorRecord>,
     pub(crate) links: Vec<LinkRecord>,
-    pub(crate) counter: usize,
+    pub(crate) counter: u32,
 }
 
 impl DataFlow {

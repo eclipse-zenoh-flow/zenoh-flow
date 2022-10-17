@@ -38,7 +38,7 @@ pub struct DataFlowRecord {
     pub sources: HashMap<NodeId, SourceRecord>,
     pub connectors: HashMap<NodeId, ZFConnectorRecord>,
     pub links: Vec<LinkRecord>,
-    pub counter: usize,
+    pub counter: u32,
 }
 
 impl DataFlowRecord {
@@ -112,7 +112,7 @@ impl DataFlowRecord {
     }
 
     /// Finds the uid of the given node.
-    fn find_node_uid_by_id(&self, id: &NodeId) -> Option<usize> {
+    fn find_node_uid_by_id(&self, id: &NodeId) -> Option<u32> {
         if let Some(o) = self.operators.get(id) {
             return Some(o.uid);
         }
@@ -126,7 +126,7 @@ impl DataFlowRecord {
     }
 
     /// Find the port uid for the given couple of node, port.
-    fn find_port_id_in_node(&self, node_id: &NodeId, port_id: &PortId) -> Option<usize> {
+    fn find_port_id_in_node(&self, node_id: &NodeId, port_id: &PortId) -> Option<u32> {
         let (inputs, outputs) = if let Some(op) = self.operators.get(node_id) {
             (Some(&op.inputs), Some(&op.outputs))
         } else if let Some(source) = self.sources.get(node_id) {
