@@ -133,11 +133,11 @@ impl WorkerPool {
                     Ok(job) => {
                         // Receiving a Job and sending to the workers via the
                         // flume channel
-                        log::trace!("[Job Queue: {c_id:?}] Received Job {job:?}");
+                        log::info!("[Job Queue: {c_id:?}] Received Job {job:?}");
                         c_tx.send_async(job).await?;
                     }
                     Err(e) => {
-                        log::trace!("[Job Queue: {c_id:?}] Error when receiving job {e:?}");
+                        log::warn!("[Job Queue: {c_id:?}] Error when receiving job {e:?}");
                     }
                 }
             }
