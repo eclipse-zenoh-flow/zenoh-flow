@@ -157,7 +157,7 @@ impl DataFlow {
             sources,
             connectors,
             links,
-            counter: _,
+            counter,
         } = record;
 
         let source_factories = sources
@@ -201,7 +201,7 @@ impl DataFlow {
             sink_factories,
             connectors,
             links,
-            counter: 0,
+            counter,
         })
     }
 }
