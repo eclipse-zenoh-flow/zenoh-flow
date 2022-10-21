@@ -13,10 +13,6 @@
 //
 
 pub mod connector;
-// pub mod operator;
-// pub mod replay;
-// pub mod sink;
-// pub mod source;
 
 use std::sync::Arc;
 use std::time::Instant;
