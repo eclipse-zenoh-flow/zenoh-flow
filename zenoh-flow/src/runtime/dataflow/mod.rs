@@ -31,20 +31,16 @@ use crate::traits;
 use crate::types::NodeId;
 use crate::Result as ZFResult;
 
-/// TODO(J-Loudet) Documentation: a DataFlow is the structure that lets us generate, through the
-/// different factories, a DataFlowInstance. However, a DataFlow is not a "DataFlowFactory": it can
-/// only produce a single a DataFlowInstance. The node factories allow us to "stop" the nodes and
-/// restart them anew.
+/// `DataFlow` is an intermediate structure which primary purpose is to store the loaded libraries.
 ///
-/// Later on, we envision using these factories to start replicas / do load-balancing.
+/// This intermediate structure is needed to create data flows programmatically. It is mostly used
+/// **internally** to assess the performance of Zenoh-Flow.
 ///
-/// In short:
-/// - Factory  = node generation, i.e. a node that can be `run`
-/// - DataFlow = a set of node factories
-/// - DataFlowInstance = a set of running nodes
+/// **End users should not use it directly**: _no verifications to ensure the validity of the data flow
+/// are performed at this step or in the next ones._
 pub struct DataFlow {
     pub(crate) uuid: Uuid,
-    pub(crate) flow: Arc<str>, // TODO(J-Loudet) Agree on naming, flow vs name
+    pub(crate) flow: Arc<str>,
     pub(crate) context: RuntimeContext,
     pub(crate) source_factories: HashMap<NodeId, SourceFactory>,
     pub(crate) operator_factories: HashMap<NodeId, OperatorFactory>,
@@ -55,10 +51,12 @@ pub struct DataFlow {
 }
 
 impl DataFlow {
-    /// TODO(J-Loudet) Improve documentation.
+    /// Create a new empty `DataFlow` named `name` with the provided `RuntimeContext`.
     ///
-    /// We use it internally to test the performance of Zenoh-Flow. Not a good idea to try to use it
-    /// directly.
+    /// **Unless you know very well what you are doing, you should not use this function**.
+    ///
+    /// This function is the entry point to create a data flow programmatically. **It should not be
+    /// called by end users**.
     pub fn new(name: impl AsRef<str>, context: RuntimeContext) -> Self {
         Self {
             uuid: Uuid::new_v4(),
@@ -73,10 +71,12 @@ impl DataFlow {
         }
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Add a `SourceFactory` to the `DataFlow`.
     ///
-    /// We use it internally to test the performance of Zenoh-Flow. Not a good idea to try to use it
-    /// directly.
+    /// **Unless you know very well what you are doing, you should not use this method**.
+    ///
+    /// If the Source is not correctly connected to downstream nodes, its data will never be
+    /// received.
     pub fn add_source_factory(
         &mut self,
         node_id: impl AsRef<str>,
@@ -89,10 +89,12 @@ impl DataFlow {
         );
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Add an `OperatorFactory` to the `DataFlow`.
     ///
-    /// We use it internally to test the performance of Zenoh-Flow. Not a good idea to try to use it
-    /// directly.
+    /// **Unless you know very well what you are doing, you should not use this method**.
+    ///
+    /// If the Operator is not correctly connected to upstream and downstream nodes, it will never
+    /// receive, process and emit data.
     pub fn add_operator_factory(
         &mut self,
         node_id: impl AsRef<str>,
@@ -105,10 +107,11 @@ impl DataFlow {
         );
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Add a `SinkFactory` to the `DataFlow`.
     ///
-    /// We use it internally to test the performance of Zenoh-Flow. Not a good idea to try to use it
-    /// directly.
+    /// **Unless you know very well what you are doing, you should not use this method**.
+    ///
+    /// If the Sink is not correctly connected to upstream nodes, it will never receive data.
     pub fn add_sink_factory(
         &mut self,
         node_id: impl AsRef<str>,
@@ -121,10 +124,12 @@ impl DataFlow {
         );
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Add a `Link` to the `DataFlow`.
     ///
-    /// We use it internally to test the performance of Zenoh-Flow. Not a good idea to try to use it
-    /// directly.
+    /// **Unless you know very well what you are doing, you should not use this method**.
+    ///
+    /// If the `OutputDescriptor` and `InputDescriptor` are incorrect, Zenoh-Flow will error out at
+    /// _runtime_.
     pub fn add_link(&mut self, from: OutputDescriptor, to: InputDescriptor) {
         self.links.push(LinkRecord {
             uid: self.counter,
@@ -137,14 +142,12 @@ impl DataFlow {
         self.counter += 1;
     }
 
-    /// TODO(J-Loudet) Improve documentation.
-    ///
-    /// Try to create a DataFlow based on a DataFlowRecord (TODO Add link).
+    /// Given a `DataFlowRecord`, create the corresponding `DataFlow` by dynamically loading the
+    /// shared libraries.
     ///
     /// # Error
     ///
-    /// Failures can happen when trying to load node factories. (TODO Add links to the different
-    /// `load_*_factory`)
+    /// Failures can happen when trying to load node factories.
     pub fn try_new(record: DataFlowRecord, context: RuntimeContext) -> ZFResult<Self> {
         let DataFlowRecord {
             uuid,
@@ -175,8 +178,6 @@ impl DataFlow {
                 context
                     .loader
                     .load_operator_factory(operator_record)
-                    // `map` leaves the Error untouched and allows us to transform the Ok into a
-                    // tuple so we can finally build an HashMap
                     .map(|operator_factory| (operator_id, operator_factory))
             })
             .collect::<ZFResult<HashMap<NodeId, OperatorFactory>>>()?;
@@ -187,8 +188,6 @@ impl DataFlow {
                 context
                     .loader
                     .load_sink_factory(sink_record)
-                    // `map` leaves the Error untouched and allows us to transform the Ok into a
-                    // tuple so we can finally build an HashMap
                     .map(|sink_factory| (sink_id, sink_factory))
             })
             .collect::<ZFResult<HashMap<NodeId, SinkFactory>>>()?;

@@ -29,7 +29,11 @@ use std::ops::Deref;
 use std::sync::Arc;
 use uhlc::HLC;
 
-/// TODO(J-Loudet) Improve documentation.
+/// A `DataFlowInstance` is an instance of a data flow that is ready to be run.
+///
+/// All Zenoh-Flow daemons involved in the deployment of an instance of a data flow will create this
+/// structure to manage the nodes they are responsible for. Each daemon will keep in that structure
+/// only their view of the instance.
 pub struct DataFlowInstance {
     pub(crate) _instance_context: Arc<InstanceContext>,
     pub(crate) data_flow: DataFlow,
@@ -45,27 +49,52 @@ impl Deref for DataFlowInstance {
 }
 
 impl DataFlowInstance {
-    /// TODO(J-Loudet) Improve documentation.
+    /// Retrieve the `NodeId` of the `Sink`s of this data flow instance running on the current
+    /// daemon.
+    ///
+    /// CAVEAT: It is possible (and likely) that not all `Sink`s run on a single daemon. Hence, this
+    /// list will be a subset of the list of all `Sink`s of this data flow.
     pub fn get_sinks(&self) -> Vec<NodeId> {
         self.sink_factories.keys().cloned().collect()
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Retrieve the `NodeId` of the `Source`s of this data flow instance running on the current
+    /// daemon.
+    ///
+    /// CAVEAT: It is possible (and likely) that not all `Source`s run on a single daemon. Hence,
+    /// this list will be a subset of the list of all `Source`s of this data flow.
     pub fn get_sources(&self) -> Vec<NodeId> {
         self.source_factories.keys().cloned().collect()
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Retrieve the `NodeId` of the `Operator`s of this data flow instance running on the current
+    /// daemon.
+    ///
+    /// CAVEAT: It is possible (and likely) that not all `Operator`s run on a single daemon. Hence,
+    /// this list will be a subset of the list of all `Operator`s of this data flow.
     pub fn get_operators(&self) -> Vec<NodeId> {
         self.operator_factories.keys().cloned().collect()
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Retrieve the `NodeId` of the `ZFConnector`s of this data flow instance running on the
+    /// current daemon.
+    ///
+    /// CAVEAT: It is possible (and likely) that not all `ZFConnector`s run on a single daemon.
+    /// Hence, this list will be a subset of the list of all `ZFConnector`s of this data flow.
     pub fn get_connectors(&self) -> Vec<NodeId> {
         self.connectors.keys().cloned().collect()
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Start the node whose id matches the one provided.
+    ///
+    /// Start means launching as many tasks as necessary to run continuously the `Node`, input
+    /// and/or output callbacks.
+    ///
+    /// Start is idempotent, if the node is already running, nothing will happen.
+    ///
+    /// # Error
+    ///
+    /// This method can return an error if the provided `node_id` is not found.
     pub fn start_node(&mut self, node_id: &NodeId) -> Result<()> {
         if let Some(runner) = self.runners.get_mut(node_id) {
             runner.start();
@@ -79,7 +108,17 @@ impl DataFlowInstance {
         )
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Stop the node whose id matches the one provided.
+    ///
+    /// Stop means canceling all the tasks that were launched. Note that `stop` does not interrupt a
+    /// currently running task. The task will effectively be stopped the next time it encounters an
+    /// `await`.
+    ///
+    /// Stop is idempotent, if the node is not running, nothing will happen.
+    ///
+    /// # Error
+    ///
+    /// This method can return an error if the provided `node_id` is not found.
     pub async fn stop_node(&mut self, node_id: &NodeId) -> Result<()> {
         if let Some(runner) = self.runners.get_mut(node_id) {
             return runner.stop().await;
@@ -92,9 +131,14 @@ impl DataFlowInstance {
         )
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Given a `DataFlow` and an `HLC`, try to instantiate the data flow by generating all the
+    /// nodes (via their factories) and all the connections --- _running on the daemon_.
     ///
-    /// Try instantiating the DataFlow2, hence generating a DataFlowInstance2.
+    /// # Error
+    ///
+    /// This function can return an error if:
+    /// - some links are missing which resulted in some missing connections,
+    /// - a factory failed to generate a node.
     pub async fn try_instantiate(data_flow: DataFlow, hlc: Arc<HLC>) -> Result<Self> {
         let instance_context = Arc::new(InstanceContext {
             flow_id: data_flow.flow.clone(),

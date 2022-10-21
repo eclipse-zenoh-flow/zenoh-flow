@@ -45,10 +45,13 @@ pub enum RunAction {
     Stop,
 }
 
-/// TODO(J-Loudet) Improve documentation.
+/// A `Runner` is our internal structure that takes care of running the nodes in a data flow.
 ///
-/// A Runner2 takes care of running a node. Regardless of what it is. No need for a trait, no need
-/// for a separation between the types of nodes.
+/// A `Runner` keeps track of:
+/// 1. what to run: the implementation of the `Node`, the input and output callbacks;
+/// 2. how to stop them: the `JoinHandle` and `AbortHandle` for each corresponding task.
+///
+/// A `Runner` will thus spawn up to three tasks to run a node.
 pub(crate) struct Runner {
     pub(crate) node: Option<Arc<dyn Node>>,
     pub(crate) inputs_callbacks: Vec<CallbackInput>,
@@ -80,25 +83,24 @@ impl Runner {
         }
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Start the `Runner`, spawning the necessary tasks.
     ///
-    /// First, `start` is idempotent: no matter how many times this method is called, if the node is
-    /// running then nothing happens.
+    /// It creates a task for each present "runnable" part. At maximum, three tasks are created: one
+    /// for the input callbacks, one for the output callbacks and a last one for the infinite loop
+    /// (which we build by calling, in a loop, the `iteration` method of the `Node` trait).
     ///
-    /// This method creates as many `AbortHandle` as required to run what the user provided: (i) an
-    /// iteration, (ii) input_callbacks, (iii) output_callbacks.
+    /// For each generated task, a corresponding pair of `JoinHandle` and `AbortHandle` is produced
+    /// that allows us to stop it.
     ///
-    /// Considering all are present, we spawn a task for each and call their respective methods in
-    /// an infinite loop.
-    ///
+    /// `start` is idempotent and will do nothing if the node is already running.
     ///
     /// # Issues
     ///
-    /// FIXME Assuming there are several callbacks for the same kind (i.e. input or output), if one
+    /// FIXME Assuming there are several callbacks of the same kind (i.e. input or output), if one
     ///       of these callbacks never finishes, then all the others will starve. For instance, if
-    ///       an input callbacks sleeps (std::thread::sleep) for 10 seconds, then the other inputs
-    ///       won’t have access to the CPU for these 10 seconds.
-    ///       A possible fix would be to spawn a thread per callback. What’s the impact?
+    ///       an input callbacks sleeps (async_std::task::sleep) for 10 seconds, then the other
+    ///       inputs won’t have access to the CPU for these 10 seconds. A possible fix would be to
+    ///       spawn a task per callback.
     pub(crate) fn start(&mut self) {
         if self.is_running() {
             log::warn!("Called `start` while node is ALREADY running. Returning.");
@@ -170,7 +172,7 @@ impl Runner {
         }
 
         if !self.inputs_callbacks.is_empty() {
-            // NOTE: We can safely clone the output callbacks as, internally, we rely on flume
+            // NOTE: We can safely clone the input callbacks as, internally, we rely on flume
             // channels which can be safely cloned. Specifically, cloned Receivers are "job
             // stealing", the first receiver that is ready will receive the data.
             //
@@ -210,13 +212,13 @@ impl Runner {
         }
     }
 
-    /// TODO(J-Loudet) Improve documentation.
+    /// Stop the execution of a `Node`.
     ///
-    /// `pause` is idempotent: if the node is not running then calling stop will produce no result.
+    /// We will call `abort` on all existing `AbortHandle` and then `await` the `JoinHandle`. As per
+    /// its documentation, `abort` will not forcefully interrupt an execution if the corresponding
+    /// task is being polled on another thread.
     ///
-    /// `pause` takes all handles, stops the associated tasks & replaces them with `None`.
-    ///
-    /// `pause` and not "stop" because we do not drop the `dyn Node` so its state is not lost.
+    /// `stop` is idempotent and will do nothing if the node is not running.
     pub(crate) async fn stop(&mut self) -> ZFResult<()> {
         if !self.is_running() {
             log::warn!("Called `stop` while node is NOT running. Returning.");
@@ -249,8 +251,8 @@ impl Runner {
 
     /// Tell if the node is running.
     ///
-    /// To do so we check if an abort handle was set. If so, then a task was spawned and the node is
-    /// indeed running.
+    /// To do so we check if an `AbortHandle` was set. If so, then a task was spawned and the node
+    /// is indeed running.
     pub(crate) fn is_running(&self) -> bool {
         self.run_loop_handle.is_some()
             || self.inputs_callbacks_handle.is_some()

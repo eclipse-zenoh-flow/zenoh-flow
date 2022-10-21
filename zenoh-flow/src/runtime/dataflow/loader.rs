@@ -47,40 +47,30 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 pub static EXT_FILE_EXTENSION: &str = "zfext";
 
-/// TODO(J-Loudet) Improve documentation.
-///
-/// NodeSymbol groups the symbol we should find in the shared library we load.
-pub enum NodeSymbol {
+/// FactorySymbol groups the symbol we must find in the shared library we load.
+pub enum FactorySymbol {
     Source,
     Operator,
     Sink,
-    SourceFactory,
-    OperatorFactory,
-    SinkFactory,
 }
 
-impl NodeSymbol {
+impl FactorySymbol {
     /// Returns the bytes representation of the symbol.
     ///
     /// They are of the form:
     ///
-    /// `b"zf<node_kind>_declaration\0"`
+    /// `b"zf<node_kind>_factory_declaration\0"`
     ///
     /// Where `<node_kind>` is either `operator`, `source`, or `sink`.
     pub fn to_bytes(&self) -> &[u8] {
         match self {
-            NodeSymbol::Operator => b"zfoperator_declaration\0",
-            NodeSymbol::Source => b"zfsource_declaration\0",
-            NodeSymbol::Sink => b"zfsink_declaration\0",
-            NodeSymbol::SourceFactory => b"zfsource_factory_declaration\0",
-            NodeSymbol::OperatorFactory => b"zfoperator_factory_declaration\0",
-            NodeSymbol::SinkFactory => b"zfsink_factory_declaration\0",
+            FactorySymbol::Source => b"zfsource_factory_declaration\0",
+            FactorySymbol::Operator => b"zfoperator_factory_declaration\0",
+            FactorySymbol::Sink => b"zfsink_factory_declaration\0",
         }
     }
 }
 
-/// TODO(J-Loudet) Improve documentation.
-///
 /// Declaration expected in the library that will be loaded.
 pub struct NodeDeclaration<T: ?Sized> {
     pub rustc_version: &'static str,
@@ -210,19 +200,17 @@ impl Loader {
         Self { config }
     }
 
-    /// TODO(J-Loudet) Adapt the documentation + remove the method `load_source` below?
-    ///
     /// Tries to load a SourceFactory from the information passed within the
     /// [`SourceRecord`](`SourceRecord`).
     ///
-    ///
     /// # Errors
+    ///
     /// It can fail because of:
-    /// - different versions of zenoh flow used to build the source
-    /// - different versions of rust compiler used to build the source
-    /// - the library does not contain the symbols.
+    /// - different versions of Zenoh-Flow used to build the source
+    /// - different versions of the rust compiler used to build the source
+    /// - the library does not contain the symbols
     /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
+    /// - the URI scheme is not known (so far only `file://` is known).
     pub(crate) fn load_source_factory(&self, record: SourceRecord) -> Result<SourceFactory> {
         let uri = record.uri.clone().ok_or_else(|| {
             zferror!(
@@ -262,19 +250,18 @@ impl Loader {
         }
     }
 
-    /// TODO(J-Loudet) Adapt the documentation + remove the method `load_operator` below?
-    ///
     /// Tries to load a OperatorFactory from the information passed within the
     /// [`OperatorRecord`](`OperatorRecord`).
     ///
     ///
     /// # Errors
-    /// It can fail because of:
-    /// - different versions of zenoh flow used to build the operator
-    /// - different versions of rust compiler used to build the operator
-    /// - the library does not contain the symbols.
+    ///
+    /// This method can fail if:
+    /// - different versions of Zenoh-Flow used to build the operator
+    /// - different versions of the rust compiler used to build the operator
+    /// - the library does not contain the symbols
     /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
+    /// - the URI scheme is not known (so far only `file://` is known).
     pub(crate) fn load_operator_factory(&self, record: OperatorRecord) -> Result<OperatorFactory> {
         let uri = record.uri.clone().ok_or_else(|| {
             zferror!(
@@ -314,19 +301,17 @@ impl Loader {
         }
     }
 
-    /// TODO(J-Loudet) Adapt the documentation + remove the method `load_sink` below?
-    ///
     /// Tries to load a SinkFactory from the information passed within the
     /// [`SinkRecord`](`SinkRecord`).
     ///
-    ///
     /// # Errors
+    ///
     /// It can fail because of:
-    /// - different versions of zenoh flow used to build the source
-    /// - different versions of rust compiler used to build the source
-    /// - the library does not contain the symbols.
+    /// - different versions of Zenoh-Flow used to build the sink
+    /// - different versions of the rust compiler used to build the sink
+    /// - the library does not contain the symbols
     /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
+    /// - the URI scheme is not known (so far only `file://` is known).
     pub(crate) fn load_sink_factory(&self, record: SinkRecord) -> Result<SinkFactory> {
         let uri = record.uri.clone().ok_or_else(|| {
             zferror!(
@@ -369,10 +354,7 @@ impl Loader {
     unsafe fn load_lib_source_factory(
         path: PathBuf,
     ) -> Result<(Library, Arc<dyn crate::traits::SourceFactoryTrait>)> {
-        Self::load_lib_node::<dyn crate::traits::SourceFactoryTrait>(
-            path,
-            NodeSymbol::SourceFactory,
-        )
+        Self::load_lib_node::<dyn crate::traits::SourceFactoryTrait>(path, FactorySymbol::Source)
     }
 
     unsafe fn load_lib_operator_factory(
@@ -380,30 +362,29 @@ impl Loader {
     ) -> Result<(Library, Arc<dyn crate::traits::OperatorFactoryTrait>)> {
         Self::load_lib_node::<dyn crate::traits::OperatorFactoryTrait>(
             path,
-            NodeSymbol::OperatorFactory,
+            FactorySymbol::Operator,
         )
     }
 
     unsafe fn load_lib_sink_factory(
         path: PathBuf,
     ) -> Result<(Library, Arc<dyn crate::traits::SinkFactoryTrait>)> {
-        Self::load_lib_node::<dyn crate::traits::SinkFactoryTrait>(path, NodeSymbol::SinkFactory)
+        Self::load_lib_node::<dyn crate::traits::SinkFactoryTrait>(path, FactorySymbol::Sink)
     }
 
-    /// TODO(J-Loudet) Improve documentation.
-    ///
     /// Load the library of a node.
     ///
     /// # Safety
+    ///
     /// - dynamic loading of library, and lookup of symbols.
     ///
     /// # Errors
-    /// This function dynamically loads an external library, things can go wrong:
-    /// - it fails if the symbol `zfsink_declaration` is not found,
     ///
+    /// This function dynamically loads an external library, things can go wrong:
+    /// - it fails if the factory symbol is not found,
     unsafe fn load_lib_node<T: ?Sized>(
         path: PathBuf,
-        node_symbol: NodeSymbol,
+        node_symbol: FactorySymbol,
     ) -> Result<(Library, Arc<T>)> {
         log::debug!("Loading {:#?}", path);
 
@@ -457,19 +438,18 @@ impl Loader {
         None
     }
 
-    /// TODO(J-Loudet) Update comment + delete the previous `load_source_from_extension`?
-    ///
-    /// Loads a source that is not a dynamic library.
-    /// Using one of the extension configured within the loader.
+    /// Loads a source that is not a dynamic library using one of the extension configured within
+    /// the loader.
     ///
     /// # Errors
-    /// This function can fail:
+    ///
+    /// This method can fail if:
     /// - the extension is not known
-    /// - different versions of zenoh flow used to build the extension
-    /// - different versions of rust compiler used to build the extension
-    /// - the extension library does not contain the symbols.
+    /// - different versions of Zenoh-Flow used to build the source
+    /// - different versions of the rust compiler used to build the source
+    /// - the library does not contain the symbols
     /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
+    /// - the URI scheme is not known (so far only `file://` is known)
     /// - the source does not match the extension interface.
     fn load_source_factory_from_extension(
         &self,
@@ -505,19 +485,18 @@ impl Loader {
         }
     }
 
-    /// TODO(J-Loudet) Update comment + delete the previous `load_operator_from_extension`?
-    ///
-    /// Loads a operator that is not a dynamic library.
-    /// Using one of the extension configured within the loader.
+    /// Loads a operator that is not a dynamic library, using one of the extension configured within
+    /// the loader.
     ///
     /// # Errors
-    /// This function can fail:
+    ///
+    /// This method can fail if:
     /// - the extension is not known
-    /// - different versions of zenoh flow used to build the extension
-    /// - different versions of rust compiler used to build the extension
-    /// - the extension library does not contain the symbols.
+    /// - different versions of Zenoh-Flow used to build the operator
+    /// - different versions of the rust compiler used to build the operator
+    /// - the library does not contain the symbols
     /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
+    /// - the URI scheme is not known (so far only `file://` is known)
     /// - the operator does not match the extension interface.
     fn load_operator_factory_from_extension(
         &self,
@@ -553,19 +532,18 @@ impl Loader {
         }
     }
 
-    /// TODO(J-Loudet) Update comment + delete the previous `load_sink_from_extension`?
-    ///
-    /// Loads a sink that is not a dynamic library.
-    /// Using one of the extension configured within the loader.
+    /// Loads a sink that is not a dynamic library using one of the extension configured within the
+    /// loader.
     ///
     /// # Errors
-    /// This function can fail:
+    ///
+    /// This method can fail if:
     /// - the extension is not known
-    /// - different versions of zenoh flow used to build the extension
-    /// - different versions of rust compiler used to build the extension
-    /// - the extension library does not contain the symbols.
+    /// - different versions of Zenoh-Flow used to build the sink
+    /// - different versions of the rust compiler used to build the sink
+    /// - the library does not contain the symbols
     /// - the URI is missing
-    /// - the URI scheme is not known ( so far only `file://` is known).
+    /// - the URI scheme is not known (so far only `file://` is known)
     /// - the sink does not match the extension interface.
     fn load_sink_factory_from_extension(
         &self,

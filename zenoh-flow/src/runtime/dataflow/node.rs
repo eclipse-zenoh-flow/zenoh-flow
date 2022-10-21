@@ -22,8 +22,6 @@ use libloading::os::unix::Library;
 #[cfg(target_family = "windows")]
 use libloading::Library;
 
-/// TODO(J-Loudet) Improve documentation.
-///
 /// A `NodeFactory` generates `Node`, i.e. objects that implement the `Node` trait.
 ///
 /// The `record` holds the metadata associated with the Node. The `factory` is the object that
@@ -35,9 +33,8 @@ pub(crate) struct NodeFactory<U, T: ?Sized> {
     pub(crate) _library: Option<Arc<Library>>,
 }
 
-/// TODO(J-Loudet) Improve documentation.
-///
-/// Dereferencing to the record (the generic `U`) allows us to access the metadata of the node.
+/// Dereferencing to the record (the generic `U`) allows for an easy access to the metadata of the
+/// node.
 impl<U, T: ?Sized> Deref for NodeFactory<U, T> {
     type Target = U;
 
@@ -47,9 +44,9 @@ impl<U, T: ?Sized> Deref for NodeFactory<U, T> {
 }
 
 impl<U, T: ?Sized> NodeFactory<U, T> {
-    /// TODO(J-Loudet) Improve documentation.
+    /// Creates a NodeFactory without a `library`.
     ///
-    /// This function is, for now, mostly used to generate data flows programmatically.
+    /// This function is intended for internal use in order to create a data flow programmatically.
     pub(crate) fn new_static(record: U, factory: Arc<T>) -> Self {
         Self {
             record,
