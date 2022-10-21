@@ -79,12 +79,11 @@ impl DataFlow {
     /// received.
     pub fn add_source_factory(
         &mut self,
-        node_id: impl AsRef<str>,
         record: SourceRecord,
         factory: Arc<dyn traits::SourceFactoryTrait>,
     ) {
         self.source_factories.insert(
-            node_id.as_ref().into(),
+            record.id.clone(),
             SourceFactory::new_static(record, factory),
         );
     }
@@ -97,12 +96,11 @@ impl DataFlow {
     /// receive, process and emit data.
     pub fn add_operator_factory(
         &mut self,
-        node_id: impl AsRef<str>,
         record: OperatorRecord,
         factory: Arc<dyn traits::OperatorFactoryTrait>,
     ) {
         self.operator_factories.insert(
-            node_id.as_ref().into(),
+            record.id.clone(),
             OperatorFactory::new_static(record, factory),
         );
     }
@@ -114,14 +112,11 @@ impl DataFlow {
     /// If the Sink is not correctly connected to upstream nodes, it will never receive data.
     pub fn add_sink_factory(
         &mut self,
-        node_id: impl AsRef<str>,
         record: SinkRecord,
         factory: Arc<dyn traits::SinkFactoryTrait>,
     ) {
-        self.sink_factories.insert(
-            node_id.as_ref().into(),
-            SinkFactory::new_static(record, factory),
-        );
+        self.sink_factories
+            .insert(record.id.clone(), SinkFactory::new_static(record, factory));
     }
 
     /// Add a `Link` to the `DataFlow`.

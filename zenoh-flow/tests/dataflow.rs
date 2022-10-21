@@ -276,11 +276,7 @@ async fn single_runtime() {
         runtime: runtime_name.clone(),
     };
 
-    dataflow.add_source_factory(
-        "counter-source",
-        source_record,
-        Arc::new(CountSourceFactory { rx }),
-    );
+    dataflow.add_source_factory(source_record, Arc::new(CountSourceFactory { rx }));
 
     let sink_record = SinkRecord {
         id: "generic-sink".into(),
@@ -302,7 +298,7 @@ async fn single_runtime() {
         runtime: runtime_name.clone(),
     };
 
-    dataflow.add_sink_factory("generic-sink", sink_record, Arc::new(GenericSinkFactory));
+    dataflow.add_sink_factory(sink_record, Arc::new(GenericSinkFactory));
 
     let no_op_record = OperatorRecord {
         id: "noop".into(),
@@ -322,7 +318,7 @@ async fn single_runtime() {
         runtime: runtime_name.clone(),
     };
 
-    dataflow.add_operator_factory("noop", no_op_record, Arc::new(NoOpFactory));
+    dataflow.add_operator_factory(no_op_record, Arc::new(NoOpFactory));
 
     let no_op_callback_record = OperatorRecord {
         id: "noop_callback".into(),
@@ -342,11 +338,7 @@ async fn single_runtime() {
         runtime: runtime_name.clone(),
     };
 
-    dataflow.add_operator_factory(
-        "noop_callback",
-        no_op_callback_record,
-        Arc::new(NoOpCallbackFactory),
-    );
+    dataflow.add_operator_factory(no_op_callback_record, Arc::new(NoOpCallbackFactory));
 
     dataflow.add_link(
         OutputDescriptor {
