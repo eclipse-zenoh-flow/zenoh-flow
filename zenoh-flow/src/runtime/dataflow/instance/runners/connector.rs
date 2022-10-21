@@ -26,6 +26,8 @@ use zenoh::prelude::r#async::*;
 use zenoh::subscriber::Subscriber;
 use zenoh_util::core::AsyncResolve;
 
+/// The `ZenohSender` is the connector that sends the data to Zenoh when nodes are running on
+/// different runtimes.
 pub(crate) struct ZenohSender {
     pub(crate) id: NodeId,
     pub(crate) input: Input,
@@ -34,6 +36,16 @@ pub(crate) struct ZenohSender {
 }
 
 impl ZenohSender {
+    /// Creates a new `ZenohSender`.
+    ///
+    /// We first take the flume channel on which we receive the data to publish and then declare, on
+    /// Zenoh, the key expression on which we are going to publish.
+    ///
+    /// # Errors
+    ///
+    /// An error variant is returned if:
+    /// - no link was created for this sender,
+    /// - the declaration of the key expression failed.
     pub(crate) async fn new(
         record: &ZFConnectorRecord,
         session: Arc<Session>,
@@ -65,6 +77,15 @@ impl ZenohSender {
 
 #[async_trait]
 impl Node for ZenohSender {
+    /// An iteration of a ZenohSender: wait for some data to publish, serialize it using `bincode`
+    /// and publish it on Zenoh.
+    ///
+    /// # Errors
+    ///
+    /// An error variant is returned if:
+    /// - serialization fails
+    /// - zenoh put fails
+    /// - link recv fails
     async fn iteration(&self) -> ZFResult<()> {
         if let Ok(message) = self.input.recv_async().await {
             log::trace!("[ZenohSender: {}] recv_async: OK", self.id);
@@ -73,7 +94,6 @@ impl Node for ZenohSender {
 
             self.z_session
                 .put(self.key_expr.clone(), serialized)
-                // .put(key_expr, &(**buffer)[0..size])
                 .congestion_control(CongestionControl::Block)
                 .res()
                 .await
@@ -83,6 +103,7 @@ impl Node for ZenohSender {
     }
 }
 
+/// A `ZenohReceiver` receives the messages from Zenoh when nodes are running on different runtimes.
 pub(crate) struct ZenohReceiver {
     pub(crate) id: NodeId,
     pub(crate) output: Output,
@@ -90,6 +111,18 @@ pub(crate) struct ZenohReceiver {
 }
 
 impl ZenohReceiver {
+    /// Creates a new `ZenohReceiver`.
+    ///
+    /// We first declare, on Zenoh, the key expression on which the `ZenohReceiver` will subscribe.
+    /// We then declare the subscriber and finally take the output on which the `ZenohReceiver` will
+    /// forward the reiceved messages.
+    ///
+    /// # Errors
+    ///
+    /// An error variant is returned if:
+    /// - the declaration of the key expression failed,
+    /// - the declaration of the subscriber failed,
+    /// - the link for this connector was not created.
     pub(crate) async fn new(
         record: &ZFConnectorRecord,
         session: Arc<Session>,
@@ -122,6 +155,15 @@ impl ZenohReceiver {
 
 #[async_trait]
 impl Node for ZenohReceiver {
+    /// An iteration of a `ZenohReceiver`: wait on the subscriber for some message, deserialize it
+    /// using `bincode` and send it on the flume channel(s) to the downstream node(s).
+    ///
+    /// # Errors
+    ///
+    /// An error variant is returned if:
+    /// - the subscriber fails
+    /// - the deserialization fails
+    /// - sending on the flume channels fails
     async fn iteration(&self) -> ZFResult<()> {
         if let Ok(msg) = self.subscriber.recv_async().await {
             let de: Message = bincode::deserialize(&msg.value.payload.contiguous())

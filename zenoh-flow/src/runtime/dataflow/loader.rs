@@ -351,12 +351,32 @@ impl Loader {
         }
     }
 
+    /// Load the library of a Source factory.
+    ///
+    /// # Safety
+    ///
+    /// - dynamic loading of library, and lookup of symbols.
+    ///
+    /// # Errors
+    ///
+    /// This function dynamically loads an external library, things can go wrong:
+    /// - it fails if the source factory symbol is not found.
     unsafe fn load_lib_source_factory(
         path: PathBuf,
     ) -> Result<(Library, Arc<dyn crate::traits::SourceFactoryTrait>)> {
         Self::load_lib_node::<dyn crate::traits::SourceFactoryTrait>(path, FactorySymbol::Source)
     }
 
+    /// Load the library of an Operator factory.
+    ///
+    /// # Safety
+    ///
+    /// - dynamic loading of library, and lookup of symbols.
+    ///
+    /// # Errors
+    ///
+    /// This function dynamically loads an external library, things can go wrong:
+    /// - it fails if the operator factory symbol is not found.
     unsafe fn load_lib_operator_factory(
         path: PathBuf,
     ) -> Result<(Library, Arc<dyn crate::traits::OperatorFactoryTrait>)> {
@@ -366,6 +386,16 @@ impl Loader {
         )
     }
 
+    /// Load the library of a Sink factory.
+    ///
+    /// # Safety
+    ///
+    /// - dynamic loading of library, and lookup of symbols.
+    ///
+    /// # Errors
+    ///
+    /// This function dynamically loads an external library, things can go wrong:
+    /// - it fails if the sink factory symbol is not found.
     unsafe fn load_lib_sink_factory(
         path: PathBuf,
     ) -> Result<(Library, Arc<dyn crate::traits::SinkFactoryTrait>)> {
