@@ -591,7 +591,7 @@ impl Loader {
 
         match self.config.get_extension_by_file_extension(&file_extension) {
             Some(e) => {
-                let wrapper_file_path = std::fs::canonicalize(&e.operator_lib)?;
+                let wrapper_file_path = std::fs::canonicalize(&e.sink_lib)?;
                 record.configuration = Some(Self::generate_wrapper_config(
                     record.configuration,
                     e.config_lib_key.clone(),
