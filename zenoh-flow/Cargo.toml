@@ -55,7 +55,7 @@ serde_derive = "1.0.55"
 serde_json = { version = "1.0", optional = true}
 serde_yaml = {version = "0.9"}
 typetag = "0.2"
-uhlc = "0.5"
+uhlc = "0.5.1"
 url = "2.2"
 uuid = { version = "1.1", features = ["serde", "v4"] }
 zenoh = { version = "0.6.0-beta.1" }
