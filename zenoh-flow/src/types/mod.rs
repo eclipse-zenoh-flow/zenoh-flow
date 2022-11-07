@@ -96,7 +96,7 @@ impl Data {
     /// variant will be returned.
     pub fn try_get<Typed>(&mut self) -> Result<&Typed>
     where
-        Typed: ZFData + crate::traits::Deserializable + 'static,
+        Typed: ZFData + 'static,
     {
         *self = (match &self {
             Self::Bytes(bytes) => {

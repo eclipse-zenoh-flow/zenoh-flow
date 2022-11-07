@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use std::convert::From;
 use std::sync::Arc;
 use zenoh_flow::prelude::*;
-use zenoh_flow::traits::{Deserializable, ZFData};
 use zenoh_flow::types::Data;
 use zenoh_flow::zenoh_flow_derive::ZFData;
 
@@ -34,9 +33,7 @@ impl ZFData for TestData {
             .as_bytes()
             .to_vec())
     }
-}
 
-impl Deserializable for TestData {
     fn try_deserialize(bytes: &[u8]) -> Result<TestData>
     where
         Self: Sized,

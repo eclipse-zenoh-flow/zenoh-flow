@@ -45,12 +45,12 @@ pub trait DowncastAny {
 /// This trait abstracts the user's data type inside Zenoh Flow.
 ///
 /// User types should implement this trait otherwise Zenoh Flow will
-/// not be able to handle the data, and serialize them when needed.
+/// not be able to handle the data, serialize and deserialize them when needed.
 ///
 /// Example:
 /// ```no_run
 /// use zenoh_flow::zenoh_flow_derive::ZFData;
-/// use zenoh_flow::prelude::{ZFData, Result};
+/// use zenoh_flow::prelude::*;
 ///
 /// #[derive(Debug, Clone, ZFData)]
 /// pub struct MyString(pub String);
@@ -58,32 +58,8 @@ pub trait DowncastAny {
 ///     fn try_serialize(&self) -> Result<Vec<u8>> {
 ///         Ok(self.0.as_bytes().to_vec())
 ///     }
-/// }
-/// ```
-pub trait ZFData: DowncastAny + Debug + Send + Sync {
-    /// Tries to serialize the data as `Vec<u8>`
-    ///
-    /// # Errors
-    /// If it fails to serialize an error variant will be returned.
-    fn try_serialize(&self) -> ZFResult<Vec<u8>>;
-}
-
-/// This trait abstract user's type deserialization.
 ///
-/// User types should implement this trait otherwise Zenoh Flow will
-/// not be able to handle the data, and deserialize them when needed.
-///
-/// Example:
-/// ```no_run
-///
-/// use zenoh_flow::prelude::*;
-/// use zenoh_flow::zenoh_flow_derive::ZFData;
-///
-/// #[derive(Debug, Clone, ZFData)]
-/// pub struct MyString(pub String);
-///
-/// impl Deserializable for MyString {
-///     fn try_deserialize(bytes: &[u8]) -> Result<MyString>
+/// fn try_deserialize(bytes: &[u8]) -> Result<MyString>
 ///     where
 ///         Self: Sized,
 ///     {
@@ -93,7 +69,13 @@ pub trait ZFData: DowncastAny + Debug + Send + Sync {
 ///     }
 /// }
 /// ```
-pub trait Deserializable {
+pub trait ZFData: DowncastAny + Debug + Send + Sync {
+    /// Tries to serialize the data as `Vec<u8>`
+    ///
+    /// # Errors
+    /// If it fails to serialize an error variant will be returned.
+    fn try_serialize(&self) -> ZFResult<Vec<u8>>;
+
     /// Tries to deserialize from a slice of `u8`.
     ///
     /// # Errors
@@ -130,7 +112,7 @@ pub trait Deserializable {
 ///   async fn iteration(&self) -> Result<()> {
 ///     // To mutate the state, first lock it.
 ///     // let state = self.state.lock().await;
-///     
+///
 ///     if let Ok(Message::Data(mut message)) = self.input.recv_async().await {
 ///       let data = message.get_inner_data();
 ///       self.output.send_async(data.clone(), None).await?;
@@ -165,7 +147,7 @@ pub trait Node: Send + Sync {
 ///
 /// pub struct MySource {
 ///   output: Output,
-///   
+///
 ///   // If we read from a sensor we can keep a reference here.
 ///   // If we need to mutate it, it could go behind an `Arc<Mutex<T>>`.
 ///   // sensor: Sensor,
@@ -175,7 +157,7 @@ pub trait Node: Send + Sync {
 /// impl Node for MySource {
 ///   async fn iteration(&self) -> Result<()> {
 ///     async_std::task::sleep(Duration::from_secs(1)).await;
-///     
+///
 ///     // We can read data from a sensor every second and send it.
 ///     // let data = self.sensor.read().await;
 ///     // self.output.send_async(data, None).await;
@@ -246,7 +228,7 @@ pub trait SourceFactoryTrait: Send + Sync {
 /// impl Node for MyOperator {
 ///   async fn iteration(&self) -> Result<()> {
 ///     // let state = self.state.lock().await;
-///     
+///
 ///     if let Ok(Message::Data(mut message)) = self.input.recv_async().await {
 ///       let mut data = message.get_inner_data().clone();
 ///       // Computation based on the data would be performed here. For instance:

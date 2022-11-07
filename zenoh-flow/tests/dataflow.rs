@@ -25,7 +25,7 @@ use zenoh_flow::runtime::dataflow::instance::DataFlowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::traits::{
-    Deserializable, Node, OperatorFactoryTrait, SinkFactoryTrait, SourceFactoryTrait, ZFData,
+    Node, OperatorFactoryTrait, SinkFactoryTrait, SourceFactoryTrait, ZFData,
 };
 use zenoh_flow::types::{Configuration, Context, Data, Inputs, Message, Outputs, Streams};
 use zenoh_flow::zenoh_flow_derive::ZFData;
@@ -38,9 +38,7 @@ impl ZFData for ZFUsize {
     fn try_serialize(&self) -> Result<Vec<u8>> {
         Ok(self.0.to_ne_bytes().to_vec())
     }
-}
 
-impl Deserializable for ZFUsize {
     fn try_deserialize(bytes: &[u8]) -> Result<Self>
     where
         Self: Sized,
