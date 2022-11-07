@@ -117,7 +117,7 @@ pub fn from_manifest(
     let manifest_path = Path::new(&root_package.manifest_path);
 
     let manifest_dir = manifest_path.parent().unwrap();
-    let content = std::fs::read(&manifest_path)?;
+    let content = std::fs::read(manifest_path)?;
 
     let metadata = toml::from_slice::<Cargo>(&content)?
         .package
