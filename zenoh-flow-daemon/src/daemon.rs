@@ -62,7 +62,7 @@ pub struct DaemonConfig {
     /// Uuid of the runtime, if None the machine id will be used.
     pub uuid: Option<Uuid>,
     /// Where to find the Zenoh configuration file
-    pub zenoh_config: String,
+    pub zenoh_config: Option<String>,
     /// Where to locate the extension files.
     pub extensions: String,
     /// The size of the worker pool.
@@ -106,13 +106,20 @@ impl TryFrom<DaemonConfig> for Daemon {
     fn try_from(config: DaemonConfig) -> std::result::Result<Self, Self::Error> {
         use zenoh::prelude::sync::*;
 
-        // Loading Zenoh configuration
-        let zconfig = get_zenoh_config(&config.zenoh_config)?;
+        if let Some(zenoh_config) = &config.zenoh_config {
+            // Loading Zenoh configuration
+            let zconfig = get_zenoh_config(zenoh_config)?;
 
-        // Creates the zenoh session.
-        let session = Arc::new(zenoh::open(zconfig).res()?);
+            // Creates the zenoh session.
+            let session = Arc::new(zenoh::open(zconfig).res()?);
 
-        Self::from_session_and_config(session, config)
+            return Self::from_session_and_config(session, config);
+        }
+
+        bail!(
+            ErrorKind::ConfigurationError,
+            "zenoh_config is required when running as standalone daemon!!"
+        )
     }
 }
 

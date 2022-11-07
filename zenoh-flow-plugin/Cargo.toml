@@ -25,8 +25,12 @@ readme.workspace = true
 repository.workspace = true
 
 [lib]
-name = "zenoh_flow_plugin"
+name = "zplugin_zenoh_flow"
 crate-type = ["cdylib"]
+
+[features]
+no_mangle = ["zenoh-plugin-trait/no_mangle"]
+default = ["no_mangle"]
 
 [dependencies]
 async-trait = "0.1.57"
@@ -50,3 +54,12 @@ zenoh-flow = {path = "../zenoh-flow"}
 
 [build-dependencies]
 rustc_version = "0.4"
+
+
+[package.metadata.deb]
+name = "zenoh-plugin-zenoh-flow"
+maintainer = "zenoh-dev@eclipse.org"
+copyright = "2017, 2022 ZettaScale Technology Inc."
+section = "net"
+license-file = ["../LICENSE", "0"]
+depends = "zenohd (=0.6.0~dev.0)"

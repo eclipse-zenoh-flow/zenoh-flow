@@ -32,6 +32,8 @@ lazy_static::lazy_static! {
     pub static ref LONG_VERSION: String = format!("{} built with {}", GIT_VERSION, env!("RUSTC_VERSION"));
 }
 
+zenoh_plugin_trait::declare_plugin!(ZenohFlowPlugin);
+
 macro_rules! ke_for_sure {
     ($val:expr) => {
         unsafe { keyexpr::from_str_unchecked($val) }
@@ -45,7 +47,7 @@ impl Plugin for ZenohFlowPlugin {
     type StartArgs = Runtime;
     type RunningPlugin = zenoh::plugins::RunningPlugin;
 
-    const STATIC_NAME: &'static str = "zenoh-flow-plugin";
+    const STATIC_NAME: &'static str = "zenoh_flow";
 
     fn start(name: &str, runtime: &Self::StartArgs) -> ZResult<Self::RunningPlugin> {
         // Try to initiate login.
