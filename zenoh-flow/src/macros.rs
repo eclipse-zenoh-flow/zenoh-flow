@@ -22,11 +22,10 @@
 /// use std::sync::Arc;
 /// use zenoh_flow::prelude::*;
 ///
-/// pub struct MyOperator;
-///
+/// pub struct MyOperatorFactory;
 ///
 /// #[async_trait]
-/// impl OperatorFactoryTrait for MyOperator {
+/// impl OperatorFactoryTrait for MyOperatorFactory {
 /// async fn new_operator(
 ///     &self,
 ///     context: &mut Context,
@@ -38,16 +37,12 @@
 ///     }
 /// }
 ///
-/// export_operator_factory!(register);
-///
-/// fn register() -> Result<Arc<dyn OperatorFactoryTrait>> {
-///    Ok(Arc::new(MyOperator) as Arc<dyn OperatorFactoryTrait>)
-/// }
+/// export_operator_factory!(MyOperatorFactory {});
 /// ```
 ///
 #[macro_export]
 macro_rules! export_operator_factory {
-    ($register:expr) => {
+    ($factory:expr) => {
         #[doc(hidden)]
         #[no_mangle]
         pub static zfoperator_factory_declaration:
@@ -55,7 +50,7 @@ macro_rules! export_operator_factory {
             $crate::runtime::dataflow::loader::NodeDeclaration::<OperatorFactoryTrait> {
                 rustc_version: $crate::runtime::dataflow::loader::RUSTC_VERSION,
                 core_version: $crate::runtime::dataflow::loader::CORE_VERSION,
-                register: $register,
+                register: || std::sync::Arc::new($factory),
             };
     };
 }
@@ -70,11 +65,10 @@ macro_rules! export_operator_factory {
 /// use std::sync::Arc;
 /// use zenoh_flow::prelude::*;
 ///
-/// pub struct MySource;
-///
+/// pub struct MySourceFactory;
 ///
 /// #[async_trait]
-/// impl SourceFactoryTrait for MySource {
+/// impl SourceFactoryTrait for MySourceFactory {
 ///   async fn new_source(
 ///       &self,
 ///       context: &mut Context,
@@ -85,17 +79,12 @@ macro_rules! export_operator_factory {
 ///     }
 /// }
 ///
-/// export_source_factory!(register);
-///
-/// fn register() -> Result<Arc<dyn SourceFactoryTrait>> {
-///    Ok(Arc::new(MySource) as Arc<dyn SourceFactoryTrait>)
-/// }
-///
+/// export_source_factory!(MySourceFactory {});
 /// ```
 ///
 #[macro_export]
 macro_rules! export_source_factory {
-    ($register:expr) => {
+    ($factory:expr) => {
         #[doc(hidden)]
         #[no_mangle]
         pub static zfsource_factory_declaration:
@@ -103,7 +92,7 @@ macro_rules! export_source_factory {
             $crate::runtime::dataflow::loader::NodeDeclaration::<SourceFactoryTrait> {
                 rustc_version: $crate::runtime::dataflow::loader::RUSTC_VERSION,
                 core_version: $crate::runtime::dataflow::loader::CORE_VERSION,
-                register: $register,
+                register: || std::sync::Arc::new($factory),
             };
     };
 }
@@ -118,11 +107,10 @@ macro_rules! export_source_factory {
 /// use std::sync::Arc;
 /// use zenoh_flow::prelude::*;
 ///
-/// pub struct MySink;
-///
+/// pub struct MySinkFactory;
 ///
 /// #[async_trait]
-/// impl SinkFactoryTrait for MySink {
+/// impl SinkFactoryTrait for MySinkFactory {
 ///   async fn new_sink(
 ///       &self,
 ///       context: &mut Context,
@@ -133,18 +121,12 @@ macro_rules! export_source_factory {
 ///     }
 /// }
 ///
-/// export_sink_factory!(register);
-///
-///
-/// fn register() -> Result<Arc<dyn SinkFactoryTrait>> {
-///    Ok(Arc::new(MySink) as Arc<dyn SinkFactoryTrait>)
-/// }
-///
+/// export_sink_factory!(MySinkFactory {});
 /// ```
 ///
 #[macro_export]
 macro_rules! export_sink_factory {
-    ($register:expr) => {
+    ($factory:expr) => {
         #[doc(hidden)]
         #[no_mangle]
         pub static zfsink_factory_declaration: $crate::runtime::dataflow::loader::NodeDeclaration<
@@ -152,7 +134,7 @@ macro_rules! export_sink_factory {
         > = $crate::runtime::dataflow::loader::NodeDeclaration::<SinkFactoryTrait> {
             rustc_version: $crate::runtime::dataflow::loader::RUSTC_VERSION,
             core_version: $crate::runtime::dataflow::loader::CORE_VERSION,
-            register: $register,
+            register: || std::sync::Arc::new($factory),
         };
     };
 }

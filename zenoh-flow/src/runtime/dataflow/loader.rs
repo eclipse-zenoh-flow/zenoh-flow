@@ -75,7 +75,7 @@ impl FactorySymbol {
 pub struct NodeDeclaration<T: ?Sized> {
     pub rustc_version: &'static str,
     pub core_version: &'static str,
-    pub register: fn() -> Result<Arc<T>>,
+    pub register: fn() -> Arc<T>,
 }
 
 /// Extensible support for different implementations
@@ -434,7 +434,7 @@ impl Loader {
             return Err(zferror!(ErrorKind::VersionMismatch).into());
         }
 
-        Ok((library, (decl.register)()?))
+        Ok((library, (decl.register)()))
     }
 
     /// Converts the `Url` to a `PathBuf`
