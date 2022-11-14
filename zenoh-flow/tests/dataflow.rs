@@ -27,7 +27,7 @@ use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::traits::{
     Node, OperatorFactoryTrait, SinkFactoryTrait, SourceFactoryTrait, ZFData,
 };
-use zenoh_flow::types::{Configuration, Context, Data, Inputs, Message, Outputs, Streams};
+use zenoh_flow::types::{Configuration, Context, Inputs, Message, Outputs, Streams};
 use zenoh_flow::zenoh_flow_derive::ZFData;
 // Data Type
 
@@ -73,15 +73,12 @@ impl Node for CountSource {
         self.rx.recv_async().await.unwrap();
         COUNTER.fetch_add(1, Ordering::AcqRel);
         self.output
-            .send_async(Data::from(ZFUsize(COUNTER.load(Ordering::Relaxed))), None)
+            .send_async(ZFUsize(COUNTER.load(Ordering::Relaxed)), None)
             .await?;
 
         COUNTER_CALLBACK.fetch_add(1, Ordering::AcqRel);
         self.output_callback
-            .send_async(
-                Data::from(ZFUsize(COUNTER_CALLBACK.load(Ordering::Relaxed))),
-                None,
-            )
+            .send_async(ZFUsize(COUNTER_CALLBACK.load(Ordering::Relaxed)), None)
             .await
     }
 }
@@ -165,8 +162,7 @@ impl Node for NoOp {
         if let Ok(Message::Data(mut msg)) = self.input.recv_async().await {
             let data = msg.try_get::<ZFUsize>()?;
             assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
-            let out_data = Data::from(data.clone());
-            self.output.send_async(out_data, None).await?;
+            self.output.send_async(data.clone(), None).await?;
         }
         Ok(())
     }
@@ -217,7 +213,7 @@ impl OperatorFactoryTrait for NoOpCallbackFactory {
                     };
 
                     assert_eq!(data.0, COUNTER_CALLBACK.load(Ordering::Relaxed));
-                    output_cloned.send_async(Data::from(data), None).await?;
+                    output_cloned.send_async(data, None).await?;
                     Ok(())
                 }
             }),

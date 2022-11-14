@@ -264,9 +264,9 @@ impl Output {
     /// If an error occurs while sending the message on a channel, we still try to send it on the
     /// remaining channels. For each failing channel, an error is logged and counted for. The total
     /// number of encountered errors is returned.
-    pub fn send(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
+    pub fn send(&self, data: impl Into<Data>, timestamp: Option<u64>) -> ZFResult<()> {
         let ts = self.check_timestamp(timestamp)?;
-        let message = Message::from_serdedata(data, ts);
+        let message = Message::from_serdedata(data.into(), ts);
         self.send_to_all(message)
     }
 
@@ -277,9 +277,9 @@ impl Output {
     /// If an error occurs while sending the message on a channel, we still try to send it on the
     /// remaining channels. For each failing channel, an error is logged and counted for. The total
     /// number of encountered errors is returned.
-    pub async fn send_async(&self, data: Data, timestamp: Option<u64>) -> ZFResult<()> {
+    pub async fn send_async(&self, data: impl Into<Data>, timestamp: Option<u64>) -> ZFResult<()> {
         let ts = self.check_timestamp(timestamp)?;
-        let message = Message::from_serdedata(data, ts);
+        let message = Message::from_serdedata(data.into(), ts);
         self.send_to_all_async(message).await
     }
 
