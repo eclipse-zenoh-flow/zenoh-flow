@@ -120,12 +120,12 @@ struct GenericSink {
 impl Node for GenericSink {
     async fn iteration(&self) -> Result<()> {
         if let Ok(Message::Data(mut msg)) = self.input.recv_async().await {
-            let data = msg.get_inner_data().try_get::<ZFUsize>()?;
+            let data = msg.try_get::<ZFUsize>()?;
             assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
         }
 
         if let Ok(Message::Data(mut msg)) = self.input_callback.recv_async().await {
-            let data = msg.get_inner_data().try_get::<ZFUsize>()?;
+            let data = msg.try_get::<ZFUsize>()?;
             assert_eq!(data.0, COUNTER_CALLBACK.load(Ordering::Relaxed));
         }
 
@@ -163,7 +163,7 @@ struct NoOp {
 impl Node for NoOp {
     async fn iteration(&self) -> Result<()> {
         if let Ok(Message::Data(mut msg)) = self.input.recv_async().await {
-            let data = msg.get_inner_data().try_get::<ZFUsize>()?;
+            let data = msg.try_get::<ZFUsize>()?;
             assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
             let out_data = Data::from(data.clone());
             self.output.send_async(out_data, None).await?;
@@ -212,9 +212,7 @@ impl OperatorFactoryTrait for NoOpCallbackFactory {
                 async move {
                     println!("Entering callback");
                     let data = match message {
-                        Message::Data(mut data) => {
-                            data.get_inner_data().try_get::<ZFUsize>()?.clone()
-                        }
+                        Message::Data(mut data) => data.try_get::<ZFUsize>()?.clone(),
                         _ => return Err(zferror!(ErrorKind::Unsupported).into()),
                     };
 

@@ -21,6 +21,7 @@ use crate::zfresult::ErrorKind;
 use crate::Result;
 
 use serde::{Deserialize, Serialize};
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::{cmp::Ordering, fmt::Debug};
 use uhlc::Timestamp;
@@ -33,6 +34,20 @@ use uuid::Uuid;
 pub struct DataMessage {
     pub(crate) data: Data,
     pub(crate) timestamp: Timestamp,
+}
+
+impl Deref for DataMessage {
+    type Target = Data;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl DerefMut for DataMessage {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
 }
 
 impl DataMessage {
