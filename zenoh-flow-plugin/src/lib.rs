@@ -99,13 +99,11 @@ async fn run(runtime: Runtime, config: DaemonConfig, rx: Receiver<()>) -> ZResul
     // But cannot be done twice in case of static link.
     let _ = env_logger::try_init();
 
-
     //FIXME: sleeping here in order to wait for subscriptions to be propagated.
     // Because we are starting the plugin, that then does a PUT in Zenoh.
     // Thus, if the subscription matching the key is not yet propagated,
     // the information is lost, making impossible to discover the runtime.
     async_std::task::sleep(std::time::Duration::from_secs(5)).await;
-
 
     log::debug!("Zenoh-Flow plugin {}", LONG_VERSION.as_str());
     log::debug!("Zenoh-Flow plugin {:?}", config);
