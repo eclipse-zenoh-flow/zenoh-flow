@@ -43,6 +43,7 @@ pub mod model;
 pub mod runtime;
 pub mod traits;
 pub mod types;
+pub mod zfdata;
 
 pub mod zfresult;
 
