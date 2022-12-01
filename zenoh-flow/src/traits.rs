@@ -64,7 +64,7 @@ pub trait DowncastAny {
 ///         Self: Sized,
 ///     {
 ///         Ok(MyString(
-///             String::from_utf8(bytes.to_vec()).map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?,
+///             String::from_utf8(bytes.to_vec()).map_err(|e| zferror!(ErrorKind::DeserializationError, e))?,
 ///         ))
 ///     }
 /// }

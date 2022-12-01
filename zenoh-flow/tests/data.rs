@@ -38,9 +38,9 @@ impl ZFData for TestData {
     where
         Self: Sized,
     {
-        let json = String::from_utf8_lossy(bytes);
-        let data: TestData =
-            serde_json::from_str(&json).map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?;
+        let json = String::from_utf8(bytes.to_vec()).unwrap();
+        let data: TestData = serde_json::from_str(&json)
+            .map_err(|e| zferror!(ErrorKind::DeserializationError, e))?;
         Ok(data)
     }
 }

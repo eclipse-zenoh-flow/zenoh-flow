@@ -395,7 +395,7 @@ where
                     sample.value.encoding
                 );
                 Err(zferror!(
-                    ErrorKind::DeseralizationError,
+                    ErrorKind::DeserializationError,
                     "Received sample with wrong encoding {:?}, dropping",
                     sample.value.encoding
                 )
@@ -405,7 +405,7 @@ where
         SampleKind::Delete => {
             log::warn!("Received delete sample drop it");
             Err(zferror!(
-                ErrorKind::DeseralizationError,
+                ErrorKind::DeserializationError,
                 "Received delete sample dropping it"
             )
             .into())
@@ -672,10 +672,11 @@ impl DataStore {
                             "Could not extract the instance id from key expression: {}",
                             sample.key_expr.as_str()
                         );
-                        zferror!(ErrorKind::DeseralizationError)
+                        zferror!(ErrorKind::DeserializationError)
                     })?;
                 runtimes.push(
-                    Uuid::parse_str(id).map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?,
+                    Uuid::parse_str(id)
+                        .map_err(|e| zferror!(ErrorKind::DeserializationError, e))?,
                 );
             }
         }
@@ -865,9 +866,9 @@ impl DataStore {
                             let ni = deserialize_data::<T>(&sample.value.payload.contiguous())?;
                             Ok(ni)
                         }
-                        _ => Err(zferror!(ErrorKind::DeseralizationError).into()),
+                        _ => Err(zferror!(ErrorKind::DeserializationError).into()),
                     },
-                    _ => Err(zferror!(ErrorKind::DeseralizationError).into()),
+                    _ => Err(zferror!(ErrorKind::DeserializationError).into()),
                 }
             }
         }
@@ -895,9 +896,9 @@ impl DataStore {
                         let ni = deserialize_data::<T>(&sample.value.payload.contiguous())?;
                         zf_data.push(ni);
                     }
-                    _ => return Err(zferror!(ErrorKind::DeseralizationError).into()),
+                    _ => return Err(zferror!(ErrorKind::DeserializationError).into()),
                 },
-                _ => return Err(zferror!(ErrorKind::DeseralizationError).into()),
+                _ => return Err(zferror!(ErrorKind::DeserializationError).into()),
             }
         }
         Ok(zf_data)

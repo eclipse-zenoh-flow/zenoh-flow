@@ -46,7 +46,7 @@ impl ZFData for ZFUsize {
         let value = usize::from_ne_bytes(
             bytes
                 .try_into()
-                .map_err(|e| zferror!(ErrorKind::DeseralizationError, "{}", e))?,
+                .map_err(|e| zferror!(ErrorKind::DeserializationError, "{}", e))?,
         );
         Ok(ZFUsize(value))
     }

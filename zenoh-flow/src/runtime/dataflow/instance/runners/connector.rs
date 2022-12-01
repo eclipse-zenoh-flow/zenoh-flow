@@ -167,7 +167,7 @@ impl Node for ZenohReceiver {
     async fn iteration(&self) -> ZFResult<()> {
         if let Ok(msg) = self.subscriber.recv_async().await {
             let de: Message = bincode::deserialize(&msg.value.payload.contiguous())
-                .map_err(|e| zferror!(ErrorKind::DeseralizationError, e))?;
+                .map_err(|e| zferror!(ErrorKind::DeserializationError, e))?;
             self.output.send_to_all_async(de).await?;
             log::trace!("[ZenohReceiver: {}] send_async: OK", self.id);
             Ok(())

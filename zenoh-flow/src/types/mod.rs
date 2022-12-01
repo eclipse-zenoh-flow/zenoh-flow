@@ -99,13 +99,10 @@ impl Data {
         Typed: ZFData + 'static,
     {
         *self = (match &self {
-            Self::Bytes(bytes) => {
-                let data: Arc<dyn ZFData> = Arc::new(
-                    Typed::try_deserialize(bytes.as_slice())
-                        .map_err(|e| zferror!(ErrorKind::DeseralizationError, "{:?}", e))?,
-                );
-                Ok(Self::Typed(data.clone()))
-            }
+            Self::Bytes(bytes) => Ok(Self::Typed(Arc::new(
+                Typed::try_deserialize(bytes.as_slice())
+                    .map_err(|e| zferror!(ErrorKind::DeserializationError, "{:?}", e))?,
+            ))),
             Self::Typed(typed) => Ok(Self::Typed(typed.clone())),
         } as Result<Self>)?;
 

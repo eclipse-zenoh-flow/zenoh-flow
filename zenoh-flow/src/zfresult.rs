@@ -73,7 +73,7 @@ pub type DaemonResult<T> = Result<T, ErrorKind>;
 pub enum ErrorKind {
     GenericError,
     SerializationError,
-    DeseralizationError,
+    DeserializationError,
     MissingState,
     InvalidState,
     Unimplemented,
