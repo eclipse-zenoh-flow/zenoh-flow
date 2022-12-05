@@ -16,20 +16,18 @@ pub mod instance;
 pub mod loader;
 pub mod node;
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use uuid::Uuid;
-
+use self::node::{OperatorConstructor, SinkConstructor, SourceConstructor};
+use self::node::{OperatorFn, SinkFn, SourceFn};
+use crate::model::descriptor::{InputDescriptor, OutputDescriptor};
 use crate::model::record::{
     DataFlowRecord, LinkRecord, OperatorRecord, SinkRecord, SourceRecord, ZFConnectorRecord,
 };
-// use crate::model::dataflow::validator::DataflowValidator;
-use self::node::{OperatorFactory, SinkFactory, SourceFactory};
-use crate::model::descriptor::{InputDescriptor, OutputDescriptor};
 use crate::runtime::RuntimeContext;
-use crate::traits;
 use crate::types::NodeId;
 use crate::Result as ZFResult;
+use std::collections::HashMap;
+use std::sync::Arc;
+use uuid::Uuid;
 
 /// `DataFlow` is an intermediate structure which primary purpose is to store the loaded libraries.
 ///
@@ -42,9 +40,9 @@ pub struct DataFlow {
     pub(crate) uuid: Uuid,
     pub(crate) flow: Arc<str>,
     pub(crate) context: RuntimeContext,
-    pub(crate) source_factories: HashMap<NodeId, SourceFactory>,
-    pub(crate) operator_factories: HashMap<NodeId, OperatorFactory>,
-    pub(crate) sink_factories: HashMap<NodeId, SinkFactory>,
+    pub(crate) source_constructors: HashMap<NodeId, SourceConstructor>,
+    pub(crate) operator_constructors: HashMap<NodeId, OperatorConstructor>,
+    pub(crate) sink_constructors: HashMap<NodeId, SinkConstructor>,
     pub(crate) connectors: HashMap<NodeId, ZFConnectorRecord>,
     pub(crate) links: Vec<LinkRecord>,
     pub(crate) counter: u32,
@@ -62,61 +60,51 @@ impl DataFlow {
             uuid: Uuid::new_v4(),
             flow: name.as_ref().into(),
             context,
-            source_factories: HashMap::new(),
-            operator_factories: HashMap::new(),
-            sink_factories: HashMap::new(),
+            source_constructors: HashMap::new(),
+            operator_constructors: HashMap::new(),
+            sink_constructors: HashMap::new(),
             connectors: HashMap::new(),
             links: Vec::new(),
             counter: 0,
         }
     }
 
-    /// Add a `SourceFactory` to the `DataFlow`.
+    /// Add a `Source` to the `DataFlow`.
     ///
     /// **Unless you know very well what you are doing, you should not use this method**.
     ///
     /// If the Source is not correctly connected to downstream nodes, its data will never be
     /// received.
-    pub fn add_source_factory(
-        &mut self,
-        record: SourceRecord,
-        factory: Arc<dyn traits::SourceFactoryTrait>,
-    ) {
-        self.source_factories.insert(
+    pub fn add_source(&mut self, record: SourceRecord, constructor: SourceFn) {
+        self.source_constructors.insert(
             record.id.clone(),
-            SourceFactory::new_static(record, factory),
+            SourceConstructor::new_static(record, constructor),
         );
     }
 
-    /// Add an `OperatorFactory` to the `DataFlow`.
+    /// Add an `Operator` to the `DataFlow`.
     ///
     /// **Unless you know very well what you are doing, you should not use this method**.
     ///
     /// If the Operator is not correctly connected to upstream and downstream nodes, it will never
     /// receive, process and emit data.
-    pub fn add_operator_factory(
-        &mut self,
-        record: OperatorRecord,
-        factory: Arc<dyn traits::OperatorFactoryTrait>,
-    ) {
-        self.operator_factories.insert(
+    pub fn add_operator(&mut self, record: OperatorRecord, constructor: OperatorFn) {
+        self.operator_constructors.insert(
             record.id.clone(),
-            OperatorFactory::new_static(record, factory),
+            OperatorConstructor::new_static(record, constructor),
         );
     }
 
-    /// Add a `SinkFactory` to the `DataFlow`.
+    /// Add a `Sink` to the `DataFlow`.
     ///
     /// **Unless you know very well what you are doing, you should not use this method**.
     ///
     /// If the Sink is not correctly connected to upstream nodes, it will never receive data.
-    pub fn add_sink_factory(
-        &mut self,
-        record: SinkRecord,
-        factory: Arc<dyn traits::SinkFactoryTrait>,
-    ) {
-        self.sink_factories
-            .insert(record.id.clone(), SinkFactory::new_static(record, factory));
+    pub fn add_sink(&mut self, record: SinkRecord, constructor: SinkFn) {
+        self.sink_constructors.insert(
+            record.id.clone(),
+            SinkConstructor::new_static(record, constructor),
+        );
     }
 
     /// Add a `Link` to the `DataFlow`.
@@ -155,45 +143,45 @@ impl DataFlow {
             counter,
         } = record;
 
-        let source_factories = sources
+        let source_constructors = sources
             .into_iter()
             .map(|(source_id, source_record)| {
                 context
                     .loader
-                    .load_source_factory(source_record)
+                    .load_source_constructor(source_record)
                     // `map` leaves the Error untouched and allows us to transform the Ok into a
                     // tuple so we can finally build an HashMap
-                    .map(|source_factory| (source_id, source_factory))
+                    .map(|source_constructor| (source_id, source_constructor))
             })
-            .collect::<ZFResult<HashMap<NodeId, SourceFactory>>>()?;
+            .collect::<ZFResult<HashMap<NodeId, SourceConstructor>>>()?;
 
-        let operator_factories = operators
+        let operator_constructors = operators
             .into_iter()
             .map(|(operator_id, operator_record)| {
                 context
                     .loader
-                    .load_operator_factory(operator_record)
-                    .map(|operator_factory| (operator_id, operator_factory))
+                    .load_operator_constructor(operator_record)
+                    .map(|operator_constructor| (operator_id, operator_constructor))
             })
-            .collect::<ZFResult<HashMap<NodeId, OperatorFactory>>>()?;
+            .collect::<ZFResult<HashMap<NodeId, OperatorConstructor>>>()?;
 
-        let sink_factories = sinks
+        let sink_constructors = sinks
             .into_iter()
             .map(|(sink_id, sink_record)| {
                 context
                     .loader
-                    .load_sink_factory(sink_record)
-                    .map(|sink_factory| (sink_id, sink_factory))
+                    .load_sink_constructor(sink_record)
+                    .map(|sink_constructor| (sink_id, sink_constructor))
             })
-            .collect::<ZFResult<HashMap<NodeId, SinkFactory>>>()?;
+            .collect::<ZFResult<HashMap<NodeId, SinkConstructor>>>()?;
 
         Ok(Self {
             uuid,
             flow: flow.into(),
             context,
-            source_factories,
-            operator_factories,
-            sink_factories,
+            source_constructors,
+            operator_constructors,
+            sink_constructors,
             connectors,
             links,
             counter,

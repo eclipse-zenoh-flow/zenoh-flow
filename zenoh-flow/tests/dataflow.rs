@@ -13,10 +13,10 @@
 //
 
 use async_trait::async_trait;
-use flume::{bounded, Receiver};
 use std::convert::TryInto;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use zenoh::prelude::r#async::*;
 use zenoh_flow::model::descriptor::{InputDescriptor, OutputDescriptor};
 use zenoh_flow::model::record::{OperatorRecord, PortRecord, SinkRecord, SourceRecord};
@@ -24,11 +24,11 @@ use zenoh_flow::prelude::*;
 use zenoh_flow::runtime::dataflow::instance::DataFlowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
-use zenoh_flow::traits::{
-    Node, OperatorFactoryTrait, SinkFactoryTrait, SourceFactoryTrait, ZFData,
-};
+use zenoh_flow::traits::ZFData;
 use zenoh_flow::types::{Configuration, Context, Inputs, Message, Outputs, Streams};
 use zenoh_flow::zenoh_flow_derive::ZFData;
+use zenoh_flow::zfresult::ErrorKind;
+
 // Data Type
 
 #[derive(Debug, Clone, ZFData)]
@@ -54,55 +54,45 @@ impl ZFData for ZFUsize {
 
 static SOURCE: &str = "Counter";
 static DESTINATION: &str = "Counter";
-static PORT_CALLBACK: &str = "Counter_callback";
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
-static COUNTER_CALLBACK: AtomicUsize = AtomicUsize::new(1);
 
 // SOURCE
 
 struct CountSource {
-    rx: Receiver<()>,
     output: Output,
-    output_callback: Output,
+}
+
+#[async_trait]
+impl Source for CountSource {
+    async fn new(
+        _context: Context,
+        _configuration: Option<Configuration>,
+        mut outputs: Outputs,
+    ) -> Result<Self> {
+        println!("[CountSource] constructor");
+        let output = outputs.take(SOURCE).unwrap();
+
+        Ok(CountSource { output })
+    }
 }
 
 #[async_trait]
 impl Node for CountSource {
     async fn iteration(&self) -> Result<()> {
-        self.rx.recv_async().await.unwrap();
+        println!("[CountSource] iteration being");
+
         COUNTER.fetch_add(1, Ordering::AcqRel);
+
+        println!("[CountSource] sending on first output");
         self.output
             .send_async(ZFUsize(COUNTER.load(Ordering::Relaxed)), None)
             .await?;
 
-        COUNTER_CALLBACK.fetch_add(1, Ordering::AcqRel);
-        self.output_callback
-            .send_async(ZFUsize(COUNTER_CALLBACK.load(Ordering::Relaxed)), None)
-            .await
-    }
-}
+        println!("[CountSource] iteration done, sleeping");
+        async_std::task::sleep(Duration::from_secs(10)).await;
 
-struct CountSourceFactory {
-    rx: Receiver<()>,
-}
-
-#[async_trait]
-impl SourceFactoryTrait for CountSourceFactory {
-    async fn new_source(
-        &self,
-        _context: &mut Context,
-        _configuration: &Option<Configuration>,
-        mut outputs: Outputs,
-    ) -> Result<Option<Arc<dyn Node>>> {
-        let output = outputs.take(SOURCE).unwrap();
-        let output_callback = outputs.take(PORT_CALLBACK).unwrap();
-
-        Ok(Some(Arc::new(CountSource {
-            rx: self.rx.clone(),
-            output,
-            output_callback,
-        })))
+        Ok(())
     }
 }
 
@@ -110,124 +100,79 @@ impl SourceFactoryTrait for CountSourceFactory {
 
 struct GenericSink {
     input: Input,
-    input_callback: Input,
+}
+
+#[async_trait]
+impl Sink for GenericSink {
+    async fn new(
+        _context: Context,
+        _configuration: Option<Configuration>,
+        mut inputs: Inputs,
+    ) -> Result<Self> {
+        println!("[GenericSink] constructor");
+        let input = inputs.take(SOURCE).unwrap();
+
+        Ok(GenericSink { input })
+    }
 }
 
 #[async_trait]
 impl Node for GenericSink {
     async fn iteration(&self) -> Result<()> {
+        println!("[GenericSink] iteration being");
         if let Ok(Message::Data(mut msg)) = self.input.recv_async().await {
             let data = msg.try_get::<ZFUsize>()?;
+            println!("[GenericSink] Data from first input {:?}", data);
             assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
         }
 
-        if let Ok(Message::Data(mut msg)) = self.input_callback.recv_async().await {
-            let data = msg.try_get::<ZFUsize>()?;
-            assert_eq!(data.0, COUNTER_CALLBACK.load(Ordering::Relaxed));
-        }
-
+        println!("[GenericSink] iteration done");
         Ok(())
     }
 }
 
-struct GenericSinkFactory;
-
-#[async_trait]
-impl SinkFactoryTrait for GenericSinkFactory {
-    async fn new_sink(
-        &self,
-        _context: &mut Context,
-        _configuration: &Option<Configuration>,
-        mut inputs: Inputs,
-    ) -> Result<Option<Arc<dyn Node>>> {
-        let input = inputs.take(SOURCE).unwrap();
-        let input_callback = inputs.take(PORT_CALLBACK).unwrap();
-
-        Ok(Some(Arc::new(GenericSink {
-            input,
-            input_callback,
-        })))
-    }
-}
-
 // OPERATORS
+
 struct NoOp {
     input: Input,
     output: Output,
 }
 
 #[async_trait]
-impl Node for NoOp {
-    async fn iteration(&self) -> Result<()> {
-        if let Ok(Message::Data(mut msg)) = self.input.recv_async().await {
-            let data = msg.try_get::<ZFUsize>()?;
-            assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
-            self.output.send_async(data.clone(), None).await?;
-        }
-        Ok(())
-    }
-}
-
-struct NoOpFactory;
-
-#[async_trait]
-impl OperatorFactoryTrait for NoOpFactory {
-    async fn new_operator(
-        &self,
-        _context: &mut Context,
-        _configuration: &Option<Configuration>,
+impl Operator for NoOp {
+    async fn new(
+        _context: Context,
+        _configuration: Option<Configuration>,
         mut inputs: Inputs,
         mut outputs: Outputs,
-    ) -> Result<Option<Arc<dyn Node>>> {
-        Ok(Some(Arc::new(NoOp {
+    ) -> Result<Self> {
+        println!("[NoOp] constructor");
+        Ok(NoOp {
             input: inputs.take(SOURCE).unwrap(),
             output: outputs.take(DESTINATION).unwrap(),
-        })))
+        })
     }
 }
 
-struct NoOpCallbackFactory;
-
 #[async_trait]
-impl OperatorFactoryTrait for NoOpCallbackFactory {
-    async fn new_operator(
-        &self,
-        context: &mut Context,
-        _configuration: &Option<Configuration>,
-        mut inputs: Inputs,
-        mut outputs: Outputs,
-    ) -> Result<Option<Arc<dyn Node>>> {
-        let input = inputs.take(PORT_CALLBACK).unwrap();
-        let output = outputs.take_into_arc(PORT_CALLBACK).unwrap();
-
-        context.register_input_callback(
-            input,
-            Arc::new(move |message| {
-                let output_cloned = output.clone();
-
-                async move {
-                    println!("Entering callback");
-                    let data = match message {
-                        Message::Data(mut data) => data.try_get::<ZFUsize>()?.clone(),
-                        _ => return Err(zferror!(ErrorKind::Unsupported).into()),
-                    };
-
-                    assert_eq!(data.0, COUNTER_CALLBACK.load(Ordering::Relaxed));
-                    output_cloned.send_async(data, None).await?;
-                    Ok(())
-                }
-            }),
-        );
-
-        Ok(None)
+impl Node for NoOp {
+    async fn iteration(&self) -> Result<()> {
+        println!("[NoOp] iteration being");
+        if let Ok(Message::Data(mut msg)) = self.input.recv_async().await {
+            let data = msg.try_get::<ZFUsize>()?;
+            println!("[NoOp] got data {:?}", data);
+            assert_eq!(data.0, COUNTER.load(Ordering::Relaxed));
+            self.output.send_async(data.clone(), None).await?;
+            println!("[NoOp] sent data");
+        }
+        println!("[NoOp] iteration done");
+        Ok(())
     }
 }
 
 // Run dataflow in single runtime
 async fn single_runtime() {
     env_logger::init();
-
-    let (tx, rx) = bounded::<()>(1); // Channel used to trigger source
 
     let session = Arc::new(
         zenoh::open(zenoh::config::Config::default())
@@ -251,46 +196,48 @@ async fn single_runtime() {
     let source_record = SourceRecord {
         id: "counter-source".into(),
         uid: 0,
-        outputs: vec![
-            PortRecord {
-                uid: 0,
-                port_id: SOURCE.into(),
-                port_type: "int".into(),
-            },
-            PortRecord {
-                uid: 1,
-                port_id: PORT_CALLBACK.into(),
-                port_type: "int".into(),
-            },
-        ],
+        outputs: vec![PortRecord {
+            uid: 0,
+            port_id: SOURCE.into(),
+            port_type: "int".into(),
+        }],
         uri: None,
         configuration: None,
         runtime: runtime_name.clone(),
     };
 
-    dataflow.add_source_factory(source_record, Arc::new(CountSourceFactory { rx }));
+    dataflow.add_source(
+        source_record,
+        |context: Context, configuration: Option<Configuration>, outputs: Outputs| {
+            Box::pin(async {
+                let node = CountSource::new(context, configuration, outputs).await?;
+                Ok(Arc::new(node) as Arc<dyn Node>)
+            })
+        },
+    );
 
     let sink_record = SinkRecord {
         id: "generic-sink".into(),
         uid: 1,
-        inputs: vec![
-            PortRecord {
-                uid: 2,
-                port_id: SOURCE.into(),
-                port_type: "int".into(),
-            },
-            PortRecord {
-                uid: 3,
-                port_id: PORT_CALLBACK.into(),
-                port_type: "int".into(),
-            },
-        ],
+        inputs: vec![PortRecord {
+            uid: 2,
+            port_id: SOURCE.into(),
+            port_type: "int".into(),
+        }],
         uri: None,
         configuration: None,
         runtime: runtime_name.clone(),
     };
 
-    dataflow.add_sink_factory(sink_record, Arc::new(GenericSinkFactory));
+    dataflow.add_sink(
+        sink_record,
+        |context: Context, configuration: Option<Configuration>, inputs: Inputs| {
+            Box::pin(async {
+                let node = GenericSink::new(context, configuration, inputs).await?;
+                Ok(Arc::new(node) as Arc<dyn Node>)
+            })
+        },
+    );
 
     let no_op_record = OperatorRecord {
         id: "noop".into(),
@@ -310,27 +257,18 @@ async fn single_runtime() {
         runtime: runtime_name.clone(),
     };
 
-    dataflow.add_operator_factory(no_op_record, Arc::new(NoOpFactory));
-
-    let no_op_callback_record = OperatorRecord {
-        id: "noop_callback".into(),
-        uid: 3,
-        inputs: vec![PortRecord {
-            uid: 6,
-            port_id: PORT_CALLBACK.into(),
-            port_type: "int".into(),
-        }],
-        outputs: vec![PortRecord {
-            uid: 7,
-            port_id: PORT_CALLBACK.into(),
-            port_type: "int".into(),
-        }],
-        uri: None,
-        configuration: None,
-        runtime: runtime_name.clone(),
-    };
-
-    dataflow.add_operator_factory(no_op_callback_record, Arc::new(NoOpCallbackFactory));
+    dataflow.add_operator(
+        no_op_record,
+        |context: Context,
+         configuration: Option<Configuration>,
+         inputs: Inputs,
+         outputs: Outputs| {
+            Box::pin(async {
+                let node = NoOp::new(context, configuration, inputs, outputs).await?;
+                Ok(Arc::new(node) as Arc<dyn Node>)
+            })
+        },
+    );
 
     dataflow.add_link(
         OutputDescriptor {
@@ -354,28 +292,6 @@ async fn single_runtime() {
         },
     );
 
-    dataflow.add_link(
-        OutputDescriptor {
-            node: "counter-source".into(),
-            output: PORT_CALLBACK.into(),
-        },
-        InputDescriptor {
-            node: "noop_callback".into(),
-            input: PORT_CALLBACK.into(),
-        },
-    );
-
-    dataflow.add_link(
-        OutputDescriptor {
-            node: "noop_callback".into(),
-            output: PORT_CALLBACK.into(),
-        },
-        InputDescriptor {
-            node: "generic-sink".into(),
-            input: PORT_CALLBACK.into(),
-        },
-    );
-
     let mut instance = DataFlowInstance::try_instantiate(dataflow, hlc.clone())
         .await
         .unwrap();
@@ -392,9 +308,7 @@ async fn single_runtime() {
         instance.start_node(&id).unwrap();
     }
 
-    tx.send_async(()).await.unwrap();
-
-    async_std::task::sleep(std::time::Duration::from_secs(1)).await;
+    async_std::task::sleep(std::time::Duration::from_secs(2)).await;
 
     for id in instance.get_sources() {
         instance.stop_node(&id).await.unwrap();

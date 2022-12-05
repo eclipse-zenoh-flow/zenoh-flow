@@ -55,7 +55,7 @@ impl DataFlowInstance {
     /// CAVEAT: It is possible (and likely) that not all `Sink`s run on a single daemon. Hence, this
     /// list will be a subset of the list of all `Sink`s of this data flow.
     pub fn get_sinks(&self) -> Vec<NodeId> {
-        self.sink_factories.keys().cloned().collect()
+        self.sink_constructors.keys().cloned().collect()
     }
 
     /// Retrieve the `NodeId` of the `Source`s of this data flow instance running on the current
@@ -64,7 +64,7 @@ impl DataFlowInstance {
     /// CAVEAT: It is possible (and likely) that not all `Source`s run on a single daemon. Hence,
     /// this list will be a subset of the list of all `Source`s of this data flow.
     pub fn get_sources(&self) -> Vec<NodeId> {
-        self.source_factories.keys().cloned().collect()
+        self.source_constructors.keys().cloned().collect()
     }
 
     /// Retrieve the `NodeId` of the `Operator`s of this data flow instance running on the current
@@ -73,7 +73,7 @@ impl DataFlowInstance {
     /// CAVEAT: It is possible (and likely) that not all `Operator`s run on a single daemon. Hence,
     /// this list will be a subset of the list of all `Operator`s of this data flow.
     pub fn get_operators(&self) -> Vec<NodeId> {
-        self.operator_factories.keys().cloned().collect()
+        self.operator_constructors.keys().cloned().collect()
     }
 
     /// Retrieve the `NodeId` of the `ZFConnector`s of this data flow instance running on the
@@ -147,36 +147,41 @@ impl DataFlowInstance {
         });
 
         let mut node_ids: Vec<NodeId> = Vec::with_capacity(
-            data_flow.source_factories.len()
-                + data_flow.operator_factories.len()
-                + data_flow.sink_factories.len()
+            data_flow.source_constructors.len()
+                + data_flow.operator_constructors.len()
+                + data_flow.sink_constructors.len()
                 + data_flow.connectors.len(),
         );
 
         node_ids.append(
             &mut data_flow
-                .source_factories
+                .source_constructors
                 .keys()
                 .cloned()
                 .collect::<Vec<_>>(),
         );
         node_ids.append(
             &mut data_flow
-                .operator_factories
+                .operator_constructors
                 .keys()
                 .cloned()
                 .collect::<Vec<_>>(),
         );
-        node_ids.append(&mut data_flow.sink_factories.keys().cloned().collect::<Vec<_>>());
+        node_ids.append(
+            &mut data_flow
+                .sink_constructors
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>(),
+        );
         node_ids.append(&mut data_flow.connectors.keys().cloned().collect::<Vec<_>>());
 
         let mut links = create_links(&node_ids, &data_flow.links, hlc.clone())?;
 
-        let ctx = Context::new(&instance_context);
+        let context = Context::new(&instance_context);
 
-        let mut runners = HashMap::with_capacity(data_flow.source_factories.len());
-        for (source_id, source_factory) in &data_flow.source_factories {
-            let mut context = ctx.clone();
+        let mut runners = HashMap::with_capacity(data_flow.source_constructors.len());
+        for (source_id, source_constructor) in &data_flow.source_constructors {
             let (_, outputs) = links.remove(source_id).ok_or_else(|| {
                 zferror!(
                     ErrorKind::IOError,
@@ -185,16 +190,18 @@ impl DataFlowInstance {
                 )
             })?;
 
-            let source = source_factory
-                .factory
-                .new_source(&mut context, &source_factory.configuration, outputs)
-                .await?;
-            let runner = Runner::new(source, context.inputs_callbacks, context.outputs_callbacks);
+            let source = (source_constructor.constructor)(
+                context.clone(),
+                source_constructor.configuration.clone(),
+                outputs,
+            )
+            .await?;
+
+            let runner = Runner::new(source);
             runners.insert(source_id.clone(), runner);
         }
 
-        for (operator_id, operator_factory) in &data_flow.operator_factories {
-            let mut context = ctx.clone();
+        for (operator_id, operator_constructor) in &data_flow.operator_constructors {
             let (inputs, outputs) = links.remove(operator_id).ok_or_else(|| {
                 zferror!(
                     ErrorKind::IOError,
@@ -203,25 +210,19 @@ impl DataFlowInstance {
                 )
             })?;
 
-            let operator = operator_factory
-                .factory
-                .new_operator(
-                    &mut context,
-                    &operator_factory.configuration,
-                    inputs,
-                    outputs,
-                )
-                .await?;
-            let runner = Runner::new(
-                operator,
-                context.inputs_callbacks,
-                context.outputs_callbacks,
-            );
+            let operator = (operator_constructor.constructor)(
+                context.clone(),
+                operator_constructor.configuration.clone(),
+                inputs,
+                outputs,
+            )
+            .await?;
+
+            let runner = Runner::new(operator);
             runners.insert(operator_id.clone(), runner);
         }
 
-        for (sink_id, sink_factory) in &data_flow.sink_factories {
-            let mut context = ctx.clone();
+        for (sink_id, sink_constructor) in &data_flow.sink_constructors {
             let (inputs, _) = links.remove(sink_id).ok_or_else(|| {
                 zferror!(
                     ErrorKind::IOError,
@@ -230,11 +231,14 @@ impl DataFlowInstance {
                 )
             })?;
 
-            let sink = sink_factory
-                .factory
-                .new_sink(&mut context, &sink_factory.configuration, inputs)
-                .await?;
-            let runner = Runner::new(sink, context.inputs_callbacks, context.outputs_callbacks);
+            let sink = (sink_constructor.constructor)(
+                context.clone(),
+                sink_constructor.configuration.clone(),
+                inputs,
+            )
+            .await?;
+
+            let runner = Runner::new(sink);
             runners.insert(sink_id.clone(), runner);
         }
 
@@ -249,10 +253,8 @@ impl DataFlowInstance {
                             connector_id
                         )
                     })?;
-                    Some(
-                        Arc::new(ZenohSender::new(connector_record, session, inputs).await?)
-                            as Arc<dyn Node>,
-                    )
+                    Arc::new(ZenohSender::new(connector_record, session, inputs).await?)
+                        as Arc<dyn Node>
                 }
                 ZFConnectorKind::Receiver => {
                     let (_, outputs) = links.remove(connector_id).ok_or_else(|| {
@@ -262,14 +264,12 @@ impl DataFlowInstance {
                             &connector_id
                         )
                     })?;
-                    Some(
-                        Arc::new(ZenohReceiver::new(connector_record, session, outputs).await?)
-                            as Arc<dyn Node>,
-                    )
+                    Arc::new(ZenohReceiver::new(connector_record, session, outputs).await?)
+                        as Arc<dyn Node>
                 }
             };
 
-            let runner = Runner::new(node, vec![], vec![]);
+            let runner = Runner::new(node);
             runners.insert(connector_id.clone(), runner);
         }
 

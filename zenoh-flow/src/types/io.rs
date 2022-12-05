@@ -12,7 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::traits::{InputCallback, OutputCallback};
 use crate::types::{Data, Message, PortId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
@@ -137,22 +136,6 @@ impl Input {
 
     pub(crate) fn add(&mut self, receiver: flume::Receiver<Message>) {
         self.receivers.push(receiver);
-    }
-}
-
-/// The `CallbackInput` wraps the `Input` and the callback provided by the user.
-#[derive(Clone)]
-pub(crate) struct CallbackInput {
-    pub(crate) input: Input,
-    pub(crate) callback: Arc<dyn InputCallback>,
-}
-
-impl CallbackInput {
-    pub(crate) async fn run(&self, index: usize) -> ZFResult<usize> {
-        let message = self.input.recv_async().await?;
-        self.callback.call(message).await?;
-
-        Ok(index)
     }
 }
 
@@ -311,22 +294,5 @@ impl Output {
             .store(ts.get_time().0, Ordering::Relaxed);
         let message = Message::Watermark(ts);
         self.send_to_all_async(message).await
-    }
-}
-
-/// The `CallbackOutput` wraps the `Output` and the callback provided by the user.
-#[derive(Clone)]
-pub(crate) struct CallbackOutput {
-    pub(crate) output: Output,
-    pub(crate) callback: Arc<dyn OutputCallback>,
-}
-
-impl CallbackOutput {
-    pub(crate) async fn run(&self, index: usize) -> ZFResult<usize> {
-        let data = self.callback.call().await?;
-        // NOTE: As no timestamp is provided, `send_async` adds one.
-        self.output.send_async(data, None).await?;
-
-        Ok(index)
     }
 }

@@ -22,7 +22,6 @@ pub(crate) mod configuration;
 pub use configuration::Configuration;
 
 use crate::traits::ZFData;
-use crate::types::io::{CallbackInput, CallbackOutput};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result;
