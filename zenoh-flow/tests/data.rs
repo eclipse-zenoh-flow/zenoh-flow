@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::convert::From;
 use std::sync::Arc;
 use zenoh_flow::prelude::*;
-use zenoh_flow::types::Data;
+use zenoh_flow::types::Payload;
 use zenoh_flow::zenoh_flow_derive::ZFData;
 
 #[derive(Debug, ZFData, Clone, Serialize, Deserialize)]
@@ -53,7 +53,7 @@ fn data_wrapping_unwrapping() {
         field3: 123.456f64,
     };
 
-    let mut wrapped_data = Data::from(test_data.clone());
+    let mut wrapped_data = Payload::from(test_data.clone());
 
     let unwrapped_data = wrapped_data.try_get::<TestData>().unwrap();
 
@@ -63,7 +63,7 @@ fn data_wrapping_unwrapping() {
 
     let arc_data = Arc::new(test_data.clone());
 
-    let mut wrapped_data = Data::from(arc_data);
+    let mut wrapped_data = Payload::from(arc_data);
     let unwrapped_data = wrapped_data.try_get::<TestData>().unwrap();
 
     assert_eq!(unwrapped_data.field1, test_data.field1);
@@ -72,7 +72,7 @@ fn data_wrapping_unwrapping() {
 
     let serialized_data = test_data.try_serialize().unwrap();
 
-    let mut wrapped_data = Data::from(serialized_data.clone());
+    let mut wrapped_data = Payload::from(serialized_data.clone());
 
     assert_eq!(
         Arc::from(serialized_data),

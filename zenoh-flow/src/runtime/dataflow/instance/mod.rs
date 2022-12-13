@@ -17,10 +17,11 @@ pub mod runners;
 use self::runners::connector::{ZenohReceiver, ZenohSender};
 use self::runners::Runner;
 use super::DataFlow;
+use crate::io::{Inputs, Outputs};
 use crate::model::record::{LinkRecord, ZFConnectorKind};
 use crate::prelude::{Context, Node};
 use crate::runtime::InstanceContext;
-use crate::types::{Input, Inputs, NodeId, Output, Outputs};
+use crate::types::NodeId;
 use crate::zfresult::ErrorKind;
 use crate::Result;
 use crate::{bail, zferror};
@@ -264,8 +265,9 @@ impl DataFlowInstance {
                             &connector_id
                         )
                     })?;
-                    Arc::new(ZenohReceiver::new(connector_record, session, outputs).await?)
-                        as Arc<dyn Node>
+                    Arc::new(
+                        ZenohReceiver::new(connector_record, session, hlc.clone(), outputs).await?,
+                    ) as Arc<dyn Node>
                 }
             };
 
@@ -310,38 +312,23 @@ pub(crate) fn create_links(
         let to = link_desc.to.input.clone();
 
         match io.get_mut(&upstream_node) {
-            Some((_, outputs)) => {
-                outputs
-                    .entry(from.clone())
-                    .or_insert_with(|| Output::new(from, hlc.clone()))
-                    .add(tx);
-            }
+            Some((_, outputs)) => outputs.insert(from.clone(), tx),
             None => {
-                let inputs = HashMap::new();
-
-                let mut output = Output::new(from.clone(), hlc.clone());
-                output.add(tx);
-
-                let outputs = HashMap::from([(from, output)]);
+                let inputs = Inputs::new();
+                let mut outputs = Outputs::new(hlc.clone());
+                outputs.insert(from.clone(), tx);
 
                 io.insert(upstream_node, (inputs, outputs));
             }
         }
 
         match io.get_mut(&downstream_node) {
-            Some((inputs, _)) => {
-                inputs
-                    .entry(to.clone())
-                    .or_insert_with(|| Input::new(to))
-                    .add(rx);
-            }
+            Some((inputs, _)) => inputs.insert(to.clone(), rx),
             None => {
-                let outputs = HashMap::new();
+                let outputs = Outputs::new(hlc.clone());
 
-                let mut input = Input::new(to.clone());
-                input.add(rx);
-
-                let inputs = HashMap::from([(to, input)]);
+                let mut inputs = Inputs::new();
+                inputs.insert(to.clone(), rx);
 
                 io.insert(downstream_node, (inputs, outputs));
             }

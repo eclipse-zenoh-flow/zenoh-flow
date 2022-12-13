@@ -98,7 +98,7 @@ pub fn export_source(_: TokenStream, input: TokenStream) -> TokenStream {
             core_version: zenoh_flow::runtime::dataflow::loader::CORE_VERSION,
             constructor: |context: zenoh_flow::types::Context,
                           configuration: Option<zenoh_flow::types::Configuration>,
-                          outputs: zenoh_flow::types::Outputs| {
+                          outputs: zenoh_flow::io::Outputs| {
                 std::boxed::Box::pin(async {
                     let node = <#ident>::new(context, configuration, outputs).await?;
                     Ok(std::sync::Arc::new(node) as std::sync::Arc<dyn zenoh_flow::traits::Node>)
@@ -161,7 +161,7 @@ pub fn export_sink(_: TokenStream, input: TokenStream) -> TokenStream {
             core_version: zenoh_flow::runtime::dataflow::loader::CORE_VERSION,
             constructor: |context: zenoh_flow::types::Context,
                           configuration: Option<zenoh_flow::types::Configuration>,
-                          mut inputs: zenoh_flow::types::Inputs| {
+                          mut inputs: zenoh_flow::io::Inputs| {
                 std::boxed::Box::pin(async {
                     let node = <#ident>::new(context, configuration, inputs).await?;
                     Ok(std::sync::Arc::new(node) as std::sync::Arc<dyn zenoh_flow::traits::Node>)
@@ -233,8 +233,8 @@ pub fn export_operator(_: TokenStream, input: TokenStream) -> TokenStream {
             core_version: zenoh_flow::runtime::dataflow::loader::CORE_VERSION,
             constructor: |context: zenoh_flow::types::Context,
                           configuration: Option<zenoh_flow::types::Configuration>,
-                          mut inputs: zenoh_flow::types::Inputs,
-                          mut outputs: zenoh_flow::types::Outputs| {
+                          mut inputs: zenoh_flow::io::Inputs,
+                          mut outputs: zenoh_flow::io::Outputs| {
                 std::boxed::Box::pin(async {
                     let node = <#ident>::new(context, configuration, inputs, outputs).await?;
                     Ok(std::sync::Arc::new(node) as std::sync::Arc<dyn zenoh_flow::traits::Node>)

@@ -25,9 +25,11 @@ use std::fmt::Debug;
 ///
 /// This can be derived using the `#[derive(ZFData)]`
 ///
-/// Example::
+/// ## Example
+///
 /// ```no_run
-/// use zenoh_flow::zenoh_flow_derive::ZFData;
+/// use zenoh_flow::prelude::*;
+///
 /// #[derive(Debug, Clone, ZFData)]
 /// pub struct MyString(pub String);
 /// ```
@@ -44,9 +46,9 @@ pub trait DowncastAny {
 /// User types should implement this trait otherwise Zenoh Flow will
 /// not be able to handle the data, serialize and deserialize them when needed.
 ///
-/// Example:
+/// ## Example
+///
 /// ```no_run
-/// use zenoh_flow::zenoh_flow_derive::ZFData;
 /// use zenoh_flow::prelude::*;
 ///
 /// #[derive(Debug, Clone, ZFData)]
@@ -91,40 +93,18 @@ pub trait ZFData: DowncastAny + Debug + Send + Sync {
 /// A struct implementing the Source trait typically needs to keep a reference to the `Output` it
 /// needs.
 ///
-/// # Example
+/// ## Example
 ///
 /// ```no_run
 /// use zenoh_flow::prelude::*;
-/// use zenoh_flow::zenoh_flow_derive::ZFData;
-/// use std::convert::TryInto;
 ///
-/// #[derive(Debug, Clone, ZFData)]
-/// pub struct ZFUsize(pub usize);
-///
-/// impl ZFData for ZFUsize {
-///     fn try_serialize(&self) -> Result<Vec<u8>> {
-///         Ok(self.0.to_ne_bytes().to_vec())
-///     }
-///
-///     fn try_deserialize(bytes: &[u8]) -> Result<Self>
-///     where
-///         Self: Sized,
-///     {
-///         let value = usize::from_ne_bytes(
-///             bytes
-///                 .try_into()
-///                 .map_err(|e| zferror!(ErrorKind::DeserializationError, "{}", e))?,
-///         );
-///         Ok(ZFUsize(value))
-///     }
-/// }
 /// // Use our provided macro to expose the symbol that Zenoh-Flow will look for when it will load
 /// // the shared library.
 /// #[export_source]
 /// pub struct MySource {
-///     output: Output,    // A Source would have one or more outputs.
+///     output: Output<usize>,
 ///     // The state could go in such structure.
-///     // state: Arc<Mutex<T>>,
+///     // state: Arc<Mutex<State>>,
 /// }
 ///
 /// #[async_trait::async_trait]
@@ -150,11 +130,10 @@ pub trait ZFData: DowncastAny + Debug + Send + Sync {
 ///         // interacting with I/O devices. We mimick an asynchronous iteraction with a sleep.
 ///         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
 ///
-///         self.output.send_async(ZFUsize(1), None).await?;
+///         // self.output.send(10usize, None).await?;
 ///         Ok(())
 ///     }
 /// }
-///
 /// ```
 #[async_trait]
 pub trait Source: Node + Send + Sync {
@@ -185,7 +164,7 @@ pub trait Source: Node + Send + Sync {
 /// A struct implementing the Sink trait typically needs to keep a reference to the `Input` it
 /// needs.
 ///
-/// # Example
+/// ## Example
 ///
 /// ```no_run
 /// use async_trait::async_trait;
@@ -195,7 +174,7 @@ pub trait Source: Node + Send + Sync {
 /// // the shared library.
 /// #[export_sink]
 /// struct GenericSink {
-///     input: Input,
+///     input: Input<usize>,
 /// }
 ///
 /// #[async_trait]
@@ -214,14 +193,15 @@ pub trait Source: Node + Send + Sync {
 /// #[async_trait]
 /// impl Node for GenericSink {
 ///     async fn iteration(&self) -> Result<()> {
-///         if let Ok(Message::Data(mut msg)) = self.input.recv_async().await {
-///             println!("Data {:?}", msg);
+///         let (message, _timestamp) = self.input.recv().await?;
+///         match message {
+///             Message::Data(t) => println!("{}", *t),
+///             Message::Watermark => println!("Watermark"),
 ///         }
 ///
 ///         Ok(())
 ///     }
 /// }
-///
 /// ```
 #[async_trait]
 pub trait Sink: Node + Send + Sync {
@@ -252,7 +232,7 @@ pub trait Sink: Node + Send + Sync {
 /// A struct implementing the Operator trait typically needs to keep a reference to the `Input` and
 /// `Output` it needs.
 ///
-/// # Example
+/// ## Example
 ///
 /// ```no_run
 /// use async_trait::async_trait;
@@ -262,8 +242,8 @@ pub trait Sink: Node + Send + Sync {
 /// // the shared library.
 /// #[export_operator]
 /// struct NoOp {
-///     input: Input,
-///     output: Output,
+///     input: Input<usize>,
+///     output: Output<usize>,
 /// }
 ///
 /// #[async_trait]
@@ -283,13 +263,14 @@ pub trait Sink: Node + Send + Sync {
 /// #[async_trait]
 /// impl Node for NoOp {
 ///     async fn iteration(&self) -> Result<()> {
-///         if let Ok(Message::Data(mut msg)) = self.input.recv_async().await {
-///             self.output.send_async((*msg).clone(), None).await?;
+///         let (message, _timestamp) = self.input.recv().await?;
+///         match message {
+///             Message::Data(t) => self.output.send(*t, None).await?,
+///             Message::Watermark => println!("Watermark"),
 ///         }
 ///         Ok(())
 ///     }
 /// }
-///
 /// ```
 #[async_trait]
 pub trait Operator: Node + Send + Sync {
@@ -319,8 +300,8 @@ pub trait Operator: Node + Send + Sync {
 /// A struct implementing the Node trait typically needs to keep a reference to the `Input` and
 /// `Output` it needs.
 ///
-/// For usage examples see [`Operator`](`Operator`), [`Source`](`Source`) or [`Sink`](`Sink`) traits.
-/// ```
+/// For usage examples see: [`Operator`](`Operator`), [`Source`](`Source`) or [`Sink`](`Sink`)
+/// traits.
 #[async_trait]
 pub trait Node: Send + Sync {
     async fn iteration(&self) -> Result<()>;

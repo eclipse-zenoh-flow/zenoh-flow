@@ -13,27 +13,32 @@
 //
 
 use async_trait::async_trait;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use zenoh::prelude::r#async::*;
+use zenoh_flow::io::{Inputs, Outputs};
 use zenoh_flow::model::descriptor::{InputDescriptor, OutputDescriptor};
 use zenoh_flow::model::record::{OperatorRecord, PortRecord, SinkRecord, SourceRecord};
 use zenoh_flow::prelude::*;
 use zenoh_flow::runtime::dataflow::instance::DataFlowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
-use zenoh_flow::types::{Configuration, Context, Inputs, Message, Outputs, Streams};
+use zenoh_flow::types::{Configuration, Context, LinkMessage, Message};
 
-static SOURCE: &str = "Counter";
-static DESTINATION: &str = "Counter";
+static SOURCE: &str = "counter-source";
+static OP_RAW: &str = "operator-raw";
+static OP_TYPED: &str = "operator-typed";
+static SINK: &str = "generic-sink";
 
-static COUNTER: AtomicUsize = AtomicUsize::new(0);
+static IN_TYPED: &str = "in-typed";
+static IN_RAW: &str = "in-raw";
+static OUT_TYPED: &str = "out-typed";
+static OUT_RAW: &str = "out-raw";
 
 // SOURCE
 
 struct CountSource {
-    output: Output,
+    output: Output<usize>,
 }
 
 #[async_trait]
@@ -44,7 +49,7 @@ impl Source for CountSource {
         mut outputs: Outputs,
     ) -> Result<Self> {
         println!("[CountSource] constructor");
-        let output = outputs.take(SOURCE).unwrap();
+        let output = outputs.take(OUT_TYPED).unwrap();
 
         Ok(CountSource { output })
     }
@@ -53,14 +58,8 @@ impl Source for CountSource {
 #[async_trait]
 impl Node for CountSource {
     async fn iteration(&self) -> Result<()> {
-        println!("[CountSource] iteration being");
-
-        COUNTER.fetch_add(1, Ordering::AcqRel);
-
-        println!("[CountSource] sending on first output");
-        self.output
-            .send_async(COUNTER.load(Ordering::Relaxed), None)
-            .await?;
+        println!("[CountSource] Starting iteration");
+        self.output.send(1usize, None).await?;
 
         println!("[CountSource] iteration done, sleeping");
         async_std::task::sleep(Duration::from_secs(10)).await;
@@ -69,10 +68,122 @@ impl Node for CountSource {
     }
 }
 
+// OPERATORS
+
+/// An `OpRaw` uses, internally, only the data received in its `input_raw`.
+///
+/// The objective is to test the following "forward" of messages:
+/// - InputRaw -> Output<T>
+/// - InputRaw -> OutputRaw
+struct OpRaw {
+    input_typed: Input<usize>,
+    input_raw: InputRaw,
+    output_typed: Output<usize>,
+    output_raw: OutputRaw,
+}
+
+#[async_trait]
+impl Operator for OpRaw {
+    async fn new(
+        _context: Context,
+        _configuration: Option<Configuration>,
+        mut inputs: Inputs,
+        mut outputs: Outputs,
+    ) -> Result<Self> {
+        println!("[OpRaw] constructor");
+        Ok(OpRaw {
+            input_typed: inputs.take(IN_TYPED).unwrap(),
+            input_raw: inputs.take_raw(IN_RAW).unwrap(),
+            output_typed: outputs.take(OUT_TYPED).unwrap(),
+            output_raw: outputs.take_raw(OUT_RAW).unwrap(),
+        })
+    }
+}
+
+#[async_trait]
+impl Node for OpRaw {
+    async fn iteration(&self) -> Result<()> {
+        println!("[OpRaw] iteration being");
+
+        let link_message = self.input_raw.recv().await?;
+        let (typed_message, _timestamp) = self.input_typed.recv().await?;
+
+        if let (LinkMessage::Data(mut data_message), Message::Data(data)) =
+            (link_message, typed_message)
+        {
+            assert_eq!(*data_message.try_get::<usize>()?, *data);
+
+            self.output_raw.send(data_message.clone(), None).await?;
+            self.output_typed.send(data_message, None).await?;
+        } else {
+            panic!("Unexpected watermark message")
+        }
+
+        println!("[OpRaw] iteration done");
+        Ok(())
+    }
+}
+
+/// An `OpTyped` uses, internally, only the data received in its `input_typed`.
+///
+/// The objective is to test the following "forward" of messages:
+/// - Input<T> -> Output<T>
+/// - Input<T> -> OutputRaw
+struct OpTyped {
+    input_typed: Input<usize>,
+    input_raw: InputRaw,
+    output_typed: Output<usize>,
+    output_raw: OutputRaw,
+}
+
+#[async_trait]
+impl Operator for OpTyped {
+    async fn new(
+        _context: Context,
+        _configuration: Option<Configuration>,
+        mut inputs: Inputs,
+        mut outputs: Outputs,
+    ) -> Result<Self> {
+        println!("[OpRaw] constructor");
+        Ok(OpTyped {
+            input_typed: inputs.take(IN_TYPED).unwrap(),
+            input_raw: inputs.take_raw(IN_RAW).unwrap(),
+            output_typed: outputs.take(OUT_TYPED).unwrap(),
+            output_raw: outputs.take_raw(OUT_RAW).unwrap(),
+        })
+    }
+}
+
+#[async_trait]
+impl Node for OpTyped {
+    async fn iteration(&self) -> Result<()> {
+        println!("[OpTyped] iteration being");
+
+        let link_message = self.input_raw.recv().await?;
+        let (typed_message, _timestamp) = self.input_typed.recv().await?;
+
+        if let (LinkMessage::Data(ref mut data_message), Message::Data(data)) =
+            (link_message, typed_message)
+        {
+            let number = data_message.try_get::<usize>()?;
+            assert_eq!(*number, *data);
+
+            self.output_raw.send(*data, None).await?;
+            self.output_typed.send(data, None).await?;
+        } else {
+            panic!("Unexpected watermark message")
+        }
+
+        println!("[OpTyped] iteration done");
+        Ok(())
+    }
+}
+
 // SINK
 
 struct GenericSink {
-    input: Input,
+    input_raw: InputRaw,
+    input_typed: Input<usize>,
 }
 
 #[async_trait]
@@ -83,60 +194,35 @@ impl Sink for GenericSink {
         mut inputs: Inputs,
     ) -> Result<Self> {
         println!("[GenericSink] constructor");
-        let input = inputs.take(SOURCE).unwrap();
+        let input_raw = inputs.take_raw(IN_RAW).unwrap();
+        let input_typed = inputs.take(IN_TYPED).unwrap();
 
-        Ok(GenericSink { input })
+        Ok(GenericSink {
+            input_raw,
+            input_typed,
+        })
     }
 }
 
 #[async_trait]
 impl Node for GenericSink {
     async fn iteration(&self) -> Result<()> {
-        println!("[GenericSink] iteration being");
-        if let Ok(Message::Data(mut msg)) = self.input.recv_async().await {
-            let data = msg.try_get::<usize>()?;
-            assert_eq!(*data, COUNTER.load(Ordering::Relaxed));
+        println!("[GenericSink] Starting iteration");
+
+        let link_message = self.input_raw.recv().await?;
+        let (typed_message, _timestamp) = self.input_typed.recv().await?;
+
+        if let (LinkMessage::Data(ref mut data_message), Message::Data(data)) =
+            (link_message, typed_message)
+        {
+            println!("[GenericSink] Received on input_raw: {:?}", data_message);
+            println!("[GenericSink] Received on input_typed: {:?}", data);
+            let number = data_message.try_get::<usize>()?;
+            assert_eq!(*number, *data);
+        } else {
+            panic!("Unexpected watermark message")
         }
 
-        Ok(())
-    }
-}
-
-// OPERATORS
-
-struct NoOp {
-    input: Input,
-    output: Output,
-}
-
-#[async_trait]
-impl Operator for NoOp {
-    async fn new(
-        _context: Context,
-        _configuration: Option<Configuration>,
-        mut inputs: Inputs,
-        mut outputs: Outputs,
-    ) -> Result<Self> {
-        println!("[NoOp] constructor");
-        Ok(NoOp {
-            input: inputs.take(SOURCE).unwrap(),
-            output: outputs.take(DESTINATION).unwrap(),
-        })
-    }
-}
-
-#[async_trait]
-impl Node for NoOp {
-    async fn iteration(&self) -> Result<()> {
-        println!("[NoOp] iteration being");
-        if let Ok(Message::Data(mut msg)) = self.input.recv_async().await {
-            let data = msg.try_get::<usize>()?;
-            println!("[NoOp] got data {:?}", data);
-            assert_eq!(*data, COUNTER.load(Ordering::Relaxed));
-            self.output.send_async(*data, None).await?;
-            println!("[NoOp] sent data");
-        }
-        println!("[NoOp] iteration done");
         Ok(())
     }
 }
@@ -165,11 +251,11 @@ async fn single_runtime() {
     let mut dataflow = zenoh_flow::runtime::dataflow::DataFlow::new("test", ctx.clone());
 
     let source_record = SourceRecord {
-        id: "counter-source".into(),
+        id: SOURCE.into(),
         uid: 0,
         outputs: vec![PortRecord {
             uid: 0,
-            port_id: SOURCE.into(),
+            port_id: OUT_TYPED.into(),
             port_type: "int".into(),
         }],
         uri: None,
@@ -187,14 +273,111 @@ async fn single_runtime() {
         },
     );
 
-    let sink_record = SinkRecord {
-        id: "generic-sink".into(),
+    let op_raw_record = OperatorRecord {
+        id: OP_RAW.into(),
         uid: 1,
-        inputs: vec![PortRecord {
-            uid: 2,
-            port_id: SOURCE.into(),
-            port_type: "int".into(),
-        }],
+        inputs: vec![
+            PortRecord {
+                uid: 1,
+                port_id: IN_RAW.into(),
+                port_type: "int".into(),
+            },
+            PortRecord {
+                uid: 2,
+                port_id: IN_TYPED.into(),
+                port_type: "int".into(),
+            },
+        ],
+        outputs: vec![
+            PortRecord {
+                uid: 3,
+                port_id: OUT_RAW.into(),
+                port_type: "int".into(),
+            },
+            PortRecord {
+                uid: 4,
+                port_id: OUT_TYPED.into(),
+                port_type: "int".into(),
+            },
+        ],
+        uri: None,
+        configuration: None,
+        runtime: runtime_name.clone(),
+    };
+
+    dataflow.add_operator(
+        op_raw_record,
+        |context: Context,
+         configuration: Option<Configuration>,
+         inputs: Inputs,
+         outputs: Outputs| {
+            Box::pin(async {
+                let node = OpRaw::new(context, configuration, inputs, outputs).await?;
+                Ok(Arc::new(node) as Arc<dyn Node>)
+            })
+        },
+    );
+
+    let op_typed_record = OperatorRecord {
+        id: OP_TYPED.into(),
+        uid: 2,
+        inputs: vec![
+            PortRecord {
+                uid: 5,
+                port_id: IN_RAW.into(),
+                port_type: "int".into(),
+            },
+            PortRecord {
+                uid: 6,
+                port_id: IN_TYPED.into(),
+                port_type: "int".into(),
+            },
+        ],
+        outputs: vec![
+            PortRecord {
+                uid: 7,
+                port_id: OUT_RAW.into(),
+                port_type: "int".into(),
+            },
+            PortRecord {
+                uid: 8,
+                port_id: OUT_TYPED.into(),
+                port_type: "int".into(),
+            },
+        ],
+        uri: None,
+        configuration: None,
+        runtime: runtime_name.clone(),
+    };
+
+    dataflow.add_operator(
+        op_typed_record,
+        |context: Context,
+         configuration: Option<Configuration>,
+         inputs: Inputs,
+         outputs: Outputs| {
+            Box::pin(async {
+                let node = OpTyped::new(context, configuration, inputs, outputs).await?;
+                Ok(Arc::new(node) as Arc<dyn Node>)
+            })
+        },
+    );
+
+    let sink_record = SinkRecord {
+        id: SINK.into(),
+        uid: 3,
+        inputs: vec![
+            PortRecord {
+                uid: 9,
+                port_id: IN_TYPED.into(),
+                port_type: "int".into(),
+            },
+            PortRecord {
+                uid: 10,
+                port_id: IN_RAW.into(),
+                port_type: "int".into(),
+            },
+        ],
         uri: None,
         configuration: None,
         runtime: runtime_name.clone(),
@@ -210,56 +393,72 @@ async fn single_runtime() {
         },
     );
 
-    let no_op_record = OperatorRecord {
-        id: "noop".into(),
-        uid: 2,
-        inputs: vec![PortRecord {
-            uid: 4,
-            port_id: SOURCE.into(),
-            port_type: "int".into(),
-        }],
-        outputs: vec![PortRecord {
-            uid: 5,
-            port_id: DESTINATION.into(),
-            port_type: "int".into(),
-        }],
-        uri: None,
-        configuration: None,
-        runtime: runtime_name.clone(),
-    };
-
-    dataflow.add_operator(
-        no_op_record,
-        |context: Context,
-         configuration: Option<Configuration>,
-         inputs: Inputs,
-         outputs: Outputs| {
-            Box::pin(async {
-                let node = NoOp::new(context, configuration, inputs, outputs).await?;
-                Ok(Arc::new(node) as Arc<dyn Node>)
-            })
+    // SOURCE -> OP_RAW
+    dataflow.add_link(
+        OutputDescriptor {
+            node: SOURCE.into(),
+            output: OUT_TYPED.into(),
+        },
+        InputDescriptor {
+            node: OP_RAW.into(),
+            input: IN_RAW.into(),
         },
     );
 
     dataflow.add_link(
         OutputDescriptor {
-            node: "counter-source".into(),
-            output: SOURCE.into(),
+            node: SOURCE.into(),
+            output: OUT_TYPED.into(),
         },
         InputDescriptor {
-            node: "noop".into(),
-            input: SOURCE.into(),
+            node: OP_RAW.into(),
+            input: IN_TYPED.into(),
+        },
+    );
+
+    // OP_RAW -> OP_TYPED
+    dataflow.add_link(
+        OutputDescriptor {
+            node: OP_RAW.into(),
+            output: OUT_RAW.into(), // CAVEAT: we cross, RAW -> TYPED
+        },
+        InputDescriptor {
+            node: OP_TYPED.into(),
+            input: IN_TYPED.into(),
         },
     );
 
     dataflow.add_link(
         OutputDescriptor {
-            node: "noop".into(),
-            output: DESTINATION.into(),
+            node: OP_RAW.into(),
+            output: OUT_TYPED.into(), // CAVEAT: we cross, TYPED -> RAW
         },
         InputDescriptor {
-            node: "generic-sink".into(),
-            input: SOURCE.into(),
+            node: OP_TYPED.into(),
+            input: IN_RAW.into(),
+        },
+    );
+
+    // OP_TYPED -> SINK
+    dataflow.add_link(
+        OutputDescriptor {
+            node: OP_TYPED.into(),
+            output: OUT_RAW.into(), // CAVEAT: NO cross, RAW -> RAW
+        },
+        InputDescriptor {
+            node: SINK.into(),
+            input: IN_RAW.into(),
+        },
+    );
+
+    dataflow.add_link(
+        OutputDescriptor {
+            node: OP_TYPED.into(),
+            output: OUT_TYPED.into(), // CAVEAT: NO cross, TYPED -> TYPED
+        },
+        InputDescriptor {
+            node: SINK.into(),
+            input: IN_TYPED.into(),
         },
     );
 
