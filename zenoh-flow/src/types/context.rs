@@ -18,6 +18,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use uhlc::HLC;
 use uuid::Uuid;
+use zenoh::Session;
 
 /// The `Context` is a structure to obtain information about the runtime, use the Hybrid Logical
 /// Clock (HLC) of the runtime to generate timestamps and register callbacks.
@@ -36,6 +37,7 @@ pub struct Context {
     pub(crate) flow_name: FlowId,
     pub(crate) instance_id: Uuid,
     pub(crate) hlc: Arc<HLC>,
+    pub(crate) zenoh_session: Arc<Session>,
 }
 
 impl Context {
@@ -46,6 +48,7 @@ impl Context {
             flow_name: instance_context.flow_id.clone(),
             instance_id: instance_context.instance_id,
             hlc: instance_context.runtime.hlc.clone(),
+            zenoh_session: instance_context.runtime.session.clone(),
         }
     }
 
@@ -73,6 +76,12 @@ impl Context {
     /// Returns the unique identifier of the running instance of the data flow.
     pub fn get_instance_id(&self) -> &Uuid {
         &self.instance_id
+    }
+
+    /// Returns a thread-safe reference over the Zenoh session used by the Zenoh-Flow daemon running
+    /// the node.
+    pub fn zenoh_session(&self) -> Arc<Session> {
+        self.zenoh_session.clone()
     }
 }
 
