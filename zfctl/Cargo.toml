@@ -45,7 +45,7 @@ serde_json = "1.0.55"
 serde_yaml = "0.9"
 uuid = { version = "1.1", features = ["serde", "v4"] }
 zenoh = { version = "0.6.0-beta.1" }
-zenoh-flow = {path = "../zenoh-flow"}
+zenoh-flow = {version = "0.4.0", path = "../zenoh-flow"}
 zenoh-util = { version = "0.6.0-beta.1" }
 zrpc = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "0.5.x" }
 zrpc-macros = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "0.5.x" }

@@ -59,7 +59,7 @@ uhlc = "0.5.1"
 url = "2.2"
 uuid = { version = "1.1", features = ["serde", "v4"] }
 zenoh = { version = "0.6.0-beta.1" }
-zenoh-flow-derive = {path = "../zenoh-flow-derive"}
+zenoh-flow-derive = {version = "0.4.0", path = "../zenoh-flow-derive"}
 zenoh-sync = { version = "0.6.0-beta.1" }
 zenoh-util = { version = "0.6.0-beta.1" }
 zrpc = { git = "https://github.com/ZettaScaleLabs/zenoh-rpc.git", branch = "0.5.x" }

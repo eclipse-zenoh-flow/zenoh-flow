@@ -49,8 +49,8 @@ zenoh-collections = { version = "0.6.0-beta.1" }
 zenoh-core = { version = "0.6.0-beta.1" }
 zenoh-ext = { version = "0.6.0-beta.1", features = ["unstable"] }
 zenoh-plugin-trait = { version = "0.6.0-beta.1", default-features = false }
-zenoh-flow-daemon = {path = "../zenoh-flow-daemon"}
-zenoh-flow = {path = "../zenoh-flow"}
+zenoh-flow-daemon = {version = "0.4.0", path = "../zenoh-flow-daemon"}
+zenoh-flow = {version = "0.4.0", path = "../zenoh-flow"}
 
 [build-dependencies]
 rustc_version = "0.4"
