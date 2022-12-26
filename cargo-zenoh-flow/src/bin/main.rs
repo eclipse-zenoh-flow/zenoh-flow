@@ -38,7 +38,6 @@ use zenoh_flow_registry::RegistryFileClient;
 pub enum Languages {
     Rust,
     Python,
-    Cpp,
 }
 
 impl std::str::FromStr for Languages {
@@ -49,10 +48,8 @@ impl std::str::FromStr for Languages {
             "rust" => Ok(Self::Rust),
             "python" => Ok(Self::Python),
             "py" => Ok(Self::Python),
-            "cpp" => Ok(Self::Cpp),
-            "c++" => Ok(Self::Cpp),
             _ => Err(CZFError::LanguageNotCompatible(format!(
-                "Language {s} is not supported. Supported languages are: rust, python, cpp"
+                "Language {s} is not supported. Supported languages are: rust, python"
             ))),
         }
     }
@@ -63,7 +60,6 @@ impl std::string::ToString for Languages {
         match self {
             Self::Rust => String::from("rust"),
             Self::Python => String::from("python"),
-            Self::Cpp => String::from("c++"),
         }
     }
 }
@@ -521,27 +517,6 @@ async fn main() {
             }
             Languages::Python => {
                 match cargo_zenoh_flow::utils::create_python_module(&name, kind.clone()).await {
-                    Ok(_) => {
-                        println!(
-                            "{} boilerplate for {} {} ",
-                            "Created".green().bold(),
-                            kind.to_string(),
-                            name.bold()
-                        );
-                    }
-                    Err(e) => {
-                        println!(
-                            "{}: failed to create boilerplate for {} {}: {}",
-                            "error".red().bold(),
-                            kind.to_string(),
-                            name.bold(),
-                            e
-                        );
-                    }
-                }
-            }
-            Languages::Cpp => {
-                match cargo_zenoh_flow::utils::create_cpp_node(&name, kind.clone()).await {
                     Ok(_) => {
                         println!(
                             "{} boilerplate for {} {} ",
