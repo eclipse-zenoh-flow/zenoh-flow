@@ -46,7 +46,6 @@ pub enum CreateKind {
     #[clap(about = "Adds a new flow into the Zenoh Flow registry")]
     Flow {
         #[clap(
-            parse(from_os_str),
             name = "Flow descriptor path",
             help = "Upload the flow in the registry (Unimplemented)"
         )]
@@ -66,7 +65,6 @@ pub enum CreateKind {
     #[clap(about = "Creates a new instance for the given flow")]
     Instance {
         #[clap(
-            parse(from_os_str),
             name = "Flow descriptor path",
             help = "Creates a new instance for the given flow"
         )]
@@ -245,11 +243,7 @@ pub enum ZFCtl {
     Stop(StopKind),
     #[clap(about = "Creates and starts a flow instance")]
     Launch {
-        #[clap(
-            parse(from_os_str),
-            name = "Flow descriptor path",
-            help = "Flow to be started"
-        )]
+        #[clap(name = "Flow descriptor path", help = "Flow to be started")]
         descriptor_path: std::path::PathBuf,
     },
     #[clap(about = "Stops and deletes a flow instance")]

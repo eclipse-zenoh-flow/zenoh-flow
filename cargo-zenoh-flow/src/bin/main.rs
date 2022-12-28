@@ -34,7 +34,7 @@ use zenoh_flow_registry::RegistryClient;
 #[cfg(feature = "local_registry")]
 use zenoh_flow_registry::RegistryFileClient;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Languages {
     Rust,
     Python,
