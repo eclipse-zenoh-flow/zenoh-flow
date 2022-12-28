@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - name: Code format check
@@ -51,7 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
@@ -89,17 +89,14 @@ jobs:
               ;;
             *alpine*)
               apk update
-              apk add git curl build-base libressl-dev
+              apk add git curl build-base libressl-dev bash
               ;;
           esac
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           target: ${{ matrix.job.target }}
-          override: true
-          profile: minimal
       - name: Install cargo rpm
         run: |
           case ${{ matrix.job.container }} in
@@ -220,12 +217,9 @@ jobs:
               ;;
           esac
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           target: ${{ matrix.job.target }}
-          override: true
-          profile: minimal
 
       - name: Build
         uses: actions-rs/cargo@v1
