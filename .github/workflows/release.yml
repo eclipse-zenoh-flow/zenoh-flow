@@ -62,18 +62,18 @@ jobs:
           echo "GIT_TAG=${GIT_TAG}"
           echo ::set-output name=GIT_TAG::"${GIT_TAG}"
 
-          ZENOH_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' zenoh/Cargo.toml | head -n1)
-          echo "ZENOH_VERSION=${ZENOH_VERSION}"
-          echo ::set-output name=ZENOH_VERSION::"${ZENOH_VERSION}"
+          ZENOH_FLOW_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)
+          echo "ZENOH_FLOW_VERSION=${ZENOH_FLOW_VERSION}"
+          echo ::set-output name=ZENOH_FLOW_VERSION::"${ZENOH_FLOW_VERSION}"
           if [ -n "${GIT_TAG}" ]; then
             IS_RELEASE="true"
             echo "IS_RELEASE=${IS_RELEASE}"
             echo ::set-output name=IS_RELEASE::"${IS_RELEASE}"
-            PKG_VERSION=${ZENOH_VERSION}
+            PKG_VERSION=${ZENOH_FLOW_VERSION}
           elif [ -n "${GIT_BRANCH}" ]; then
             PKG_VERSION=${GIT_BRANCH}-${GITHUB_SHA:0:8}
           else
-            PKG_VERSION=${ZENOH_VERSION}-${GITHUB_SHA:0:8}
+            PKG_VERSION=${ZENOH_FLOW_VERSION}-${GITHUB_SHA:0:8}
           fi
           echo "PKG_VERSION=${PKG_VERSION}"
           echo ::set-output name=PKG_VERSION::"${PKG_VERSION}"
@@ -81,7 +81,7 @@ jobs:
       GIT_BRANCH: ${{ steps.env.outputs.GIT_BRANCH }}
       GIT_TAG: ${{ steps.env.outputs.GIT_TAG }}
       IS_RELEASE: ${{ steps.env.outputs.IS_RELEASE }}
-      ZENOH_VERSION: ${{ steps.env.outputs.ZENOH_VERSION }}
+      ZENOH_FLOW_VERSION: ${{ steps.env.outputs.ZENOH_FLOW_VERSION }}
       PKG_VERSION: ${{ steps.env.outputs.PKG_VERSION }}
 
   tests:
