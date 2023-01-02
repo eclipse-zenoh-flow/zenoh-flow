@@ -247,7 +247,6 @@ async fn main() {
                         outputs: outputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
-                        tags: vec![],
                     };
 
                     let metadata_arch = RegistryNodeArchitecture {
@@ -307,7 +306,6 @@ async fn main() {
                         outputs: outputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
-                        tags: vec![],
                     };
 
                     let metadata_arch = RegistryNodeArchitecture {
@@ -367,7 +365,6 @@ async fn main() {
                         inputs: inputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
-                        tags: vec![],
                     };
 
                     let metadata_arch = RegistryNodeArchitecture {

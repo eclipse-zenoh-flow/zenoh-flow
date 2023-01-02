@@ -20,7 +20,6 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    tags: []
     inputs:
       - id: Number
         type: usize
@@ -30,14 +29,12 @@ operators:
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    tags: []
     outputs:
       - id: Counter
         type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    tags: []
     inputs:
       - id: Data
         type: usize
@@ -68,7 +65,6 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    tags: []
     inputs:
       - id: Number
         type: usize
@@ -78,7 +74,6 @@ operators:
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    tags: []
     outputs:
       - id: Counter
         type: usize
@@ -124,7 +119,6 @@ static DESCRIPTOR_KO_DIFFERENT_TYPES: &str = r#"
 flow: SimplePipeline
 operators:
   - id : SumOperator
-    tags: []
     uri: file://./target/release/libsum_and_send.dylib
     inputs:
       - id: Number
@@ -134,14 +128,12 @@ operators:
         type: isize
 sources:
   - id : Counter
-    tags: []
     uri: file://./target/release/libcounter_source.dylib
     outputs:
       - id: Counter
         type: usize
 sinks:
   - id : PrintSink
-    tags: []
     uri: file://./target/release/libgeneric_sink.dylib
     inputs:
       - id: Data
@@ -174,7 +166,6 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    tags: []
     inputs:
       - id: Number
         type: usize
@@ -186,14 +177,12 @@ operators:
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    tags: []
     outputs:
       - id: Counter
         type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    tags: []
     inputs:
       - id: Data
         type: usize
@@ -226,7 +215,6 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    tags: []
     inputs:
       - id: Number
         type: usize
@@ -238,20 +226,17 @@ operators:
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    tags: []
     outputs:
       - id: Counter
         type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    tags: []
     inputs:
       - id: Data
         type: usize
   - id : PrintSink2
     uri: file://./target/release/libgeneric_sink.dylib
-    tags: []
     inputs:
       - id: Data
         type: usize
@@ -289,7 +274,6 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    tags: []
     inputs:
       - id: Number
         type: usize
@@ -301,14 +285,12 @@ operators:
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    tags: []
     outputs:
       - id: Counter
         type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    tags: []
     inputs:
       - id: Data
         type: usize
@@ -340,7 +322,6 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    tags: []
     inputs:
       - id: Number
         type: usize
@@ -350,20 +331,17 @@ operators:
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    tags: []
     outputs:
       - id: Counter
         type: usize
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    tags: []
     outputs:
       - id: Counter
         type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    tags: []
     inputs:
       - id: Data
         type: usize
@@ -395,7 +373,6 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    tags: []
     inputs:
       - id: Number
         type: usize
@@ -405,20 +382,17 @@ operators:
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    tags: []
     outputs:
       - id: Counter
         type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    tags: []
     inputs:
       - id: Data
         type: usize
   - id : PrintSink2
     uri: file://./target/release/libgeneric_sink.dylib
-    tags: []
     inputs:
       - id: Data
         type: usize
@@ -455,7 +429,6 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    tags: []
     inputs:
       - id: Number
         type: usize
@@ -465,14 +438,12 @@ operators:
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    tags: []
     outputs:
       - id: Counter
         type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    tags: []
     inputs:
       - id: Data
         type: usize
@@ -504,7 +475,6 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    tags: []
     inputs:
       - id: Number
         type: usize
@@ -514,14 +484,12 @@ operators:
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    tags: []
     outputs:
       - id: Counter
         type: usize
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    tags: []
     inputs:
       - id: Data
         type: usize
@@ -552,7 +520,6 @@ static DESCRIPTOR_OK_TYPE_ANY: &str = r#"
 flow: SimplePipeline
 operators:
   - id : SumOperator
-    tags: []
     uri: file://./target/release/libsum_and_send.dylib
     inputs:
       - id: Number
@@ -562,14 +529,12 @@ operators:
         type: isize
 sources:
   - id : Counter
-    tags: []
     uri: file://./target/release/libcounter_source.dylib
     outputs:
       - id: Counter
         type: usize
 sinks:
   - id : PrintSink
-    tags: []
     uri: file://./target/release/libgeneric_sink.dylib
     inputs:
       - id: Data

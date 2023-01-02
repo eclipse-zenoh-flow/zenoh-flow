@@ -15,5 +15,3 @@ inputs:
 outputs:
   - id: sub-sub-operator-1-out
     type: _any_
-
-tags: []

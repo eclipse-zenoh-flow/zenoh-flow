@@ -9,5 +9,3 @@ inputs:
 outputs:
   - id: composite-outer-out
     type: _any_
-
-tags: []

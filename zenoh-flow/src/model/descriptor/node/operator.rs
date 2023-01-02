@@ -40,7 +40,6 @@ use std::collections::HashMap;
 /// outputs:
 ///   - id: Multiplied
 ///     type: usize
-/// tags: [something]
 /// ```
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -50,7 +49,6 @@ pub struct OperatorDescriptor {
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
-    pub tags: Vec<String>,
 }
 
 impl std::fmt::Display for OperatorDescriptor {

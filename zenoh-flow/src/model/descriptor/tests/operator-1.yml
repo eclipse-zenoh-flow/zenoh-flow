@@ -12,5 +12,3 @@ inputs:
 outputs:
   - id: operator-1-out
     type: _any_
-
-tags: []

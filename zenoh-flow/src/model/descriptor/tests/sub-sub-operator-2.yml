@@ -9,5 +9,3 @@ inputs:
 outputs:
   - id: sub-sub-operator-2-out
     type: _any_
-
-tags: []

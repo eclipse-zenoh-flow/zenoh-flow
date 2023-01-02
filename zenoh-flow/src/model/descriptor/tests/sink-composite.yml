@@ -10,5 +10,3 @@ inputs:
     type: "{{  any }}"
   - id: sink-composite-in-2
     type: "{{ any    }}"
-
-tags: []

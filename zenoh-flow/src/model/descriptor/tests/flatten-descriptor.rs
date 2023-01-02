@@ -63,14 +63,12 @@ fn test_flatten_descriptor() {
             outputs: vec![PortDescriptor::new("source-out", "_any_")],
             uri: Some("file://source.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
-            tags: vec![],
         },
         SourceDescriptor {
             id: "source-2".into(),
             outputs: vec![PortDescriptor::new("source-out", "_any_")],
             uri: Some("file://source.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
-            tags: vec![],
         },
         SourceDescriptor {
             id: "source-composite".into(),
@@ -80,7 +78,6 @@ fn test_flatten_descriptor() {
             ],
             uri: Some("file://source-composite.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
-            tags: vec![],
         },
     ];
 
@@ -104,7 +101,6 @@ fn test_flatten_descriptor() {
             outputs: vec![PortDescriptor::new("operator-out", "_any_")],
             uri: Some("file://operator.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
-            tags: vec![],
         },
         OperatorDescriptor {
             id: "operator-2".into(),
@@ -112,7 +108,6 @@ fn test_flatten_descriptor() {
             outputs: vec![PortDescriptor::new("operator-out", "_any_")],
             uri: Some("file://operator.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
-            tags: vec![],
         },
         /*
          * `sub-operator-1` is declared in the file "operator-composite.yml".
@@ -134,7 +129,6 @@ fn test_flatten_descriptor() {
             configuration: Some(
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" }),
             ),
-            tags: vec![],
         },
         /*
          * Same spirit but this time it’s a composite operator within a composite operator. The
@@ -150,7 +144,6 @@ fn test_flatten_descriptor() {
             configuration: Some(
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner", "baz": "leaf" }),
             ),
-            tags: vec![],
         },
         /*
          * Idem as above: operator-composite/sub-operator-composite/sub-sub-operator-2.
@@ -163,7 +156,6 @@ fn test_flatten_descriptor() {
             configuration: Some(
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner" }),
             ),
-            tags: vec![],
         },
         /*
          * Similarly, we check that the name is the composition: operator-composite/sub-operator-2.
@@ -179,7 +171,6 @@ fn test_flatten_descriptor() {
             configuration: Some(
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" }),
             ),
-            tags: vec![],
         },
     ];
 
@@ -202,14 +193,12 @@ fn test_flatten_descriptor() {
             inputs: vec![PortDescriptor::new("sink-in", "_any_")],
             uri: Some("file://sink.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
-            tags: vec![],
         },
         SinkDescriptor {
             id: "sink-2".into(),
             inputs: vec![PortDescriptor::new("sink-in", "_any_")],
             uri: Some("file://sink.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
-            tags: vec![],
         },
         SinkDescriptor {
             id: "sink-composite".into(),
@@ -219,7 +208,6 @@ fn test_flatten_descriptor() {
             ],
             uri: Some("file://sink-composite.so".into()),
             configuration: Some(json!({ "foo": "global-outer" })),
-            tags: vec![],
         },
     ];
 

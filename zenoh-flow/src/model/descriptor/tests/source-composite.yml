@@ -11,5 +11,3 @@ outputs:
     type: "{{ any }}"
   - id: source-composite-out-2
     type: "{{ any }}"
-
-tags: []

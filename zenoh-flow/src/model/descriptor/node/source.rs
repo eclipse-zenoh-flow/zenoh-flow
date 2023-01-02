@@ -31,7 +31,6 @@ use serde::{Deserialize, Serialize};
 /// output:
 ///   id: Counter
 ///   type: usize
-/// tags: []
 /// ```
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -40,7 +39,6 @@ pub struct SourceDescriptor {
     pub outputs: Vec<PortDescriptor>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
-    pub tags: Vec<String>,
 }
 
 impl std::fmt::Display for SourceDescriptor {

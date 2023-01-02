@@ -5,5 +5,3 @@ uri: file://source.so
 outputs:
   - id: source-out
     type: _any_
-
-tags: []

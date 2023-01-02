@@ -11,5 +11,3 @@ outputs:
     type: _any_
   - id: sub-operator-2-out-2
     type: _any_
-
-tags: []
