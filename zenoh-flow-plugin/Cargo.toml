@@ -62,4 +62,11 @@ maintainer = "zenoh-dev@eclipse.org"
 copyright = "2017, 2022 ZettaScale Technology Inc."
 section = "net"
 license-file = ["../LICENSE", "0"]
-depends = "zenohd (=0.6.0~dev.0)"
+depends = "$auto, zenohd (=0.7.0-rc)"
+assets = [
+    # binary
+    ["target/release/libzplugin_zenoh_flow.so", "/usr/lib/libzplugin_zenoh_flow.so", "644"],
+    # assets
+    ["../zenoh-flow-daemon/etc/extensions.d/placeholder", "/etc/zenoh-flow/extensions.d/placeholder", "644"],
+    ["../zenoh-flow-daemon/var/*", "/var/zenoh-flow", "644"],
+]
