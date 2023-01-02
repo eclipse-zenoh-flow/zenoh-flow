@@ -1,19 +1,22 @@
 flow: test-recursion
 
+vars:
+  BASE_DIR: file://./src/model/dataflow/tests
+
 sources:
   - id: source-1
-    descriptor: ./src/model/dataflow/tests/source-1.yml
+    descriptor: "{{ BASE_DIR }}/source-1.yml"
 
 operators:
   - id: operator-1
-    descriptor: ./src/model/dataflow/tests/operator-1.yml
+    descriptor: "{{ BASE_DIR }}/operator-1.yml"
 
   - id: operator-infinite
-    descriptor: ./src/model/dataflow/tests/operator-infinite.yml
+    descriptor: "{{ BASE_DIR }}/operator-infinite.yml"
 
 sinks:
   - id: sink-1
-    descriptor: ./src/model/dataflow/tests/sink-1.yml
+    descriptor: "{{ BASE_DIR }}/sink-1.yml"
 
 links:
   - from:

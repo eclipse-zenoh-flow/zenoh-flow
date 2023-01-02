@@ -14,7 +14,7 @@
 
 use crate::model::descriptor::link::{CompositeInputDescriptor, CompositeOutputDescriptor};
 use crate::model::descriptor::node::NodeDescriptor;
-use crate::model::descriptor::{LinkDescriptor, PortDescriptor, Vars};
+use crate::model::descriptor::{LinkDescriptor, PortDescriptor};
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId};
 use crate::zfresult::{ErrorKind, ZFResult as Result};
@@ -213,9 +213,7 @@ impl CompositeOperatorDescriptor {
                 descriptor,
                 configuration,
             } = o;
-            let data = async_std::fs::read_to_string(&descriptor).await?;
-            let description = Vars::expand_mustache_yaml(&data)?;
-
+            let description = super::try_load_descriptor(&descriptor).await?;
             let configuration = self.configuration.clone().merge_overwrite(configuration);
 
             let res_simple = OperatorDescriptor::from_yaml(&description);

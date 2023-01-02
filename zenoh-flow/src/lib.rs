@@ -46,6 +46,7 @@ pub mod traits;
 pub mod types;
 pub mod zfdata;
 
+pub(crate) mod utils;
 pub mod zfresult;
 
 pub use anyhow::anyhow;

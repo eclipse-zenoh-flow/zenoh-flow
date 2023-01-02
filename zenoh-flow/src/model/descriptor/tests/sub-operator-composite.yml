@@ -1,5 +1,8 @@
 id: sub-operator-composite
 
+vars:
+  BASE_DIR: file://./src/model/descriptor/tests
+
 
 inputs:
   - id: sub-operator-composite-in
@@ -15,10 +18,10 @@ outputs:
 
 operators:
   - id: sub-sub-operator-1
-    descriptor: ./src/model/descriptor/tests/sub-sub-operator-1.yml
+    descriptor: "{{ BASE_DIR }}/sub-sub-operator-1.yml"
 
   - id: sub-sub-operator-2
-    descriptor: ./src/model/descriptor/tests/sub-sub-operator-2.yml
+    descriptor: "{{ BASE_DIR }}/sub-sub-operator-2.yml"
 
 
 links:

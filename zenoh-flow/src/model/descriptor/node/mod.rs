@@ -22,8 +22,8 @@ pub use source::SourceDescriptor;
 use crate::model::descriptor::{LinkDescriptor, Vars};
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId};
-use crate::zfresult::{ErrorKind, ZFResult};
-use crate::{bail, zferror};
+use crate::zfresult::ErrorKind;
+use crate::{bail, zferror, Result};
 use serde::{Deserialize, Serialize};
 
 /// Describes an node of the graph
@@ -56,7 +56,7 @@ impl NodeDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_yaml(data: &str) -> ZFResult<Self> {
+    pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<NodeDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
@@ -66,7 +66,7 @@ impl NodeDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    pub fn from_json(data: &str) -> ZFResult<Self> {
+    pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<NodeDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
@@ -76,7 +76,7 @@ impl NodeDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_json(&self) -> ZFResult<String> {
+    pub fn to_json(&self) -> Result<String> {
         serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
@@ -84,13 +84,14 @@ impl NodeDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_yaml(&self) -> ZFResult<String> {
+    pub fn to_yaml(&self) -> Result<String> {
         serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
     /// Flattens the `NodeDescriptor` by loading all the composite operators
     ///
-    ///  # Errors
+    /// # Errors
+    ///
     /// A variant error is returned if loading operators fails. Or if the
     /// node does not contains an operator
     pub async fn flatten(
@@ -99,13 +100,12 @@ impl NodeDescriptor {
         links: &mut Vec<LinkDescriptor>,
         global_configuration: Option<Configuration>,
         ancestors: &mut Vec<String>,
-    ) -> ZFResult<Vec<OperatorDescriptor>> {
-        let data = async_std::fs::read_to_string(&self.descriptor).await?;
-        let description = Vars::expand_mustache_yaml(&data)?;
+    ) -> Result<Vec<OperatorDescriptor>> {
+        let descriptor = try_load_descriptor(&self.descriptor).await?;
 
         // We try to load the descriptor, first we try as simple one, if it fails we try as a
         // composite one, if that also fails it is malformed.
-        let res_simple = OperatorDescriptor::from_yaml(&description);
+        let res_simple = OperatorDescriptor::from_yaml(&descriptor);
         if let Ok(mut simple_operator) = res_simple {
             simple_operator.configuration = global_configuration
                 .clone()
@@ -114,7 +114,7 @@ impl NodeDescriptor {
             return Ok(vec![simple_operator]);
         }
 
-        let res_composite = CompositeOperatorDescriptor::from_yaml(&description);
+        let res_composite = CompositeOperatorDescriptor::from_yaml(&descriptor);
         if let Ok(composite_operator) = res_composite {
             if let Ok(index) = ancestors.binary_search(&self.descriptor) {
                 bail!(
@@ -153,9 +153,8 @@ impl NodeDescriptor {
     pub async fn load_source(
         self,
         global_configuration: Option<Configuration>,
-    ) -> ZFResult<SourceDescriptor> {
-        let data = async_std::fs::read_to_string(&self.descriptor).await?;
-        let descriptor = Vars::expand_mustache_yaml(&data)?;
+    ) -> Result<SourceDescriptor> {
+        let descriptor = try_load_descriptor(&self.descriptor).await?;
 
         log::trace!("Loading source {}", self.descriptor);
 
@@ -174,15 +173,15 @@ impl NodeDescriptor {
 
     /// Loads the sink from the `NodeDescriptor`
     ///
-    ///  # Errors
+    /// # Errors
+    ///
     /// A variant error is returned if loading sink fails. Or if the
-    ///  node does not contains an sink
+    /// node does not contains an sink
     pub async fn load_sink(
         self,
         global_configuration: Option<Configuration>,
-    ) -> ZFResult<SinkDescriptor> {
-        let data = async_std::fs::read_to_string(&self.descriptor).await?;
-        let descriptor = Vars::expand_mustache_yaml(&data)?;
+    ) -> Result<SinkDescriptor> {
+        let descriptor = try_load_descriptor(&self.descriptor).await?;
         log::trace!("Loading sink {}", self.descriptor);
 
         // We try to load the descriptor, first we try as simple one, if it fails
@@ -199,4 +198,20 @@ impl NodeDescriptor {
             }
         }
     }
+}
+
+/// Attempt to asynchronously read the content of the file pointed at by the `descriptor_url`.
+///
+/// This function will also expand the mustache notations present (if there are any).
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+/// - The provided `descriptor_url` is incorrect, i.e. the call to `make_file_path` returned an
+///   error.
+/// - The content of the file could not be read.
+async fn try_load_descriptor(descriptor_url: &str) -> Result<String> {
+    let path = crate::utils::try_make_file_path(descriptor_url)?;
+    let data = async_std::fs::read_to_string(&path).await?;
+    Vars::expand_mustache_yaml(&data)
 }

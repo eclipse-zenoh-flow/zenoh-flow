@@ -15,13 +15,13 @@ outputs:
 
 operators:
   - id: operator-1
-    descriptor: ./src/model/dataflow/tests/operator-1.yml
+    descriptor: file://./src/model/dataflow/tests/operator-1.yml
 
   - id: operator-infinite
-    descriptor: ./src/model/dataflow/tests/operator-infinite.yml
+    descriptor: file://./src/model/dataflow/tests/operator-infinite.yml
 
   - id: operator-2
-    descriptor: ./src/model/dataflow/tests/operator-2.yml
+    descriptor: file://./src/model/dataflow/tests/operator-2.yml
 
 
 links:

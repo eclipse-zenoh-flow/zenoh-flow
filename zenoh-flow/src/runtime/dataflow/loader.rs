@@ -22,15 +22,13 @@ use crate::zfresult::ErrorKind;
 use crate::Result;
 use crate::{bail, zferror};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use std::sync::Arc;
 
 #[cfg(target_family = "unix")]
 use libloading::os::unix::Library;
 #[cfg(target_family = "windows")]
 use libloading::Library;
-
-use std::path::{Path, PathBuf};
-use url::Url;
 
 #[cfg(target_family = "unix")]
 static LOAD_FLAGS: std::os::raw::c_int =
@@ -220,62 +218,50 @@ impl Loader {
         uri: &str,
         configuration: &mut Option<Configuration>,
     ) -> Result<(Library, T)> {
-        let uri = Url::parse(uri).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
+        let file_path = crate::utils::try_make_file_path(uri)?;
+        let file_extension = crate::utils::get_file_extension(&file_path).ok_or_else(|| {
+            zferror!(
+                ErrorKind::LoadingError,
+                "Missing file extension for < {:?} >",
+                file_path,
+            )
+        })?;
 
-        match uri.scheme() {
-            "file" => {
-                let file_path = Self::make_file_path(uri)?;
-                let file_extension = Self::get_file_extension(&file_path).ok_or_else(|| {
-                    zferror!(
-                        ErrorKind::LoadingError,
-                        "Missing file extension for < {:?} >",
-                        file_path,
-                    )
-                })?;
-
-                let library_path = if Self::is_lib(&file_extension) {
-                    file_path
-                } else {
-                    match self.config.get_extension_by_file_extension(&file_extension) {
-                        Some(e) => {
-                            Self::wrap_configuration(
-                                configuration,
-                                e.config_lib_key.clone(),
-                                &file_path,
-                            )?;
-                            let lib = match node_symbol {
-                                NodeSymbol::Source => &e.source_lib,
-                                NodeSymbol::Operator => &e.operator_lib,
-                                NodeSymbol::Sink => &e.sink_lib,
-                            };
-                            std::fs::canonicalize(lib)?
-                        }
-                        _ => bail!(ErrorKind::Unimplemented),
-                    }
-                };
-
-                log::trace!("[Loader] loading library {:?}", library_path);
-
-                #[cfg(target_family = "unix")]
-                let library = Library::open(Some(library_path), LOAD_FLAGS)?;
-
-                #[cfg(target_family = "windows")]
-                let library = Library::new(library_path)?;
-
-                let decl = library
-                    .get::<*mut NodeDeclaration<T>>(node_symbol.to_bytes())?
-                    .read();
-
-                // version checks to prevent accidental ABI incompatibilities
-                if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
-                    return Err(zferror!(ErrorKind::VersionMismatch).into());
+        let library_path = if crate::utils::is_dynamic_library(&file_extension) {
+            file_path
+        } else {
+            match self.config.get_extension_by_file_extension(&file_extension) {
+                Some(e) => {
+                    Self::wrap_configuration(configuration, e.config_lib_key.clone(), &file_path)?;
+                    let lib = match node_symbol {
+                        NodeSymbol::Source => &e.source_lib,
+                        NodeSymbol::Operator => &e.operator_lib,
+                        NodeSymbol::Sink => &e.sink_lib,
+                    };
+                    std::fs::canonicalize(lib)?
                 }
-
-                Ok((library, decl.constructor))
+                _ => bail!(ErrorKind::Unimplemented),
             }
+        };
 
-            _ => Err(zferror!(ErrorKind::Unimplemented).into()),
+        log::trace!("[Loader] loading library {:?}", library_path);
+
+        #[cfg(target_family = "unix")]
+        let library = Library::open(Some(library_path), LOAD_FLAGS)?;
+
+        #[cfg(target_family = "windows")]
+        let library = Library::new(library_path)?;
+
+        let decl = library
+            .get::<*mut NodeDeclaration<T>>(node_symbol.to_bytes())?
+            .read();
+
+        // version checks to prevent accidental ABI incompatibilities
+        if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
+            return Err(zferror!(ErrorKind::VersionMismatch).into());
         }
+
+        Ok((library, decl.constructor))
     }
 
     /// Tries to load a Source from the information passed within the
@@ -376,37 +362,6 @@ impl Loader {
                 record.id.clone()
             )
         }
-    }
-
-    /// Converts the `Url` to a `PathBuf`
-    fn make_file_path(uri: Url) -> Result<PathBuf> {
-        let mut path = PathBuf::new();
-        let file_path = match uri.host_str() {
-            Some(h) => format!("{}{}", h, uri.path()),
-            None => uri.path().to_string(),
-        };
-        path.push(file_path);
-        let path = std::fs::canonicalize(&path)
-            .map_err(|e| zferror!(ErrorKind::IOError, "{}: {}", e, &path.to_string_lossy()))?;
-        Ok(path)
-    }
-
-    /// Checks if the file is a dynamic library.
-    fn is_lib(ext: &str) -> bool {
-        if ext == std::env::consts::DLL_EXTENSION {
-            return true;
-        }
-        false
-    }
-
-    /// Returns the file extension, if any.
-    fn get_file_extension(file: &Path) -> Option<String> {
-        if let Some(ext) = file.extension() {
-            if let Some(ext) = ext.to_str() {
-                return Some(String::from(ext));
-            }
-        }
-        None
     }
 
     /// Wraps the configuration in case of an extension.

@@ -1,7 +1,7 @@
 flow: test
 
 vars:
-  PATH: ./src/model/descriptor/tests
+  PATH: file://./src/model/descriptor/tests
 
 configuration:
   foo: "global-outer"

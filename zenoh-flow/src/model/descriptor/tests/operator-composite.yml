@@ -1,7 +1,7 @@
 id: composite
 
 vars:
-  path: ./src/model/descriptor/tests
+  path: file://./src/model/descriptor/tests
 
 configuration:
   foo: "composite-outer"
