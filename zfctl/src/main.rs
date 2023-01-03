@@ -37,7 +37,7 @@ use zenoh_flow::runtime::DaemonInterfaceClient;
 
 const GIT_VERSION: &str = git_version!(prefix = "v", cargo_prefix = "v");
 
-const DEFAULT_ZENOH_CFG: &str = ".config/zenoh-flow/zfctl-zenoh.json";
+const DEFAULT_ZENOH_CFG: &str = "/etc/zenoh-flow/zfctl-zenoh.json";
 const ENV_ZENOH_CFG: &str = "ZFCTL_CFG";
 
 #[derive(Subcommand, Debug)]

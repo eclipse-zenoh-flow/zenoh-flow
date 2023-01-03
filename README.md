@@ -105,7 +105,7 @@ Next, `zfctl`. We also need to copy a configuration file:
 
 ```bash
 mkdir -p ~/.config/zenoh-flow
-cp ./zfctl/.config/zfctl-zenoh.json ~/.config/zenoh-flow
+cp ./zfctl/.config/zfctl-zenoh.json /etc/zenoh-flow
 ```
 
 To check that the Zenoh-Flow daemon is correctly running and `zfctl` is set up, you can do:
