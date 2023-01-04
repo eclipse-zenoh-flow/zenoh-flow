@@ -21,47 +21,47 @@ use zenoh_flow::{
 
 #[test]
 fn runtime_macros() {
-    let correct_path = String::from("/zenoh-flow/runtimes/1/info");
+    let correct_path = String::from("zenoh-flow/runtimes/1/info");
     let gen_path = RT_INFO_PATH!(ROOT_STANDALONE, "1");
 
     assert_eq!(correct_path, gen_path);
 
-    let correct_path = String::from("/zenoh-flow/runtimes/1/status");
+    let correct_path = String::from("zenoh-flow/runtimes/1/status");
     let gen_path = RT_STATUS_PATH!(ROOT_STANDALONE, "1");
 
     assert_eq!(correct_path, gen_path);
 
-    let correct_path = String::from("/zenoh-flow/runtimes/1/configuration");
+    let correct_path = String::from("zenoh-flow/runtimes/1/configuration");
     let gen_path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, "1");
 
     assert_eq!(correct_path, gen_path);
 
-    let correct_path = String::from("/zenoh-flow/runtimes/1/flows/2/3");
+    let correct_path = String::from("zenoh-flow/runtimes/1/flows/2/3");
     let gen_path = RT_FLOW_PATH!(ROOT_STANDALONE, "1", "2", "3");
 
     assert_eq!(correct_path, gen_path);
 
-    let correct_path = String::from("/zenoh-flow/runtimes/1/flows/*/3");
+    let correct_path = String::from("zenoh-flow/runtimes/1/flows/*/3");
     let gen_path = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "1", "3");
 
     assert_eq!(correct_path, gen_path);
 
-    let correct_path = String::from("/zenoh-flow/runtimes/1/flows/2/*");
+    let correct_path = String::from("zenoh-flow/runtimes/1/flows/2/*");
     let gen_path = RT_FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, "1", "2");
 
     assert_eq!(correct_path, gen_path);
 
-    let correct_path = String::from("/zenoh-flow/runtimes/1/flows/*/*");
+    let correct_path = String::from("zenoh-flow/runtimes/1/flows/*/*");
     let gen_path = RT_FLOW_SELECTOR_ALL!(ROOT_STANDALONE, "1");
 
     assert_eq!(correct_path, gen_path);
 
-    let correct_path = String::from("/zenoh-flow/runtimes/*/flows/*/3");
+    let correct_path = String::from("zenoh-flow/runtimes/*/flows/*/3");
     let gen_path = FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "3");
 
     assert_eq!(correct_path, gen_path);
 
-    let correct_path = String::from("/zenoh-flow/runtimes/*/flows/2/*");
+    let correct_path = String::from("zenoh-flow/runtimes/*/flows/2/*");
     let gen_path = FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, "2");
 
     assert_eq!(correct_path, gen_path);

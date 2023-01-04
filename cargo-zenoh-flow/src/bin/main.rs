@@ -17,14 +17,16 @@ use clap::Parser;
 use colored::*;
 
 use cargo_zenoh_flow::error::CZFError;
-use zenoh_flow::model::node::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
-use zenoh_flow::model::{NodeKind, RegistryNode, RegistryNodeArchitecture, RegistryNodeTag};
-use zenoh_flow::NodeId;
+use zenoh_flow::model::descriptor::{OperatorDescriptor, SinkDescriptor, SourceDescriptor};
+use zenoh_flow::model::registry::{
+    NodeKind, RegistryNode, RegistryNodeArchitecture, RegistryNodeTag,
+};
+use zenoh_flow::types::NodeId;
 
 #[cfg(feature = "local_registry")]
-use async_std::sync::Arc;
-#[cfg(feature = "local_registry")]
 use rand::seq::SliceRandom;
+#[cfg(feature = "local_registry")]
+use std::sync::Arc;
 #[cfg(feature = "local_registry")]
 use zenoh::*;
 #[cfg(feature = "local_registry")]
@@ -32,11 +34,10 @@ use zenoh_flow_registry::RegistryClient;
 #[cfg(feature = "local_registry")]
 use zenoh_flow_registry::RegistryFileClient;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Languages {
     Rust,
     Python,
-    Cpp,
 }
 
 impl std::str::FromStr for Languages {
@@ -47,10 +48,8 @@ impl std::str::FromStr for Languages {
             "rust" => Ok(Self::Rust),
             "python" => Ok(Self::Python),
             "py" => Ok(Self::Python),
-            "cpp" => Ok(Self::Cpp),
-            "c++" => Ok(Self::Cpp),
             _ => Err(CZFError::LanguageNotCompatible(format!(
-                "Language {s} is not supported. Supported languages are: rust, python, cpp"
+                "Language {s} is not supported. Supported languages are: rust, python"
             ))),
         }
     }
@@ -61,7 +60,6 @@ impl std::string::ToString for Languages {
         match self {
             Self::Rust => String::from("rust"),
             Self::Python => String::from("python"),
-            Self::Cpp => String::from("c++"),
         }
     }
 }
@@ -249,8 +247,6 @@ async fn main() {
                         outputs: outputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
-                        runtime: None,
-                        deadline: None,
                     };
 
                     let metadata_arch = RegistryNodeArchitecture {
@@ -274,7 +270,6 @@ async fn main() {
                         tags: vec![metadata_tag],
                         inputs,
                         outputs,
-                        period: None,
                     };
 
                     let yml_descriptor = match serde_yaml::to_string(&descriptor) {
@@ -306,20 +301,11 @@ async fn main() {
                         exit(-1);
                     }
 
-                    if outputs.len() > 1 {
-                        println!("{}: Zenoh-Flow metadata has more than one output for Source, it should exactly one output", "error".red().bold());
-                        exit(-1);
-                    }
-
-                    let output = &outputs[0];
-
                     let descriptor = SourceDescriptor {
                         id: NodeId::from(node_info.id.clone()),
-                        output: output.clone(),
+                        outputs: outputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
-                        runtime: None,
-                        period: None,
                     };
 
                     let metadata_arch = RegistryNodeArchitecture {
@@ -342,8 +328,7 @@ async fn main() {
                         classes: vec![],
                         tags: vec![metadata_tag],
                         inputs: vec![],
-                        outputs: vec![output.clone()],
-                        period: None,
+                        outputs,
                     };
 
                     let yml_descriptor = match serde_yaml::to_string(&descriptor) {
@@ -375,19 +360,11 @@ async fn main() {
                         exit(-1);
                     }
 
-                    if inputs.len() > 1 {
-                        println!("{}: Zenoh-Flow metadata has more than one input for Sink, it should exactly one input", "error".red().bold());
-                        exit(-1);
-                    }
-
-                    let input = &inputs[0];
-
                     let descriptor = SinkDescriptor {
                         id: NodeId::from(node_info.id.clone()),
-                        input: input.clone(),
+                        inputs: inputs.clone(),
                         uri: Some(uri.clone()),
                         configuration: None,
-                        runtime: None,
                     };
 
                     let metadata_arch = RegistryNodeArchitecture {
@@ -409,9 +386,8 @@ async fn main() {
                         kind: node_info.kind.clone(),
                         classes: vec![],
                         tags: vec![metadata_tag],
-                        inputs: vec![input.clone()],
+                        inputs,
                         outputs: vec![],
-                        period: None,
                     };
                     let yml_descriptor = match serde_yaml::to_string(&descriptor) {
                         Ok(yml) => yml,
@@ -538,27 +514,6 @@ async fn main() {
             }
             Languages::Python => {
                 match cargo_zenoh_flow::utils::create_python_module(&name, kind.clone()).await {
-                    Ok(_) => {
-                        println!(
-                            "{} boilerplate for {} {} ",
-                            "Created".green().bold(),
-                            kind.to_string(),
-                            name.bold()
-                        );
-                    }
-                    Err(e) => {
-                        println!(
-                            "{}: failed to create boilerplate for {} {}: {}",
-                            "error".red().bold(),
-                            kind.to_string(),
-                            name.bold(),
-                            e
-                        );
-                    }
-                }
-            }
-            Languages::Cpp => {
-                match cargo_zenoh_flow::utils::create_cpp_node(&name, kind.clone()).await {
                     Ok(_) => {
                         println!(
                             "{} boilerplate for {} {} ",

@@ -12,14 +12,27 @@
 #   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 #
 [workspace]
-
 members = [
   "zenoh-flow",
   "zenoh-flow-derive",
   "zenoh-flow-daemon",
   "zfctl",
   "cargo-zenoh-flow",
+  "zenoh-flow-plugin",
 ]
+
+
+[workspace.package]
+version = "0.4.0-alpha.1"
+authors = ["ZettaScale Zenoh Team <zenoh@zettascale.tech>"]
+categories = ["network-programming"]
+description = "Zenoh-Flow: a Zenoh-based data flow programming framework for computations that span from the cloud to the device."
+edition = "2018"
+homepage = "https://github.com/eclipse-zenoh/zenoh-flow"
+license = " EPL-2.0 OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/eclipse-zenoh/zenoh-flow"
+
 
 [profile.dev]
 debug=true

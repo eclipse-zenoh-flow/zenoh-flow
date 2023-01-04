@@ -1,0 +1,7 @@
+id: sink
+
+uri: file://sink.so
+
+inputs:
+  - id: sink-in
+    type: _any_

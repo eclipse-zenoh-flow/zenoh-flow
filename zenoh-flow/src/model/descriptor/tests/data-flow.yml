@@ -1,0 +1,105 @@
+flow: test
+
+vars:
+  PATH: file://./src/model/descriptor/tests
+
+configuration:
+  foo: "global-outer"
+
+sources:
+  - id: source-1
+    descriptor: "{{ PATH }}/source.yml"
+
+  - id: source-2
+    descriptor: "{{    PATH }}/source.yml"
+
+  - id: source-composite
+    descriptor: "{{ PATH   }}/source-composite.yml"
+
+
+operators:
+  - id: operator-1
+    descriptor: "{{PATH }}/operator.yml"
+
+  - id: operator-2
+    descriptor: "{{ PATH}}/operator.yml"
+
+  - id: operator-composite
+    descriptor: "{{PATH}}/operator-composite.yml"
+    configuration:
+      quux: "global-inner"
+
+
+sinks:
+  - id: sink-1
+    descriptor: "{{ PATH }}/sink.yml"
+
+  - id: sink-2
+    descriptor: "{{ PATH }}/sink.yml"
+
+  - id: sink-composite
+    descriptor: "{{ PATH }}/sink-composite.yml"
+
+
+links:
+  - from:
+      node: source-1
+      output: source-out
+    to:
+      node: operator-1
+      input: operator-in
+  - from:
+      node: operator-1
+      output: operator-out
+    to:
+      node: sink-1
+      input: sink-in
+
+  - from:
+      node: source-2
+      output: source-out
+    to:
+      node: operator-2
+      input: operator-in
+  - from:
+      node: operator-2
+      output: operator-out
+    to:
+      node: sink-2
+      input: sink-in
+
+  - from:
+      node: source-composite
+      output: source-composite-out-1
+    to:
+      node: operator-composite
+      input: operator-composite-in-1
+
+  - from:
+      node: source-composite
+      output: source-composite-out-2
+    to:
+      node: operator-composite
+      input: operator-composite-in-2
+
+  - from:
+      node: operator-composite
+      output: operator-composite-out-1
+    to:
+      node: sink-composite
+      input: sink-composite-in-1
+
+  - from:
+      node: operator-composite
+      output: operator-composite-out-2
+    to:
+      node: sink-composite
+      input: sink-composite-in-2
+
+
+mapping:
+  source-1: runtime-1
+  sink-2: runtime-2
+  source-composite: runtime-source
+  operator-composite: runtime-composite
+  sink-composite: runtime-sink

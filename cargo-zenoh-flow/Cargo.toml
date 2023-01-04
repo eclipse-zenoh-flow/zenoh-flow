@@ -14,32 +14,30 @@
 
 [package]
 name = "cargo-zenoh-flow"
-version = "0.3.0"
-repository = "https://github.com/eclipse-zenoh/zenoh-flow"
-homepage = "http://zenoh.io"
-authors = ["kydos <angelo@icorsaro.net>",
-           "gabrik <gabriele.baldoni@gmail.com>",
-           "Julien Loudet <julien.loudet@zettascale.tech>",]
-edition = "2018"
-license = " EPL-2.0 OR Apache-2.0"
-categories = ["network-programming"]
-description = "Zenoh-Flow: zenoh-based data-flow programming framework for computations that span from the cloud to the device."
-readme = "README.md"
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-std = { version = "=1.11.0", features = ["attributes"] }
-zenoh = { git = "https://github.com/eclipse-zenoh/zenoh.git", rev = "45b7ad70bddf45dfcdcae80e9c9a7680c70ac289", optional = true}
-zenoh-util = { git = "https://github.com/eclipse-zenoh/zenoh.git", rev = "45b7ad70bddf45dfcdcae80e9c9a7680c70ac289", optional = true }
+async-std = { version = "=1.12.0", features = ["attributes"] }
+zenoh = { version = "=0.7.0-rc", optional = true}
+zenoh-util = { version = "=0.7.0-rc", optional = true }
 zenoh-flow = {path = "../zenoh-flow"}
-clap = { version = "3.1", features = ["derive"] }
+clap = { version = "4.0", features = ["derive"] }
 serde_derive = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-cargo_toml = "0.11"
+cargo_toml = "0.13"
 toml = "0.5.8"
-serde_yaml = {version = "0.8"}
+serde_yaml = {version = "0.9"}
 serde_json = "1.0"
 rand = { version = "0.8", optional =  true}
 tinytemplate = "1.2"

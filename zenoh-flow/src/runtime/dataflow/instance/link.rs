@@ -12,60 +12,71 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{PortId, ZFResult};
-use async_std::sync::Arc;
+use crate::zfresult::ErrorKind;
+use crate::zferror;
+use crate::Result;
+use crate::types::{Data, Message, PortId};
+use std::sync::Arc;
+use flume::TryRecvError;
+use futures::Future;
+use std::pin::Pin;
+use std::sync::atomic::{AtomicU64, Ordering};
+use uhlc::{Timestamp, HLC, NTP64};
 
 /// The Zenoh Flow link sender.
-/// A wrapper over a flume Sender, that sends `Arc<T>` and is associated
+/// A wrapper over a flume Sender, that sends `Message` and is associated
 /// with a `PortId`
-#[derive(Clone, Debug)]
-pub struct LinkSender<T> {
-    pub id: PortId,
-    pub sender: flume::Sender<Arc<T>>,
+#[derive(Clone)]
+pub struct LinkSender {
+    pub(crate) id: PortId,
+    pub(crate) sender: flume::Sender<Message>,
+    pub(crate) hlc: Arc<HLC>,
+    pub(crate) last_watermark: Arc<AtomicU64>,
+}
+
+impl std::fmt::Debug for LinkSender {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "id: {:?} sender: {:?}", self.id, self.sender)
+    }
 }
 
 /// The Zenoh Flow link receiver.
-/// A wrapper over a flume Receiver, that receives `Arc<T>` and the associated
+/// A wrapper over a flume Receiver, that receives `Message` and the associated
 /// `PortId`
 #[derive(Clone, Debug)]
-pub struct LinkReceiver<T> {
-    pub id: PortId,
-    pub receiver: flume::Receiver<Arc<T>>,
+pub struct LinkReceiver {
+    pub(crate) id: PortId,
+    pub(crate) receiver: flume::Receiver<Message>,
 }
 
-/// The output of the [`LinkReceiver<T>`](`LinkReceiver<T>`), a tuple
-/// containing the `PortId` and `Arc<T>`.
-///
-/// In Zenoh Flow `T = Data`.
-///
-///
-pub type ZFLinkOutput<T> = ZFResult<(PortId, Arc<T>)>;
-
-impl<T: std::marker::Send + std::marker::Sync> LinkReceiver<T> {
+impl LinkReceiver {
     /// Wrapper over flume::Receiver::recv_async(),
-    /// it returns [`ZFLinkOutput<T>`](`ZFLinkOutput<T>`)
+    /// it returns [`Result<Message>`](`Result<Message>`)
     ///
     /// # Errors
     /// If fails if the link is disconnected
-    pub fn recv(
-        &self,
-    ) -> ::core::pin::Pin<Box<dyn std::future::Future<Output = ZFLinkOutput<T>> + '_ + Send + Sync>>
-    {
-        async fn __recv<T>(_self: &LinkReceiver<T>) -> ZFResult<(PortId, Arc<T>)> {
-            Ok((_self.id.clone(), _self.receiver.recv_async().await?))
-        }
-
-        Box::pin(__recv(self))
+    pub fn recv(&self) -> flume::r#async::RecvFut<'_, Message> {
+        self.receiver.recv_async()
     }
 
-    /// Discards the message
-    ///
-    /// *Note:* Not implemented.
+    /// Wrapper over flume::Receiver::recv(),
+    /// it returns [`Result<Message>`](`Result<Message>`)
     ///
     /// # Errors
-    /// It fails if the link is disconnected
-    pub async fn discard(&self) -> ZFResult<()> {
-        Ok(())
+    /// If fails if the link is disconnected
+    pub fn recv_sync(&self) -> Result<Message> {
+        self.receiver
+            .recv()
+            .map_err(|e| zferror!(ErrorKind::RecvError,e))
+    }
+
+    /// Wrapper over flume::Receiver::try_recv(),
+    /// it returns [`Result<Message, TryRecvError>`](`Result<Message, TryRecvError>`)
+    ///
+    /// # Errors
+    /// If fails if the link is disconnected
+    pub(crate) fn try_recv(&self) -> Result<Message, TryRecvError> {
+        self.receiver.try_recv()
     }
 
     /// Returns the `PortId` associated with the receiver.
@@ -79,14 +90,78 @@ impl<T: std::marker::Send + std::marker::Sync> LinkReceiver<T> {
     }
 }
 
-impl<T> LinkSender<T> {
-    /// Wrapper over flume::Sender::send_async(),
-    /// it sends `Arc<T>`.
+impl LinkSender {
+    /// Sends `Data` to downstream operators
     ///
     /// # Errors
     /// It fails if the link is disconnected
-    pub async fn send(&self, data: Arc<T>) -> ZFResult<()> {
-        Ok(self.sender.send_async(data).await?)
+    pub async fn send(&self, data: Data, timestamp: Option<u64>) -> Result<()> {
+        let ts = match timestamp {
+            Some(timestamp) => Timestamp::new(NTP64(timestamp), *self.hlc.get_id()),
+            None => self.hlc.new_timestamp(),
+        };
+
+        if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
+            return Err(zferror!(ErrorKind::BelowWatermarkTimestamp(ts)));
+        }
+
+        let msg = Message::from_serdedata(data, ts);
+
+        Ok(self.sender.send_async(msg).await?)
+    }
+
+    /// Sends `Data` to downstream operators
+    ///
+    /// # Errors
+    /// It fails if the link is disconnected
+    pub fn send_sync(&self, data: Data, timestamp: Option<u64>) -> Result<()> {
+        let ts = match timestamp {
+            Some(timestamp) => Timestamp::new(NTP64(timestamp), *self.hlc.get_id()),
+            None => self.hlc.new_timestamp(),
+        };
+
+        if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
+            return Err(zferror!(ErrorKind::BelowWatermarkTimestamp(ts)));
+        }
+
+        let msg = Message::from_serdedata(data, ts);
+
+        Ok(self.sender.send(msg)?)
+    }
+
+    /// Send a `Watermark` to downstream operators
+    ///
+    /// # Errors
+    /// It fails if the link is disconnected
+    pub async fn send_watermark(&self, timestamp: Option<u64>) -> Result<()> {
+        let ts = match timestamp {
+            Some(timestamp) => Timestamp::new(NTP64(timestamp), *self.hlc.get_id()),
+            None => self.hlc.new_timestamp(),
+        };
+
+        if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
+            return Err(zferror!(ErrorKind::BelowWatermarkTimestamp(ts)));
+        }
+
+        self.last_watermark
+            .store(ts.get_time().0, Ordering::Relaxed);
+
+        let msg = Message::Watermark(ts);
+
+        Ok(self.sender.send_async(msg).await?)
+    }
+
+    /// Send a `Message` to downstream operators.
+    ///
+    /// # Note
+    /// Internal use only
+    ///
+    /// # Errors
+    /// It fails if the link is disconnected
+    pub(crate) async fn send_msg(&self, msg: Message) -> Result<()> {
+        // This is internal, no need to check the watermark
+
+        Ok(self.sender.send_async(msg).await?)
     }
 
     /// Returns the sender occupation.
@@ -116,11 +191,12 @@ impl<T> LinkSender<T> {
 }
 
 /// Creates the `Link` with the given capacity and `PortId`s.
-pub fn link<T>(
+pub fn link(
     capacity: Option<usize>,
     send_id: PortId,
     recv_id: PortId,
-) -> (LinkSender<T>, LinkReceiver<T>) {
+    hlc: Arc<HLC>,
+) -> (LinkSender, LinkReceiver) {
     let (sender, receiver) = match capacity {
         None => flume::unbounded(),
         Some(cap) => flume::bounded(cap),
@@ -130,10 +206,113 @@ pub fn link<T>(
         LinkSender {
             id: send_id,
             sender,
+            hlc,
+            last_watermark: Arc::new(AtomicU64::new(0)),
         },
         LinkReceiver {
             id: recv_id,
             receiver,
         },
     )
+}
+
+// Async closures
+
+/// Trait wrapping an async closures for receiver callback, it requires rust-nightly because of
+/// https://github.com/rust-lang/rust/issues/62290
+///
+/// * Note: * not intended to be directly used by users.
+pub trait AsyncCallbackRx: Send + Sync {
+    fn call(
+        &self,
+        arg: Message,
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>>;
+}
+
+/// Implementation of AsyncCallbackRx for any async closure that takes
+/// `Message` as parameter and returns `Result<()>`.
+/// This "converts" any `async move |msg| { ... Ok() }` to `AsyncCallbackRx`
+///
+/// *Note:* It takes an `FnOnce` because of the `move` keyword. The closure
+/// has to be `Clone` as we are going to call the closure more than once.
+impl<Fut, Fun> AsyncCallbackRx for Fun
+where
+    Fun: FnOnce(Message) -> Fut + Sync + Send + Clone,
+    Fut: Future<Output = Result<()>> + 'static + Send + Sync,
+{
+    fn call(
+        &self,
+        arg: Message,
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + Sync + 'static>> {
+        Box::pin(self.clone()(arg))
+    }
+}
+
+/// The `AsyncCallbackReceiver` wraps the `LinkReceiver` and the
+/// `AsyncCallbackRx`.
+///
+/// It is used to trigger the user callback when a new message is available.
+#[derive(Clone)]
+pub struct AsyncCallbackReceiver {
+    _id: String,
+    rx: LinkReceiver,
+    cb: Arc<dyn AsyncCallbackRx>,
+}
+
+impl AsyncCallbackReceiver {
+    pub fn new(_id: String, rx: LinkReceiver, cb: Arc<dyn AsyncCallbackRx>) -> Self {
+        Self { _id, rx, cb }
+    }
+
+    pub async fn run(&self) -> Result<()> {
+        let msg = self.rx.recv().await?;
+        self.cb.call(msg).await
+    }
+}
+
+/// Trait wrapping an async closures for sender callback, it requires rust-nightly because of
+/// https://github.com/rust-lang/rust/issues/62290
+///
+/// * Note: * not intended to be directly used by users.
+pub trait AsyncCallbackTx: Send + Sync {
+    fn call(&self) -> Pin<Box<dyn Future<Output = Result<Data>> + Send + Sync + 'static>>;
+}
+
+/// Implementation of AsyncCallbackTx for any async closure that returns
+/// `Result<()>`.
+/// This "converts" any `async move { ... }` to `AsyncCallbackTx`
+///
+/// *Note:* It takes an `FnOnce` because of the `move` keyword. The closure
+/// has to be `Clone` as we are going to call the closure more than once.
+impl<Fut, Fun> AsyncCallbackTx for Fun
+where
+    Fun: FnOnce() -> Fut + Sync + Send + Clone,
+    Fut: Future<Output = Result<Data>> + Send + Sync + 'static,
+{
+    fn call(&self) -> Pin<Box<dyn Future<Output = Result<Data>> + Send + Sync + 'static>> {
+        Box::pin(self.clone()())
+    }
+}
+
+/// The `AsyncCallbackSender` wraps the `LinkSender` and the
+/// `AsyncCallbackTx`.
+///
+/// It is used to trigger the user callback with the given schedule.
+pub struct AsyncCallbackSender {
+    _id: String,
+    tx: LinkSender,
+    cb: Arc<dyn AsyncCallbackTx>,
+}
+
+impl AsyncCallbackSender {
+    pub fn new(_id: String, tx: LinkSender, cb: Arc<dyn AsyncCallbackTx>) -> Self {
+        Self { _id, tx, cb }
+    }
+
+    pub async fn trigger(&self) -> Result<()> {
+        let data = self.cb.call().await?;
+        // FIXME
+
+        self.tx.send(data, None).await
+    }
 }

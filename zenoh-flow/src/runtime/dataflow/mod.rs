@@ -16,413 +16,175 @@ pub mod instance;
 pub mod loader;
 pub mod node;
 
-use async_std::sync::{Arc, Mutex};
+use self::node::{OperatorConstructor, SinkConstructor, SourceConstructor};
+use self::node::{OperatorFn, SinkFn, SourceFn};
+use crate::model::descriptor::{InputDescriptor, OutputDescriptor};
+use crate::model::record::{
+    DataFlowRecord, LinkRecord, OperatorRecord, SinkRecord, SourceRecord, ZFConnectorRecord,
+};
+use crate::runtime::RuntimeContext;
+use crate::types::NodeId;
+use crate::Result as ZFResult;
 use std::collections::HashMap;
-use std::time::Duration;
+use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::model::connector::ZFConnectorRecord;
-use crate::model::dataflow::record::DataFlowRecord;
-use crate::model::dataflow::validator::DataflowValidator;
-use crate::model::deadline::E2EDeadlineRecord;
-use crate::model::link::{LinkDescriptor, PortDescriptor};
-use crate::model::loops::LoopDescriptor;
-use crate::model::{InputDescriptor, OutputDescriptor};
-use crate::runtime::dataflow::node::{OperatorLoaded, SinkLoaded, SourceLoaded};
-use crate::runtime::RuntimeContext;
-use crate::{
-    DurationDescriptor, FlowId, NodeId, Operator, PortId, PortType, Sink, Source, State, ZFError,
-    ZFResult,
-};
-
-/// The data flow struct.
-/// This struct contains all the information needed to instantiate a data flow.
-/// running within a Zenoh Flow runtime.
-/// It stores in a `RuntimeContext` all the loaded nodes and the connectors.
-/// It also contains a `DataflowValidator` that is used to verify that the
-/// data flow can be instantiated.
-pub struct Dataflow {
+/// `DataFlow` is an intermediate structure which primary purpose is to store the loaded libraries.
+///
+/// This intermediate structure is needed to create data flows programmatically. It is mostly used
+/// **internally** to assess the performance of Zenoh-Flow.
+///
+/// **End users should not use it directly**: _no verifications to ensure the validity of the data flow
+/// are performed at this step or in the next ones._
+pub struct DataFlow {
     pub(crate) uuid: Uuid,
-    pub(crate) flow_id: FlowId,
+    pub(crate) flow: Arc<str>,
     pub(crate) context: RuntimeContext,
-    pub(crate) sources: HashMap<NodeId, SourceLoaded>,
-    pub(crate) operators: HashMap<NodeId, OperatorLoaded>,
-    pub(crate) sinks: HashMap<NodeId, SinkLoaded>,
+    pub(crate) source_constructors: HashMap<NodeId, SourceConstructor>,
+    pub(crate) operator_constructors: HashMap<NodeId, OperatorConstructor>,
+    pub(crate) sink_constructors: HashMap<NodeId, SinkConstructor>,
     pub(crate) connectors: HashMap<NodeId, ZFConnectorRecord>,
-    pub(crate) links: Vec<LinkDescriptor>,
-    validator: DataflowValidator,
+    pub(crate) links: Vec<LinkRecord>,
+    pub(crate) counter: u32,
 }
 
-impl Dataflow {
-    /// Creates a new (empty) Dataflow.
+impl DataFlow {
+    /// Create a new empty `DataFlow` named `name` with the provided `RuntimeContext`.
     ///
-    /// This function should be called when creating a *static* Dataflow. If you intend on
-    /// dynamically loading your nodes, use `try_new` instead.
+    /// **Unless you know very well what you are doing, you should not use this function**.
     ///
-    /// After adding the nodes (through `add_static_source`, `add_static_sink` and
-    /// `add_static_operator`) you can instantiate your Dataflow by creating a `DataflowInstance`.
-    pub fn new(context: RuntimeContext, id: FlowId, uuid: Option<Uuid>) -> Self {
-        let uuid = match uuid {
-            Some(uuid) => uuid,
-            None => Uuid::new_v4(),
-        };
-
+    /// This function is the entry point to create a data flow programmatically. **It should not be
+    /// called by end users**.
+    pub fn new(name: impl AsRef<str>, context: RuntimeContext) -> Self {
         Self {
-            uuid,
-            flow_id: id,
+            uuid: Uuid::new_v4(),
+            flow: name.as_ref().into(),
             context,
-            sources: HashMap::default(),
-            operators: HashMap::default(),
-            sinks: HashMap::default(),
-            connectors: HashMap::default(),
-            links: Vec::default(),
-            validator: DataflowValidator::new(),
+            source_constructors: HashMap::new(),
+            operator_constructors: HashMap::new(),
+            sink_constructors: HashMap::new(),
+            connectors: HashMap::new(),
+            links: Vec::new(),
+            counter: 0,
         }
     }
 
-    /// Creates a new `Dataflow` departing from
-    /// an existing [`DataFlowRecord`](`DataFlowRecord`)
+    /// Add a `Source` to the `DataFlow`.
     ///
-    /// This function is called by the runtime when instantiating
-    /// a dynamically loaded graph.
-    /// It loads the nodes using the loader stored in
-    /// the [`RuntimeContext`](`RuntimeContext`).
+    /// **Unless you know very well what you are doing, you should not use this method**.
     ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - fails to load nodes
-    pub fn try_new(context: RuntimeContext, record: DataFlowRecord) -> ZFResult<Self> {
-        let loaded_sources = record
-            .sources
-            .into_values()
-            .filter(|source| source.runtime == context.runtime_name)
-            .map(|source| context.loader.load_source(source))
-            .collect::<Result<Vec<_>, _>>()?;
-        let sources: HashMap<_, _> = loaded_sources
-            .into_iter()
-            .map(|source| (source.id.clone(), source))
-            .collect();
-
-        let loaded_operators = record
-            .operators
-            .into_values()
-            .filter(|operator| operator.runtime == context.runtime_name)
-            .map(|r| context.loader.load_operator(r))
-            .collect::<Result<Vec<_>, _>>()?;
-        let operators: HashMap<_, _> = loaded_operators
-            .into_iter()
-            .map(|operator| (operator.id.clone(), operator))
-            .collect();
-
-        let loaded_sinks = record
-            .sinks
-            .into_values()
-            .filter(|sink| sink.runtime == context.runtime_name)
-            .map(|r| context.loader.load_sink(r))
-            .collect::<Result<Vec<_>, _>>()?;
-        let sinks: HashMap<_, _> = loaded_sinks
-            .into_iter()
-            .map(|sink| (sink.id.clone(), sink))
-            .collect();
-
-        let connectors: HashMap<_, _> = record
-            .connectors
-            .into_iter()
-            .filter(|connector| connector.runtime == context.runtime_name)
-            .map(|connector| (connector.id.clone(), connector))
-            .collect();
-
-        let mut dataflow = Self {
-            uuid: record.uuid,
-            flow_id: record.flow.into(),
-            context,
-            sources,
-            operators,
-            sinks,
-            connectors,
-            links: record.links,
-            validator: DataflowValidator::new(),
-        };
-
-        if let Some(e2e_deadlines) = record.end_to_end_deadlines {
-            e2e_deadlines
-                .into_iter()
-                .for_each(|deadline| dataflow.add_end_to_end_deadline(deadline))
-        }
-
-        Ok(dataflow)
-    }
-
-    /// Tries to add a static source to the data flow.
-    ///
-    /// If the validation fails the source cannot be added.
-    /// This is meant to be used when creating an empty data flow using
-    /// `Dataflow::new(..)` function.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - validation fails
-    pub fn try_add_static_source(
-        &mut self,
-        id: NodeId,
-        period: Option<DurationDescriptor>,
-        output: PortDescriptor,
-        state: State,
-        source: Arc<dyn Source>,
-    ) -> ZFResult<()> {
-        self.validator.try_add_source(id.clone(), output.clone())?;
-
-        self.sources.insert(
-            id.clone(),
-            SourceLoaded {
-                id,
-                output,
-                state: Arc::new(Mutex::new(state)),
-                period: period.map(|dur_desc| dur_desc.to_duration()),
-                source,
-                library: None,
-                end_to_end_deadlines: vec![],
-            },
+    /// If the Source is not correctly connected to downstream nodes, its data will never be
+    /// received.
+    pub fn add_source(&mut self, record: SourceRecord, constructor: SourceFn) {
+        self.source_constructors.insert(
+            record.id.clone(),
+            SourceConstructor::new_static(record, constructor),
         );
-
-        Ok(())
     }
 
-    /// Tries to add a static operator to the data flow.
+    /// Add an `Operator` to the `DataFlow`.
     ///
-    /// If the validation fails the operator cannot be added.
-    /// This is meant to be used when creating an empty data flow using
-    /// `Dataflow::new(..)` function.
+    /// **Unless you know very well what you are doing, you should not use this method**.
     ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - validation fails
-    pub fn try_add_static_operator(
-        &mut self,
-        id: NodeId,
-        inputs: Vec<PortDescriptor>,
-        outputs: Vec<PortDescriptor>,
-        local_deadline: Option<Duration>,
-        state: State,
-        operator: Arc<dyn Operator>,
-    ) -> ZFResult<()> {
-        self.validator
-            .try_add_operator(id.clone(), &inputs, &outputs)?;
-
-        let inputs: HashMap<PortId, PortType> = inputs
-            .into_iter()
-            .map(|desc| (desc.port_id, desc.port_type))
-            .collect();
-        let outputs: HashMap<PortId, PortType> = outputs
-            .into_iter()
-            .map(|desc| (desc.port_id, desc.port_type))
-            .collect();
-
-        self.operators.insert(
-            id.clone(),
-            OperatorLoaded {
-                id,
-                inputs,
-                outputs,
-                local_deadline,
-                state: Arc::new(Mutex::new(state)),
-                operator,
-                library: None,
-                end_to_end_deadlines: vec![],
-                ciclo: None,
-            },
+    /// If the Operator is not correctly connected to upstream and downstream nodes, it will never
+    /// receive, process and emit data.
+    pub fn add_operator(&mut self, record: OperatorRecord, constructor: OperatorFn) {
+        self.operator_constructors.insert(
+            record.id.clone(),
+            OperatorConstructor::new_static(record, constructor),
         );
-
-        Ok(())
     }
 
-    /// Tries to add a static sink to the data flow.
+    /// Add a `Sink` to the `DataFlow`.
     ///
-    /// If the validation fails the sink cannot be added.
-    /// This is meant to be used when creating an empty data flow using
-    /// `Dataflow::new(..)` function.
+    /// **Unless you know very well what you are doing, you should not use this method**.
     ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - validation fails
-    pub fn try_add_static_sink(
-        &mut self,
-        id: NodeId,
-        input: PortDescriptor,
-        state: State,
-        sink: Arc<dyn Sink>,
-    ) -> ZFResult<()> {
-        self.validator.try_add_sink(id.clone(), input.clone())?;
-
-        self.sinks.insert(
-            id.clone(),
-            SinkLoaded {
-                id,
-                input,
-                state: Arc::new(Mutex::new(state)),
-                sink,
-                library: None,
-                end_to_end_deadlines: vec![],
-            },
+    /// If the Sink is not correctly connected to upstream nodes, it will never receive data.
+    pub fn add_sink(&mut self, record: SinkRecord, constructor: SinkFn) {
+        self.sink_constructors.insert(
+            record.id.clone(),
+            SinkConstructor::new_static(record, constructor),
         );
-
-        Ok(())
     }
 
-    /// Add a link, connecting two nodes.
+    /// Add a `Link` to the `DataFlow`.
     ///
-    /// ## Error
+    /// **Unless you know very well what you are doing, you should not use this method**.
     ///
-    /// This function will return error if the nodes that are to be linked where not previously
-    /// added to the Dataflow **or** if the types of the ports (declared in the nodes) are not
-    /// identical.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - validation fails
-    pub fn try_add_link(
-        &mut self,
-        from: OutputDescriptor,
-        to: InputDescriptor,
-        size: Option<usize>,
-        queueing_policy: Option<String>,
-        priority: Option<usize>,
-    ) -> ZFResult<()> {
-        self.validator.try_add_link(&from, &to)?;
-
-        self.links.push(LinkDescriptor {
+    /// If the `OutputDescriptor` and `InputDescriptor` are incorrect, Zenoh-Flow will error out at
+    /// _runtime_.
+    pub fn add_link(&mut self, from: OutputDescriptor, to: InputDescriptor) {
+        self.links.push(LinkRecord {
+            uid: self.counter,
             from,
             to,
-            size,
-            queueing_policy,
-            priority,
+            size: None,
+            queueing_policy: None,
+            priority: None,
         });
-
-        Ok(())
+        self.counter += 1;
     }
 
-    /// Tries to add a deadline within the dataflow
+    /// Given a `DataFlowRecord`, create the corresponding `DataFlow` by dynamically loading the
+    /// shared libraries.
     ///
-    /// If the validation fails the deadline cannot be added.
+    /// # Error
     ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - validation fails
-    pub fn try_add_deadline(
-        &mut self,
-        from: OutputDescriptor,
-        to: InputDescriptor,
-        duration: Duration,
-    ) -> ZFResult<()> {
-        self.validator.validate_deadline(&from, &to)?;
-        let deadline = E2EDeadlineRecord { from, to, duration };
-        self.add_end_to_end_deadline(deadline);
+    /// Failures can happen when trying to load node factories.
+    pub fn try_new(record: DataFlowRecord, context: RuntimeContext) -> ZFResult<Self> {
+        let DataFlowRecord {
+            uuid,
+            flow,
+            operators,
+            sinks,
+            sources,
+            connectors,
+            links,
+            counter,
+        } = record;
 
-        Ok(())
-    }
+        let source_constructors = sources
+            .into_iter()
+            .map(|(source_id, source_record)| {
+                context
+                    .loader
+                    .load_source_constructor(source_record)
+                    // `map` leaves the Error untouched and allows us to transform the Ok into a
+                    // tuple so we can finally build an HashMap
+                    .map(|source_constructor| (source_id, source_constructor))
+            })
+            .collect::<ZFResult<HashMap<NodeId, SourceConstructor>>>()?;
 
-    /// Adds a deadline within the dataflow.
-    fn add_end_to_end_deadline(&mut self, deadline: E2EDeadlineRecord) {
-        // Look for the "from" node in either Sources and Operators.
-        if let Some(source) = self.sources.get_mut(&deadline.from.node) {
-            source.end_to_end_deadlines.push(deadline.clone());
-        }
+        let operator_constructors = operators
+            .into_iter()
+            .map(|(operator_id, operator_record)| {
+                context
+                    .loader
+                    .load_operator_constructor(operator_record)
+                    .map(|operator_constructor| (operator_id, operator_constructor))
+            })
+            .collect::<ZFResult<HashMap<NodeId, OperatorConstructor>>>()?;
 
-        if let Some(operator) = self.operators.get_mut(&deadline.from.node) {
-            operator.end_to_end_deadlines.push(deadline.clone());
-        }
+        let sink_constructors = sinks
+            .into_iter()
+            .map(|(sink_id, sink_record)| {
+                context
+                    .loader
+                    .load_sink_constructor(sink_record)
+                    .map(|sink_constructor| (sink_id, sink_constructor))
+            })
+            .collect::<ZFResult<HashMap<NodeId, SinkConstructor>>>()?;
 
-        // Look for the "to" node in either Operators and Sinks.
-        if let Some(operator) = self.operators.get_mut(&deadline.to.node) {
-            operator.end_to_end_deadlines.push(deadline.clone());
-        }
-
-        if let Some(sink) = self.sinks.get_mut(&deadline.to.node) {
-            sink.end_to_end_deadlines.push(deadline);
-        }
-    }
-
-    /// Tries to add a loop within the dataflow
-    ///
-    /// If the validation fails the loop cannot be added.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - validation fails
-    pub fn try_add_loop(
-        &mut self,
-        ingress: NodeId,
-        egress: NodeId,
-        feedback_port: PortId,
-        port_type: PortType,
-        is_infinite: bool,
-    ) -> ZFResult<()> {
-        log::debug!("Validating loop…");
-        self.validator
-            .validate_loop(&ingress, &egress, &feedback_port)?;
-        log::debug!("Validating loop… OK.");
-
-        let loop_descriptor = LoopDescriptor {
-            ingress: ingress.clone(),
-            egress: egress.clone(),
-            feedback_port: feedback_port.clone(),
-            is_infinite,
-            port_type: port_type.clone(),
-        };
-
-        log::debug!("Updating Ingress node < {} >…", &ingress);
-        let ingress_op = self
-            .operators
-            .get_mut(&ingress)
-            .ok_or(ZFError::GenericError)?;
-        ingress_op
-            .inputs
-            .insert(feedback_port.clone(), port_type.clone());
-        ingress_op.ciclo = Some(loop_descriptor.clone());
-        self.validator.try_add_input(
-            ingress.clone(),
-            PortDescriptor {
-                port_id: feedback_port.clone(),
-                port_type: port_type.clone(),
-            },
-        )?;
-        log::debug!("Updating Ingress node < {} >… OK.", &ingress);
-
-        log::debug!("Updating Egress node < {} >…", &egress);
-        let egress_op = self
-            .operators
-            .get_mut(&egress)
-            .ok_or(ZFError::GenericError)?;
-        egress_op
-            .outputs
-            .insert(feedback_port.clone(), port_type.clone());
-        egress_op.ciclo = Some(loop_descriptor);
-        self.validator.try_add_output(
-            egress.clone(),
-            PortDescriptor {
-                port_id: feedback_port.clone(),
-                port_type,
-            },
-        )?;
-        log::debug!("Updating Egress node < {} >… OK.", &egress);
-
-        log::debug!("Adding feedback link…");
-        self.try_add_link(
-            OutputDescriptor {
-                node: egress.clone(),
-                output: feedback_port.clone(),
-            },
-            InputDescriptor {
-                node: ingress.clone(),
-                input: feedback_port.clone(),
-            },
-            None,
-            None,
-            None,
-        )?;
-
-        log::debug!("Adding feedback link… OK.");
-
-        Ok(())
+        Ok(Self {
+            uuid,
+            flow: flow.into(),
+            context,
+            source_constructors,
+            operator_constructors,
+            sink_constructors,
+            connectors,
+            links,
+            counter,
+        })
     }
 }

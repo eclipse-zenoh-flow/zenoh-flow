@@ -1,0 +1,11 @@
+id: operator
+
+uri: file://operator.so
+
+inputs:
+  - id: operator-in
+    type: _any_
+
+outputs:
+  - id: operator-out
+    type: _any_

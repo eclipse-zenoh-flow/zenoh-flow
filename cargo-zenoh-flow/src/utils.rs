@@ -20,8 +20,8 @@ use async_std::prelude::*;
 // use git2::Repository;
 use serde::Deserialize;
 use std::process::Command;
-use zenoh_flow::model::link::PortDescriptor;
-use zenoh_flow::model::{NodeKind, RegistryNode};
+use zenoh_flow::model::descriptor::PortDescriptor;
+use zenoh_flow::model::registry::{NodeKind, RegistryNode};
 
 pub static ZF_OUTPUT_DIRECTORY: &str = "zenoh-flow";
 static ZF_CPP_REPO: &str = "https://github.com/ZettaScaleLabs/zenoh-flow-cxx";
@@ -117,7 +117,7 @@ pub fn from_manifest(
     let manifest_path = Path::new(&root_package.manifest_path);
 
     let manifest_dir = manifest_path.parent().unwrap();
-    let content = std::fs::read(&manifest_path)?;
+    let content = std::fs::read(manifest_path)?;
 
     let metadata = toml::from_slice::<Cargo>(&content)?
         .package

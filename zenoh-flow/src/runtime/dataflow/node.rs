@@ -12,150 +12,98 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::deadline::E2EDeadlineRecord;
-use crate::model::link::PortDescriptor;
-use crate::model::loops::LoopDescriptor;
-use crate::model::node::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::{NodeId, Operator, PortId, PortType, Sink, Source, State, ZFResult};
-use async_std::sync::{Arc, Mutex};
-use std::collections::HashMap;
-use std::time::Duration;
+use crate::model::record::{OperatorRecord, SinkRecord, SourceRecord};
+use crate::prelude::{Configuration, Context, Inputs, Node, Outputs, Result};
+use std::ops::Deref;
+use std::pin::Pin;
+use std::sync::Arc;
 
+use futures::Future;
 #[cfg(target_family = "unix")]
 use libloading::os::unix::Library;
 #[cfg(target_family = "windows")]
 use libloading::Library;
 
-/// A Source that was loaded, either dynamically or statically.
-/// When a source is loaded it is first initialized and then can be ran.
-/// This struct is then used within a `Runner` to actually run the source.
-pub struct SourceLoaded {
-    pub(crate) id: NodeId,
-    pub(crate) output: PortDescriptor,
-    pub(crate) period: Option<Duration>,
-    pub(crate) state: Arc<Mutex<State>>,
-    pub(crate) source: Arc<dyn Source>,
-    pub(crate) library: Option<Arc<Library>>,
-    pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
+/// A `NodeConstructor` creates a single [`Node`](`Node`).
+///
+/// The `record` holds the metadata associated with the Node while the `constructor` is the function
+/// defined by the user to create it (through the implementation of [`Source`](`Source`),
+/// [`Operator`](`Operator`), or [`Sink`](`Sink`)).
+///
+/// The `_library` is a reference over the dynamically loaded shared library. It can be `None` when
+/// the factory is created programmatically.
+pub(crate) struct NodeConstructor<Record, C: ConstructorFn> {
+    pub(crate) record: Record,
+    pub(crate) constructor: C,
+    _library: Option<Arc<Library>>,
 }
+/// `ConstructorFn` is a private trait that prevents us from associating any function to the
+/// `Constructor` of [`NodeConstructor`](`NodeConstructor`) struct.
+pub(crate) trait ConstructorFn {}
 
-impl SourceLoaded {
-    /// Creates and initialzes a `Source`.
-    /// The state is stored within the `SourceLoaded` in order to be used
-    /// when calling the Source's callbacks.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - fails to initialize
-    pub fn try_new(
-        record: SourceRecord,
-        lib: Option<Arc<Library>>,
-        source: Arc<dyn Source>,
-    ) -> ZFResult<Self> {
-        let state = source.initialize(&record.configuration)?;
+/// `SourceFn` is the only signature we accept to construct a [`Source`](`crate::prelude::Source`).
+pub type SourceFn = fn(
+    Context,
+    Option<Configuration>,
+    Outputs,
+) -> Pin<Box<dyn Future<Output = Result<Arc<dyn Node>>> + Send>>;
 
-        Ok(Self {
-            id: record.id,
-            output: record.output,
-            state: Arc::new(Mutex::new(state)),
-            period: record.period.map(|dur_desc| dur_desc.to_duration()),
-            source,
-            library: lib,
-            end_to_end_deadlines: vec![],
-        })
+impl ConstructorFn for SourceFn {}
+
+/// `OperatorFn` is the only signature we accept to construct an [`Operator`](`crate::prelude::Operator`).
+pub type OperatorFn = fn(
+    Context,
+    Option<Configuration>,
+    Inputs,
+    Outputs,
+) -> Pin<Box<dyn Future<Output = Result<Arc<dyn Node>>> + Send>>;
+
+impl ConstructorFn for OperatorFn {}
+
+/// `SinkFn` is the only signature we accept to construct a [`Sink`](`crate::prelude::Sink`).
+pub type SinkFn = fn(
+    Context,
+    Option<Configuration>,
+    Inputs,
+) -> Pin<Box<dyn Future<Output = Result<Arc<dyn Node>>> + Send>>;
+
+impl ConstructorFn for SinkFn {}
+
+/// A `SourceConstructor` generates a [`Source`](`crate::prelude::Source`).
+pub(crate) type SourceConstructor = NodeConstructor<SourceRecord, SourceFn>;
+
+/// An `OperatorConstructor` generates a [`Operator`](`crate::prelude::Operator`).
+pub(crate) type OperatorConstructor = NodeConstructor<OperatorRecord, OperatorFn>;
+
+/// A `SinkConstructor` generates a [`Sink`](`crate::prelude::Sink`).
+pub(crate) type SinkConstructor = NodeConstructor<SinkRecord, SinkFn>;
+
+/// Dereferencing to the record allows for an easy access to the metadata of the node.
+impl<Record, C: ConstructorFn> Deref for NodeConstructor<Record, C> {
+    type Target = Record;
+
+    fn deref(&self) -> &Self::Target {
+        &self.record
     }
 }
 
-/// An Operator that was loaded, either dynamically or statically.
-/// When a operator is loaded it is first initialized and then can be ran.
-/// This struct is then used within a `Runner` to actually run the operator.
-pub struct OperatorLoaded {
-    pub(crate) id: NodeId,
-    pub(crate) inputs: HashMap<PortId, PortType>,
-    pub(crate) outputs: HashMap<PortId, PortType>,
-    pub(crate) local_deadline: Option<Duration>,
-    pub(crate) ciclo: Option<LoopDescriptor>,
-    pub(crate) state: Arc<Mutex<State>>,
-    pub(crate) operator: Arc<dyn Operator>,
-    pub(crate) library: Option<Arc<Library>>,
-    pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
-}
-
-impl OperatorLoaded {
-    /// Creates and initialzes an `Operator`.
-    /// The state is stored within the `OperatorLoaded` in order to be used
-    /// when calling the Operators's callbacks.
+impl<Record, C: ConstructorFn> NodeConstructor<Record, C> {
+    /// Creates a NodeFactory without a `library`.
     ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - fails to initialize
-    pub fn try_new(
-        record: OperatorRecord,
-        lib: Option<Arc<Library>>,
-        operator: Arc<dyn Operator>,
-    ) -> ZFResult<Self> {
-        let state = operator.initialize(&record.configuration)?;
-
-        let inputs: HashMap<PortId, PortType> = record
-            .inputs
-            .into_iter()
-            .map(|desc| (desc.port_id, desc.port_type))
-            .collect();
-
-        let outputs: HashMap<PortId, PortType> = record
-            .outputs
-            .into_iter()
-            .map(|desc| (desc.port_id, desc.port_type))
-            .collect();
-
-        Ok(Self {
-            id: record.id,
-            inputs,
-            outputs,
-            local_deadline: record.deadline,
-            state: Arc::new(Mutex::new(state)),
-            operator,
-            library: lib,
-            end_to_end_deadlines: vec![],
-            ciclo: record.ciclo,
-        })
+    /// This function is intended for internal use in order to create a data flow programmatically.
+    pub(crate) fn new_static(record: Record, constructor: C) -> Self {
+        Self {
+            record,
+            constructor,
+            _library: None,
+        }
     }
-}
 
-/// A Sink that was loaded, either dynamically or statically.
-/// When a sink is loaded it is first initialized and then can be ran.
-/// This struct is then used within a `Runner` to actually run the sink.
-pub struct SinkLoaded {
-    pub(crate) id: NodeId,
-    pub(crate) input: PortDescriptor,
-    pub(crate) state: Arc<Mutex<State>>,
-    pub(crate) sink: Arc<dyn Sink>,
-    pub(crate) library: Option<Arc<Library>>,
-    pub(crate) end_to_end_deadlines: Vec<E2EDeadlineRecord>,
-}
-
-impl SinkLoaded {
-    /// Creates and initialzes a `Sink`.
-    /// The state is stored within the `SinkLoaded` in order to be used
-    /// when calling the Sink's callbacks.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - fails to initialize
-    pub fn try_new(
-        record: SinkRecord,
-        lib: Option<Arc<Library>>,
-        sink: Arc<dyn Sink>,
-    ) -> ZFResult<Self> {
-        let state = sink.initialize(&record.configuration)?;
-
-        Ok(Self {
-            id: record.id,
-            input: record.input,
-            state: Arc::new(Mutex::new(state)),
-            sink,
-            library: lib,
-            end_to_end_deadlines: vec![],
-        })
+    pub(crate) fn new_dynamic(record: Record, constructor: C, library: Arc<Library>) -> Self {
+        Self {
+            record,
+            constructor,
+            _library: Some(library),
+        }
     }
 }

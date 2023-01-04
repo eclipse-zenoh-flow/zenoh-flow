@@ -12,34 +12,275 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-pub mod link;
 pub mod runners;
 
-use crate::model::connector::ZFConnectorKind;
-use crate::model::link::LinkDescriptor;
-use crate::runtime::dataflow::instance::link::link;
-use crate::runtime::dataflow::instance::runners::connector::{ZenohReceiver, ZenohSender};
-use crate::runtime::dataflow::instance::runners::operator::{OperatorIO, OperatorRunner};
-use crate::runtime::dataflow::instance::runners::replay::ZenohReplay;
-use crate::runtime::dataflow::instance::runners::sink::SinkRunner;
-use crate::runtime::dataflow::instance::runners::source::SourceRunner;
-use crate::runtime::dataflow::instance::runners::{NodeRunner, RunnerKind};
-use crate::runtime::dataflow::Dataflow;
+use self::runners::connector::{ZenohReceiver, ZenohSender};
+use self::runners::Runner;
+use super::DataFlow;
+use crate::io::{Inputs, Outputs};
+use crate::model::record::{LinkRecord, ZFConnectorKind};
+use crate::prelude::{Context, Node};
 use crate::runtime::InstanceContext;
-use crate::{Message, NodeId, PortId, PortType, ZFError, ZFResult};
-use async_std::sync::Arc;
+use crate::types::NodeId;
+use crate::zfresult::ErrorKind;
+use crate::Result;
+use crate::{bail, zferror};
 use std::collections::HashMap;
-use uuid::Uuid;
+use std::ops::Deref;
+use std::sync::Arc;
+use uhlc::HLC;
 
-use self::runners::RunnerManager;
+/// A `DataFlowInstance` is an instance of a data flow that is ready to be run.
+///
+/// All Zenoh-Flow daemons involved in the deployment of an instance of a data flow will create this
+/// structure to manage the nodes they are responsible for. Each daemon will keep in that structure
+/// only their view of the instance.
+pub struct DataFlowInstance {
+    pub(crate) _instance_context: Arc<InstanceContext>,
+    pub(crate) data_flow: DataFlow,
+    pub(crate) runners: HashMap<NodeId, Runner>,
+}
 
-/// The instance of a data flow graph.
-/// It contains runtime information for the instance
-/// and the [`InstanceContext`](`InstanceContext`)
-pub struct DataflowInstance {
-    pub(crate) context: InstanceContext,
-    pub(crate) runners: HashMap<NodeId, NodeRunner>,
-    pub(crate) managers: HashMap<NodeId, RunnerManager>,
+impl Deref for DataFlowInstance {
+    type Target = DataFlow;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data_flow
+    }
+}
+
+impl DataFlowInstance {
+    /// Retrieve the `NodeId` of the `Sink`s of this data flow instance running on the current
+    /// daemon.
+    ///
+    /// CAVEAT: It is possible (and likely) that not all `Sink`s run on a single daemon. Hence, this
+    /// list will be a subset of the list of all `Sink`s of this data flow.
+    pub fn get_sinks(&self) -> Vec<NodeId> {
+        self.sink_constructors.keys().cloned().collect()
+    }
+
+    /// Retrieve the `NodeId` of the `Source`s of this data flow instance running on the current
+    /// daemon.
+    ///
+    /// CAVEAT: It is possible (and likely) that not all `Source`s run on a single daemon. Hence,
+    /// this list will be a subset of the list of all `Source`s of this data flow.
+    pub fn get_sources(&self) -> Vec<NodeId> {
+        self.source_constructors.keys().cloned().collect()
+    }
+
+    /// Retrieve the `NodeId` of the `Operator`s of this data flow instance running on the current
+    /// daemon.
+    ///
+    /// CAVEAT: It is possible (and likely) that not all `Operator`s run on a single daemon. Hence,
+    /// this list will be a subset of the list of all `Operator`s of this data flow.
+    pub fn get_operators(&self) -> Vec<NodeId> {
+        self.operator_constructors.keys().cloned().collect()
+    }
+
+    /// Retrieve the `NodeId` of the `ZFConnector`s of this data flow instance running on the
+    /// current daemon.
+    ///
+    /// CAVEAT: It is possible (and likely) that not all `ZFConnector`s run on a single daemon.
+    /// Hence, this list will be a subset of the list of all `ZFConnector`s of this data flow.
+    pub fn get_connectors(&self) -> Vec<NodeId> {
+        self.connectors.keys().cloned().collect()
+    }
+
+    /// Start the node whose id matches the one provided.
+    ///
+    /// Start means launching as many tasks as necessary to run continuously the `Node`, input
+    /// and/or output callbacks.
+    ///
+    /// Start is idempotent, if the node is already running, nothing will happen.
+    ///
+    /// # Error
+    ///
+    /// This method can return an error if the provided `node_id` is not found.
+    pub fn start_node(&mut self, node_id: &NodeId) -> Result<()> {
+        if let Some(runner) = self.runners.get_mut(node_id) {
+            runner.start();
+            return Ok(());
+        }
+
+        bail!(
+            ErrorKind::NodeNotFound(node_id.clone()),
+            "Node < {} > not found",
+            node_id
+        )
+    }
+
+    /// Stop the node whose id matches the one provided.
+    ///
+    /// Stop means canceling all the tasks that were launched. Note that `stop` does not interrupt a
+    /// currently running task. The task will effectively be stopped the next time it encounters an
+    /// `await`.
+    ///
+    /// Stop is idempotent, if the node is not running, nothing will happen.
+    ///
+    /// # Error
+    ///
+    /// This method can return an error if the provided `node_id` is not found.
+    pub async fn stop_node(&mut self, node_id: &NodeId) -> Result<()> {
+        if let Some(runner) = self.runners.get_mut(node_id) {
+            return runner.stop().await;
+        }
+
+        bail!(
+            ErrorKind::NodeNotFound(node_id.clone()),
+            "Node < {} > not found",
+            node_id
+        )
+    }
+
+    /// Given a `DataFlow` and an `HLC`, try to instantiate the data flow by generating all the
+    /// nodes (via their factories) and all the connections --- _running on the daemon_.
+    ///
+    /// # Error
+    ///
+    /// This function can return an error if:
+    /// - some links are missing which resulted in some missing connections,
+    /// - a factory failed to generate a node.
+    pub async fn try_instantiate(data_flow: DataFlow, hlc: Arc<HLC>) -> Result<Self> {
+        let instance_context = Arc::new(InstanceContext {
+            flow_id: data_flow.flow.clone(),
+            instance_id: data_flow.uuid,
+            runtime: data_flow.context.clone(),
+        });
+
+        let mut node_ids: Vec<NodeId> = Vec::with_capacity(
+            data_flow.source_constructors.len()
+                + data_flow.operator_constructors.len()
+                + data_flow.sink_constructors.len()
+                + data_flow.connectors.len(),
+        );
+
+        node_ids.append(
+            &mut data_flow
+                .source_constructors
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>(),
+        );
+        node_ids.append(
+            &mut data_flow
+                .operator_constructors
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>(),
+        );
+        node_ids.append(
+            &mut data_flow
+                .sink_constructors
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>(),
+        );
+        node_ids.append(&mut data_flow.connectors.keys().cloned().collect::<Vec<_>>());
+
+        let mut links = create_links(&node_ids, &data_flow.links, hlc.clone())?;
+
+        let context = Context::new(&instance_context);
+
+        let mut runners = HashMap::with_capacity(data_flow.source_constructors.len());
+        for (source_id, source_constructor) in &data_flow.source_constructors {
+            let (_, outputs) = links.remove(source_id).ok_or_else(|| {
+                zferror!(
+                    ErrorKind::IOError,
+                    "Links for Source < {} > were not created.",
+                    &source_id
+                )
+            })?;
+
+            let source = (source_constructor.constructor)(
+                context.clone(),
+                source_constructor.configuration.clone(),
+                outputs,
+            )
+            .await?;
+
+            let runner = Runner::new(source);
+            runners.insert(source_id.clone(), runner);
+        }
+
+        for (operator_id, operator_constructor) in &data_flow.operator_constructors {
+            let (inputs, outputs) = links.remove(operator_id).ok_or_else(|| {
+                zferror!(
+                    ErrorKind::IOError,
+                    "Links for Operator < {} > were not created.",
+                    &operator_id
+                )
+            })?;
+
+            let operator = (operator_constructor.constructor)(
+                context.clone(),
+                operator_constructor.configuration.clone(),
+                inputs,
+                outputs,
+            )
+            .await?;
+
+            let runner = Runner::new(operator);
+            runners.insert(operator_id.clone(), runner);
+        }
+
+        for (sink_id, sink_constructor) in &data_flow.sink_constructors {
+            let (inputs, _) = links.remove(sink_id).ok_or_else(|| {
+                zferror!(
+                    ErrorKind::IOError,
+                    "Links for Sink < {} > were not created.",
+                    &sink_id
+                )
+            })?;
+
+            let sink = (sink_constructor.constructor)(
+                context.clone(),
+                sink_constructor.configuration.clone(),
+                inputs,
+            )
+            .await?;
+
+            let runner = Runner::new(sink);
+            runners.insert(sink_id.clone(), runner);
+        }
+
+        for (connector_id, connector_record) in &data_flow.connectors {
+            let session = instance_context.runtime.session.clone();
+            let node = match &connector_record.kind {
+                ZFConnectorKind::Sender => {
+                    let (inputs, _) = links.remove(connector_id).ok_or_else(|| {
+                        zferror!(
+                            ErrorKind::IOError,
+                            "Links for Sink < {} > were not created.",
+                            connector_id
+                        )
+                    })?;
+                    Arc::new(ZenohSender::new(connector_record, session, inputs).await?)
+                        as Arc<dyn Node>
+                }
+                ZFConnectorKind::Receiver => {
+                    let (_, outputs) = links.remove(connector_id).ok_or_else(|| {
+                        zferror!(
+                            ErrorKind::IOError,
+                            "Links for Source < {} > were not created.",
+                            &connector_id
+                        )
+                    })?;
+                    Arc::new(
+                        ZenohReceiver::new(connector_record, session, hlc.clone(), outputs).await?,
+                    ) as Arc<dyn Node>
+                }
+            };
+
+            let runner = Runner::new(node);
+            runners.insert(connector_id.clone(), runner);
+        }
+
+        Ok(DataFlowInstance {
+            _instance_context: instance_context,
+            data_flow,
+            runners,
+        })
+    }
 }
 
 /// Creates the [`Link`](`Link`) between the `nodes` using `links`.
@@ -47,11 +288,12 @@ pub struct DataflowInstance {
 /// # Errors
 /// An error variant is returned in case of:
 /// -  port id is duplicated.
-fn create_links(
+pub(crate) fn create_links(
     nodes: &[NodeId],
-    links: &[LinkDescriptor],
-) -> ZFResult<HashMap<NodeId, OperatorIO>> {
-    let mut io: HashMap<NodeId, OperatorIO> = HashMap::with_capacity(nodes.len());
+    links: &[LinkRecord],
+    hlc: Arc<HLC>,
+) -> Result<HashMap<NodeId, (Inputs, Outputs)>> {
+    let mut io: HashMap<NodeId, (Inputs, Outputs)> = HashMap::with_capacity(nodes.len());
 
     for link_desc in links {
         let upstream_node = link_desc.from.node.clone();
@@ -63,402 +305,35 @@ fn create_links(
             continue;
         }
 
-        let (tx, rx) = link::<Message>(
-            None,
-            link_desc.from.output.clone(),
-            link_desc.to.input.clone(),
-        );
+        // FIXME Introduce a user-configurable maximum capacity on the links. This also requires
+        // implementing a dropping policy.
+        let (tx, rx) = flume::unbounded();
+        let from = link_desc.from.output.clone();
+        let to = link_desc.to.input.clone();
 
         match io.get_mut(&upstream_node) {
-            Some(operator_io) => operator_io.add_output(tx),
+            Some((_, outputs)) => outputs.insert(from.clone(), tx),
             None => {
-                let mut operator_io = OperatorIO::default();
-                operator_io.add_output(tx);
-                io.insert(upstream_node, operator_io);
+                let inputs = Inputs::new();
+                let mut outputs = Outputs::new(hlc.clone());
+                outputs.insert(from.clone(), tx);
+
+                io.insert(upstream_node, (inputs, outputs));
             }
         }
 
         match io.get_mut(&downstream_node) {
-            Some(operator_io) => operator_io.try_add_input(rx)?,
+            Some((inputs, _)) => inputs.insert(to.clone(), rx),
             None => {
-                let mut operator_io = OperatorIO::default();
-                operator_io.try_add_input(rx)?;
-                io.insert(downstream_node, operator_io);
+                let outputs = Outputs::new(hlc.clone());
+
+                let mut inputs = Inputs::new();
+                inputs.insert(to.clone(), rx);
+
+                io.insert(downstream_node, (inputs, outputs));
             }
         }
     }
 
     Ok(io)
-}
-
-impl DataflowInstance {
-    /// Tries to instantiate the [`Dataflow`](`Dataflow`)
-    ///
-    /// This function is called by the runtime once the `Dataflow` object was
-    /// created and validated.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// - validation fails
-    /// - connectors cannot be created
-    pub fn try_instantiate(dataflow: Dataflow) -> ZFResult<Self> {
-        // Gather all node ids to be able to generate (i) the links and (ii) the hash map containing
-        // the runners.
-        let mut node_ids: Vec<NodeId> = Vec::with_capacity(
-            dataflow.sources.len()
-                + dataflow.operators.len()
-                + dataflow.sinks.len()
-                + dataflow.connectors.len(),
-        );
-
-        node_ids.append(&mut dataflow.sources.keys().cloned().collect::<Vec<_>>());
-        node_ids.append(&mut dataflow.operators.keys().cloned().collect::<Vec<_>>());
-        node_ids.append(&mut dataflow.sinks.keys().cloned().collect::<Vec<_>>());
-        node_ids.append(&mut dataflow.connectors.keys().cloned().collect::<Vec<_>>());
-
-        let mut links = create_links(&node_ids, &dataflow.links)?;
-
-        let context = InstanceContext {
-            flow_id: dataflow.flow_id,
-            instance_id: dataflow.uuid,
-            runtime: dataflow.context,
-        };
-
-        // The links were created, we can generate the Runners.
-        let mut runners: HashMap<NodeId, NodeRunner> = HashMap::with_capacity(node_ids.len());
-
-        for (id, source) in dataflow.sources.into_iter() {
-            let io = links.remove(&id).ok_or_else(|| {
-                ZFError::IOError(format!(
-                    "Links for Source < {} > were not created.",
-                    &source.id
-                ))
-            })?;
-            runners.insert(
-                id,
-                NodeRunner::new(
-                    Arc::new(SourceRunner::try_new(context.clone(), source, io)?),
-                    context.clone(),
-                ),
-            );
-        }
-
-        for (id, operator) in dataflow.operators.into_iter() {
-            let io = links.remove(&operator.id).ok_or_else(|| {
-                ZFError::IOError(format!(
-                    "Links for Operator < {} > were not created.",
-                    &operator.id
-                ))
-            })?;
-            runners.insert(
-                id,
-                NodeRunner::new(
-                    Arc::new(OperatorRunner::try_new(context.clone(), operator, io)?),
-                    context.clone(),
-                ),
-            );
-        }
-
-        for (id, sink) in dataflow.sinks.into_iter() {
-            let io = links.remove(&id).ok_or_else(|| {
-                ZFError::IOError(format!("Links for Sink < {} > were not created.", &sink.id))
-            })?;
-            runners.insert(
-                id,
-                NodeRunner::new(
-                    Arc::new(SinkRunner::try_new(context.clone(), sink, io)?),
-                    context.clone(),
-                ),
-            );
-        }
-
-        for (id, connector) in dataflow.connectors.into_iter() {
-            let io = links.remove(&id).ok_or_else(|| {
-                ZFError::IOError(format!(
-                    "Links for Connector < {} > were not created.",
-                    &connector.id
-                ))
-            })?;
-            match connector.kind {
-                ZFConnectorKind::Sender => {
-                    runners.insert(
-                        id,
-                        NodeRunner::new(
-                            Arc::new(ZenohSender::try_new(context.clone(), connector, io)?),
-                            context.clone(),
-                        ),
-                    );
-                }
-                ZFConnectorKind::Receiver => {
-                    runners.insert(
-                        id,
-                        NodeRunner::new(
-                            Arc::new(ZenohReceiver::try_new(context.clone(), connector, io)?),
-                            context.clone(),
-                        ),
-                    );
-                }
-            }
-        }
-
-        Ok(Self {
-            context,
-            runners,
-            managers: HashMap::with_capacity(node_ids.len()),
-        })
-    }
-
-    /// Returns the instance's `Uuid`.
-    pub fn get_uuid(&self) -> Uuid {
-        self.context.instance_id
-    }
-
-    /// Returns the instance's `FlowId`.
-    pub fn get_flow(&self) -> Arc<str> {
-        self.context.flow_id.clone()
-    }
-
-    /// Returns a copy of the `InstanceContext`.
-    pub fn get_instance_context(&self) -> InstanceContext {
-        self.context.clone()
-    }
-
-    /// Returns the `NodeId` for all the sources in this instance.
-    pub fn get_sources(&self) -> Vec<NodeId> {
-        self.runners
-            .values()
-            .filter(|runner| matches!(runner.get_kind(), RunnerKind::Source))
-            .map(|runner| runner.get_id())
-            .collect()
-    }
-
-    /// Returns the `NodeId` for all the sinks in this instance.
-    pub fn get_sinks(&self) -> Vec<NodeId> {
-        self.runners
-            .values()
-            .filter(|runner| matches!(runner.get_kind(), RunnerKind::Sink))
-            .map(|runner| runner.get_id())
-            .collect()
-    }
-
-    /// Returns the `NodeId` for all the sinks in this instance.
-    pub fn get_operators(&self) -> Vec<NodeId> {
-        self.runners
-            .values()
-            .filter(|runner| matches!(runner.get_kind(), RunnerKind::Operator))
-            .map(|runner| runner.get_id())
-            .collect()
-    }
-
-    /// Returns the `NodeId` for all the connectors in this instance.
-    pub fn get_connectors(&self) -> Vec<NodeId> {
-        self.runners
-            .values()
-            .filter(|runner| matches!(runner.get_kind(), RunnerKind::Connector))
-            .map(|runner| runner.get_id())
-            .collect()
-    }
-
-    /// Returns the `NodeId` for all the nodes in this instance.
-    pub fn get_nodes(&self) -> Vec<NodeId> {
-        self.runners
-            .values()
-            .map(|runner| runner.get_id())
-            .collect()
-    }
-
-    /// Starts all the sources in this instance.
-    ///
-    ///
-    /// **Note:** Not implemented.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// -  sources already started.
-    pub async fn start_sources(&mut self) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
-    }
-
-    /// Starts all the nodes in this instance.
-    ///
-    /// **Note:** Not implemented.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// -  nodes already started.
-    pub async fn start_nodes(&mut self) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
-    }
-
-    /// Stops all the sources in this instance.
-    ///
-    /// **Note:** Not implemented.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// -  sources already stopped.
-    pub async fn stop_sources(&mut self) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
-    }
-
-    /// Stops all the sources in this instance.
-    ///
-    /// **Note:** Not implemented.
-    ///
-    /// # Errors
-    /// An error variant is returned in case of:
-    /// -  nodes already stopped.
-    pub async fn stop_nodes(&mut self) -> ZFResult<()> {
-        Err(ZFError::Unimplemented)
-    }
-
-    /// Checks if the given node is running.
-    ///
-    /// # Errors
-    /// If fails if the node is not found.
-    pub async fn is_node_running(&self, node_id: &NodeId) -> ZFResult<bool> {
-        self.runners
-            .get(node_id)
-            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-
-        match self.managers.get(node_id) {
-            Some(manager) => Ok(manager.is_running().await),
-            None => Ok(false),
-        }
-    }
-
-    /// Starts the given node.
-    ///
-    /// # Errors
-    /// If fails if the node is not found.
-    pub async fn start_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
-        let runner = self
-            .runners
-            .get(node_id)
-            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-        let manager = runner.start();
-        self.managers.insert(node_id.clone(), manager);
-        Ok(())
-    }
-
-    /// Stops the given node.
-    ///
-    /// # Errors
-    /// If fails if the node is not found or it is not running.
-    pub async fn stop_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
-        let manager = self
-            .managers
-            .remove(node_id)
-            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-        manager.kill().await?;
-        manager.await
-    }
-
-    /// Finalized the given node.
-    /// Finalizing a node means cleaning up its state.
-    ///
-    /// # Errors
-    /// If fails if the node is not found.
-    pub async fn clean_node(&mut self, node_id: &NodeId) -> ZFResult<()> {
-        let runner = self
-            .runners
-            .get(node_id)
-            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-        runner.clean().await
-    }
-
-    /// Starts the recording for the given source.
-    ///
-    /// It returns the key expression where the recording is stored.
-    ///
-    /// # Errors
-    /// If fails if the node is not found.
-    pub async fn start_recording(&self, node_id: &NodeId) -> ZFResult<String> {
-        let manager = self
-            .managers
-            .get(node_id)
-            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-        manager.start_recording().await
-    }
-
-    /// Stops the recording for the given source.
-    ///
-    /// It returns the key expression where the recording is stored.
-    ///
-    /// # Errors
-    /// If fails if the node is not found.
-    pub async fn stop_recording(&self, node_id: &NodeId) -> ZFResult<String> {
-        let manager = self
-            .managers
-            .get(node_id)
-            .ok_or_else(|| ZFError::NodeNotFound(node_id.clone()))?;
-        manager.stop_recording().await
-    }
-
-    /// Assumes the source is already stopped before calling the start replay!
-    /// This method is called by the runtime, that always check that the node
-    /// is not running prior to call this function.
-    /// If someone is using directly the DataflowInstance need to stop and check
-    /// if the node is running before calling this function.
-    ///
-    /// # Errors
-    /// It fails if:
-    /// - the source is not stopped
-    /// - the node is not a source
-    /// - the key expression is not point to a recording
-    pub async fn start_replay(&mut self, source_id: &NodeId, resource: String) -> ZFResult<NodeId> {
-        let runner = self
-            .runners
-            .get(source_id)
-            .ok_or_else(|| ZFError::NodeNotFound(source_id.clone()))?;
-
-        let mut outputs: Vec<(PortId, PortType)> = runner
-            .get_outputs()
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
-
-        let (output_id, _output_type) = outputs
-            .pop()
-            .ok_or_else(|| ZFError::NodeNotFound(source_id.clone()))?;
-
-        let replay_id: NodeId = format!(
-            "replay-{}-{}-{}-{}",
-            self.context.flow_id, self.context.instance_id, source_id, output_id
-        )
-        .into();
-
-        let output_links = runner
-            .get_outputs_links()
-            .await
-            .remove(&output_id)
-            .ok_or_else(|| ZFError::PortNotFound((source_id.clone(), output_id.clone())))?;
-
-        let replay_node = ZenohReplay::try_new(
-            replay_id.clone(),
-            self.context.clone(),
-            source_id.clone(),
-            output_id,
-            _output_type,
-            output_links,
-            resource,
-        )?;
-
-        let replay_runner = NodeRunner::new(Arc::new(replay_node), self.context.clone());
-        let replay_manager = replay_runner.start();
-
-        self.runners.insert(replay_id.clone(), replay_runner);
-        self.managers.insert(replay_id.clone(), replay_manager);
-        Ok(replay_id)
-    }
-
-    /// Stops the recording for the given source.
-    ///
-    /// # Errors
-    /// If fails if the node is not found.
-    pub async fn stop_replay(&mut self, replay_id: &NodeId) -> ZFResult<()> {
-        self.stop_node(replay_id).await?;
-        self.runners.remove(replay_id);
-        Ok(())
-    }
 }

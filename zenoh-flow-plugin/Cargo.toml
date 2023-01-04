@@ -1,0 +1,72 @@
+#
+# Copyright (c) 2022 ZettaScale Technology
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+# which is available at https://www.apache.org/licenses/LICENSE-2.0.
+#
+# SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+#
+# Contributors:
+#   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
+#
+[package]
+rust-version = "1.62.1"
+name = "zenoh-flow-plugin"
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+
+[lib]
+name = "zplugin_zenoh_flow"
+crate-type = ["cdylib"]
+
+[features]
+no_mangle = ["zenoh-plugin-trait/no_mangle"]
+default = ["no_mangle"]
+
+[dependencies]
+async-trait = "0.1.57"
+async-std = "=1.12.0"
+clap = "4.0"
+env_logger = "0.10"
+futures = "0.3.24"
+flume = "0.10.14"
+log = "0.4.17"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
+lazy_static = "1.4.0"
+git-version = "0.3.5"
+zenoh = { version = "=0.7.0-rc", features = ["unstable"] }
+zenoh-collections = { version = "=0.7.0-rc" }
+zenoh-core = { version = "=0.7.0-rc" }
+zenoh-ext = { version = "=0.7.0-rc", features = ["unstable"] }
+zenoh-plugin-trait = { version = "=0.7.0-rc", default-features = false }
+zenoh-flow-daemon = {version = "=0.4.0-alpha.1", path = "../zenoh-flow-daemon"}
+zenoh-flow = {version = "=0.4.0-alpha.1", path = "../zenoh-flow"}
+
+[build-dependencies]
+rustc_version = "0.4"
+
+
+[package.metadata.deb]
+name = "zenoh-plugin-zenoh-flow"
+maintainer = "zenoh-dev@eclipse.org"
+copyright = "2017, 2022 ZettaScale Technology Inc."
+section = "net"
+license-file = ["../LICENSE", "0"]
+depends = "$auto, zenohd (=0.7.0-rc)"
+assets = [
+    # binary
+    ["target/release/libzplugin_zenoh_flow.so", "/usr/lib/libzplugin_zenoh_flow.so", "644"],
+    # assets
+    ["../zenoh-flow-daemon/etc/extensions.d/placeholder", "/etc/zenoh-flow/extensions.d/placeholder", "644"],
+    ["../zenoh-flow-daemon/var/*", "/var/zenoh-flow", "644"],
+]

@@ -13,26 +13,14 @@
 //
 
 pub mod connector;
-pub mod operator;
-pub mod replay;
-pub mod sink;
-pub mod source;
 
-use crate::async_std::prelude::*;
-use crate::async_std::sync::Arc;
-use crate::async_std::task::JoinHandle;
-
-use crate::runtime::dataflow::instance::link::{LinkReceiver, LinkSender};
-use crate::runtime::message::Message;
-use crate::runtime::InstanceContext;
-use crate::types::{NodeId, ZFResult};
-use crate::{PortId, PortType, ZFError};
-use async_trait::async_trait;
-use futures_lite::future::FutureExt;
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use crate::traits::Node;
+use crate::zfresult::Error;
+use crate::Result as ZFResult;
+use async_std::task::JoinHandle;
+use futures::future::{AbortHandle, Abortable, Aborted};
+use std::sync::Arc;
+use std::time::Instant;
 
 /// Type of the Runner.
 ///
@@ -45,262 +33,91 @@ pub enum RunnerKind {
     Connector,
 }
 
-/// A runner manager is created when a `Runner` is started.
-///
-/// The runner manager is used to send commands to the runner.
-pub struct RunnerManager {
-    stopper: flume::Sender<bool>,
-    handler: JoinHandle<ZFResult<()>>,
-    runner: Arc<dyn Runner>,
-    ctx: InstanceContext,
-}
-
-impl RunnerManager {
-    /// Creates a new `RunnerManager` associated with the given `runner`.
-    ///
-    /// It is able to communicate via the `stopper` and the `handler`.
-    pub fn new(
-        stopper: flume::Sender<bool>,
-        handler: JoinHandle<ZFResult<()>>,
-        runner: Arc<dyn Runner>,
-        ctx: InstanceContext,
-    ) -> Self {
-        Self {
-            stopper,
-            handler,
-            runner,
-            ctx,
-        }
-    }
-
-    /// Stops the associated runner.
-    ///
-    /// # Errors
-    /// An error variant is returned in case the runner is already stopped.
-    pub async fn kill(&self) -> ZFResult<()> {
-        if self.runner.is_recording().await {
-            self.runner.stop_recording().await?;
-        }
-        log::info!("RunnerManager triggering stop to {}", self.get_id());
-
-        self.stopper.send_async(true).await.map_err(|e| {
-            log::error!("Could not send stop signal: {}", &e);
-            ZFError::InvalidState
-        })
-    }
-
-    /// Returns a reference to the handler.
-    ///
-    /// The handler can be used to verify the exit value
-    /// of a `Runner`.
-    ///
-    /// # Errors
-    /// An error variant is returned in case the run failed.
-    pub fn get_handler(&self) -> &JoinHandle<ZFResult<()>> {
-        &self.handler
-    }
-
-    /// Starts the recording of the associated `Runner`.
-    ///
-    /// # Errors
-    /// Fails if the `Runner` is not a source.
-    pub async fn start_recording(&self) -> ZFResult<String> {
-        self.runner.start_recording().await
-    }
-
-    /// Stops the recording for the associated `Runner`.
-    ///
-    /// # Errors
-    /// Fails if the `Runner` is not a source.
-    pub async fn stop_recording(&self) -> ZFResult<String> {
-        self.runner.stop_recording().await
-    }
-
-    /// Returns a reference to the instance context.
-    pub fn get_context(&self) -> &InstanceContext {
-        &self.ctx
-    }
-}
-
-impl Deref for RunnerManager {
-    type Target = Arc<dyn Runner>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.runner
-    }
-}
-
-impl Future for RunnerManager {
-    type Output = ZFResult<()>;
-
-    fn poll(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.handler.poll(ctx)
-    }
-}
-
 /// Action to be taken depending on the result of the run.
 pub enum RunAction {
-    RestartRun(Option<ZFError>),
+    RestartRun(Option<Error>),
     Stop,
 }
 
-/// This traits abstracts the runners, it provides the functions that are
-/// common across the runners.
+/// A `Runner` takes care of running a `Node`.
 ///
-///
-#[async_trait]
-pub trait Runner: Send + Sync {
-    /// The actual run where the magic happens.
-    ///
-    /// # Errors
-    /// It can fail to indicate that something went wrong when executing the
-    /// node.
-    async fn run(&self) -> ZFResult<()>;
-
-    /// Adds an input to the runner.
-    ///
-    /// # Errors
-    /// It may fail if the runner is not supposed to have that input or
-    /// if it does not expect any input (eg. Source)
-    async fn add_input(&self, input: LinkReceiver<Message>) -> ZFResult<()>;
-
-    /// Adds an output to the runner.
-    ///
-    /// # Errors
-    /// It may fail if the runner is not supposed to have that output or
-    /// if it does not expect any outputs (e.g.  Sink)
-    async fn add_output(&self, output: LinkSender<Message>) -> ZFResult<()>;
-
-    /// Finalizes the node
-    ///
-    /// # Errors
-    /// Returns an error variant if the finalize fails.
-    async fn clean(&self) -> ZFResult<()>;
-
-    /// Returns the type of the runner.
-    fn get_kind(&self) -> RunnerKind;
-
-    /// Returns the `NodeId` of the runner.
-    fn get_id(&self) -> NodeId;
-
-    /// Returns the inputs of the `Runner`.
-    fn get_inputs(&self) -> HashMap<PortId, PortType>;
-
-    /// Returns the outputs of the `Runner`.
-    fn get_outputs(&self) -> HashMap<PortId, PortType>;
-
-    /// Returns the output link of the `Runner.
-    async fn get_outputs_links(&self) -> HashMap<PortId, Vec<LinkSender<Message>>>;
-
-    /// Returns the input link of the `Runner`.
-    async fn take_input_links(&self) -> HashMap<PortId, LinkReceiver<Message>>;
-
-    /// Starts the recording of the `Runner`
-    ///
-    /// # Errors
-    /// Fails if the `Runner` is not a source
-    async fn start_recording(&self) -> ZFResult<String>;
-
-    /// Stops the recording of the `Runner`.
-    ///
-    /// # Errors
-    /// Fails it the `Runner` is not a source.
-    async fn stop_recording(&self) -> ZFResult<String>;
-
-    /// Checks if the `Runner` is recording.
-    ///
-    /// # Errors
-    /// Always `false` if the runner is not a source.
-    async fn is_recording(&self) -> bool;
-
-    /// Checks if the `Runner` is running.
-    async fn is_running(&self) -> bool;
-
-    /// Stops the runner.
-    async fn stop(&self);
+/// It spawns an abortable task in which the `iteration` is called in a loop, indefinitely.
+pub(crate) struct Runner {
+    pub(crate) node: Arc<dyn Node>,
+    pub(crate) run_loop_handle: Option<JoinHandle<Result<Error, Aborted>>>,
+    pub(crate) run_loop_abort_handle: Option<AbortHandle>,
 }
 
-/// A `NodeRunner` wraps the `Runner and associates it
-/// with an `InstanceContext`
-#[derive(Clone)]
-pub struct NodeRunner {
-    inner: Arc<dyn Runner>,
-    ctx: InstanceContext,
-}
-
-impl NodeRunner {
-    /// Creates a new `NodeRunner`.
-    pub fn new(inner: Arc<dyn Runner>, ctx: InstanceContext) -> Self {
-        Self { inner, ctx }
-    }
-
-    /// Run the node in a stoppable fashion.
-    ///
-    ///  # Errors
-    /// An error variant is returned in case the run returns an error.
-    async fn run_stoppable(&self, rx: flume::Receiver<bool>) -> ZFResult<()> {
-        loop {
-            log::info!("NodeRunner {} starting run!", self.get_id());
-
-            let my_id = self.get_id();
-            let future_stop = async {
-                if let Err(err) = rx.recv_async().await {
-                    log::error!("Receiver channel error: {}", err);
-                }
-                log::info!("NodeRunner {} received stop trigger", my_id);
-                RunAction::Stop
-            };
-
-            let future_run = async {
-                log::info!("NodeRunner {} running", self.get_id());
-                match self.run().await {
-                    Ok(_) => RunAction::Stop,
-                    Err(e) => RunAction::RestartRun(Some(e)),
-                }
-            };
-
-            match future_stop.race(future_run).await {
-                RunAction::RestartRun(e) => {
-                    log::error!(
-                        "[Node: {}] The run loop exited with {:?}, restarting…",
-                        self.get_id(),
-                        e
-                    );
-                }
-                RunAction::Stop => {
-                    log::trace!(
-                        "[Node: {}] Received kill command, killing runner",
-                        self.get_id()
-                    );
-                    self.stop().await;
-                    return Ok(());
-                }
-            }
+impl Runner {
+    pub(crate) fn new(node: Arc<dyn Node>) -> Self {
+        Self {
+            node,
+            run_loop_handle: None,
+            run_loop_abort_handle: None,
         }
     }
 
-    /// Starts the node, returning the `RunnerManager` to stop it.
-    pub fn start(&self) -> RunnerManager {
-        // Using barrier to wait for the stop notification.
-        // A Barrier(N) block N-1 futures that call the wait().
-        // In this case the future we want to block is the one defined in
-        // line 244. That future will block when calling the wait().
-        // When the next future, the one defined in line 86, calls the wait()
-        // both gets unlocked and continue execution, winning the race
-        // in line 258 and stop the execution.
-        // This is why this is a Barrier(2).
-        let (tx, rx) = flume::bounded::<bool>(1);
+    /// Start the `Runner`, spawning an abortable task.
+    ///
+    /// `start` is idempotent and will do nothing if the node is already running.
+    pub(crate) fn start(&mut self) {
+        if self.is_running() {
+            log::warn!("Called `start` while node is ALREADY running. Returning.");
+            return;
+        }
 
-        let cloned_self = self.clone();
-        let h = async_std::task::spawn(async move { cloned_self.run_stoppable(rx).await });
-        RunnerManager::new(tx, h, self.inner.clone(), self.ctx.clone())
+        let node = self.node.clone();
+        let run_loop = async move {
+            let mut instant: Instant;
+            loop {
+                instant = Instant::now();
+                log::trace!("Iteration start: {:?}", instant);
+                if let Err(e) = node.iteration().await {
+                    log::error!("Iteration error: {:?}", e);
+                    return e;
+                }
+
+                log::trace!("iteration took: {}ms", instant.elapsed().as_millis());
+
+                async_std::task::yield_now().await;
+            }
+        };
+
+        let (abort_handle, abort_registration) = AbortHandle::new_pair();
+        let handle = async_std::task::spawn(Abortable::new(run_loop, abort_registration));
+
+        self.run_loop_handle = Some(handle);
+        self.run_loop_abort_handle = Some(abort_handle);
     }
-}
 
-impl Deref for NodeRunner {
-    type Target = Arc<dyn Runner>;
+    /// Stop the execution of a `Node`.
+    ///
+    /// We will call `abort` on the `AbortHandle` and then `await` the `JoinHandle`. As per its
+    /// documentation, `abort` will not forcefully interrupt an execution if the corresponding task
+    /// is being polled on another thread.
+    ///
+    /// `stop` is idempotent and will do nothing if the node is not running.
+    pub(crate) async fn stop(&mut self) -> ZFResult<()> {
+        if !self.is_running() {
+            log::warn!("Called `stop` while node is NOT running. Returning.");
+            return Ok(()); // TODO Return an error instead?
+        }
 
-    fn deref(&self) -> &Self::Target {
-        &self.inner
+        if let Some(abort_handle) = self.run_loop_abort_handle.take() {
+            abort_handle.abort();
+            if let Some(handle) = self.run_loop_handle.take() {
+                log::trace!("Handler finished with {:?}", handle.await);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Tell if the node is running.
+    ///
+    /// To do so we check if an `AbortHandle` was set. If so, then a task was spawned and the node
+    /// is indeed running.
+    pub(crate) fn is_running(&self) -> bool {
+        self.run_loop_handle.is_some()
     }
 }

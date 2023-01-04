@@ -16,4 +16,5 @@
     pid_file : /var/zenoh-flow/runtime.pid
     path : /etc/zenoh-flow
     extensions: /etc/zenoh-flow/extensions.d
-    zenoh_config: /etc/zenoh-flow/zenoh-daemon.json
+    zenoh_config: /etc/zenoh-flow/zenoh-daemon.json\
+    worker_pool_size: 4

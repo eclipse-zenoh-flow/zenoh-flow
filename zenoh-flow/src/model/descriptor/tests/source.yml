@@ -1,0 +1,7 @@
+id: source
+
+uri: file://source.so
+
+outputs:
+  - id: source-out
+    type: _any_

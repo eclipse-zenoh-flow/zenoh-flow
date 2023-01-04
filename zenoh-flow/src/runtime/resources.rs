@@ -23,30 +23,36 @@ extern crate serde_cbor;
 #[cfg(feature = "data_json")]
 extern crate serde_json;
 
-use crate::model::dataflow::record::DataFlowRecord;
-use crate::model::RegistryNode;
+use crate::model::record::DataFlowRecord;
+use crate::model::registry::RegistryNode;
 use crate::runtime::{RuntimeConfig, RuntimeInfo, RuntimeStatus};
-use crate::serde::{de::DeserializeOwned, Serialize};
-use crate::{async_std::sync::Arc, ZFError, ZFResult};
+use crate::zfresult::ErrorKind;
+use crate::Result;
+use crate::{bail, zferror};
 use async_std::pin::Pin;
 use async_std::stream::Stream;
 use async_std::task::{Context, Poll};
 use futures::StreamExt;
+use futures_lite::FutureExt;
 use pin_project_lite::pin_project;
+use serde::{de::DeserializeOwned, Serialize};
 use std::convert::TryFrom;
+use std::sync::Arc;
+use uhlc::HLC;
 use uuid::Uuid;
-use zenoh::net::protocol::io::SplitBuffer;
-use zenoh::prelude::*;
+use zenoh::prelude::r#async::*;
 use zenoh::query::Reply;
+
+use super::Job;
 
 //NOTE: this should be pub(crate)
 
 /// Root prefix for key expressions when running as a router plugin.
-pub static ROOT_PLUGIN_RUNTIME_PREFIX: &str = "/@/router/";
+pub static ROOT_PLUGIN_RUNTIME_PREFIX: &str = "@/router/";
 /// Root suffix for key expression when running as router plugin.
-pub static ROOT_PLUGIN_RUNTIME_SUFFIX: &str = "/plugin/zenoh-flow";
+pub static ROOT_PLUGIN_RUNTIME_SUFFIX: &str = "plugin/zenoh-flow";
 /// Root for key expression when running as standalone.
-pub static ROOT_STANDALONE: &str = "/zenoh-flow";
+pub static ROOT_STANDALONE: &str = "zenoh-flow";
 
 /// Token for the runtime in the key expression.
 pub static KEY_RUNTIMES: &str = "runtimes";
@@ -64,6 +70,21 @@ pub static KEY_INFO: &str = "info";
 pub static KEY_STATUS: &str = "status";
 /// Token for the leaf with configuration in the key expression.
 pub static KEY_CONFIGURATION: &str = "configuration";
+
+/// Token for job queue in the key expression.
+pub static KEY_JOB_QUEUE: &str = "job-queue";
+
+/// Token for the submitted jobs job queue in the key expression.
+pub static KEY_JOB_SUBMITTED: &str = "sumbitted";
+
+/// Token for the started jobs job queue in the key expression.
+pub static KEY_JOB_STARTED: &str = "started";
+
+/// Token for the done jobs job queue in the key expression.
+pub static KEY_JOB_DONE: &str = "done";
+
+/// Token for the failed jobs job queue in the key expression.
+pub static KEY_JOB_FAILED: &str = "failed";
 
 /// Generates the runtime info key expression.
 #[macro_export]
@@ -207,6 +228,85 @@ macro_rules! REG_GRAPH_SELECTOR {
     };
 }
 
+/// Generates the sumbitted jobs key expression (selector)
+#[macro_export]
+macro_rules! JQ_SUMBITTED_SEL {
+    ($prefix:expr, $rid:expr) => {
+        format!(
+            "{}/{}/{}/{}/{}/*",
+            $prefix,
+            $crate::runtime::resources::KEY_RUNTIMES,
+            $rid,
+            $crate::runtime::resources::KEY_JOB_QUEUE,
+            $crate::runtime::resources::KEY_JOB_SUBMITTED
+        )
+    };
+}
+
+/// Generates the sumbitted job key expression
+#[macro_export]
+macro_rules! JQ_SUMBITTED_JOB {
+    ($prefix:expr, $rid:expr, $jid: expr) => {
+        format!(
+            "{}/{}/{}/{}/{}/{}",
+            $prefix,
+            $crate::runtime::resources::KEY_RUNTIMES,
+            $rid,
+            $crate::runtime::resources::KEY_JOB_QUEUE,
+            $crate::runtime::resources::KEY_JOB_SUBMITTED,
+            $jid
+        )
+    };
+}
+
+/// Generates the started job key expression
+#[macro_export]
+macro_rules! JQ_STARTED_JOB {
+    ($prefix:expr, $rid:expr, $jid: expr) => {
+        format!(
+            "{}/{}/{}/{}/{}/{}",
+            $prefix,
+            $crate::runtime::resources::KEY_RUNTIMES,
+            $rid,
+            $crate::runtime::resources::KEY_JOB_QUEUE,
+            $crate::runtime::resources::KEY_JOB_STARTED,
+            $jid
+        )
+    };
+}
+
+/// Generates the done job key expression
+#[macro_export]
+macro_rules! JQ_DONE_JOB {
+    ($prefix:expr, $rid:expr, $jid: expr) => {
+        format!(
+            "{}/{}/{}/{}/{}/{}",
+            $prefix,
+            $crate::runtime::resources::KEY_RUNTIMES,
+            $rid,
+            $crate::runtime::resources::KEY_JOB_QUEUE,
+            $crate::runtime::resources::KEY_JOB_DONE,
+            $jid
+        )
+    };
+}
+
+/// Generates the done job key expression
+#[macro_export]
+macro_rules! JQ_FAILED_JOB {
+    ($prefix:expr, $rid:expr, $jid: expr) => {
+        format!(
+            "{}/{}/{}/{}/{}/{}",
+            $prefix,
+            $crate::runtime::resources::KEY_RUNTIMES,
+            $rid,
+            $crate::runtime::resources::KEY_JOB_QUEUE,
+            $crate::runtime::resources::KEY_JOB_FAILED,
+            $jid
+        )
+    };
+}
+
 /// Deserialize data from Zenoh storage.
 /// The format used depends on the features.
 /// It can be JSON (default), bincode or CBOR.
@@ -214,7 +314,7 @@ macro_rules! REG_GRAPH_SELECTOR {
 /// # Errors
 /// If it fails to deserialize an error
 /// variant will be returned.
-pub fn deserialize_data<T>(raw_data: &[u8]) -> ZFResult<T>
+pub fn deserialize_data<T>(raw_data: &[u8]) -> Result<T>
 where
     T: DeserializeOwned,
 {
@@ -248,7 +348,7 @@ where
 /// If it fails to serialize an error
 /// variant will be returned.
 #[cfg(feature = "data_json")]
-pub fn serialize_data<T: ?Sized>(data: &T) -> ZFResult<Vec<u8>>
+pub fn serialize_data<T: ?Sized>(data: &T) -> Result<Vec<u8>>
 where
     T: Serialize,
 {
@@ -269,54 +369,46 @@ where
 }
 //
 
-pin_project! {
-    /// Custom stream to lister for Runtime Configuration changes.
-    pub struct ZFRuntimeConfigStream {
-        #[pin]
-        sample_stream: zenoh::subscriber::SampleReceiver,
-    }
-}
-
-impl ZFRuntimeConfigStream {
-    pub async fn close(self) -> ZFResult<()> {
-        Ok(())
-    }
-}
-
-impl Stream for ZFRuntimeConfigStream {
-    type Item = crate::runtime::RuntimeConfig;
-
-    #[inline(always)]
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        match async_std::pin::Pin::new(self)
-            .sample_stream
-            .poll_next_unpin(cx)
-        {
-            Poll::Ready(Some(sample)) => match sample.kind {
-                SampleKind::Put | SampleKind::Patch => match sample.value.encoding {
-                    Encoding::APP_OCTET_STREAM => {
-                        match deserialize_data::<crate::runtime::RuntimeConfig>(
-                            &sample.value.payload.contiguous(),
-                        ) {
-                            Ok(info) => Poll::Ready(Some(info)),
-                            Err(_) => Poll::Pending,
-                        }
-                    }
-                    _ => {
-                        log::warn!(
-                            "Received sample with wrong encoding {:?}, dropping",
-                            sample.value.encoding
-                        );
-                        Poll::Pending
-                    }
-                },
-                SampleKind::Delete => {
-                    log::warn!("Received delete sample drop it");
-                    Poll::Pending
+/// Converts data from Zenoh samples,
+/// useful when converting data from a subscriber
+///
+/// # Errors
+/// It can return an error in the following cases
+/// - fails to deserialize
+/// - the sample is not an APP_OCTET_STREAM
+/// - the sample is a Delete
+pub fn convert<T>(sample: Sample) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    match sample.kind {
+        SampleKind::Put => match sample.value.encoding {
+            Encoding::APP_OCTET_STREAM => {
+                match deserialize_data::<T>(&sample.value.payload.contiguous()) {
+                    Ok(data) => Ok(data),
+                    Err(e) => Err(e),
                 }
-            },
-            Poll::Ready(None) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
+            }
+            _ => {
+                log::warn!(
+                    "Received sample with wrong encoding {:?}, dropping",
+                    sample.value.encoding
+                );
+                Err(zferror!(
+                    ErrorKind::DeserializationError,
+                    "Received sample with wrong encoding {:?}, dropping",
+                    sample.value.encoding
+                )
+                .into())
+            }
+        },
+        SampleKind::Delete => {
+            log::warn!("Received delete sample drop it");
+            Err(zferror!(
+                ErrorKind::DeserializationError,
+                "Received delete sample dropping it"
+            )
+            .into())
         }
     }
 }
@@ -341,7 +433,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_runtime_info(&self, rtid: &Uuid) -> ZFResult<RuntimeInfo> {
+    pub async fn get_runtime_info(&self, rtid: &Uuid) -> Result<RuntimeInfo> {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
         self.get_from_zenoh::<RuntimeInfo>(&selector).await
@@ -354,7 +446,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_all_runtime_info(&self) -> ZFResult<Vec<RuntimeInfo>> {
+    pub async fn get_all_runtime_info(&self) -> Result<Vec<RuntimeInfo>> {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, "*");
 
         self.get_vec_from_zenoh::<RuntimeInfo>(&selector).await
@@ -367,7 +459,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_runtime_info_by_name(&self, rtid: &str) -> ZFResult<RuntimeInfo> {
+    pub async fn get_runtime_info_by_name(&self, rtid: &str) -> Result<RuntimeInfo> {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, "*");
         let rts = self.get_vec_from_zenoh::<RuntimeInfo>(&selector).await?;
         for rt in &rts {
@@ -375,17 +467,17 @@ impl DataStore {
                 return Ok(rt.clone());
             }
         }
-        Err(ZFError::NotFound)
+        bail!(ErrorKind::NotFound)
     }
 
     /// Removes the information for the given runtime `rtid`.
     ///
     /// # Errors
     /// If zenoh delete fails an error variant is returned.
-    pub async fn remove_runtime_info(&self, rtid: &Uuid) -> ZFResult<()> {
+    pub async fn remove_runtime_info(&self, rtid: &Uuid) -> Result<()> {
         let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
-        Ok(self.z.delete(&path).await?)
+        self.z.delete(&path).res().await
     }
 
     /// Stores the given  [`RuntimeInfo`](`RuntimeInfo`) for the given `rtid`
@@ -395,11 +487,11 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - zenoh put fails
-    pub async fn add_runtime_info(&self, rtid: &Uuid, rt_info: &RuntimeInfo) -> ZFResult<()> {
+    pub async fn add_runtime_info(&self, rtid: &Uuid, rt_info: &RuntimeInfo) -> Result<()> {
         let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
-        Ok(self.z.put(&path, encoded_info).await?)
+        self.z.put(&path, encoded_info).res().await
     }
 
     /// Gets [`RuntimeConfig`](`RuntimeConfig`) for the given `rtid`
@@ -408,7 +500,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_runtime_config(&self, rtid: &Uuid) -> ZFResult<RuntimeConfig> {
+    pub async fn get_runtime_config(&self, rtid: &Uuid) -> Result<RuntimeConfig> {
         let selector = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
         self.get_from_zenoh::<RuntimeConfig>(&selector).await
     }
@@ -420,24 +512,27 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - zenoh subscribe fails
     /// - fails to deserialize
-    pub async fn subscribe_runtime_config(&self, rtid: &Uuid) -> ZFResult<ZFRuntimeConfigStream> {
+    pub async fn subscribe_runtime_config(
+        &self,
+        rtid: &Uuid,
+    ) -> Result<zenoh::subscriber::Subscriber<'static, flume::Receiver<Sample>>> {
         // let selector = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
         //
         // Ok(self.z
         //     .subscribe(&selector)
         //     .await
         //     .map(|change_stream| ZFRuntimeConfigStream { change_stream })?)
-        Err(ZFError::Unimplemented)
+        bail!(ErrorKind::Unimplemented)
     }
 
     /// Removes the configuration for the given `rtid`.
     ///
     /// # Errors
     /// If zenoh delete fails an error variant is returned.
-    pub async fn remove_runtime_config(&self, rtid: &Uuid) -> ZFResult<()> {
+    pub async fn remove_runtime_config(&self, rtid: &Uuid) -> Result<()> {
         let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
 
-        Ok(self.z.delete(&path).await?)
+        self.z.delete(&path).res().await
     }
 
     /// Stores the given [`RuntimeConfig`](`RuntimeConfig`) for the given
@@ -447,11 +542,11 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - zenoh put fails
-    pub async fn add_runtime_config(&self, rtid: &Uuid, rt_info: &RuntimeConfig) -> ZFResult<()> {
+    pub async fn add_runtime_config(&self, rtid: &Uuid, rt_info: &RuntimeConfig) -> Result<()> {
         let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
-        Ok(self.z.put(&path, encoded_info).await?)
+        self.z.put(&path, encoded_info).res().await
     }
 
     /// Gets the `RuntimeStatus` for the given runtime `rtid`.
@@ -460,7 +555,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_runtime_status(&self, rtid: &Uuid) -> ZFResult<RuntimeStatus> {
+    pub async fn get_runtime_status(&self, rtid: &Uuid) -> Result<RuntimeStatus> {
         let selector = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
         self.get_from_zenoh::<RuntimeStatus>(&selector).await
     }
@@ -469,10 +564,10 @@ impl DataStore {
     ///
     /// # Errors
     /// If zenoh delete fails an error variant is returned.
-    pub async fn remove_runtime_status(&self, rtid: &Uuid) -> ZFResult<()> {
+    pub async fn remove_runtime_status(&self, rtid: &Uuid) -> Result<()> {
         let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
 
-        Ok(self.z.delete(&path).await?)
+        self.z.delete(&path).res().await
     }
 
     /// Stores the given [`RuntimeStatus`](`RuntimeStatus`) for the given `rtid`
@@ -483,15 +578,15 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - zenoh put fails
-    pub async fn add_runtime_status(&self, rtid: &Uuid, rt_info: &RuntimeStatus) -> ZFResult<()> {
+    pub async fn add_runtime_status(&self, rtid: &Uuid, rt_info: &RuntimeStatus) -> Result<()> {
         let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
-        Ok(self.z.put(&path, encoded_info).await?)
+        self.z.put(&path, encoded_info).res().await
     }
 
-    /// Gets the [`DataFlowRecord`](`DataFlowRecord`) running on the given
-    /// runtime `rtid` for the given instance `iid`.
+    /// Gets the [`DataFlowRecord`](`DataFlowRecord`) running on the given runtime `rtid` for the
+    /// given instance `iid`.
     ///
     /// # Errors
     /// An error variant is returned in case of:
@@ -501,7 +596,7 @@ impl DataStore {
         &self,
         rtid: &Uuid,
         iid: &Uuid,
-    ) -> ZFResult<DataFlowRecord> {
+    ) -> Result<DataFlowRecord> {
         let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, rtid, iid);
 
         self.get_from_zenoh::<DataFlowRecord>(&selector).await
@@ -514,7 +609,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_flow_by_instance(&self, iid: &Uuid) -> ZFResult<DataFlowRecord> {
+    pub async fn get_flow_by_instance(&self, iid: &Uuid) -> Result<DataFlowRecord> {
         let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid);
         self.get_from_zenoh::<DataFlowRecord>(&selector).await
     }
@@ -531,7 +626,7 @@ impl DataStore {
         &self,
         rtid: &Uuid,
         fid: &str,
-    ) -> ZFResult<Vec<DataFlowRecord>> {
+    ) -> Result<Vec<DataFlowRecord>> {
         let selector = RT_FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, rtid, fid);
 
         self.get_vec_from_zenoh::<DataFlowRecord>(&selector).await
@@ -545,42 +640,45 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_flow_instances(&self, fid: &str) -> ZFResult<Vec<DataFlowRecord>> {
+    pub async fn get_flow_instances(&self, fid: &str) -> Result<Vec<DataFlowRecord>> {
         let selector = FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, fid);
         self.get_vec_from_zenoh::<DataFlowRecord>(&selector).await
     }
 
     /// Gets all the [`DataFlowRecord`](`DataFlowRecord`) running across the
     /// infrastructure.
-    pub async fn get_all_instances(&self) -> ZFResult<Vec<DataFlowRecord>> {
+    pub async fn get_all_instances(&self) -> Result<Vec<DataFlowRecord>> {
         let selector = FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, "*");
         self.get_vec_from_zenoh::<DataFlowRecord>(&selector).await
     }
 
     /// Gets all the runtimes UUID where the given instance `iid` is running.
-    pub async fn get_flow_instance_runtimes(&self, iid: &Uuid) -> ZFResult<Vec<Uuid>> {
+    pub async fn get_flow_instance_runtimes(&self, iid: &Uuid) -> Result<Vec<Uuid>> {
         let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid);
 
-        let mut ds = self.z.get(&selector).await?;
+        let mut ds = self.z.get(&selector).res().await?;
 
-        let data = ds.collect::<Vec<Reply>>().await;
         let mut runtimes = Vec::new();
 
-        for kv in data.into_iter() {
-            let id = kv
-                .sample
-                .key_expr
-                .as_str()
-                .split('/')
-                .nth(3) // The way the key_expr are built, the 3rd "token" is the instance id
-                .ok_or_else(|| {
-                    log::error!(
-                        "Could not extract the instance id from key expression: {}",
-                        kv.sample.key_expr.as_str()
-                    );
-                    ZFError::DeseralizationError
-                })?;
-            runtimes.push(Uuid::parse_str(id).map_err(|_| ZFError::DeseralizationError)?);
+        for kv in ds.into_iter() {
+            if let Ok(sample) = &kv.sample {
+                let id = sample
+                    .key_expr
+                    .as_str()
+                    .split('/')
+                    .nth(2) // The way the key_expr are built, the 3rd "token" is the instance id
+                    .ok_or_else(|| {
+                        log::error!(
+                            "Could not extract the instance id from key expression: {}",
+                            sample.key_expr.as_str()
+                        );
+                        zferror!(ErrorKind::DeserializationError)
+                    })?;
+                runtimes.push(
+                    Uuid::parse_str(id)
+                        .map_err(|e| zferror!(ErrorKind::DeserializationError, e))?,
+                );
+            }
         }
 
         Ok(runtimes)
@@ -596,10 +694,10 @@ impl DataStore {
         rtid: &Uuid,
         fid: &str,
         iid: &Uuid,
-    ) -> ZFResult<()> {
+    ) -> Result<()> {
         let path = RT_FLOW_PATH!(ROOT_STANDALONE, rtid, fid, iid);
 
-        Ok(self.z.delete(&path).await?)
+        self.z.delete(&path).res().await
     }
 
     /// Stores the given [`DataFlowRecord`](`DataFlowRecord`) running on the
@@ -613,7 +711,7 @@ impl DataStore {
         &self,
         rtid: &Uuid,
         flow_instance: &DataFlowRecord,
-    ) -> ZFResult<()> {
+    ) -> Result<()> {
         let path = RT_FLOW_PATH!(
             ROOT_STANDALONE,
             rtid,
@@ -622,7 +720,7 @@ impl DataStore {
         );
 
         let encoded_info = serialize_data(flow_instance)?;
-        Ok(self.z.put(&path, encoded_info).await?)
+        self.z.put(&path, encoded_info).res().await
     }
 
     // Registry Related, registry is not yet in place.
@@ -634,11 +732,11 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - zenoh put fails
-    pub async fn add_graph(&self, graph: &RegistryNode) -> ZFResult<()> {
+    pub async fn add_graph(&self, graph: &RegistryNode) -> Result<()> {
         let path = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph.id);
 
         let encoded_info = serialize_data(graph)?;
-        Ok(self.z.put(&path, encoded_info).await?)
+        self.z.put(&path, encoded_info).res().await
     }
 
     /// Gets the [`RegistryNode`](`RegistryNode`) associated with the given
@@ -648,7 +746,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_graph(&self, graph_id: &str) -> ZFResult<RegistryNode> {
+    pub async fn get_graph(&self, graph_id: &str) -> Result<RegistryNode> {
         let selector = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, graph_id);
         self.get_from_zenoh::<RegistryNode>(&selector).await
     }
@@ -661,17 +759,88 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_all_graphs(&self) -> ZFResult<Vec<RegistryNode>> {
+    pub async fn get_all_graphs(&self) -> Result<Vec<RegistryNode>> {
         let selector = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, "*");
         self.get_vec_from_zenoh::<RegistryNode>(&selector).await
     }
 
     /// Removes the given node `graph_id` from registry's Zenoh.
-    pub async fn delete_graph(&self, graph_id: &str) -> ZFResult<()> {
+    pub async fn delete_graph(&self, graph_id: &str) -> Result<()> {
         let path = REG_GRAPH_SELECTOR!(ROOT_STANDALONE, &graph_id);
 
-        Ok(self.z.delete(&path).await?)
+        self.z.delete(&path).res().await
     }
+
+    // Job Queue
+
+    /// Subscribes to the job queue of the given `rtid`
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - zenoh subscribe fails
+    /// - fails to deserialize
+    pub async fn subscribe_sumbitted_jobs(
+        &self,
+        rtid: &Uuid,
+    ) -> Result<zenoh::subscriber::Subscriber<'static, flume::Receiver<Sample>>> {
+        let selector = JQ_SUMBITTED_SEL!(ROOT_STANDALONE, rtid);
+        self.z.declare_subscriber(&selector).res().await
+    }
+
+    /// Submits the given [`Job`](`Job`) in the queue
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - fails to serialize
+    /// - zenoh put fails
+    pub async fn add_submitted_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
+        let path = JQ_SUMBITTED_JOB!(ROOT_STANDALONE, rtid, &job.id);
+        let encoded_info = serialize_data(job)?;
+        self.z.put(&path, encoded_info).res().await
+    }
+
+    pub async fn del_submitted_job(&self, rtid: &Uuid, id: &Uuid) -> Result<()> {
+        let path = JQ_SUMBITTED_JOB!(ROOT_STANDALONE, rtid, id);
+        self.z.delete(&path).res().await
+    }
+
+    /// Sets as started the given [`Job`](`Job`) in the queue
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - fails to serialize
+    /// - zenoh put fails
+    pub async fn add_started_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
+        let path = JQ_STARTED_JOB!(ROOT_STANDALONE, rtid, &job.id);
+        let encoded_info = serialize_data(job)?;
+        self.z.put(&path, encoded_info).res().await
+    }
+
+    /// Sets as completed the given [`Job`](`Job`) in the queue
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - fails to serialize
+    /// - zenoh put fails
+    pub async fn add_done_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
+        let path = JQ_DONE_JOB!(ROOT_STANDALONE, rtid, &job.id);
+        let encoded_info = serialize_data(job)?;
+        self.z.put(&path, encoded_info).res().await
+    }
+
+    /// Sets as failed the given [`Job`](`Job`) in the queue
+    ///
+    /// # Errors
+    /// An error variant is returned in case of:
+    /// - fails to serialize
+    /// - zenoh put fails
+    pub async fn add_failed_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
+        let path = JQ_FAILED_JOB!(ROOT_STANDALONE, rtid, &job.id);
+        let encoded_info = serialize_data(job)?;
+        self.z.put(&path, encoded_info).res().await
+    }
+
+    // Helpers
 
     /// Helper function to get a generic data `T` and deserializing it
     /// from Zenoh.
@@ -681,22 +850,25 @@ impl DataStore {
     /// - no data present in zenoh
     /// - fails to deserialize
     /// - wrong zenoh encoding
-    async fn get_from_zenoh<T>(&self, path: &str) -> ZFResult<T>
+    async fn get_from_zenoh<T>(&self, path: &str) -> Result<T>
     where
         T: DeserializeOwned,
     {
-        let mut ds = self.z.get(path).await?;
-        let data = ds.collect::<Vec<Reply>>().await;
+        let mut ds = self.z.get(path).res().await?;
+        let data = ds.into_iter().collect::<Vec<Reply>>();
         match data.len() {
-            0 => Err(ZFError::Empty),
+            0 => Err(zferror!(ErrorKind::Empty).into()),
             _ => {
                 let kv = &data[0];
-                match &kv.sample.value.encoding {
-                    &Encoding::APP_OCTET_STREAM => {
-                        let ni = deserialize_data::<T>(&kv.sample.value.payload.contiguous())?;
-                        Ok(ni)
-                    }
-                    _ => Err(ZFError::DeseralizationError),
+                match &kv.sample {
+                    Ok(sample) => match &sample.value.encoding {
+                        &Encoding::APP_OCTET_STREAM => {
+                            let ni = deserialize_data::<T>(&sample.value.payload.contiguous())?;
+                            Ok(ni)
+                        }
+                        _ => Err(zferror!(ErrorKind::DeserializationError).into()),
+                    },
+                    _ => Err(zferror!(ErrorKind::DeserializationError).into()),
                 }
             }
         }
@@ -709,22 +881,24 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - wrong encoding
     /// - fails to deserialize
-    async fn get_vec_from_zenoh<T>(&self, selector: &str) -> ZFResult<Vec<T>>
+    async fn get_vec_from_zenoh<T>(&self, selector: &str) -> Result<Vec<T>>
     where
         T: DeserializeOwned,
     {
-        let mut ds = self.z.get(selector).await?;
+        let mut ds = self.z.get(selector).res().await?;
 
-        let data = ds.collect::<Vec<Reply>>().await;
         let mut zf_data: Vec<T> = Vec::new();
 
-        for kv in data.into_iter() {
-            match &kv.sample.value.encoding {
-                &Encoding::APP_OCTET_STREAM => {
-                    let ni = deserialize_data::<T>(&kv.sample.value.payload.contiguous())?;
-                    zf_data.push(ni);
-                }
-                _ => return Err(ZFError::DeseralizationError),
+        for kv in ds.into_iter() {
+            match &kv.sample {
+                Ok(sample) => match &sample.value.encoding {
+                    &Encoding::APP_OCTET_STREAM => {
+                        let ni = deserialize_data::<T>(&sample.value.payload.contiguous())?;
+                        zf_data.push(ni);
+                    }
+                    _ => return Err(zferror!(ErrorKind::DeserializationError).into()),
+                },
+                _ => return Err(zferror!(ErrorKind::DeserializationError).into()),
             }
         }
         Ok(zf_data)

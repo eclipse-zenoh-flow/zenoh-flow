@@ -14,30 +14,28 @@
 
 [package]
 name = "zenoh-flow-derive"
-version = "0.3.0"
-repository = "https://github.com/eclipse-zenoh/zenoh-flow"
-homepage = "http://zenoh.io"
-authors = ["kydos <angelo@icorsaro.net>",
-           "gabrik <gabriele.baldoni@gmail.com>",
-           "Julien Loudet <julien.loudet@zettascale.tech>",]
-edition = "2018"
-license = " EPL-2.0 OR Apache-2.0"
-categories = ["network-programming"]
-description = "Zenoh-Flow: zenoh-based data-flow programming framework for computations that span from the cloud to the device."
-readme = "README.md"
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
 
 # To build with debug on macros: RUSTFLAGS="-Z macro-backtrace"
 
 [dependencies]
-async-std = { version = "=1.11.0", features = ["attributes"] }
+async-std = { version = "=1.12.0", features = ["attributes"] }
 futures = "0.3.5"
 syn-serde = { version = "0.2", features = ["json"] }
 syn = { version = "1.0.11", features = ["full"] }
 quote = "1.0.2"
-proc-macro2 = "1.0.6"
+proc-macro2 = "1.0.46"
 serde_derive = "1.0.55"
 serde = { version = "1.0.55", features = ["derive"] }
-darling = "0.13.0"
+darling = "0.14"
 Inflector = "0.11.4"
 proc-macro-error = "1.0.4"
 

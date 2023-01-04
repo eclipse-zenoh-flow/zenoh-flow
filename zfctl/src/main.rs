@@ -29,14 +29,15 @@ use rand::seq::SliceRandom;
 use std::collections::HashSet;
 use std::error::Error;
 use std::fs::read_to_string;
+use std::sync::Arc;
 use uuid::Uuid;
-use zenoh::Session;
-use zenoh_flow::async_std::sync::Arc;
+use zenoh::prelude::r#async::*;
 use zenoh_flow::runtime::resources::DataStore;
-use zenoh_flow::runtime::RuntimeClient;
+use zenoh_flow::runtime::DaemonInterfaceClient;
+
 const GIT_VERSION: &str = git_version!(prefix = "v", cargo_prefix = "v");
 
-const DEFAULT_ZENOH_CFG: &str = ".config/zenoh-flow/zfctl-zenoh.json";
+const DEFAULT_ZENOH_CFG: &str = "/etc/zenoh-flow/zfctl-zenoh.json";
 const ENV_ZENOH_CFG: &str = "ZFCTL_CFG";
 
 #[derive(Subcommand, Debug)]
@@ -45,7 +46,6 @@ pub enum CreateKind {
     #[clap(about = "Adds a new flow into the Zenoh Flow registry")]
     Flow {
         #[clap(
-            parse(from_os_str),
             name = "Flow descriptor path",
             help = "Upload the flow in the registry (Unimplemented)"
         )]
@@ -65,7 +65,6 @@ pub enum CreateKind {
     #[clap(about = "Creates a new instance for the given flow")]
     Instance {
         #[clap(
-            parse(from_os_str),
             name = "Flow descriptor path",
             help = "Creates a new instance for the given flow"
         )]
@@ -91,38 +90,38 @@ pub enum StartKind {
     #[clap(
         about = "Start a replay for the given source, in the given instance, using the given key_expr for retrieving the data"
     )]
-    Replay {
-        #[clap(
-            short,
-            long,
-            name = "instance uuid",
-            help = "The instance containing the source"
-        )]
-        instance_id: Uuid,
-        #[clap(short, long, name = "source id", help = "The source identifier")]
-        source_id: String,
-        #[clap(
-            short,
-            long,
-            name = "zenoh key expression",
-            help = "The key expression where the record is stored"
-        )]
-        key_expr: String,
-    },
-    #[clap(
-        about = "Starts recording the given source, in the given instance, returns the key expression containing the recording"
-    )]
-    Record {
-        #[clap(
-            short,
-            long,
-            name = "instance uuid",
-            help = "The instance containing the source"
-        )]
-        instance_id: Uuid,
-        #[clap(short, long, name = "source id", help = "The source identifier")]
-        source_id: String,
-    },
+    // Replay {
+    //     #[clap(
+    //         short,
+    //         long,
+    //         name = "instance uuid",
+    //         help = "The instance containing the source"
+    //     )]
+    //     instance_id: Uuid,
+    //     #[clap(short, long, name = "source id", help = "The source identifier")]
+    //     source_id: String,
+    //     #[clap(
+    //         short,
+    //         long,
+    //         name = "zenoh key expression",
+    //         help = "The key expression where the record is stored"
+    //     )]
+    //     key_expr: String,
+    // },
+    // #[clap(
+    //     about = "Starts recording the given source, in the given instance, returns the key expression containing the recording"
+    // )]
+    // Record {
+    //     #[clap(
+    //         short,
+    //         long,
+    //         name = "instance uuid",
+    //         help = "The instance containing the source"
+    //     )]
+    //     instance_id: Uuid,
+    //     #[clap(short, long, name = "source id", help = "The source identifier")]
+    //     source_id: String,
+    // },
     #[clap(about = "Starts the given flow instance")]
     Instance {
         #[clap(name = "instance uuid", help = "The instance to be started")]
@@ -146,33 +145,33 @@ pub enum StopKind {
         node_id: String,
     },
     #[clap(about = "Stops the given replay, for the given source in the given instance")]
-    Replay {
-        #[clap(
-            short,
-            long,
-            name = "instance uuid",
-            help = "The instance containing the source"
-        )]
-        instance_id: Uuid,
-        #[clap(short, long, name = "source id", help = "The source identifier")]
-        node_id: String,
-        #[clap(short, long, name = "replay id", help = "The reply identifier")]
-        replay_id: String,
-    },
-    #[clap(
-        about = "Stops recording the given source, in the given instance, returns the key expression containing the recording"
-    )]
-    Record {
-        #[clap(
-            short,
-            long,
-            name = "instance uuid",
-            help = "The instance containing the source"
-        )]
-        instance_id: Uuid,
-        #[clap(short, long, name = "source id", help = "The source identifier")]
-        node_id: String,
-    },
+    // Replay {
+    //     #[clap(
+    //         short,
+    //         long,
+    //         name = "instance uuid",
+    //         help = "The instance containing the source"
+    //     )]
+    //     instance_id: Uuid,
+    //     #[clap(short, long, name = "source id", help = "The source identifier")]
+    //     node_id: String,
+    //     #[clap(short, long, name = "replay id", help = "The reply identifier")]
+    //     replay_id: String,
+    // },
+    // #[clap(
+    //     about = "Stops recording the given source, in the given instance, returns the key expression containing the recording"
+    // )]
+    // Record {
+    //     #[clap(
+    //         short,
+    //         long,
+    //         name = "instance uuid",
+    //         help = "The instance containing the source"
+    //     )]
+    //     instance_id: Uuid,
+    //     #[clap(short, long, name = "source id", help = "The source identifier")]
+    //     node_id: String,
+    // },
     #[clap(about = "Stops the given flow instance")]
     Instance {
         #[clap(name = "instance uuid", help = "The instance to be stopped")]
@@ -244,11 +243,7 @@ pub enum ZFCtl {
     Stop(StopKind),
     #[clap(about = "Creates and starts a flow instance")]
     Launch {
-        #[clap(
-            parse(from_os_str),
-            name = "Flow descriptor path",
-            help = "Flow to be started"
-        )]
+        #[clap(name = "Flow descriptor path", help = "Flow to be started")]
         descriptor_path: std::path::PathBuf,
     },
     #[clap(about = "Stops and deletes a flow instance")]
@@ -284,14 +279,15 @@ async fn main() {
                     descriptor_path
                 );
                 let yaml_df = read_to_string(descriptor_path).unwrap();
-                let df = zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor::from_yaml(
-                    &yaml_df,
-                )
-                .unwrap();
+                let df =
+                    zenoh_flow::model::descriptor::DataFlowDescriptor::from_yaml(&yaml_df).unwrap();
+                let df = df.flatten().await.unwrap();
+                df.validate().unwrap();
+
                 let client = get_client(zsession.clone()).await;
-                let record = client.create_instance(df).await.unwrap().unwrap();
-                log::debug!("Created: {:?}", record);
-                println!("{}", record.uuid);
+                let instance_uuid = client.create_instance(df).await.unwrap().unwrap();
+                log::debug!("Created: {:?}", instance_uuid);
+                println!("{}", instance_uuid);
             } // When registry will be in place the code below will be used
               // AddKind::Instance { flow_id, rt_id } => {
               //     println!(
@@ -340,7 +336,7 @@ async fn main() {
                         .join("\n"),
                     instance
                         .connectors
-                        .iter()
+                        .values()
                         .map(|o| format!("{}", o))
                         .collect::<Vec<String>>()
                         .join("\n"),
@@ -371,7 +367,7 @@ async fn main() {
                 table.add_row(row![
                     runtime_status.id,
                     runtime_info.name,
-                    format!("{:?}", runtime_status.status),
+                    format!("{:?}", runtime_info.status),
                     runtime_status.running_flows,
                     runtime_status.running_operators,
                     runtime_status.running_sources,
@@ -410,37 +406,37 @@ async fn main() {
                 table.add_row(row![instance_id, node_id, String::from("Running"),]);
                 table.printstd();
             }
-            StartKind::Record {
-                instance_id,
-                source_id,
-            } => {
-                let mut table = Table::new();
-                let client = get_client(zsession.clone()).await;
-                table.add_row(row!["UUID", "Name", "Key Expression",]);
-                let key_expr = client
-                    .start_record(instance_id, source_id.clone().into())
-                    .await
-                    .unwrap()
-                    .unwrap();
-                table.add_row(row![instance_id, source_id, key_expr,]);
-                table.printstd();
-            }
-            StartKind::Replay {
-                instance_id,
-                source_id,
-                key_expr,
-            } => {
-                let mut table = Table::new();
-                let client = get_client(zsession.clone()).await;
-                table.add_row(row!["UUID", "Name", "Replay Id",]);
-                let replay_id = client
-                    .start_replay(instance_id, source_id.clone().into(), key_expr)
-                    .await
-                    .unwrap()
-                    .unwrap();
-                table.add_row(row![instance_id, source_id, replay_id,]);
-                table.printstd();
-            }
+            // StartKind::Record {
+            //     instance_id,
+            //     source_id,
+            // } => {
+            //     let mut table = Table::new();
+            //     let client = get_client(zsession.clone()).await;
+            //     table.add_row(row!["UUID", "Name", "Key Expression",]);
+            //     let key_expr = client
+            //         .start_record(instance_id, source_id.clone().into())
+            //         .await
+            //         .unwrap()
+            //         .unwrap();
+            //     table.add_row(row![instance_id, source_id, key_expr,]);
+            //     table.printstd();
+            // }
+            // StartKind::Replay {
+            //     instance_id,
+            //     source_id,
+            //     key_expr,
+            // } => {
+            //     let mut table = Table::new();
+            //     let client = get_client(zsession.clone()).await;
+            //     table.add_row(row!["UUID", "Name", "Replay Id",]);
+            //     let replay_id = client
+            //         .start_replay(instance_id, source_id.clone().into(), key_expr)
+            //         .await
+            //         .unwrap()
+            //         .unwrap();
+            //     table.add_row(row![instance_id, source_id, replay_id,]);
+            //     table.printstd();
+            // }
             StartKind::Instance { instance_id } => {
                 log::debug!("This is going to start the instance {:?}", instance_id);
                 let client = get_client(zsession.clone()).await;
@@ -465,41 +461,41 @@ async fn main() {
                 table.add_row(row![instance_id, node_id, String::from("Stopped"),]);
                 table.printstd();
             }
-            StopKind::Record {
-                instance_id,
-                node_id,
-            } => {
-                let mut table = Table::new();
-                let client = get_client(zsession.clone()).await;
-                table.add_row(row!["UUID", "Name", "Key Expression",]);
-                let key_expr = client
-                    .stop_record(instance_id, node_id.clone().into())
-                    .await
-                    .unwrap()
-                    .unwrap();
-                table.add_row(row![instance_id, node_id, key_expr,]);
-                table.printstd();
-            }
-            StopKind::Replay {
-                instance_id,
-                node_id,
-                replay_id,
-            } => {
-                let mut table = Table::new();
-                table.add_row(row!["UUID", "Name", "Replay Id",]);
-                let client = get_client(zsession.clone()).await;
-                let replay_id = client
-                    .stop_replay(
-                        instance_id,
-                        node_id.clone().into(),
-                        replay_id.clone().into(),
-                    )
-                    .await
-                    .unwrap()
-                    .unwrap();
-                table.add_row(row![instance_id, node_id, replay_id,]);
-                table.printstd();
-            }
+            // StopKind::Record {
+            //     instance_id,
+            //     node_id,
+            // } => {
+            //     let mut table = Table::new();
+            //     let client = get_client(zsession.clone()).await;
+            //     table.add_row(row!["UUID", "Name", "Key Expression",]);
+            //     let key_expr = client
+            //         .stop_record(instance_id, node_id.clone().into())
+            //         .await
+            //         .unwrap()
+            //         .unwrap();
+            //     table.add_row(row![instance_id, node_id, key_expr,]);
+            //     table.printstd();
+            // }
+            // StopKind::Replay {
+            //     instance_id,
+            //     node_id,
+            //     replay_id,
+            // } => {
+            //     let mut table = Table::new();
+            //     table.add_row(row!["UUID", "Name", "Replay Id",]);
+            //     let client = get_client(zsession.clone()).await;
+            //     let replay_id = client
+            //         .stop_replay(
+            //             instance_id,
+            //             node_id.clone().into(),
+            //             replay_id.clone().into(),
+            //         )
+            //         .await
+            //         .unwrap()
+            //         .unwrap();
+            //     table.add_row(row![instance_id, node_id, replay_id,]);
+            //     table.printstd();
+            // }
             StopKind::Instance { instance_id } => {
                 log::debug!("This is going to stop the instance {:?}", instance_id);
                 let client = get_client(zsession.clone()).await;
@@ -555,12 +551,14 @@ async fn main() {
             );
             let yaml_df = read_to_string(descriptor_path).unwrap();
             let df =
-                zenoh_flow::model::dataflow::descriptor::DataFlowDescriptor::from_yaml(&yaml_df)
-                    .unwrap();
+                zenoh_flow::model::descriptor::DataFlowDescriptor::from_yaml(&yaml_df).unwrap();
+            let df = df.flatten().await.unwrap();
+            df.validate().unwrap();
+
             let client = get_client(zsession.clone()).await;
-            let record = client.instantiate(df).await.unwrap().unwrap();
-            log::debug!("Launched: {:?}", record);
-            println!("{}", record.uuid);
+            let instance_uuid = client.instantiate(df).await.unwrap().unwrap();
+            log::debug!("Launched: {:?}", instance_uuid);
+            println!("{}", instance_uuid);
         }
         ZFCtl::Destroy { id } => {
             log::debug!("This is going to destroy the instance {}", id);
@@ -584,12 +582,14 @@ async fn get_zenoh() -> Result<Session, Box<dyn Error + Send + Sync + 'static>> 
     });
     let zconfig = zenoh::config::Config::from_file(z_config_file)?;
 
-    Ok(zenoh::open(zconfig).await.unwrap())
+    Ok(zenoh::open(zconfig).res().await.unwrap())
 }
 
-async fn get_client(zsession: Arc<Session>) -> RuntimeClient {
-    let servers = RuntimeClient::find_servers(zsession.clone()).await.unwrap();
+async fn get_client(zsession: Arc<Session>) -> DaemonInterfaceClient {
+    let servers = DaemonInterfaceClient::find_servers(zsession.clone())
+        .await
+        .unwrap();
     let entry_point = servers.choose(&mut rand::thread_rng()).unwrap();
     log::debug!("Selected entrypoint runtime: {:?}", entry_point);
-    RuntimeClient::new(zsession.clone(), *entry_point)
+    DaemonInterfaceClient::new(zsession.clone(), *entry_point)
 }
