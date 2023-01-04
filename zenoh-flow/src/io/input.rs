@@ -22,7 +22,7 @@ use std::ops::Deref;
 use uhlc::Timestamp;
 
 /// The [`Inputs`](`Inputs`) structure contains all the receiving channels we created for a
-/// [`Sink`](`Sink`) or an [`Operator`](`Operator`).
+/// [`Sink`](`crate::prelude::Sink`) or an [`Operator`](`crate::prelude::Operator`).
 ///
 /// To access these underlying channels, two methods are available:
 /// - `take`: this will return an `Input<T>` where `T` implements [`ZFData`](`ZFData`),
@@ -38,7 +38,7 @@ pub struct Inputs {
     pub(crate) hmap: HashMap<PortId, Vec<flume::Receiver<LinkMessage>>>,
 }
 
-// Dereferencing on the internal [`HashMap`](`Hashmap`) allows users to call all the methods
+// Dereferencing on the internal [`HashMap`](`std::collections::Hashmap`) allows users to call all the methods
 // implemented on it: `keys()` for one.
 impl Deref for Inputs {
     type Target = HashMap<PortId, Vec<flume::Receiver<LinkMessage>>>;
@@ -93,7 +93,7 @@ impl Inputs {
     /// With an [`InputRaw`](`InputRaw`), Zenoh-Flow will not manipulate the underlying data, for
     /// instance trying to deserialize them to a certain `T`.
     ///
-    /// It is thus up to the user to call `try_get::<T>()` on the [`Payload`](`Payload`) and handle
+    /// It is thus up to the user to call `try_get::<T>()` on the [`Payload`](`crate::prelude::Payload`) and handle
     /// the error that could surface.
     ///
     /// If all the data must be "converted" to the same type `T` then calling `take::<T>()` and

@@ -26,7 +26,7 @@ use std::sync::{
 use uhlc::{Timestamp, HLC};
 
 /// The [`Outputs`](`Outputs`) structure contains all the sender channels we created for a
-/// [`Source`](`Source`) or an [`Operator`](`Operator`).
+/// [`Source`](`crate::prelude::Source`) or an [`Operator`](`crate::prelude::Operator`).
 ///
 /// To access these underlying channels, two methods are available:
 /// - `take`: this will return an `Output<T>` where `T` implements [`ZFData`](`ZFData`),

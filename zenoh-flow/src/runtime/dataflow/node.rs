@@ -41,7 +41,7 @@ pub(crate) struct NodeConstructor<Record, C: ConstructorFn> {
 /// `Constructor` of [`NodeConstructor`](`NodeConstructor`) struct.
 pub(crate) trait ConstructorFn {}
 
-/// `SourceFn` is the only signature we accept to construct a [`Source`](`Source`).
+/// `SourceFn` is the only signature we accept to construct a [`Source`](`crate::prelude::Source`).
 pub type SourceFn = fn(
     Context,
     Option<Configuration>,
@@ -50,7 +50,7 @@ pub type SourceFn = fn(
 
 impl ConstructorFn for SourceFn {}
 
-/// `OperatorFn` is the only signature we accept to construct an [`Operator`](`Operator`).
+/// `OperatorFn` is the only signature we accept to construct an [`Operator`](`crate::prelude::Operator`).
 pub type OperatorFn = fn(
     Context,
     Option<Configuration>,
@@ -60,7 +60,7 @@ pub type OperatorFn = fn(
 
 impl ConstructorFn for OperatorFn {}
 
-/// `SinkFn` is the only signature we accept to construct a [`Sink`](`Sink`).
+/// `SinkFn` is the only signature we accept to construct a [`Sink`](`crate::prelude::Sink`).
 pub type SinkFn = fn(
     Context,
     Option<Configuration>,
@@ -69,13 +69,13 @@ pub type SinkFn = fn(
 
 impl ConstructorFn for SinkFn {}
 
-/// A `SourceConstructor` generates a [`Source`](`Source`).
+/// A `SourceConstructor` generates a [`Source`](`crate::prelude::Source`).
 pub(crate) type SourceConstructor = NodeConstructor<SourceRecord, SourceFn>;
 
-/// An `OperatorConstructor` generates a [`Operator`](`Operator`).
+/// An `OperatorConstructor` generates a [`Operator`](`crate::prelude::Operator`).
 pub(crate) type OperatorConstructor = NodeConstructor<OperatorRecord, OperatorFn>;
 
-/// A `SinkConstructor` generates a [`Sink`](`Sink`).
+/// A `SinkConstructor` generates a [`Sink`](`crate::prelude::Sink`).
 pub(crate) type SinkConstructor = NodeConstructor<SinkRecord, SinkFn>;
 
 /// Dereferencing to the record allows for an easy access to the metadata of the node.

@@ -32,7 +32,7 @@ impl std::fmt::Display for ZFConnectorKind {
     }
 }
 
-/// The internal representation of a connector within a [`DataFlowRecord`](`DataFlowRecord`).
+/// The internal representation of a connector within a [`DataFlowRecord`](`crate::model::record::DataFlowRecord`).
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ZFConnectorRecord {
     pub kind: ZFConnectorKind,

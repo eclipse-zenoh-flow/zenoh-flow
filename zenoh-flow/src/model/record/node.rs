@@ -16,7 +16,7 @@ use crate::model::record::PortRecord;
 use crate::types::{Configuration, NodeId, PortType, RuntimeId};
 use serde::{Deserialize, Serialize};
 
-/// A `SinkRecord` is an instance of a [`SinkDescriptor`](`SinkDescriptor`)
+/// A `SinkRecord` is an instance of a [`SinkDescriptor`](`crate::model::descriptor::SinkDescriptor`)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SinkRecord {
     pub id: NodeId,
@@ -43,7 +43,7 @@ impl SinkRecord {
     }
 }
 
-/// A `SourceRecord` is an instance of a [`SourceDescriptor`](`SourceDescriptor`)
+/// A `SourceRecord` is an instance of a [`SourceDescriptor`](`crate::model::descriptor::SourceDescriptor`)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SourceRecord {
     pub id: NodeId,
@@ -70,7 +70,7 @@ impl SourceRecord {
     }
 }
 
-/// An `OperatorRecord` is an instance of an [`OperatorDescriptor`](`OperatorDescriptor`)
+/// An `OperatorRecord` is an instance of an [`OperatorDescriptor`](`crate::model::descriptor::OperatorDescriptor`)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperatorRecord {
     pub id: NodeId,
