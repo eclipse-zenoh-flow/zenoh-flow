@@ -74,7 +74,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose --all-targets
+          args: --release --verbose --all-targets
 
       - name: Run tests
         uses: actions-rs/cargo@v1
