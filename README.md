@@ -140,3 +140,17 @@ And you can stop everything via:
 ```
 
 We encourage you to look at the examples available in our [examples repository](https://github.com/ZettaScaleLabs/zenoh-flow-examples) for more!
+
+
+### Get nightly releases
+
+If you are not interested in building Zenoh Flow, and you are running an apt-based system (i.e., Debian or Ubuntu),
+you can add the nightly APT repository and install Zenoh Flow with your package manager.
+
+```
+echo "deb [trusted=yes] https://download.eclipse.org/zenoh/zenoh-flow/debian-repo/nightly/ /" | sudo tee -a /etc/apt/sources.list.d/zenoh-flow.list > /dev/null
+sudo apt update
+sudo apt install zenoh-flow-daemon zfctl
+```
+
+Then you can start the daemon with `zenoh-flow-daemon`.
