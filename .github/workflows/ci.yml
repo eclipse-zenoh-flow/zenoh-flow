@@ -24,34 +24,58 @@ on:
 
 jobs:
   checks:
-    name: Code checks
-    runs-on: ubuntu-latest
+    name: Run checks on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
     steps:
       - uses: actions/checkout@v2
+
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rs/toolchain@v1
         with:
           components: rustfmt, clippy
+
       - name: Code format check
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: -- --check
-      - name: Clippy check
+
+      - name: Clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: --all-targets -- -D warnings
 
+      - name: Clippy unstable
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-targets -- -D warnings
 
-  tests:
-    name: Tests
-    needs: checks
-    runs-on: ubuntu-latest
+  test:
+    name: Run tests on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+
     steps:
       - uses: actions/checkout@v2
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install latest Rust toolchain
+        uses: actions-rs/toolchain@v1
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose --all-targets
+
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
@@ -60,171 +84,10 @@ jobs:
         env:
           ASYNC_STD_THREAD_COUNT: 4
 
-  docker_builds:
-    name: Build for ${{ matrix.job.target }} on ${{ matrix.job.container }}
-    needs: checks
-    runs-on: ubuntu-latest
-    container:
-      image: ${{ matrix.job.container }}
-    strategy:
-      fail-fast: false
-      matrix:
-        job:
-          - { target: x86_64-unknown-linux-gnu, arch: amd64, container: "fedora:35" }
-          # - { target: aarch64-unknown-linux-gnu, arch: arm64, container: "fedora:35", use-cross: true }
-          - { target: x86_64-unknown-linux-musl, arch: amd64, container: "alpine:3" }
-    steps:
-      - name: Install prerequisites
-        run: |
-          case ${{ matrix.job.container }} in
-            *fedora*)
-              dnf update -y
-              dnf install -y git curl openssl-devel
-              dnf groupinstall "Development Tools" "Development Libraries" -y
-              case ${{ matrix.job.target }} in
-              aarch64-unknown-linux-gnu)
-                dnf install -y gcc-aarch64-linux-gnu
-                ;;
-              esac
-              ;;
-            *alpine*)
-              apk update
-              apk add git curl build-base libressl-dev bash
-              ;;
-          esac
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          target: ${{ matrix.job.target }}
-      - name: Install cargo rpm
-        run: |
-          case ${{ matrix.job.container }} in
-            *fedora*) cargo install cargo-rpm ;;
-          esac
-      - name: Trust this directory
-        run: git config --global --add safe.directory /__w/zenoh-flow/zenoh-flow
-      - name: Checkout source code
-        uses: actions/checkout@v2
-      - name: Build
+      - name: Run doctests
         uses: actions-rs/cargo@v1
         with:
-          use-cross: ${{ matrix.job.use-cross }}
-          command: build
-          args: --release --bins --lib --examples --target=${{ matrix.job.target }}
-
-  builds:
-    name: Build for ${{ matrix.job.target }} on ${{ matrix.job.os }}
-    needs: checks
-    runs-on: ${{ matrix.job.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        job:
-          - { target: x86_64-unknown-linux-gnu, arch: amd64, os: ubuntu-20.04 }
-          - {
-              target: x86_64-unknown-linux-musl,
-              arch: amd64,
-              os: ubuntu-20.04,
-              use-cross: true,
-            }
-          - {
-              target: arm-unknown-linux-gnueabi,
-              arch: armel,
-              os: ubuntu-20.04,
-              use-cross: true,
-            }
-          - {
-              target: arm-unknown-linux-gnueabihf,
-              arch: armhf,
-              os: ubuntu-20.04,
-              use-cross: true,
-            }
-          - {
-              target: armv7-unknown-linux-gnueabihf,
-              arch: armhf,
-              os: ubuntu-20.04,
-              use-cross: true,
-            }
-          - {
-              target: aarch64-unknown-linux-gnu,
-              arch: arm64,
-              os: ubuntu-20.04,
-              use-cross: true,
-            }
-          - { target: x86_64-unknown-linux-gnu, arch: amd64, os: ubuntu-18.04 }
-          - {
-              target: x86_64-unknown-linux-musl,
-              arch: amd64,
-              os: ubuntu-18.04,
-              use-cross: true,
-            }
-          - {
-              target: arm-unknown-linux-gnueabi,
-              arch: armel,
-              os: ubuntu-18.04,
-              use-cross: true,
-            }
-          - {
-              target: arm-unknown-linux-gnueabihf,
-              arch: armhf,
-              os: ubuntu-18.04,
-              use-cross: true,
-            }
-          - {
-              target: armv7-unknown-linux-gnueabihf,
-              arch: armhf,
-              os: ubuntu-18.04,
-              use-cross: true,
-            }
-          - {
-              target: aarch64-unknown-linux-gnu,
-              arch: arm64,
-              os: ubuntu-18.04,
-              use-cross: true,
-            }
-          - { target: x86_64-apple-darwin, arch: darwin, os: macos-latest }
-          - { target: aarch64-apple-darwin, arch: darwin, os: macos-latest }
-          # - { target: x86_64-pc-windows-msvc, arch: win64, os: windows-2019 }
-          # - { target: x86_64-pc-windows-gnu         , arch: win64 , os: windows-2019                  }
-    steps:
-      - name: Trust this directory
-        run: git config --global --add safe.directory /__w/zenoh-flow/zenoh-flow
-      - name: Checkout source code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 500 # NOTE: get long history for git-version crate to correctly compute a version
-      - name: Fetch Git tags # NOTE: workaround for https://github.com/actions/checkout/issues/290
-        shell: bash
-        run: git fetch --tags --force
-      - name: Install prerequisites
-        shell: bash
-        run: |
-          case ${{ matrix.job.target }} in
-            *-linux-gnu*) cargo install cargo-deb ;;
-          esac
-          case ${{ matrix.job.target }} in
-            arm-unknown-linux-gnueabi)
-              sudo apt-get -y update
-              sudo apt-get -y install gcc-arm-linux-gnueabi libssl-dev
-              ;;
-            arm*-unknown-linux-gnueabihf)
-              sudo apt-get -y update
-              sudo apt-get -y install gcc-arm-linux-gnueabihf libssl-dev
-              ;;
-            aarch64-unknown-linux-gnu)
-              sudo apt-get -y update
-              sudo apt-get -y install gcc-aarch64-linux-gnu libssl-dev
-              ;;
-          esac
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          target: ${{ matrix.job.target }}
-
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: ${{ matrix.job.use-cross }}
-          command: build
-          args: --release --bins --lib --examples --target=${{ matrix.job.target }}
+          command: test
+          args: --doc
+        env:
+          ASYNC_STD_THREAD_COUNT: 4
