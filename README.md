@@ -152,3 +152,5 @@ echo "deb [trusted=yes] https://download.eclipse.org/zenoh/zenoh-flow/debian-rep
 sudo apt update
 sudo apt install zenoh-flow-daemon zfctl
 ```
+
+Then you can start the daemon with `zenoh-flow-daemon`.
