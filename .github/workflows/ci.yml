@@ -56,8 +56,9 @@ jobs:
           command: clippy
           args: --all-targets -- -D warnings
 
-  test:
+  tests:
     name: Run tests on ${{ matrix.os }}
+    needs: [checks]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
