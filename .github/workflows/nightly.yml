@@ -11,7 +11,7 @@
 # Contributors:
 #   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 #
-name: Release
+name: Nightly
 
 on:
   schedule:
@@ -115,6 +115,59 @@ jobs:
         with:
           command: doc
           args: --no-deps
+
+
+  docker_builds:
+    name: Build for ${{ matrix.job.target }} on ${{ matrix.job.container }}
+    needs: checks
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.job.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { target: x86_64-unknown-linux-gnu, arch: amd64, container: "fedora:35" }
+          # - { target: aarch64-unknown-linux-gnu, arch: arm64, container: "fedora:35", use-cross: true }
+          - { target: x86_64-unknown-linux-musl, arch: amd64, container: "alpine:3" }
+    steps:
+      - name: Install prerequisites
+        run: |
+          case ${{ matrix.job.container }} in
+            *fedora*)
+              dnf update -y
+              dnf install -y git curl openssl-devel
+              dnf groupinstall "Development Tools" "Development Libraries" -y
+              case ${{ matrix.job.target }} in
+              aarch64-unknown-linux-gnu)
+                dnf install -y gcc-aarch64-linux-gnu
+                ;;
+              esac
+              ;;
+            *alpine*)
+              apk update
+              apk add git curl build-base libressl-dev bash
+              ;;
+          esac
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: ${{ matrix.job.target }}
+      - name: Install cargo rpm
+        run: |
+          case ${{ matrix.job.container }} in
+            *fedora*) cargo install cargo-rpm ;;
+          esac
+      - name: Trust this directory
+        run: git config --global --add safe.directory /__w/zenoh-flow/zenoh-flow
+      - name: Checkout source code
+        uses: actions/checkout@v2
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.job.use-cross }}
+          command: build
+          args: --release --bins --lib --examples --target=${{ matrix.job.target }}
 
   builds:
     name: Build for ${{ matrix.job.target }} on ${{ matrix.job.os }}
