@@ -31,7 +31,7 @@ repository.workspace = true
 async-std = { version = "=1.12.0", features = ["attributes"] }
 zenoh = { version = "=0.7.0-rc", optional = true}
 zenoh-util = { version = "=0.7.0-rc", optional = true }
-zenoh-flow = {path = "../zenoh-flow"}
+zenoh-flow = {path = "../zenoh-flow", version = "=0.5.0-dev"}
 clap = { version = "4.0", features = ["derive"] }
 serde_derive = "1.0"
 serde = { version = "1.0", features = ["derive"] }
