@@ -68,5 +68,6 @@ assets = [
     ["target/release/libzplugin_zenoh_flow.so", "/usr/lib/libzplugin_zenoh_flow.so", "644"],
     # assets
     ["../zenoh-flow-daemon/etc/extensions.d/placeholder", "/etc/zenoh-flow/extensions.d/placeholder", "644"],
+    ["etc/zenoh-zf-plugin.json", "/etc/zenoh-flow/zenoh-zf-plugin.json", "644"],
     ["../zenoh-flow-daemon/var/*", "/var/zenoh-flow", "644"],
 ]
