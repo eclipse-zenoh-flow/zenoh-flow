@@ -501,3 +501,26 @@ impl ZFData for String {
             .map_err(|e| zferror!(ErrorKind::DeserializationError, e))?)
     }
 }
+
+impl<T: prost::Message> DowncastAny for T {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+impl<T: prost::Message> ZFData for T {
+    fn try_serialize(&self) -> crate::Result<Vec<u8>> {
+        Ok(self.encode_to_vec())
+    }
+
+    fn try_deserialize(bytes: &[u8]) -> crate::Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(T::decode(bytes).map_err(|e| zferror!(ErrorKind::DeserializationError, e))?)
+    }
+}
