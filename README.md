@@ -22,135 +22,22 @@ To these ends, Zenoh-Flow leverages the _data flow programming model_ --- where 
 
 This makes for a powerful combination as Zenoh offers flexibility and extensibility while data flow programming structures computations. The main benefit of this approach is that this allows us to decorrelate applications from the underlying infrastructure: data are published and subscribed to (_automatically_ with Zenoh-Flow) without the need to know where they are actually located.
 
+-----
 
-## Core principles
+🧑‍💻 We are currently keeping our documentation and guides in the [Wiki](https://github.com/eclipse-zenoh/zenoh-flow/wiki) tab of this repository.
 
-Zenoh-Flow centers the definition of an application around a **description file**. This file acts as a contract that Zenoh-Flow will enforce.
+-----
 
-In it, developers specify the different computation units --- the _nodes_, how they are connected --- the _links_, and how they should be deployed --- the _mapping_.
+## Installation
 
-After validating these specifications, Zenoh-Flow will first create the necessary connections and then load each node. The types of connections created as well as the way nodes are loaded are discussed in more details [here](). The most notable aspect is that Zenoh-Flow optimizes the connections: data will go through the network only if nodes are located on different machines.
+Follow our guide [here](https://github.com/eclipse-zenoh/zenoh-flow/wiki/Installation-(v0.4.0))!
 
+## Getting Started
 
-## Documentation
+The best way to learn Zenoh-Flow is to go through our [getting started guide](https://github.com/eclipse-zenoh/zenoh-flow/wiki/Getting-started-(v0.4.0)).
 
-To build the documentation:
+## Examples
 
-```bash
-$ cargo doc
-```
+We encourage you to look at the examples available in our [examples repository](https://github.com/ZettaScaleLabs/zenoh-flow-examples).
 
-The HTML documentation can then be found under `./target/doc/zenoh_flow/index.html`.
-
-
-## How to use
-
-A working [Cargo and Rust](https://doc.rust-lang.org/cargo/getting-started/installation.html) installation is a pre-requisite.
-
-Then download the repository:
-
-```bash
-git clone https://github.com/eclipse-zenoh/zenoh-flow && cd zenoh-flow
-```
-
-We assume in the following that `./` points to the root of this repository.
-
-
-### Start Zenoh
-
-As its name indicates, Zenoh-Flow relies on Zenoh. So you first need to install and start a Zenoh router on your device.
-
-The instructions to install Zenoh are located [here](https://zenoh.io/docs/getting-started/installation/).
-
-Once installed, you need to start a `zenohd` with the configuration we provide:
-
-```bash
-zenohd -c ./zenoh-flow-daemon/etc/zenoh-zf-router.json
-```
-
-With this configuration, Zenoh will start storages for specific keys that are used internally by Zenoh-Flow. These keys are notably what allow Zenoh-Flow daemons to discover each other (as long as the routers, to which the daemons are attached, can communicate).
-
-
-### Start Zenoh-Flow
-
-Build Zenoh-Flow in release:
-
-```bash
-cd zenoh-flow && cargo build --release
-```
-
-This will produce the following executables under the `target/release` directory: `zenoh-flow-daemon`, `zfctl` and `cargo-zenoh-flow`.
-
-- `zenoh-flow-daemon` is what will take care of starting and stopping nodes, as well as deploying a Zenoh-Flow application.
-- `zfctl` is what we use to interact (using Zenoh) with all the `zenoh-flow-daemon` discovered.
-- `cargo-zenoh-flow` is a help tool that produces boilerplate code for Zenoh-Flow nodes.
-
-To launch an application we need to: 1) start a daemon and 2) interact with it through `zfctl`.
-
-A Zenoh-Flow daemon relies on some configurations and variables. For this to work, we need to move few files:
-
-```bash
-sudo mkdir -p /etc/zenoh-flow/extensions.d
-sudo cp ./zenoh-flow-daemon/etc/runtime.yaml /etc/zenoh-flow
-sudo cp ./zenoh-flow-daemon/etc/zenoh-daemon.json /etc/zenoh-flow
-```
-
-We can then start the daemon:
-
-```bash
-./target/release/zenoh-flow-daemon
-```
-
-Next, `zfctl`. We also need to copy a configuration file:
-
-```bash
-mkdir -p ~/.config/zenoh-flow
-cp ./zfctl/.config/zfctl-zenoh.json /etc/zenoh-flow
-```
-
-To check that the Zenoh-Flow daemon is correctly running and `zfctl` is set up, you can do:
-
-```bash
-./target/release/zfctl list runtimes
-```
-
-This should return a list just like this one:
-
-```
-+--------------------------------------+---------------------------+--------+
-| UUID                                 | Name                      | Status |
-+--------------------------------------+---------------------------+--------+
-| 49936f69-2c87-55f0-9df4-d1fba2fadd38 | Juliens-MacBook-Pro.local | Ready  |
-+--------------------------------------+---------------------------+--------+
-```
-
-If you see this, you can now launch applications!
-Assuming your application is described in `app.yaml`, you would launch it via:
-
-```bash
-./target/release/zfctl launch app.yaml > app.uuid
-```
-
-:book: The redirection of the standard output is to "capture" the unique identifier associated to this instance of your application.
-
-And you can stop everything via:
-
-```bash
-./target/release/zfctl destroy "$(cat app.uuid)"
-```
-
-We encourage you to look at the examples available in our [examples repository](https://github.com/ZettaScaleLabs/zenoh-flow-examples) for more!
-
-
-### Get nightly releases
-
-If you are not interested in building Zenoh Flow, and you are running an apt-based system (i.e., Debian or Ubuntu),
-you can add the nightly APT repository and install Zenoh Flow with your package manager.
-
-```
-echo "deb [trusted=yes] https://download.eclipse.org/zenoh/zenoh-flow/debian-repo/nightly/ /" | sudo tee -a /etc/apt/sources.list.d/zenoh-flow.list > /dev/null
-sudo apt update
-sudo apt install zenoh-flow-daemon zfctl
-```
-
-Then you can start the daemon with `zenoh-flow-daemon`.
+🚗 If you still want more, we also ported an [Autonomous Driving Pipeline](https://github.com/ZettaScaleLabs/stunt)!
