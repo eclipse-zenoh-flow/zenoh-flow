@@ -34,6 +34,7 @@
 //! Zenoh Flow provides several working examples that illustrate how to
 //! define operators, sources and sinks as well as how to
 //! declaratively define they data flow graph by means of a YAML file.
+#![feature(specialization)]
 
 use const_format::formatcp;
 
