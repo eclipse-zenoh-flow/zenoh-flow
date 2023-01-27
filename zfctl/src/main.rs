@@ -268,10 +268,7 @@ async fn main() {
     match args {
         ZFCtl::Create(ak) => match ak {
             CreateKind::Flow { descriptor_path } => {
-                println!(
-                    "This is going to store the flow described in {:?}",
-                    descriptor_path
-                );
+                println!("This is going to store the flow described in {descriptor_path:?}");
             }
             CreateKind::Instance { descriptor_path } => {
                 log::trace!(
@@ -287,7 +284,7 @@ async fn main() {
                 let client = get_client(zsession.clone()).await;
                 let instance_uuid = client.create_instance(df).await.unwrap().unwrap();
                 log::debug!("Created: {:?}", instance_uuid);
-                println!("{}", instance_uuid);
+                println!("{instance_uuid}");
             } // When registry will be in place the code below will be used
               // AddKind::Instance { flow_id, rt_id } => {
               //     println!(
@@ -298,7 +295,7 @@ async fn main() {
         },
         ZFCtl::Get(gk) => match gk {
             GetKind::Flow { id } => {
-                println!("This is going to get information for the flow {:?}", id);
+                println!("This is going to get information for the flow {id:?}");
             }
             GetKind::Instance { id } => {
                 log::debug!("This is going to get information for the instance {:?}", id);
@@ -319,31 +316,31 @@ async fn main() {
                     instance
                         .operators
                         .values()
-                        .map(|o| format!("{}", o))
+                        .map(|o| format!("{o}"))
                         .collect::<Vec<String>>()
                         .join("\n"),
                     instance
                         .sinks
                         .values()
-                        .map(|o| format!("{}", o))
+                        .map(|o| format!("{o}"))
                         .collect::<Vec<String>>()
                         .join("\n"),
                     instance
                         .sources
                         .values()
-                        .map(|o| format!("{}", o))
+                        .map(|o| format!("{o}"))
                         .collect::<Vec<String>>()
                         .join("\n"),
                     instance
                         .connectors
                         .values()
-                        .map(|o| format!("{}", o))
+                        .map(|o| format!("{o}"))
                         .collect::<Vec<String>>()
                         .join("\n"),
                     instance
                         .links
                         .iter()
-                        .map(|o| format!("{}", o))
+                        .map(|o| format!("{o}"))
                         .collect::<Vec<String>>()
                         .join("\n")
                 ]);
@@ -379,7 +376,7 @@ async fn main() {
         },
         ZFCtl::Delete(dk) => match dk {
             DeleteKind::Flow { id } => {
-                println!("This is going to delete the flow {:?}", id);
+                println!("This is going to delete the flow {id:?}");
             }
             DeleteKind::Instance { id } => {
                 log::debug!("This is going to delete the instance {:?}", id);
@@ -442,7 +439,7 @@ async fn main() {
                 let client = get_client(zsession.clone()).await;
                 client.start_instance(instance_id).await.unwrap().unwrap();
                 log::debug!("Started: {:?}", instance_id);
-                println!("{}", instance_id);
+                println!("{instance_id}");
             }
         },
         ZFCtl::Stop(sk) => match sk {
@@ -558,7 +555,7 @@ async fn main() {
             let client = get_client(zsession.clone()).await;
             let instance_uuid = client.instantiate(df).await.unwrap().unwrap();
             log::debug!("Launched: {:?}", instance_uuid);
-            println!("{}", instance_uuid);
+            println!("{instance_uuid}");
         }
         ZFCtl::Destroy { id } => {
             log::debug!("This is going to destroy the instance {}", id);

@@ -558,5 +558,5 @@ links:
 #[test]
 fn validate_ok_type_any() {
     let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_OK_TYPE_ANY);
-    assert!(r.is_ok(), "Unexpected error: {:?}", r)
+    assert!(r.is_ok(), "{}", "Unexpected error: {r:?}")
 }

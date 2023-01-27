@@ -215,8 +215,8 @@ impl Node for GenericSink {
         if let (LinkMessage::Data(ref mut data_message), Message::Data(data)) =
             (link_message, typed_message)
         {
-            println!("[GenericSink] Received on input_raw: {:?}", data_message);
-            println!("[GenericSink] Received on input_typed: {:?}", data);
+            println!("[GenericSink] Received on input_raw: {data_message:?}");
+            println!("[GenericSink] Received on input_typed: {data:?}");
             let number = data_message.try_get::<usize>()?;
             assert_eq!(*number, *data);
         } else {
@@ -239,7 +239,7 @@ async fn single_runtime() {
     );
     let hlc = async_std::sync::Arc::new(uhlc::HLC::default());
     let rt_uuid = uuid::Uuid::new_v4();
-    let runtime_name: RuntimeId = format!("test-runtime-{}", rt_uuid).into();
+    let runtime_name: RuntimeId = format!("test-runtime-{rt_uuid}").into();
     let ctx = RuntimeContext {
         session,
         hlc: hlc.clone(),

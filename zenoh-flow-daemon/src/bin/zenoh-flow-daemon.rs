@@ -59,7 +59,7 @@ async fn main() {
     let args = RuntimeOpt::parse();
 
     if args.print_version {
-        println!("Zenoh Flow runtime version: {}", GIT_VERSION);
+        println!("Zenoh Flow runtime version: {GIT_VERSION}");
         std::process::exit(0);
     }
 

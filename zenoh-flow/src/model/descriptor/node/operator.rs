@@ -216,7 +216,7 @@ impl CompositeOperatorDescriptor {
 
             let res_simple = OperatorDescriptor::from_yaml(&description);
             if let Ok(mut simple_operator) = res_simple {
-                let new_id: NodeId = format!("{}/{}", composite_id, operator_id).into();
+                let new_id: NodeId = format!("{composite_id}/{operator_id}").into();
 
                 let output_ids: HashMap<_, _> = self
                     .outputs
