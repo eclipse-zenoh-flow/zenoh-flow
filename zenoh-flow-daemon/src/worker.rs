@@ -58,7 +58,7 @@ impl Worker {
             job.get_id(),
             e
         );
-        job.failed(self.hlc.new_timestamp(), format!("{:?}", e));
+        job.failed(self.hlc.new_timestamp(), format!("{e:?}"));
         self.runtime
             .store
             .add_failed_job(&self.runtime.ctx.runtime_uuid, job)

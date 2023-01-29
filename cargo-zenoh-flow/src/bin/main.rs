@@ -208,7 +208,7 @@ async fn main() {
                     std::env::consts::DLL_SUFFIX
                 )
             };
-            let uri = format!("file://{}", target);
+            let uri = format!("file://{target}");
 
             let (metadata_graph, _metadata_arch, descriptor) = match node_info.kind {
                 NodeKind::Operator => {

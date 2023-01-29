@@ -180,7 +180,7 @@ pub async fn create_crate(name: &str, kind: NodeKind) -> CZFResult<()> {
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .append(true)
-        .open(format!("{}/Cargo.toml", name))
+        .open(format!("{name}/Cargo.toml"))
         .unwrap();
 
     let (cargo_template, lib_template) = match kind {
@@ -201,8 +201,8 @@ pub async fn create_crate(name: &str, kind: NodeKind) -> CZFResult<()> {
         }
     };
 
-    let lib_path = std::path::PathBuf::from(format!("{}/src/lib.rs", name));
-    write!(file, "{}", cargo_template)?;
+    let lib_path = std::path::PathBuf::from(format!("{name}/src/lib.rs"));
+    write!(file, "{cargo_template}")?;
     drop(file);
 
     std::fs::remove_file(&lib_path)?;
@@ -213,7 +213,7 @@ pub async fn create_crate(name: &str, kind: NodeKind) -> CZFResult<()> {
 
 pub async fn create_python_module(name: &str, kind: NodeKind) -> CZFResult<()> {
     async_std::fs::create_dir(name).await.map_err(|e| {
-        CZFError::GenericError(format!("Error when creating directory {:?} {:?}", name, e))
+        CZFError::GenericError(format!("Error when creating directory {name:?} {e:?}"))
     })?;
 
     let node_template = match kind {
@@ -367,11 +367,11 @@ pub async fn create_cpp_node(name: &str, kind: NodeKind) -> CZFResult<()> {
 
 pub async fn write_string_to_file(filename: &Path, content: &str) -> CZFResult<()> {
     let mut file = async_std::fs::File::create(filename).await.map_err(|e| {
-        CZFError::GenericError(format!("Error when creating file {:?} {:?}", filename, e))
+        CZFError::GenericError(format!("Error when creating file {filename:?} {e:?}"))
     })?;
 
     file.write_all(content.as_bytes()).await.map_err(|e| {
-        CZFError::GenericError(format!("Error when writing to file {:?} {:?}", filename, e))
+        CZFError::GenericError(format!("Error when writing to file {filename:?} {e:?}"))
     })
 }
 
@@ -420,7 +420,7 @@ pub fn store_zf_metadata(metadata: &RegistryNode, target_dir: &Path) -> CZFResul
         .create_new(true)
         .open(&target_metadata)?;
 
-    write!(file, "{}", yml_metadata)?;
+    write!(file, "{yml_metadata}")?;
 
     Ok(target_metadata)
 }
@@ -437,7 +437,7 @@ pub fn store_zf_descriptor(descriptor: &str, target_dir: &Path, id: &str) -> CZF
         .create_new(true)
         .open(&target_descriptor)?;
 
-    write!(file, "{}", descriptor)?;
+    write!(file, "{descriptor}")?;
 
     Ok(target_descriptor)
 }

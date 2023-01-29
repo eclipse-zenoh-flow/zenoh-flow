@@ -268,116 +268,116 @@ fn some_kind_of_uppercase_first_letter(s: &str) -> String {
 pub fn operator_template_cargo(name: String) -> CZFResult<String> {
     let mut tt = TinyTemplate::new();
     tt.add_template("operator", CARGO_OPERATOR_TEMPLATE)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+        .map_err(|e| CZFError::GenericError(format!("{e}")))?;
 
     let ctx = OperatorContext {
         name: some_kind_of_uppercase_first_letter(&name),
     };
 
     tt.render("operator", &ctx)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+        .map_err(|e| CZFError::GenericError(format!("{e}")))
 }
 
 pub fn operator_template_lib(name: String) -> CZFResult<String> {
     let mut tt = TinyTemplate::new();
     tt.add_template("operator", LIB_OPERATOR_TEMPLATE)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+        .map_err(|e| CZFError::GenericError(format!("{e}")))?;
 
     let ctx = OperatorContext {
         name: some_kind_of_uppercase_first_letter(&name),
     };
 
     tt.render("operator", &ctx)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+        .map_err(|e| CZFError::GenericError(format!("{e}")))
 }
 
 pub fn source_template_lib(name: String) -> CZFResult<String> {
     let mut tt = TinyTemplate::new();
     tt.add_template("source", LIB_SOURCE_TEMPLATE)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+        .map_err(|e| CZFError::GenericError(format!("{e}")))?;
 
     let ctx = OperatorContext {
         name: some_kind_of_uppercase_first_letter(&name),
     };
 
     tt.render("source", &ctx)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+        .map_err(|e| CZFError::GenericError(format!("{e}")))
 }
 
 pub fn source_template_cargo(name: String) -> CZFResult<String> {
     let mut tt = TinyTemplate::new();
     tt.add_template("source", CARGO_SOURCE_TEMPLATE)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+        .map_err(|e| CZFError::GenericError(format!("{e}")))?;
 
     let ctx = OperatorContext {
         name: some_kind_of_uppercase_first_letter(&name),
     };
 
     tt.render("source", &ctx)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+        .map_err(|e| CZFError::GenericError(format!("{e}")))
 }
 
 pub fn sink_template_lib(name: String) -> CZFResult<String> {
     let mut tt = TinyTemplate::new();
     tt.add_template("sink", LIB_SINK_TEMPLATE)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+        .map_err(|e| CZFError::GenericError(format!("{e}")))?;
 
     let ctx = OperatorContext {
         name: some_kind_of_uppercase_first_letter(&name),
     };
 
     tt.render("sink", &ctx)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+        .map_err(|e| CZFError::GenericError(format!("{e}")))
 }
 
 pub fn sink_template_cargo(name: String) -> CZFResult<String> {
     let mut tt = TinyTemplate::new();
     tt.add_template("sink", CARGO_SINK_TEMPLATE)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+        .map_err(|e| CZFError::GenericError(format!("{e}")))?;
 
     let ctx = OperatorContext {
         name: some_kind_of_uppercase_first_letter(&name),
     };
 
     tt.render("sink", &ctx)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+        .map_err(|e| CZFError::GenericError(format!("{e}")))
 }
 
 pub fn source_template_py(name: &str) -> CZFResult<String> {
     let mut tt = TinyTemplate::new();
     tt.add_template("source", PY_SRC_TEMPATE)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+        .map_err(|e| CZFError::GenericError(format!("{e}")))?;
 
     let ctx = OperatorContext {
         name: some_kind_of_uppercase_first_letter(name),
     };
 
     tt.render("source", &ctx)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+        .map_err(|e| CZFError::GenericError(format!("{e}")))
 }
 
 pub fn operator_template_py(name: &str) -> CZFResult<String> {
     let mut tt = TinyTemplate::new();
     tt.add_template("source", PY_OP_TEMPLATE)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+        .map_err(|e| CZFError::GenericError(format!("{e}")))?;
 
     let ctx = OperatorContext {
         name: some_kind_of_uppercase_first_letter(name),
     };
 
     tt.render("source", &ctx)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+        .map_err(|e| CZFError::GenericError(format!("{e}")))
 }
 
 pub fn sink_template_py(name: &str) -> CZFResult<String> {
     let mut tt = TinyTemplate::new();
     tt.add_template("source", PY_SINK_TEMPLATE)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))?;
+        .map_err(|e| CZFError::GenericError(format!("{e}")))?;
 
     let ctx = OperatorContext {
         name: some_kind_of_uppercase_first_letter(name),
     };
 
     tt.render("source", &ctx)
-        .map_err(|e| CZFError::GenericError(format!("{}", e)))
+        .map_err(|e| CZFError::GenericError(format!("{e}")))
 }
