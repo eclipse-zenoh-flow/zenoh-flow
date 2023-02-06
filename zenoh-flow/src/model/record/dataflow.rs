@@ -21,6 +21,9 @@ use crate::types::{NodeId, PortId, PortType, RuntimeId, PORT_TYPE_ANY};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;
+use petgraph::dot::Dot;
+use petgraph::graph::{Graph, NodeIndex};
+use petgraph::Directed;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -335,6 +338,102 @@ impl DataFlowRecord {
 
         Ok(())
     }
+
+    /// Provides a petgraph representaton of the flow.
+    ///
+    ///
+    ///  # Errors
+    /// A variant error is the flow cannot be represented by graph.
+    pub fn as_petgraph(&self) -> ZFResult<Graph<NodeId, LinkRecord, Directed>> {
+        let mut graph = Graph::<NodeId, LinkRecord, Directed>::new();
+
+        let mut node_index_map = HashMap::<NodeId, NodeIndex>::new();
+
+        for node_id in self
+            .sources
+            .keys()
+            .chain(self.operators.keys())
+            .chain(self.sinks.keys())
+            .chain(self.connectors.keys())
+        {
+            node_index_map.insert(node_id.clone(), graph.add_node(node_id.clone()));
+        }
+
+        for link in self.links.iter() {
+            let from_node = node_index_map
+                .get(&link.from.node)
+                .ok_or(zferror!(ErrorKind::NotFound))?;
+            let to_node = node_index_map
+                .get(&link.to.node)
+                .ok_or(zferror!(ErrorKind::NotFound))?;
+            graph.add_edge(*from_node, *to_node, link.clone());
+        }
+
+        Ok(graph)
+    }
+
+    /// Provides a graphviz representaton of the flow.
+    ///
+    ///
+    ///  # Errors
+    /// A variant error is the flow cannot be represented by graph.
+    pub fn as_dot(&self) -> ZFResult<String> {
+        let graph = self.as_petgraph()?;
+        Ok(Dot::with_config(&graph, &[]).to_string())
+    }
+
+    /// Provides the topological sort of the graph, by grouping nodes that can
+    /// execute in parallel.
+    /// Such information can be used for schedling the nodes of a flow.
+    ///
+    ///
+    ///  # Errors
+    /// A variant error is the flow cannot be represented by graph.
+    ///
+    ///  # Warning
+    /// This function will loop forever if the graph contains loops, such
+    /// as feedbacks. Be careful when calling this functions.
+    pub fn as_sorted_dependency_graph(&self) -> ZFResult<HashMap<u32, Vec<NodeId>>> {
+        let mut graph = self.as_petgraph()?;
+
+        let mut levels = HashMap::new();
+        let mut level = 0;
+        let mut remaining_nodes = graph.node_indices().collect::<Vec<_>>();
+
+        // Looping in the nodes.
+        while !remaining_nodes.is_empty() {
+            let mut current_level = vec![];
+
+            for node in &remaining_nodes {
+                // If the node has no incoming links, it is part of this level
+                if graph
+                    .neighbors_directed(*node, petgraph::Direction::Incoming)
+                    .count()
+                    == 0
+                {
+                    current_level.push(graph[*node].clone());
+                }
+            }
+
+            // Removing from the graphs all node in this level
+            for node in current_level.iter() {
+                let node_index = graph
+                    .node_indices()
+                    .find(|&n| graph[n] == *node)
+                    .ok_or(zferror!(ErrorKind::NotFound))?;
+                graph.remove_node(node_index);
+            }
+
+            // Storing the level and continue to next one.
+            levels.insert(level, current_level);
+            level += 1;
+
+            // Getting the remaining nodes.
+            remaining_nodes = graph.node_indices().collect::<Vec<_>>();
+        }
+
+        Ok(levels)
+    }
 }
 
 impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
@@ -390,7 +489,11 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 configuration: o.configuration,
                 runtime: mapping
                     .get(&o.id)
-                    .ok_or_else(|| zferror!(ErrorKind::MissingConfiguration))
+                    .ok_or(zferror!(
+                        ErrorKind::MissingConfiguration,
+                        "Missing mapping for {}",
+                        o.id.clone()
+                    ))
                     .cloned()?,
             };
             dfr.operators.insert(o.id, or);
@@ -412,7 +515,11 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 configuration: s.configuration,
                 runtime: mapping
                     .get(&s.id)
-                    .ok_or_else(|| zferror!(ErrorKind::MissingConfiguration))
+                    .ok_or(zferror!(
+                        ErrorKind::MissingConfiguration,
+                        "Missing mapping for {}",
+                        s.id.clone()
+                    ))
                     .cloned()?,
             };
             dfr.sources.insert(s.id, sr);
@@ -434,7 +541,11 @@ impl TryFrom<(FlattenDataFlowDescriptor, Uuid)> for DataFlowRecord {
                 configuration: s.configuration,
                 runtime: mapping
                     .get(&s.id)
-                    .ok_or_else(|| zferror!(ErrorKind::MissingConfiguration))
+                    .ok_or(zferror!(
+                        ErrorKind::MissingConfiguration,
+                        "Missing mapping for {}",
+                        s.id.clone()
+                    ))
                     .cloned()?,
             };
             dfr.sinks.insert(s.id, sr);
