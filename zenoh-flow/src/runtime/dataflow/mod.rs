@@ -145,6 +145,7 @@ impl DataFlow {
 
         let source_constructors = sources
             .into_iter()
+            .filter(|(_, record)| record.runtime == context.runtime_name)
             .map(|(source_id, source_record)| {
                 context
                     .loader
@@ -157,6 +158,7 @@ impl DataFlow {
 
         let operator_constructors = operators
             .into_iter()
+            .filter(|(_, record)| record.runtime == context.runtime_name)
             .map(|(operator_id, operator_record)| {
                 context
                     .loader
@@ -167,6 +169,7 @@ impl DataFlow {
 
         let sink_constructors = sinks
             .into_iter()
+            .filter(|(_, record)| record.runtime == context.runtime_name)
             .map(|(sink_id, sink_record)| {
                 context
                     .loader
@@ -174,6 +177,11 @@ impl DataFlow {
                     .map(|sink_constructor| (sink_id, sink_constructor))
             })
             .collect::<ZFResult<HashMap<NodeId, SinkConstructor>>>()?;
+
+        let connectors = connectors
+            .into_iter()
+            .filter(|(_, record)| record.runtime == context.runtime_name)
+            .collect::<HashMap<NodeId, ZFConnectorRecord>>();
 
         Ok(Self {
             uuid,
