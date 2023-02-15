@@ -128,20 +128,14 @@ pub struct ZFError {
     line: u32,
     #[serde(skip_serializing, skip_deserializing)]
     source: Option<Error>,
-    source_desc: Option<String>
+    source_desc: Option<String>,
 }
 
 unsafe impl Send for ZFError {}
 unsafe impl Sync for ZFError {}
 
 impl ZFError {
-    pub fn new<E: Into<AnyError>>(
-        kind: ErrorKind,
-        error: E,
-        file: String,
-        line: u32,
-    ) -> ZFError {
-
+    pub fn new<E: Into<AnyError>>(kind: ErrorKind, error: E, file: String, line: u32) -> ZFError {
         let error: AnyError = error.into();
 
         ZFError {
@@ -151,11 +145,11 @@ impl ZFError {
             file,
             line,
             source: None,
-            source_desc: None
+            source_desc: None,
         }
     }
     pub fn set_source<S: Into<Error>>(mut self, source: S) -> Self {
-        let source : Error = source.into();
+        let source: Error = source.into();
         self.source_desc = Some(format!("{source:?}"));
         self.source = Some(source);
         self

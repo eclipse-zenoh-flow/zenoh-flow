@@ -29,10 +29,10 @@ use zenoh_flow::runtime::{
     RuntimeStatusKind,
 };
 use zenoh_flow::types::ControlMessage;
+use zenoh_flow::zferror;
 use zenoh_flow::zfresult::ErrorKind;
 use zenoh_flow::DaemonResult;
 use zenoh_flow::Result as ZFResult;
-use zenoh_flow::zferror;
 
 /// The internal runtime state.
 ///
