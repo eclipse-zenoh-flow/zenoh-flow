@@ -167,7 +167,7 @@ impl std::clone::Clone for ZFError {
             error: None,
             desc: self.desc.clone(),
             file: self.file.clone(),
-            line: self.line.clone(),
+            line: self.line,
             source: None,
             source_desc: self.source_desc.clone(),
         }
@@ -178,7 +178,7 @@ impl std::clone::Clone for ZFError {
         self.error = None;
         self.desc = source.desc.clone();
         self.file = source.file.clone();
-        self.line = source.line.clone();
+        self.line = source.line;
         self.source = None;
         self.source_desc = self.source_desc.clone();
     }
