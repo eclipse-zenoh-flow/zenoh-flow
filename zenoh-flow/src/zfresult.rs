@@ -148,6 +148,7 @@ impl ZFError {
             source_desc: None,
         }
     }
+
     pub fn set_source<S: Into<Error>>(mut self, source: S) -> Self {
         let source: Error = source.into();
         self.source_desc = Some(format!("{source:?}"));
@@ -191,6 +192,7 @@ impl std::error::Error for ZFError {
             .map(|r| unsafe { std::mem::transmute(r.as_ref()) })
     }
 }
+
 impl fmt::Debug for ZFError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self, f)
@@ -199,13 +201,15 @@ impl fmt::Debug for ZFError {
 
 impl fmt::Display for ZFError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{:?} {:?} at {}:{}. Description: {:?}",
-            self.kind, self.error, self.file, self.line, self.desc
-        )?;
+        let desc = if let Some(desc) = &self.desc {
+            desc
+        } else {
+            "(no description)"
+        };
+
+        write!(f, "{}:{} {:?}: {:?}", self.file, self.line, self.kind, desc)?;
         if let Some(s) = &self.source {
-            write!(f, " - Caused by {} Description {:?}", *s, self.source_desc)?;
+            write!(f, "\nCaused by {}: {:?}", *s, self.source_desc)?;
         }
         Ok(())
     }
