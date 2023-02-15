@@ -32,6 +32,7 @@ use zenoh_flow::types::ControlMessage;
 use zenoh_flow::zfresult::ErrorKind;
 use zenoh_flow::DaemonResult;
 use zenoh_flow::Result as ZFResult;
+use zenoh_flow::zferror;
 
 /// The internal runtime state.
 ///
@@ -301,7 +302,7 @@ impl Runtime {
 
                 Ok(record)
             }
-            None => Err(ErrorKind::InstanceNotFound(instance_id)),
+            None => Err(zferror!(ErrorKind::InstanceNotFound(instance_id))),
         }
     }
 
@@ -435,7 +436,7 @@ impl Runtime {
 
                 Ok(())
             }
-            None => Err(ErrorKind::InstanceNotFound(instance_id)),
+            None => Err(zferror!(ErrorKind::InstanceNotFound(instance_id))),
         }
     }
 
@@ -464,7 +465,7 @@ impl Runtime {
 
                 Ok(())
             }
-            None => Err(ErrorKind::InstanceNotFound(instance_id)),
+            None => Err(zferror!(ErrorKind::InstanceNotFound(instance_id))),
         }
     }
 
@@ -504,7 +505,7 @@ impl Runtime {
 
                 Ok(())
             }
-            None => Err(ErrorKind::InstanceNotFound(instance_id)),
+            None => Err(zferror!(ErrorKind::InstanceNotFound(instance_id))),
         }
     }
 
@@ -532,7 +533,7 @@ impl Runtime {
 
                 Ok(())
             }
-            None => Err(ErrorKind::InstanceNotFound(instance_id)),
+            None => Err(zferror!(ErrorKind::InstanceNotFound(instance_id))),
         }
     }
 
@@ -546,7 +547,7 @@ impl Runtime {
 
         match _state.graphs.get_mut(&instance_id) {
             Some(instance) => Ok(instance.start_node(&node.into())?),
-            None => Err(ErrorKind::InstanceNotFound(instance_id)),
+            None => Err(zferror!(ErrorKind::InstanceNotFound(instance_id))),
         }
     }
 
@@ -560,7 +561,7 @@ impl Runtime {
 
         match _state.graphs.get_mut(&instance_id) {
             Some(instance) => Ok(instance.stop_node(&node.into()).await?),
-            None => Err(ErrorKind::InstanceNotFound(instance_id)),
+            None => Err(zferror!(ErrorKind::InstanceNotFound(instance_id))),
         }
     }
 
@@ -648,24 +649,24 @@ impl Runtime {
         _node: String,
         _message: ControlMessage,
     ) -> DaemonResult<()> {
-        Err(ErrorKind::Unimplemented)
+        Err(zferror!(ErrorKind::Unimplemented))
     }
     pub(crate) async fn check_operator_compatibility(
         &self,
         _operator: OperatorDescriptor,
     ) -> DaemonResult<bool> {
-        Err(ErrorKind::Unimplemented)
+        Err(zferror!(ErrorKind::Unimplemented))
     }
     pub(crate) async fn check_source_compatibility(
         &self,
         _source: SourceDescriptor,
     ) -> DaemonResult<bool> {
-        Err(ErrorKind::Unimplemented)
+        Err(zferror!(ErrorKind::Unimplemented))
     }
     pub(crate) async fn check_sink_compatibility(
         &self,
         _sink: SinkDescriptor,
     ) -> DaemonResult<bool> {
-        Err(ErrorKind::Unimplemented)
+        Err(zferror!(ErrorKind::Unimplemented))
     }
 }

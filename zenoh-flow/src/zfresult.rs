@@ -24,19 +24,19 @@ use uuid::Uuid;
 #[macro_export]
 macro_rules! zferror {
     ($kind: expr, $source: expr => $($t: tt)*) => {
-        $crate::zfresult::ZFError::new($kind, $crate::anyhow!($($t)*), file!(), line!()).set_source($source)
+        $crate::zfresult::ZFError::new($kind, $crate::anyhow!($($t)*), file!().to_string(), line!()).set_source($source)
     };
     ($kind: expr, $t: literal) => {
-        $crate::zfresult::ZFError::new($kind, $crate::anyhow!($t), file!(), line!())
+        $crate::zfresult::ZFError::new($kind, $crate::anyhow!($t), file!().to_string(), line!())
     };
     ($kind: expr, $t: expr) => {
-        $crate::zfresult::ZFError::new($kind, $t, file!(), line!())
+        $crate::zfresult::ZFError::new($kind, $t, file!().to_string(), line!())
     };
     ($kind: expr, $($t: tt)*) => {
-        $crate::zfresult::ZFError::new($kind, $crate::anyhow!($($t)*), file!(), line!())
+        $crate::zfresult::ZFError::new($kind, $crate::anyhow!($($t)*), file!().to_string(), line!())
     };
     ($kind: expr) => {
-        $crate::zfresult::ZFError::new($kind, $crate::anyhow!("{:?}", $kind), file!(), line!())
+        $crate::zfresult::ZFError::new($kind, $crate::anyhow!("{:?}", $kind), file!().to_string(), line!())
     };
 }
 
@@ -64,7 +64,7 @@ pub type Error = Box<dyn std::error::Error + Send + Sync + 'static>;
 /// The Zenoh Flow result type.
 pub type ZFResult<T> = Result<T, Error>;
 
-pub type DaemonResult<T> = Result<T, ErrorKind>;
+pub type DaemonResult<T> = Result<T, ZFError>;
 
 /// The Zenoh Flow error
 /// It contains mapping to most of the errors that could happen within
@@ -123,10 +123,12 @@ pub struct ZFError {
     kind: ErrorKind,
     #[serde(skip_serializing, skip_deserializing)]
     error: Option<AnyError>,
-    file: &'static str,
+    desc: Option<String>,
+    file: String,
     line: u32,
     #[serde(skip_serializing, skip_deserializing)]
     source: Option<Error>,
+    source_desc: Option<String>
 }
 
 unsafe impl Send for ZFError {}
@@ -136,24 +138,55 @@ impl ZFError {
     pub fn new<E: Into<AnyError>>(
         kind: ErrorKind,
         error: E,
-        file: &'static str,
+        file: String,
         line: u32,
     ) -> ZFError {
+
+        let error: AnyError = error.into();
+
         ZFError {
             kind,
-            error: Some(error.into()),
+            desc: Some(format!("{error:?}")),
+            error: Some(error),
             file,
             line,
             source: None,
+            source_desc: None
         }
     }
     pub fn set_source<S: Into<Error>>(mut self, source: S) -> Self {
-        self.source = Some(source.into());
+        let source : Error = source.into();
+        self.source_desc = Some(format!("{source:?}"));
+        self.source = Some(source);
         self
     }
 
     pub fn get_kind(&self) -> &ErrorKind {
         &self.kind
+    }
+}
+
+impl std::clone::Clone for ZFError {
+    fn clone(&self) -> Self {
+        ZFError {
+            kind: self.kind.clone(),
+            error: None,
+            desc: self.desc.clone(),
+            file: self.file.clone(),
+            line: self.line.clone(),
+            source: None,
+            source_desc: self.source_desc.clone(),
+        }
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        self.kind = source.kind.clone();
+        self.error = None;
+        self.desc = source.desc.clone();
+        self.file = source.file.clone();
+        self.line = source.line.clone();
+        self.source = None;
+        self.source_desc = self.source_desc.clone();
     }
 }
 
@@ -174,11 +207,11 @@ impl fmt::Display for ZFError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{:?} {:?} at {}:{}.",
-            self.kind, self.error, self.file, self.line
+            "{:?} {:?} at {}:{}. Description: {:?}",
+            self.kind, self.error, self.file, self.line, self.desc
         )?;
         if let Some(s) = &self.source {
-            write!(f, " - Caused by {}", *s)?;
+            write!(f, " - Caused by {} Description {:?}", *s, self.source_desc)?;
         }
         Ok(())
     }

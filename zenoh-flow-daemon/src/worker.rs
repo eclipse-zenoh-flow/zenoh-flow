@@ -20,6 +20,7 @@ use uhlc::HLC;
 
 use zenoh_flow::runtime::JobKind;
 use zenoh_flow::runtime::{worker_pool::WorkerTrait, Job};
+use zenoh_flow::zfresult::ZFError;
 use zenoh_flow::zfresult::ErrorKind;
 use zenoh_flow::Result as ZFResult;
 
@@ -51,7 +52,7 @@ impl Worker {
         }
     }
 
-    async fn store_error(&self, job: &mut Job, e: ErrorKind) -> ZFResult<()> {
+    async fn store_error(&self, job: &mut Job, e: ZFError) -> ZFResult<()> {
         log::error!(
             "[Worker: {}] Got error when running Job: {} - {:?}",
             self.id,
