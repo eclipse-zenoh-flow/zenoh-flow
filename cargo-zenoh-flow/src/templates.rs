@@ -103,7 +103,7 @@ use zenoh_flow::prelude::*;
 pub struct {name};
 
 #[async_trait]
-impl Source for {name}{
+impl Source for {name} \{
    async fn new(
        context: Context,
        configuration: Option<Configuration>,
