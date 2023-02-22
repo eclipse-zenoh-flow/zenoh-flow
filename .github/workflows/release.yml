@@ -261,8 +261,8 @@ jobs:
         shell: bash
         run: |
           TARGET=${{ matrix.job.target }}
-          MAIN_PKG_NAME="${GITHUB_WORKSPACE}/zenoh-${{ needs.checks.outputs.PKG_VERSION }}-${TARGET}.zip"
-          DEBS_PKG_NAME="${GITHUB_WORKSPACE}/zenoh-${{ needs.checks.outputs.PKG_VERSION }}-${TARGET}-deb-pkgs.zip"
+          MAIN_PKG_NAME="${GITHUB_WORKSPACE}/zenoh-flow-${{ needs.checks.outputs.PKG_VERSION }}-${TARGET}.zip"
+          DEBS_PKG_NAME="${GITHUB_WORKSPACE}/zenoh-flow-${{ needs.checks.outputs.PKG_VERSION }}-${TARGET}-deb-pkgs.zip"
 
           case ${TARGET} in
             *linux*)
