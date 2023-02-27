@@ -12,8 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-pub mod runners;
 pub mod builtin;
+pub mod runners;
 
 use self::runners::connector::{ZenohReceiver, ZenohSender};
 use self::runners::Runner;

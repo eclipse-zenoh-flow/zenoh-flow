@@ -12,5 +12,4 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-
 pub mod zenoh;

@@ -12,24 +12,25 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-
+use crate::{
+    bail,
+    prelude::{zferror, Configuration, Context, ErrorKind, Node, OutputRaw, Outputs, Source},
+    Result as ZFResult,
+};
 use async_trait::async_trait;
 use flume::{Receiver, RecvError};
+use futures::future::select_all;
+use std::collections::HashMap;
 use std::sync::Arc;
 use zenoh::{prelude::r#async::*, subscriber::Subscriber};
-use crate::{bail, Result as ZFResult, prelude::{Source, Node, Context, Configuration, Outputs, OutputRaw, zferror, ErrorKind}};
-use std::collections::HashMap;
-use futures::future::select_all;
 // use async_std::sync::Mutex;
-
 
 pub struct ZenohSource<'a> {
     _session: Arc<Session>,
-    outputs: HashMap<String,OutputRaw>,
+    outputs: HashMap<String, OutputRaw>,
     subscribers: HashMap<String, Subscriber<'a, Receiver<Sample>>>,
     // remaining : Arc<Mutex<Vec<RecvFut<'a, Sample>>>>,
 }
-
 
 #[async_trait]
 impl<'a> Source for ZenohSource<'a> {
@@ -38,25 +39,40 @@ impl<'a> Source for ZenohSource<'a> {
         configuration: Option<Configuration>,
         mut outputs: Outputs,
     ) -> ZFResult<Self> {
-
-
-        let mut source_outputs : HashMap<String, OutputRaw> = HashMap::new();
-        let mut subscribers : HashMap<String, Subscriber<'a, Receiver<Sample>>> = HashMap::new();
+        let mut source_outputs: HashMap<String, OutputRaw> = HashMap::new();
+        let mut subscribers: HashMap<String, Subscriber<'a, Receiver<Sample>>> = HashMap::new();
 
         match configuration {
             Some(configuration) => {
                 // let mut config : HashMap<String, String> = HashMap::new();
-                let configuration = configuration.as_object().ok_or(zferror!(ErrorKind::ConfigurationError, "Unable to convert configuration to HashMap: {:?}", configuration))?;
+                let configuration = configuration.as_object().ok_or(zferror!(
+                    ErrorKind::ConfigurationError,
+                    "Unable to convert configuration to HashMap: {:?}",
+                    configuration
+                ))?;
 
                 for (id, value) in configuration {
-                    let ke = value.as_str().ok_or(zferror!(ErrorKind::ConfigurationError, "Unable to value to string: {:?}", value))?.to_string();
+                    let ke = value
+                        .as_str()
+                        .ok_or(zferror!(
+                            ErrorKind::ConfigurationError,
+                            "Unable to value to string: {:?}",
+                            value
+                        ))?
+                        .to_string();
 
-                    let output = outputs.take_raw(id).ok_or(zferror!(ErrorKind::MissingOutput(id.clone()), "Unable to find output: {id}"))?;
-                    let subscriber = context.zenoh_session().declare_subscriber(&ke).res().await?;
+                    let output = outputs.take_raw(id).ok_or(zferror!(
+                        ErrorKind::MissingOutput(id.clone()),
+                        "Unable to find output: {id}"
+                    ))?;
+                    let subscriber = context
+                        .zenoh_session()
+                        .declare_subscriber(&ke)
+                        .res()
+                        .await?;
 
                     subscribers.insert(id.clone(), subscriber);
                     source_outputs.insert(id.clone(), output);
-
                 }
 
                 Ok(ZenohSource {
@@ -65,10 +81,12 @@ impl<'a> Source for ZenohSource<'a> {
                     subscribers,
                     // remaining: Arc::new(Mutex::new(Vec::new())),
                 })
-
-            },
+            }
             None => {
-                bail!(ErrorKind::MissingConfiguration, "Builtin Zenoh source needs a configuration!")
+                bail!(
+                    ErrorKind::MissingConfiguration,
+                    "Builtin Zenoh source needs a configuration!"
+                )
             }
         }
     }
@@ -77,9 +95,10 @@ impl<'a> Source for ZenohSource<'a> {
 #[async_trait]
 impl<'a> Node for ZenohSource<'a> {
     async fn iteration(&self) -> ZFResult<()> {
-
-
-        async fn wait_zenoh_input<'a>(id : String, sub: &'a Subscriber<'a, Receiver<Sample>>) -> (String, Result<Sample, RecvError>) {
+        async fn wait_zenoh_input<'a>(
+            id: String,
+            sub: &'a Subscriber<'a, Receiver<Sample>>,
+        ) -> (String, Result<Sample, RecvError>) {
             (id, sub.recv_async().await)
         }
 
@@ -102,17 +121,21 @@ impl<'a> Node for ZenohSource<'a> {
             (id, Ok(sample)) => {
                 let data = sample.payload.contiguous().to_vec();
                 let ke = sample.key_expr;
-                log::trace!("[ZenohSource] Received data from {ke:?} Len: {} for output: {id}", data.len());
-                let output = self.outputs.get(&id).ok_or(zferror!(ErrorKind::MissingOutput(id), "Unable to find output!"))?;
+                log::trace!(
+                    "[ZenohSource] Received data from {ke:?} Len: {} for output: {id}",
+                    data.len()
+                );
+                let output = self.outputs.get(&id).ok_or(zferror!(
+                    ErrorKind::MissingOutput(id),
+                    "Unable to find output!"
+                ))?;
                 output.send(data, None).await?;
-
-            },
-            (_,Err(e)) => log::error!("[ZenohSource] got error from Zenoh {e:?}"),
+            }
+            (_, Err(e)) => log::error!("[ZenohSource] got error from Zenoh {e:?}"),
         }
 
         // *self.remaining.lock().await = remaining;
 
         Ok(())
-
     }
 }
