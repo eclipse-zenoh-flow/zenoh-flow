@@ -247,7 +247,7 @@ impl Loader {
         log::trace!("[Loader] loading library {:?}", library_path);
 
         #[cfg(target_family = "unix")]
-        let library = Library::open(Some(library_path), LOAD_FLAGS)?;
+        let library = Library::open(Some(library_path.clone()), LOAD_FLAGS)?;
 
         #[cfg(target_family = "windows")]
         let library = Library::new(library_path)?;
@@ -258,7 +258,16 @@ impl Loader {
 
         // version checks to prevent accidental ABI incompatibilities
         if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
-            return Err(zferror!(ErrorKind::VersionMismatch).into());
+            return Err(zferror!(
+                ErrorKind::VersionMismatch,
+                "Library {} rustc expected {} rustc found {} - Zenoh-Flow expected {} Zenoh-Flow found {}",
+                library_path.display(),
+                RUSTC_VERSION,
+                decl.rustc_version,
+                CORE_VERSION,
+                decl.core_version
+            )
+            .into());
         }
 
         Ok((library, decl.constructor))
