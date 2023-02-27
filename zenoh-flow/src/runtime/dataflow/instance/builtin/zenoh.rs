@@ -14,7 +14,11 @@
 
 use crate::{
     bail,
-    prelude::{zferror, Configuration, Context, ErrorKind, Node, OutputRaw, Outputs, Source},
+    prelude::{
+        zferror, Configuration, Context, ErrorKind, InputRaw, Inputs, Node, OutputRaw, Outputs,
+        PortId, Sink, Source,
+    },
+    types::LinkMessage,
     Result as ZFResult,
 };
 use async_trait::async_trait;
@@ -22,13 +26,15 @@ use flume::{Receiver, RecvError};
 use futures::future::select_all;
 use std::collections::HashMap;
 use std::sync::Arc;
-use zenoh::{prelude::r#async::*, subscriber::Subscriber};
+use zenoh::{prelude::r#async::*, publication::Publisher, subscriber::Subscriber};
 // use async_std::sync::Mutex;
+
+// Source
 
 pub struct ZenohSource<'a> {
     _session: Arc<Session>,
-    outputs: HashMap<String, OutputRaw>,
-    subscribers: HashMap<String, Subscriber<'a, Receiver<Sample>>>,
+    outputs: HashMap<PortId, OutputRaw>,
+    subscribers: HashMap<PortId, Subscriber<'a, Receiver<Sample>>>,
     // remaining : Arc<Mutex<Vec<RecvFut<'a, Sample>>>>,
 }
 
@@ -39,8 +45,8 @@ impl<'a> Source for ZenohSource<'a> {
         configuration: Option<Configuration>,
         mut outputs: Outputs,
     ) -> ZFResult<Self> {
-        let mut source_outputs: HashMap<String, OutputRaw> = HashMap::new();
-        let mut subscribers: HashMap<String, Subscriber<'a, Receiver<Sample>>> = HashMap::new();
+        let mut source_outputs: HashMap<PortId, OutputRaw> = HashMap::new();
+        let mut subscribers: HashMap<PortId, Subscriber<'a, Receiver<Sample>>> = HashMap::new();
 
         match configuration {
             Some(configuration) => {
@@ -71,8 +77,8 @@ impl<'a> Source for ZenohSource<'a> {
                         .res()
                         .await?;
 
-                    subscribers.insert(id.clone(), subscriber);
-                    source_outputs.insert(id.clone(), output);
+                    subscribers.insert(id.clone().into(), subscriber);
+                    source_outputs.insert(id.clone().into(), output);
                 }
 
                 Ok(ZenohSource {
@@ -85,7 +91,7 @@ impl<'a> Source for ZenohSource<'a> {
             None => {
                 bail!(
                     ErrorKind::MissingConfiguration,
-                    "Builtin Zenoh source needs a configuration!"
+                    "Builtin ZenohSource needs a configuration!"
                 )
             }
         }
@@ -96,9 +102,9 @@ impl<'a> Source for ZenohSource<'a> {
 impl<'a> Node for ZenohSource<'a> {
     async fn iteration(&self) -> ZFResult<()> {
         async fn wait_zenoh_input<'a>(
-            id: String,
+            id: PortId,
             sub: &'a Subscriber<'a, Receiver<Sample>>,
-        ) -> (String, Result<Sample, RecvError>) {
+        ) -> (PortId, Result<Sample, RecvError>) {
             (id, sub.recv_async().await)
         }
 
@@ -126,12 +132,116 @@ impl<'a> Node for ZenohSource<'a> {
                     data.len()
                 );
                 let output = self.outputs.get(&id).ok_or(zferror!(
-                    ErrorKind::MissingOutput(id),
-                    "Unable to find output!"
+                    ErrorKind::MissingOutput(id.to_string()),
+                    "Unable convert to find output!"
                 ))?;
                 output.send(data, None).await?;
             }
             (_, Err(e)) => log::error!("[ZenohSource] got error from Zenoh {e:?}"),
+        }
+
+        // *self.remaining.lock().await = remaining;
+
+        Ok(())
+    }
+}
+
+// Sink
+
+pub struct ZenohSink<'a> {
+    _session: Arc<Session>,
+    inputs: HashMap<PortId, InputRaw>,
+    publishers: HashMap<PortId, Publisher<'a>>,
+}
+
+#[async_trait]
+impl<'a> Sink for ZenohSink<'a> {
+    async fn new(
+        context: Context,
+        configuration: Option<Configuration>,
+        mut inputs: Inputs,
+    ) -> ZFResult<Self> {
+        let mut sink_inputs: HashMap<PortId, InputRaw> = HashMap::new();
+        let mut publishers: HashMap<PortId, Publisher<'a>> = HashMap::new();
+
+        match configuration {
+            Some(configuration) => {
+                // let mut config : HashMap<String, String> = HashMap::new();
+                let configuration = configuration.as_object().ok_or(zferror!(
+                    ErrorKind::ConfigurationError,
+                    "Unable to convert configuration to HashMap: {:?}",
+                    configuration
+                ))?;
+
+                for (id, value) in configuration {
+                    let ke = value
+                        .as_str()
+                        .ok_or(zferror!(
+                            ErrorKind::ConfigurationError,
+                            "Unable to convert value to string: {:?}",
+                            value
+                        ))?
+                        .to_string();
+
+                    let input = inputs.take_raw(id).ok_or(zferror!(
+                        ErrorKind::MissingOutput(id.clone()),
+                        "Unable to find output: {id}"
+                    ))?;
+                    let subscriber = context.zenoh_session().declare_publisher(ke).res().await?;
+
+                    publishers.insert(id.clone().into(), subscriber);
+                    sink_inputs.insert(id.clone().into(), input);
+                }
+
+                Ok(ZenohSink {
+                    _session: context.zenoh_session(),
+                    inputs: sink_inputs,
+                    publishers,
+                    // remaining: Arc::new(Mutex::new(Vec::new())),
+                })
+            }
+            None => {
+                bail!(
+                    ErrorKind::MissingConfiguration,
+                    "Builtin ZenohSink needs a configuration!"
+                )
+            }
+        }
+    }
+}
+#[async_trait]
+impl<'a> Node for ZenohSink<'a> {
+    async fn iteration(&self) -> ZFResult<()> {
+        let mut futs = vec![];
+
+        async fn wait_flow_input(id: PortId, input: &InputRaw) -> (PortId, ZFResult<LinkMessage>) {
+            (id, input.recv().await)
+        }
+
+        for i in &self.inputs {
+            let (id, input) = i;
+            futs.push(Box::pin(wait_flow_input(id.clone(), input)))
+        }
+
+        // TODO:
+        // Let's get the first one that finished and send the result to the
+        // corresponding output.
+        // The ones that did not finish are stored and used in next
+        // iteration.
+
+        let (done, _index, _remaining) = select_all(futs).await;
+
+        match done {
+            (id, Ok(LinkMessage::Data(mut dm))) => {
+                let data = dm.get_inner_data().try_as_bytes()?;
+                let publisher = self.publishers.get(&id).ok_or(zferror!(
+                    ErrorKind::SendError,
+                    "Unable to find Publisher for {id}"
+                ))?;
+                publisher.put(&**data).res().await?;
+            }
+            (_, Ok(_)) => (), // Not the right message, ignore it.
+            (id, Err(e)) => log::error!("[ZenohSink] got error on link {id}: {e:?}"),
         }
 
         // *self.remaining.lock().await = remaining;
