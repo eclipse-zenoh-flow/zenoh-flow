@@ -361,7 +361,7 @@ impl Loader {
                 URIStruct::File(file_path) => {
                     let (library, constructor) = unsafe {
                         self.load_node_from_file::<OperatorFn>(
-                            NodeSymbol::Source,
+                            NodeSymbol::Operator,
                             file_path,
                             &mut record.configuration,
                         )?
@@ -407,7 +407,7 @@ impl Loader {
                 URIStruct::File(file_path) => {
                     let (library, constructor) = unsafe {
                         self.load_node_from_file::<SinkFn>(
-                            NodeSymbol::Source,
+                            NodeSymbol::Sink,
                             file_path,
                             &mut record.configuration,
                         )?
