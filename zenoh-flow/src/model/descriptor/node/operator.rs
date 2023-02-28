@@ -206,12 +206,14 @@ impl CompositeOperatorDescriptor {
         self.configuration = global_configuration.merge_overwrite(self.configuration);
 
         for o in self.operators {
+            let description = o.try_load_descriptor().await?;
+
             let NodeDescriptor {
                 id: operator_id,
                 descriptor,
                 configuration,
             } = o;
-            let description = super::try_load_descriptor(&descriptor).await?;
+
             let configuration = self.configuration.clone().merge_overwrite(configuration);
 
             let res_simple = OperatorDescriptor::from_yaml(&description);

@@ -12,8 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::model::registry::NodeKind;
+use crate::model::{Middleware, URIStruct};
 use crate::prelude::ErrorKind;
-use crate::runtime::dataflow::loader::{Middleware, NodeSymbol, URIStruct};
 use crate::{bail, zferror, Result};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -50,7 +51,7 @@ pub(crate) fn parse_uri(url_str: &str) -> Result<URIStruct> {
                 bail!(ErrorKind::ParsingError, "{uri_path} does not match the `builtin://` struture: <middleware>/[source|sink]");
             }
             let mw = Middleware::from_str(chunks[0])?;
-            let kind = NodeSymbol::from_str(chunks[1])?;
+            let kind = NodeKind::from_str(chunks[1])?;
             Ok(URIStruct::Builtin(mw, kind))
         }
         _ => {

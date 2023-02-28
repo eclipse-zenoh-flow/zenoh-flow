@@ -18,14 +18,14 @@ use super::node::{
     SourceFn,
 };
 use crate::model::record::{OperatorRecord, SinkRecord, SourceRecord};
+use crate::model::{Middleware, URIStruct};
 use crate::types::Configuration;
 use crate::utils::parse_uri;
-use crate::zfresult::{ErrorKind, ZFError};
+use crate::zfresult::ErrorKind;
 use crate::Result;
 use crate::{bail, zferror};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::sync::Arc;
 
 #[cfg(target_family = "unix")]
@@ -48,53 +48,11 @@ pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 pub static EXT_FILE_EXTENSION: &str = "zfext";
 
-/// The middleware used for the builtin sources and sink.
-#[derive(Debug)]
-pub(crate) enum Middleware {
-    Zenoh,
-}
-
-impl FromStr for Middleware {
-    type Err = ZFError;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let s = s.to_lowercase();
-        if s == "zenoh" {
-            return Ok(Self::Zenoh);
-        }
-        bail!(ErrorKind::ParsingError, "{s} is not a valid middleware!")
-    }
-}
-
-#[derive(Debug)]
-/// Zenoh-Flow's custom URI struct used for loading nodes.
-pub(crate) enum URIStruct {
-    File(PathBuf),
-    Builtin(Middleware, NodeSymbol),
-}
-
-#[derive(Debug)]
 /// NodeSymbol groups the symbol we must find in the shared library we load.
 pub(crate) enum NodeSymbol {
     Source,
     Operator,
     Sink,
-}
-
-impl FromStr for NodeSymbol {
-    type Err = ZFError;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let s = s.to_lowercase();
-        if s == "source" {
-            return Ok(Self::Source);
-        } else if s == "sink" {
-            return Ok(Self::Sink);
-        } else if s == "operator" {
-            return Ok(Self::Operator);
-        }
-        bail!(ErrorKind::ParsingError, "{s} is not a valid node kind!")
-    }
 }
 
 impl NodeSymbol {

@@ -13,18 +13,25 @@
 //
 
 pub mod operator;
+
 pub use operator::{CompositeOperatorDescriptor, OperatorDescriptor};
+use std::path::PathBuf;
 pub mod sink;
 pub use sink::SinkDescriptor;
 pub mod source;
 pub use source::SourceDescriptor;
 
 use crate::model::descriptor::{LinkDescriptor, Vars};
+use crate::model::registry::NodeKind;
+use crate::model::{Middleware, URIStruct};
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId};
+use crate::utils::parse_uri;
 use crate::zfresult::ErrorKind;
 use crate::{bail, zferror, Result};
 use serde::{Deserialize, Serialize};
+
+use super::PortDescriptor;
 
 /// Describes an node of the graph
 ///
@@ -101,7 +108,7 @@ impl NodeDescriptor {
         global_configuration: Option<Configuration>,
         ancestors: &mut Vec<String>,
     ) -> Result<Vec<OperatorDescriptor>> {
-        let descriptor = try_load_descriptor(&self.descriptor).await?;
+        let descriptor = self.try_load_descriptor().await?;
 
         // We try to load the descriptor, first we try as simple one, if it fails we try as a
         // composite one, if that also fails it is malformed.
@@ -154,7 +161,7 @@ impl NodeDescriptor {
         self,
         global_configuration: Option<Configuration>,
     ) -> Result<SourceDescriptor> {
-        let descriptor = try_load_descriptor(&self.descriptor).await?;
+        let descriptor = self.try_load_descriptor().await?;
 
         log::trace!("Loading source {}", self.descriptor);
 
@@ -181,7 +188,7 @@ impl NodeDescriptor {
         self,
         global_configuration: Option<Configuration>,
     ) -> Result<SinkDescriptor> {
-        let descriptor = try_load_descriptor(&self.descriptor).await?;
+        let descriptor = self.try_load_descriptor().await?;
         log::trace!("Loading sink {}", self.descriptor);
 
         // We try to load the descriptor, first we try as simple one, if it fails
@@ -198,20 +205,115 @@ impl NodeDescriptor {
             }
         }
     }
+
+    /// Attempt to asynchronously read the `descriptor_url`.
+    ///
+    /// This function will also expand the mustache notations present (if there are any).
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error in the following situations:
+    /// - The provided `descriptor_url` is incorrect, i.e. not mathching Zenoh-Flow URI structure
+    /// - The content of the file could not be read. If `file://`.
+    /// - The URI struct does not match `<middleware>/[source|sink]` If `builtin://`
+    async fn try_load_descriptor(&self) -> Result<String> {
+        match parse_uri(&self.descriptor)? {
+            URIStruct::File(path) => try_load_descriptor_from_file(path).await,
+            URIStruct::Builtin(mw, kind) => make_builtin_descriptor(mw, kind, &self.configuration),
+        }
+    }
 }
 
-/// Attempt to asynchronously read the content of the file pointed at by the `descriptor_url`.
+/// Attempt to asynchronously read the content of the file pointed at by the `descriptor_path`.
 ///
 /// This function will also expand the mustache notations present (if there are any).
 ///
 /// # Errors
 ///
 /// This function will return an error in the following situations:
-/// - The provided `descriptor_url` is incorrect, i.e. the call to `make_file_path` returned an
-///   error.
+/// - The provided `descriptor_path` is incorrect, i.e. the file does not exists.
 /// - The content of the file could not be read.
-async fn try_load_descriptor(descriptor_url: &str) -> Result<String> {
-    let path = crate::utils::try_make_file_path(descriptor_url)?;
-    let data = async_std::fs::read_to_string(&path).await?;
+async fn try_load_descriptor_from_file(descriptor_path: PathBuf) -> Result<String> {
+    let data = async_std::fs::read_to_string(&descriptor_path).await?;
     Vars::expand_mustache_yaml(&data)
+}
+
+fn make_builtin_descriptor(
+    mw: Middleware,
+    kind: NodeKind,
+    configuration: &Option<Configuration>,
+) -> Result<String> {
+    match mw {
+        Middleware::Zenoh => match kind {
+            NodeKind::Operator => bail!(
+                ErrorKind::Unimplemented,
+                "Zenoh builtin nodes can only be Source or Sink"
+            ),
+            NodeKind::Sink => {
+                let mut desc = SinkDescriptor {
+                    id: "temp-sinks".into(),
+                    inputs: vec![],
+                    uri: format!("builtin://{}/{}", mw.to_string(), kind.to_string()).into(),
+                    configuration: configuration.clone(),
+                };
+                match configuration {
+                    Some(configuration) => {
+                        let configuration = configuration.as_object().ok_or(zferror!(
+                            ErrorKind::ConfigurationError,
+                            "Unable to convert configuration to HashMap: {:?}",
+                            configuration
+                        ))?;
+                        for id in configuration.keys() {
+                            let port_descriptor = PortDescriptor {
+                                port_id: id.clone().into(),
+                                port_type: "_any_".into(),
+                            };
+                            desc.inputs.push(port_descriptor);
+                        }
+                    }
+                    None => {
+                        bail!(
+                            ErrorKind::MissingConfiguration,
+                            "Builtin Zenoh Sink needs a configuration!"
+                        )
+                    }
+                }
+
+                Ok(desc.to_yaml()?)
+            }
+            NodeKind::Source => {
+                let mut desc = SourceDescriptor {
+                    id: "temp-source".into(),
+                    outputs: vec![],
+                    uri: format!("builtin://{}/{}", mw.to_string(), kind.to_string()).into(),
+                    configuration: configuration.clone(),
+                };
+
+                match configuration {
+                    Some(configuration) => {
+                        let configuration = configuration.as_object().ok_or(zferror!(
+                            ErrorKind::ConfigurationError,
+                            "Unable to convert configuration to HashMap: {:?}",
+                            configuration
+                        ))?;
+                        for id in configuration.keys() {
+                            let port_descriptor = PortDescriptor {
+                                port_id: id.clone().into(),
+                                port_type: "_any_".into(),
+                            };
+                            desc.outputs.push(port_descriptor);
+                        }
+                    }
+                    None => {
+                        bail!(
+                            ErrorKind::MissingConfiguration,
+                            "Builtin Zenoh Source needs a configuration!"
+                        )
+                    }
+                }
+
+                Ok(desc.to_yaml()?)
+            }
+        },
+    }
 }
