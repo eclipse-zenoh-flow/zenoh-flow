@@ -238,6 +238,14 @@ async fn try_load_descriptor_from_file(descriptor_path: PathBuf) -> Result<Strin
     Vars::expand_mustache_yaml(&data)
 }
 
+/// This functions generates the string representation of a descriptor for
+/// builtin nodes.
+///
+/// # Errors
+///
+/// This function will return an error in the following situation:
+/// - The builtin node is not supported. So far only `builtin://zenoh/[source|sink]`
+/// are supported.
 fn make_builtin_descriptor(
     mw: Middleware,
     kind: NodeKind,
