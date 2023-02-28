@@ -18,6 +18,10 @@ use crate::{
         zferror, Configuration, Context, ErrorKind, InputRaw, Inputs, Node, OutputRaw, Outputs,
         PortId, Sink, Source,
     },
+    runtime::dataflow::{
+        loader::{NodeDeclaration, CORE_VERSION, RUSTC_VERSION},
+        node::{SinkFn, SourceFn},
+    },
     types::LinkMessage,
     Result as ZFResult,
 };
@@ -29,13 +33,33 @@ use std::sync::Arc;
 use zenoh::{prelude::r#async::*, publication::Publisher, subscriber::Subscriber};
 // use async_std::sync::Mutex;
 
-// Source
-
+/// The builtin Zenoh Source
+/// It can subscribe to multiple KEs and can have multiple outputs
+/// It expects a configuration in the format
+///
+/// <output_id> : <key expression>
+/// <output_id> : <key expression>
+///
+/// It espects the outpyt defined in the configuration to be connected.
 pub struct ZenohSource<'a> {
     _session: Arc<Session>,
     outputs: HashMap<PortId, OutputRaw>,
     subscribers: HashMap<PortId, Subscriber<'a, Receiver<Sample>>>,
     // remaining : Arc<Mutex<Vec<RecvFut<'a, Sample>>>>,
+}
+
+/// Private function to retrieve the "Constructor" for the ZenohSource
+pub(crate) fn get_zenoh_source_declaration() -> NodeDeclaration<SourceFn> {
+    NodeDeclaration::<SourceFn> {
+        rustc_version: RUSTC_VERSION,
+        core_version: CORE_VERSION,
+        constructor: |context: Context, configuration: Option<Configuration>, outputs: Outputs| {
+            Box::pin(async {
+                let node = ZenohSource::new(context, configuration, outputs).await?;
+                Ok(Arc::new(node) as Arc<dyn Node>)
+            })
+        },
+    }
 }
 
 #[async_trait]
@@ -137,7 +161,7 @@ impl<'a> Node for ZenohSource<'a> {
                 ))?;
                 output.send(data, None).await?;
             }
-            (_, Err(e)) => log::error!("[ZenohSource] got error from Zenoh {e:?}"),
+            (id, Err(e)) => log::error!("[ZenohSource] got a Zenoh error from output {id} : {e:?}"),
         }
 
         // *self.remaining.lock().await = remaining;
@@ -146,12 +170,32 @@ impl<'a> Node for ZenohSource<'a> {
     }
 }
 
-// Sink
-
+/// The builtin Zenoh Sink
+/// It can publish to multiple KEs and can have multiple outputs
+/// It expects a configuration in the format
+///
+/// <input_id> : <key expression>
+/// <input_id> : <key expression>
+///
+/// It espects the input defined in the configuration to be connected.
 pub struct ZenohSink<'a> {
     _session: Arc<Session>,
     inputs: HashMap<PortId, InputRaw>,
     publishers: HashMap<PortId, Publisher<'a>>,
+}
+
+/// Private function to retrieve the "Constructor" for the ZenohSink
+pub(crate) fn get_zenoh_sink_declaration() -> NodeDeclaration<SinkFn> {
+    NodeDeclaration::<SinkFn> {
+        rustc_version: RUSTC_VERSION,
+        core_version: CORE_VERSION,
+        constructor: |context: Context, configuration: Option<Configuration>, inputs: Inputs| {
+            Box::pin(async {
+                let node = ZenohSink::new(context, configuration, inputs).await?;
+                Ok(Arc::new(node) as Arc<dyn Node>)
+            })
+        },
+    }
 }
 
 #[async_trait]
