@@ -24,6 +24,9 @@ pub use source::SourceDescriptor;
 use crate::model::descriptor::{LinkDescriptor, Vars};
 use crate::model::registry::NodeKind;
 use crate::model::{Middleware, URIStruct};
+use crate::runtime::dataflow::instance::builtin::zenoh::{
+    get_zenoh_sink_descriptor, get_zenoh_source_descriptor,
+};
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId};
 use crate::utils::parse_uri;
@@ -263,81 +266,24 @@ fn make_builtin_descriptor<T: LoadedNode>(
                 ErrorKind::Unimplemented,
                 "Zenoh builtin nodes can only be Source or Sink"
             ),
-            NodeKind::Sink => {
-                let mut inputs = vec![];
-                match configuration {
-                    Some(configuration) => {
-                        let configuration = configuration.as_object().ok_or(zferror!(
-                            ErrorKind::ConfigurationError,
-                            "Unable to convert configuration to HashMap: {:?}",
-                            configuration
-                        ))?;
-                        for id in configuration.keys() {
-                            let port_descriptor = PortDescriptor {
-                                port_id: id.clone().into(),
-                                port_type: "_any_".into(),
-                            };
-                            inputs.push(port_descriptor);
-                        }
-                    }
-                    None => {
-                        bail!(
-                            ErrorKind::MissingConfiguration,
-                            "Builtin Zenoh Sink needs a configuration!"
-                        )
-                    }
+            NodeKind::Sink => match configuration {
+                Some(configuration) => get_zenoh_sink_descriptor::<T>(configuration),
+                None => {
+                    bail!(
+                        ErrorKind::MissingConfiguration,
+                        "Builtin Zenoh Sink needs a configuration!"
+                    )
                 }
-
-                T::from_parameters(
-                    "temp-sink".into(),
-                    configuration.clone(),
-                    format!("builtin://{}/{}", mw.to_string(), kind.to_string()).into(),
-                    Some(inputs),
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                )
-            }
-            NodeKind::Source => {
-                let mut outputs = vec![];
-
-                match configuration {
-                    Some(configuration) => {
-                        let configuration = configuration.as_object().ok_or(zferror!(
-                            ErrorKind::ConfigurationError,
-                            "Unable to convert configuration to HashMap: {:?}",
-                            configuration
-                        ))?;
-                        for id in configuration.keys() {
-                            let port_descriptor = PortDescriptor {
-                                port_id: id.clone().into(),
-                                port_type: "_any_".into(),
-                            };
-                            outputs.push(port_descriptor);
-                        }
-                    }
-                    None => {
-                        bail!(
-                            ErrorKind::MissingConfiguration,
-                            "Builtin Zenoh Source needs a configuration!"
-                        )
-                    }
+            },
+            NodeKind::Source => match configuration {
+                Some(configuration) => get_zenoh_source_descriptor::<T>(configuration),
+                None => {
+                    bail!(
+                        ErrorKind::MissingConfiguration,
+                        "Builtin Zenoh Source needs a configuration!"
+                    )
                 }
-
-                T::from_parameters(
-                    "temp-source".into(),
-                    configuration.clone(),
-                    format!("builtin://{}/{}", mw.to_string(), kind.to_string()).into(),
-                    None,
-                    Some(outputs),
-                    None,
-                    None,
-                    None,
-                    None,
-                )
-            }
+            },
         },
     }
 }
