@@ -31,7 +31,7 @@ use crate::zfresult::ErrorKind;
 use crate::{bail, zferror, Result};
 use serde::{Deserialize, Serialize};
 
-use super::PortDescriptor;
+use super::{CompositeInputDescriptor, CompositeOutputDescriptor, LoadedNode, PortDescriptor};
 
 /// Describes an node of the graph
 ///
@@ -58,43 +58,68 @@ impl std::fmt::Display for NodeDescriptor {
     }
 }
 
-impl NodeDescriptor {
-    /// Creates a new `NodeDescriptor` from its YAML representation.
-    ///
-    ///  # Errors
-    /// A variant error is returned if deserialization fails.
-    pub fn from_yaml(data: &str) -> Result<Self> {
+impl LoadedNode for NodeDescriptor {
+    fn from_parameters(
+        id: NodeId,
+        configuration: Option<Configuration>,
+        uri: Option<String>,
+        _inputs: Option<Vec<PortDescriptor>>,
+        _outputs: Option<Vec<PortDescriptor>>,
+        _operators: Option<Vec<NodeDescriptor>>,
+        _links: Option<Vec<LinkDescriptor>>,
+        _composite_inputs: Option<Vec<CompositeInputDescriptor>>,
+        _compisite_outpus: Option<Vec<CompositeOutputDescriptor>>,
+    ) -> Result<Self> {
+        match uri {
+                Some(descriptor) =>{
+                    Ok(Self{
+                        id,
+                        configuration,
+                        descriptor,
+                    })
+                },
+                _ => bail!(ErrorKind::InvalidData, "Creating a NodeDescriptor requires: id, configuration, and uri. Maybe some parameters are set as None?")
+            }
+    }
+
+    fn get_id(&self) -> &NodeId {
+        &self.id
+    }
+
+    fn set_id(&mut self, id: NodeId) {
+        self.id = id
+    }
+
+    fn get_configuration(&self) -> &Option<Configuration> {
+        &self.configuration
+    }
+
+    fn set_configuration(&mut self, configuration: Option<Configuration>) {
+        self.configuration = configuration
+    }
+
+    fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<NodeDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
-    /// Creates a new `NodeDescriptor` from its JSON representation.
-    ///
-    ///  # Errors
-    /// A variant error is returned if deserialization fails.
-    pub fn from_json(data: &str) -> Result<Self> {
+    fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<NodeDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
-    /// Returns the JSON representation of the `NodeDescriptor`.
-    ///
-    ///  # Errors
-    /// A variant error is returned if serialization fails.
-    pub fn to_json(&self) -> Result<String> {
+    fn to_json(&self) -> Result<String> {
         serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
-    /// Returns the YAML representation of the `NodeDescriptor`.
-    ///
-    ///  # Errors
-    /// A variant error is returned if serialization fails.
-    pub fn to_yaml(&self) -> Result<String> {
+    fn to_yaml(&self) -> Result<String> {
         serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
+}
 
+impl NodeDescriptor {
     /// Flattens the `NodeDescriptor` by loading all the composite operators
     ///
     /// # Errors
@@ -108,20 +133,22 @@ impl NodeDescriptor {
         global_configuration: Option<Configuration>,
         ancestors: &mut Vec<String>,
     ) -> Result<Vec<OperatorDescriptor>> {
-        let descriptor = self.try_load_descriptor().await?;
+        // let descriptor = self.try_load_self().await?;
 
         // We try to load the descriptor, first we try as simple one, if it fails we try as a
         // composite one, if that also fails it is malformed.
-        let res_simple = OperatorDescriptor::from_yaml(&descriptor);
+        let res_simple = self.try_load_self::<OperatorDescriptor>().await; //OperatorDescriptor::from_yaml(&descriptor);
         if let Ok(mut simple_operator) = res_simple {
-            simple_operator.configuration = global_configuration
-                .clone()
-                .merge_overwrite(simple_operator.configuration);
+            simple_operator.set_configuration(
+                global_configuration
+                    .clone()
+                    .merge_overwrite(simple_operator.configuration.clone()),
+            );
             simple_operator.id = id;
             return Ok(vec![simple_operator]);
         }
 
-        let res_composite = CompositeOperatorDescriptor::from_yaml(&descriptor);
+        let res_composite = self.try_load_self::<CompositeOperatorDescriptor>().await; //CompositeOperatorDescriptor::from_yaml(&descriptor);
         if let Ok(composite_operator) = res_composite {
             if let Ok(index) = ancestors.binary_search(&self.descriptor) {
                 bail!(
@@ -161,21 +188,10 @@ impl NodeDescriptor {
         self,
         global_configuration: Option<Configuration>,
     ) -> Result<SourceDescriptor> {
-        let descriptor = self.try_load_descriptor().await?;
-
-        log::trace!("Loading source {}", self.descriptor);
-
-        match SourceDescriptor::from_yaml(&descriptor) {
-            Ok(mut desc) => {
-                desc.id = self.id;
-                desc.configuration = global_configuration.merge_overwrite(desc.configuration);
-                Ok(desc)
-            }
-            Err(e) => {
-                log::warn!("Unable to flatten {}, error {}", self.id, e);
-                Err(e)
-            }
-        }
+        let mut desc = self.try_load_self::<SourceDescriptor>().await?;
+        desc.set_id(self.id);
+        desc.set_configuration(global_configuration.merge_overwrite(desc.configuration.clone()));
+        Ok(desc)
     }
 
     /// Loads the sink from the `NodeDescriptor`
@@ -188,22 +204,10 @@ impl NodeDescriptor {
         self,
         global_configuration: Option<Configuration>,
     ) -> Result<SinkDescriptor> {
-        let descriptor = self.try_load_descriptor().await?;
-        log::trace!("Loading sink {}", self.descriptor);
-
-        // We try to load the descriptor, first we try as simple one, if it fails
-        // we try as a composite one, if that also fails it is malformed.
-        match SinkDescriptor::from_yaml(&descriptor) {
-            Ok(mut desc) => {
-                desc.id = self.id;
-                desc.configuration = global_configuration.merge_overwrite(desc.configuration);
-                Ok(desc)
-            }
-            Err(e) => {
-                log::warn!("Unable to flatten {}, error {}", self.id, e);
-                Err(e)
-            }
-        }
+        let mut desc = self.try_load_self::<SinkDescriptor>().await?;
+        desc.set_id(self.id);
+        desc.set_configuration(global_configuration.merge_overwrite(desc.configuration.clone()));
+        Ok(desc)
     }
 
     /// Attempt to asynchronously read the `descriptor_url`.
@@ -216,10 +220,12 @@ impl NodeDescriptor {
     /// - The provided `descriptor_url` is incorrect, i.e. not mathching Zenoh-Flow URI structure
     /// - The content of the file could not be read. If `file://`.
     /// - The URI struct does not match `<middleware>/[source|sink]` If `builtin://`
-    async fn try_load_descriptor(&self) -> Result<String> {
+    async fn try_load_self<T: LoadedNode>(&self) -> Result<T> {
         match parse_uri(&self.descriptor)? {
-            URIStruct::File(path) => try_load_descriptor_from_file(path).await,
-            URIStruct::Builtin(mw, kind) => make_builtin_descriptor(mw, kind, &self.configuration),
+            URIStruct::File(path) => try_load_descriptor_from_file::<T>(path).await,
+            URIStruct::Builtin(mw, kind) => {
+                make_builtin_descriptor::<T>(mw, kind, &self.configuration)
+            }
         }
     }
 }
@@ -233,9 +239,9 @@ impl NodeDescriptor {
 /// This function will return an error in the following situations:
 /// - The provided `descriptor_path` is incorrect, i.e. the file does not exists.
 /// - The content of the file could not be read.
-async fn try_load_descriptor_from_file(descriptor_path: PathBuf) -> Result<String> {
+async fn try_load_descriptor_from_file<T: LoadedNode>(descriptor_path: PathBuf) -> Result<T> {
     let data = async_std::fs::read_to_string(&descriptor_path).await?;
-    Vars::expand_mustache_yaml(&data)
+    T::from_yaml(&Vars::expand_mustache_yaml(&data)?)
 }
 
 /// This functions generates the string representation of a descriptor for
@@ -246,11 +252,11 @@ async fn try_load_descriptor_from_file(descriptor_path: PathBuf) -> Result<Strin
 /// This function will return an error in the following situation:
 /// - The builtin node is not supported. So far only `builtin://zenoh/[source|sink]`
 /// are supported.
-fn make_builtin_descriptor(
+fn make_builtin_descriptor<T: LoadedNode>(
     mw: Middleware,
     kind: NodeKind,
     configuration: &Option<Configuration>,
-) -> Result<String> {
+) -> Result<T> {
     match mw {
         Middleware::Zenoh => match kind {
             NodeKind::Operator => bail!(
@@ -258,12 +264,7 @@ fn make_builtin_descriptor(
                 "Zenoh builtin nodes can only be Source or Sink"
             ),
             NodeKind::Sink => {
-                let mut desc = SinkDescriptor {
-                    id: "temp-sinks".into(),
-                    inputs: vec![],
-                    uri: format!("builtin://{}/{}", mw.to_string(), kind.to_string()).into(),
-                    configuration: configuration.clone(),
-                };
+                let mut inputs = vec![];
                 match configuration {
                     Some(configuration) => {
                         let configuration = configuration.as_object().ok_or(zferror!(
@@ -276,7 +277,7 @@ fn make_builtin_descriptor(
                                 port_id: id.clone().into(),
                                 port_type: "_any_".into(),
                             };
-                            desc.inputs.push(port_descriptor);
+                            inputs.push(port_descriptor);
                         }
                     }
                     None => {
@@ -287,15 +288,20 @@ fn make_builtin_descriptor(
                     }
                 }
 
-                Ok(desc.to_yaml()?)
+                T::from_parameters(
+                    "temp-sink".into(),
+                    configuration.clone(),
+                    format!("builtin://{}/{}", mw.to_string(), kind.to_string()).into(),
+                    Some(inputs),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
             }
             NodeKind::Source => {
-                let mut desc = SourceDescriptor {
-                    id: "temp-source".into(),
-                    outputs: vec![],
-                    uri: format!("builtin://{}/{}", mw.to_string(), kind.to_string()).into(),
-                    configuration: configuration.clone(),
-                };
+                let mut outputs = vec![];
 
                 match configuration {
                     Some(configuration) => {
@@ -309,7 +315,7 @@ fn make_builtin_descriptor(
                                 port_id: id.clone().into(),
                                 port_type: "_any_".into(),
                             };
-                            desc.outputs.push(port_descriptor);
+                            outputs.push(port_descriptor);
                         }
                     }
                     None => {
@@ -320,7 +326,17 @@ fn make_builtin_descriptor(
                     }
                 }
 
-                Ok(desc.to_yaml()?)
+                T::from_parameters(
+                    "temp-source".into(),
+                    configuration.clone(),
+                    format!("builtin://{}/{}", mw.to_string(), kind.to_string()).into(),
+                    None,
+                    Some(outputs),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
             }
         },
     }

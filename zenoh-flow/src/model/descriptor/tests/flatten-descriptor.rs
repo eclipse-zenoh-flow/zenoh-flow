@@ -14,9 +14,12 @@
 
 use serde_json::json;
 
-use crate::model::descriptor::{
-    DataFlowDescriptor, InputDescriptor, LinkDescriptor, OperatorDescriptor, OutputDescriptor,
-    PortDescriptor, SinkDescriptor, SourceDescriptor,
+use crate::{
+    model::descriptor::{
+        DataFlowDescriptor, InputDescriptor, LinkDescriptor, OperatorDescriptor, OutputDescriptor,
+        PortDescriptor, SinkDescriptor, SourceDescriptor,
+    },
+    prelude::NodeId,
 };
 use std::{
     fs::File,
@@ -84,12 +87,17 @@ fn test_flatten_descriptor() {
     expected_sources.iter().for_each(|expected_source| {
         assert!(
             flatten.sources.contains(expected_source),
-            "Source missing or incorrect: \n\n (expected) {:?} \n\n {:?}",
+            "Source missing or incorrect: \n\n (expected) {:?} \n\n {:?}\n Found: {:?}\n",
             expected_source,
             flatten
                 .sources
                 .iter()
-                .find(|source| source.id == expected_source.id)
+                .find(|source| source.id == expected_source.id),
+            flatten
+                .sources
+                .iter()
+                .map(|source| source.id.clone())
+                .collect::<Vec<NodeId>>(),
         )
     });
     assert_eq!(expected_sources.len(), flatten.sources.len());

@@ -14,7 +14,7 @@
 
 use crate::model::descriptor::link::{CompositeInputDescriptor, CompositeOutputDescriptor};
 use crate::model::descriptor::node::NodeDescriptor;
-use crate::model::descriptor::{LinkDescriptor, PortDescriptor};
+use crate::model::descriptor::{LinkDescriptor, LoadedNode, PortDescriptor};
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId};
 use crate::zfresult::{ErrorKind, ZFResult as Result};
@@ -57,40 +57,65 @@ impl std::fmt::Display for OperatorDescriptor {
     }
 }
 
-impl OperatorDescriptor {
-    /// Creates a new `OperatorDescriptor` from its YAML representation.
-    ///
-    ///  # Errors
-    /// A variant error is returned if deserialization fails.
-    pub fn from_yaml(data: &str) -> Result<Self> {
+impl LoadedNode for OperatorDescriptor {
+    fn from_parameters(
+        id: NodeId,
+        configuration: Option<Configuration>,
+        uri: Option<String>,
+        inputs: Option<Vec<PortDescriptor>>,
+        outputs: Option<Vec<PortDescriptor>>,
+        _operators: Option<Vec<NodeDescriptor>>,
+        _links: Option<Vec<LinkDescriptor>>,
+        _composite_inputs: Option<Vec<CompositeInputDescriptor>>,
+        _compisite_outpus: Option<Vec<CompositeOutputDescriptor>>,
+    ) -> Result<Self> {
+        match (inputs, outputs) {
+            (Some(inputs),Some(outputs)) =>{
+                Ok(Self{
+                    id,
+                    configuration,
+                    uri,
+                    inputs,
+                    outputs,
+                })
+            },
+            _ => bail!(ErrorKind::InvalidData, "Creating a OperatorDescriptor requires: id, configuration, uri, inputs and outputs. Maybe some parameters are set as None?")
+        }
+    }
+
+    fn get_id(&self) -> &NodeId {
+        &self.id
+    }
+
+    fn set_id(&mut self, id: NodeId) {
+        self.id = id
+    }
+
+    fn get_configuration(&self) -> &Option<Configuration> {
+        &self.configuration
+    }
+
+    fn set_configuration(&mut self, configuration: Option<Configuration>) {
+        self.configuration = configuration
+    }
+
+    fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<OperatorDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
 
-    /// Creates a new `OperatorDescriptor` from its JSON representation.
-    ///
-    ///  # Errors
-    /// A variant error is returned if deserialization fails.
-    pub fn from_json(data: &str) -> Result<Self> {
+    fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<OperatorDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
     }
-
-    /// Returns the JSON representation of the `OperatorDescriptor`.
-    ///
-    ///  # Errors
-    /// A variant error is returned if serialization fails.
-    pub fn to_json(&self) -> Result<String> {
+    fn to_json(&self) -> Result<String> {
         serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
-    /// Returns the YAML representation of the `OperatorDescriptor`.
-    ///
-    ///  # Errors
     /// A variant error is returned if serialization fails.
-    pub fn to_yaml(&self) -> Result<String> {
+    fn to_yaml(&self) -> Result<String> {
         serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 }
@@ -153,42 +178,6 @@ impl std::fmt::Display for CompositeOperatorDescriptor {
 }
 
 impl CompositeOperatorDescriptor {
-    /// Creates a new `CompositeOperatorDescriptor` from its YAML representation.
-    ///
-    ///  # Errors
-    /// A variant error is returned if deserialization fails.
-    pub fn from_yaml(data: &str) -> Result<Self> {
-        let dataflow_descriptor = serde_yaml::from_str::<CompositeOperatorDescriptor>(data)
-            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
-        Ok(dataflow_descriptor)
-    }
-
-    /// Creates a new `CompositeOperatorDescriptor` from its JSON representation.
-    ///
-    ///  # Errors
-    /// A variant error is returned if deserialization fails.
-    pub fn from_json(data: &str) -> Result<Self> {
-        let dataflow_descriptor = serde_json::from_str::<CompositeOperatorDescriptor>(data)
-            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
-        Ok(dataflow_descriptor)
-    }
-
-    /// Returns the JSON representation of the `CompositeOperatorDescriptor`.
-    ///
-    ///  # Errors
-    /// A variant error is returned if serialization fails.
-    pub fn to_json(&self) -> Result<String> {
-        serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
-    }
-
-    /// Returns the YAML representation of the `CompositeOperatorDescriptor`.
-    ///
-    ///  # Errors
-    /// A variant error is returned if serialization fails.
-    pub fn to_yaml(&self) -> Result<String> {
-        serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
-    }
-
     /// Flattens the `CompositeOperatorDescriptor` by loading all the composite operators
     ///
     ///  # Errors
@@ -206,17 +195,15 @@ impl CompositeOperatorDescriptor {
         self.configuration = global_configuration.merge_overwrite(self.configuration);
 
         for o in self.operators {
-            let description = o.try_load_descriptor().await?;
-
             let NodeDescriptor {
                 id: operator_id,
                 descriptor,
                 configuration,
-            } = o;
+            } = o.clone();
 
             let configuration = self.configuration.clone().merge_overwrite(configuration);
 
-            let res_simple = OperatorDescriptor::from_yaml(&description);
+            let res_simple = o.try_load_self::<OperatorDescriptor>().await; //OperatorDescriptor::from_yaml(&description);
             if let Ok(mut simple_operator) = res_simple {
                 let new_id: NodeId = format!("{composite_id}/{operator_id}").into();
 
@@ -279,7 +266,7 @@ impl CompositeOperatorDescriptor {
                 continue;
             }
 
-            let res_composite = CompositeOperatorDescriptor::from_yaml(&description);
+            let res_composite = o.try_load_self::<CompositeOperatorDescriptor>().await; //CompositeOperatorDescriptor::from_yaml(&description);
             if let Ok(composite_operator) = res_composite {
                 if let Ok(index) = ancestors.binary_search(&descriptor) {
                     bail!(
@@ -336,6 +323,70 @@ impl CompositeOperatorDescriptor {
         links.append(&mut self.links);
 
         Ok(simple_operators)
+    }
+}
+
+impl LoadedNode for CompositeOperatorDescriptor {
+    fn from_parameters(
+        id: NodeId,
+        configuration: Option<Configuration>,
+        _uri: Option<String>,
+        _inputs: Option<Vec<PortDescriptor>>,
+        _outputs: Option<Vec<PortDescriptor>>,
+        operators: Option<Vec<NodeDescriptor>>,
+        links: Option<Vec<LinkDescriptor>>,
+        composite_inputs: Option<Vec<CompositeInputDescriptor>>,
+        compisite_outpus: Option<Vec<CompositeOutputDescriptor>>,
+    ) -> Result<Self> {
+        match (operators, links, composite_inputs, compisite_outpus) {
+            (Some(operators),Some(links), Some(composite_inputs), Some(compisite_outpus)) =>{
+                Ok(Self{
+                    id,
+                    configuration,
+                    operators,
+                    links,
+                    inputs: composite_inputs,
+                    outputs: compisite_outpus,
+                })
+            },
+            _ => bail!(ErrorKind::InvalidData, "Creating a CompositeOperatorDescriptor requires: id, configuration, uri, operators, links, composite_inputs and composite_inputs. Maybe some parameters are set as None?")
+        }
+    }
+
+    fn get_id(&self) -> &NodeId {
+        &self.id
+    }
+
+    fn set_id(&mut self, id: NodeId) {
+        self.id = id
+    }
+
+    fn get_configuration(&self) -> &Option<Configuration> {
+        &self.configuration
+    }
+
+    fn set_configuration(&mut self, configuration: Option<Configuration>) {
+        self.configuration = configuration
+    }
+
+    fn from_yaml(data: &str) -> Result<Self> {
+        let dataflow_descriptor = serde_yaml::from_str::<CompositeOperatorDescriptor>(data)
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+        Ok(dataflow_descriptor)
+    }
+
+    fn from_json(data: &str) -> Result<Self> {
+        let dataflow_descriptor = serde_json::from_str::<CompositeOperatorDescriptor>(data)
+            .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
+        Ok(dataflow_descriptor)
+    }
+
+    fn to_json(&self) -> Result<String> {
+        serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
+    }
+
+    fn to_yaml(&self) -> Result<String> {
+        serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 }
 
