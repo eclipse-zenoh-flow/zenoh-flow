@@ -26,13 +26,26 @@ use crate::{
     types::LinkMessage,
     Result as ZFResult,
 };
+use async_std::sync::Mutex;
 use async_trait::async_trait;
 use flume::{Receiver, RecvError};
-use futures::future::select_all;
-use std::collections::HashMap;
+use futures::{future::select_all, Future};
+use std::mem;
 use std::sync::Arc;
+use std::{collections::HashMap, pin::Pin};
 use zenoh::{prelude::r#async::*, publication::Publisher, subscriber::Subscriber};
-// use async_std::sync::Mutex;
+
+/// Internal type of pending futures for the ZenohSource
+pub(crate) type ZSubFut =
+    Pin<Box<dyn Future<Output = (PortId, Result<Sample, RecvError>)> + Send + Sync>>;
+
+/// Internal state of ZenohSource, it contains the Id of the last input that
+/// produced data and the list of the pending futures.
+#[derive(Default)]
+pub(crate) struct ZenohSourceState {
+    remaining: Vec<ZSubFut>,
+    last: Option<PortId>,
+}
 
 /// The builtin Zenoh Source
 /// It can subscribe to multiple KEs and can have multiple outputs
@@ -42,11 +55,11 @@ use zenoh::{prelude::r#async::*, publication::Publisher, subscriber::Subscriber}
 /// <output_id> : <key expression>
 ///
 /// It espects the outpyt defined in the configuration to be connected.
-pub struct ZenohSource<'a> {
+pub(crate) struct ZenohSource<'a> {
     _session: Arc<Session>,
     outputs: HashMap<PortId, OutputRaw>,
     subscribers: HashMap<PortId, Subscriber<'a, Receiver<Sample>>>,
-    // remaining : Arc<Mutex<Vec<RecvFut<'a, Sample>>>>,
+    state: Arc<Mutex<ZenohSourceState>>,
 }
 
 /// Private function to retrieve the "Constructor" for the ZenohSource
@@ -136,7 +149,7 @@ impl<'a> Source for ZenohSource<'a> {
                     _session: context.zenoh_session(),
                     outputs: source_outputs,
                     subscribers,
-                    // remaining: Arc::new(Mutex::new(Vec::new())),
+                    state: Arc::new(Mutex::new(ZenohSourceState::default())),
                 })
             }
             None => {
@@ -152,30 +165,39 @@ impl<'a> Source for ZenohSource<'a> {
 #[async_trait]
 impl<'a> Node for ZenohSource<'a> {
     async fn iteration(&self) -> ZFResult<()> {
-        async fn wait_zenoh_input<'a>(
-            id: PortId,
-            sub: &'a Subscriber<'a, Receiver<Sample>>,
-        ) -> (PortId, Result<Sample, RecvError>) {
-            (id, sub.recv_async().await)
-        }
-
         let mut futs = vec![];
 
-        for s in &self.subscribers {
-            let (id, sub) = s;
-            futs.push(Box::pin(wait_zenoh_input(id.clone(), sub)))
+        // Getting state lock
+        let mut state = self.state.lock().await;
+
+        // Iterate over the subscribers
+        for i in &self.subscribers {
+            let (id, input) = i;
+            match &state.last {
+                // Add all the inputs during first iteration
+                None => state.remaining.push(Box::pin(wait_zenoh_input(
+                    id.clone(),
+                    input.receiver.clone(),
+                ))),
+                // Add only the last one that finished as new future.
+                Some(last_id) => {
+                    if id == last_id {
+                        state.remaining.push(Box::pin(wait_zenoh_input(
+                            id.clone(),
+                            input.receiver.clone(),
+                        )));
+                    }
+                }
+            }
         }
 
-        // TODO:
-        // Let's get the first one that finished and send the result to the
-        // corresponding output.
-        // The ones that did not finish are stored and used in next
-        // iteration.
+        // Mem swapping to move the remaining outside of the state
+        mem::swap(&mut state.remaining, &mut futs);
 
-        let (done, _index, _remaining) = select_all(futs).await;
+        let ((id, result), _index, mut remaining) = select_all(futs).await;
 
-        match done {
-            (id, Ok(sample)) => {
+        match result {
+            Ok(sample) => {
                 let data = sample.payload.contiguous().to_vec();
                 let ke = sample.key_expr;
                 log::trace!(
@@ -184,18 +206,35 @@ impl<'a> Node for ZenohSource<'a> {
                 );
                 let output = self.outputs.get(&id).ok_or(zferror!(
                     ErrorKind::MissingOutput(id.to_string()),
-                    "Unable convert to find output!"
+                    "Unable to find output!"
                 ))?;
                 output.send(data, None).await?;
             }
-            (id, Err(e)) => log::error!("[ZenohSource] got a Zenoh error from output {id} : {e:?}"),
+            Err(e) => log::error!("[ZenohSource] got a Zenoh error from output {id} : {e:?}"),
         }
 
-        // *self.remaining.lock().await = remaining;
+        // Mem swapping to set back in the state the remaining futures
+        mem::swap(&mut state.remaining, &mut remaining);
+        state.last = Some(id);
 
         Ok(())
     }
 }
+
+/// Internal type of pending futures for the ZenohSink
+pub(crate) type ZFInputFut =
+    Pin<Box<dyn Future<Output = (PortId, ZFResult<LinkMessage>)> + Send + Sync>>;
+
+/// Internal state of ZenohSink, it contains the Id of the last input that
+/// produced data and the list of the pending futures.
+#[derive(Default)]
+pub(crate) struct ZenohSinkState {
+    remaining: Vec<ZFInputFut>,
+    last: Option<PortId>,
+}
+
+// unsafe impl Send  for ZenohSinkState {}
+// unsafe impl Sync for ZenohSinkState {}
 
 /// The builtin Zenoh Sink
 /// It can publish to multiple KEs and can have multiple outputs
@@ -205,10 +244,11 @@ impl<'a> Node for ZenohSource<'a> {
 /// <input_id> : <key expression>
 ///
 /// It espects the input defined in the configuration to be connected.
-pub struct ZenohSink<'a> {
+pub(crate) struct ZenohSink<'a> {
     _session: Arc<Session>,
     inputs: HashMap<PortId, InputRaw>,
     publishers: HashMap<PortId, Publisher<'a>>,
+    state: Arc<Mutex<ZenohSinkState>>,
 }
 
 /// Private function to retrieve the "Constructor" for the ZenohSink
@@ -292,7 +332,7 @@ impl<'a> Sink for ZenohSink<'a> {
                     _session: context.zenoh_session(),
                     inputs: sink_inputs,
                     publishers,
-                    // remaining: Arc::new(Mutex::new(Vec::new())),
+                    state: Arc::new(Mutex::new(ZenohSinkState::default())),
                 })
             }
             None => {
@@ -309,25 +349,35 @@ impl<'a> Node for ZenohSink<'a> {
     async fn iteration(&self) -> ZFResult<()> {
         let mut futs = vec![];
 
-        async fn wait_flow_input(id: PortId, input: &InputRaw) -> (PortId, ZFResult<LinkMessage>) {
-            (id, input.recv().await)
-        }
+        // Getting state lock
+        let mut state = self.state.lock().await;
 
+        // Iterate over the intputs
         for i in &self.inputs {
             let (id, input) = i;
-            futs.push(Box::pin(wait_flow_input(id.clone(), input)))
+            match &state.last {
+                // Add all the inputs during first iteration
+                None => state
+                    .remaining
+                    .push(Box::pin(wait_flow_input(id.clone(), input.clone()))),
+                // Add only the last one that finished as new future.
+                Some(last_id) => {
+                    if id == last_id {
+                        state
+                            .remaining
+                            .push(Box::pin(wait_flow_input(id.clone(), input.clone())));
+                    }
+                }
+            }
         }
 
-        // TODO:
-        // Let's get the first one that finished and send the result to the
-        // corresponding output.
-        // The ones that did not finish are stored and used in next
-        // iteration.
+        // Mem swapping to move the remaining outside of the state
+        mem::swap(&mut state.remaining, &mut futs);
 
-        let (done, _index, _remaining) = select_all(futs).await;
+        let ((id, result), _index, mut remaining) = select_all(futs).await;
 
-        match done {
-            (id, Ok(LinkMessage::Data(mut dm))) => {
+        match result {
+            Ok(LinkMessage::Data(mut dm)) => {
                 let data = dm.get_inner_data().try_as_bytes()?;
                 let publisher = self.publishers.get(&id).ok_or(zferror!(
                     ErrorKind::SendError,
@@ -335,12 +385,25 @@ impl<'a> Node for ZenohSink<'a> {
                 ))?;
                 publisher.put(&**data).res().await?;
             }
-            (_, Ok(_)) => (), // Not the right message, ignore it.
-            (id, Err(e)) => log::error!("[ZenohSink] got error on link {id}: {e:?}"),
+            Ok(_) => (), // Not the right message, ignore it.
+            Err(e) => log::error!("[ZenohSink] got error on link {id}: {e:?}"),
         }
 
-        // *self.remaining.lock().await = remaining;
+        // Mem swapping to set back in the state the remaining futures
+        mem::swap(&mut state.remaining, &mut remaining);
+        state.last = Some(id);
 
         Ok(())
     }
+}
+
+async fn wait_flow_input(id: PortId, input: InputRaw) -> (PortId, ZFResult<LinkMessage>) {
+    (id, input.recv().await)
+}
+
+async fn wait_zenoh_input(
+    id: PortId,
+    sub: Receiver<Sample>,
+) -> (PortId, Result<Sample, RecvError>) {
+    (id, sub.recv_async().await)
 }

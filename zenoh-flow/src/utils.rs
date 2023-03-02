@@ -12,7 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-
 use crate::model::{Middleware, ZFUri};
 use crate::prelude::ErrorKind;
 use crate::{bail, zferror, Result};
