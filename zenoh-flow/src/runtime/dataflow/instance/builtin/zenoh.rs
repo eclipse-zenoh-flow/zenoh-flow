@@ -97,7 +97,7 @@ pub(crate) fn get_zenoh_source_descriptor(
     Ok(SourceDescriptor {
         id: "zenoh-source".into(),
         outputs,
-        uri: Some("builtin://zenoh/source".to_string()),
+        uri: Some("builtin://zenoh".to_string()),
         configuration: Some(configuration.clone()),
     })
 }
@@ -284,7 +284,7 @@ pub(crate) fn get_zenoh_sink_descriptor(configuration: &Configuration) -> ZFResu
     Ok(SinkDescriptor {
         id: "zenoh-sink".into(),
         inputs,
-        uri: Some("builtin://zenoh/sink".to_string()),
+        uri: Some("builtin://zenoh".to_string()),
         configuration: Some(configuration.clone()),
     })
 }
