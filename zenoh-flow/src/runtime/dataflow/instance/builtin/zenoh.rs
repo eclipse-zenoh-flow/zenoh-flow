@@ -54,7 +54,7 @@ pub(crate) struct ZenohSourceState {
 /// <output_id> : <key expression>
 /// <output_id> : <key expression>
 ///
-/// It espects the outpyt defined in the configuration to be connected.
+/// It expects the output(s) defined in the configuration to be connected.
 pub(crate) struct ZenohSource<'a> {
     _session: Arc<Session>,
     outputs: HashMap<PortId, OutputRaw>,
@@ -114,7 +114,6 @@ impl<'a> Source for ZenohSource<'a> {
 
         match configuration {
             Some(configuration) => {
-                // let mut config : HashMap<String, String> = HashMap::new();
                 let configuration = configuration.as_object().ok_or(zferror!(
                     ErrorKind::ConfigurationError,
                     "Unable to convert configuration to HashMap: {:?}",
@@ -126,7 +125,7 @@ impl<'a> Source for ZenohSource<'a> {
                         .as_str()
                         .ok_or(zferror!(
                             ErrorKind::ConfigurationError,
-                            "Unable to value to string: {:?}",
+                            "Unable to convert value to string: {:?}",
                             value
                         ))?
                         .to_string();
@@ -233,9 +232,6 @@ pub(crate) struct ZenohSinkState {
     last: Option<PortId>,
 }
 
-// unsafe impl Send  for ZenohSinkState {}
-// unsafe impl Sync for ZenohSinkState {}
-
 /// The builtin Zenoh Sink
 /// It can publish to multiple KEs and can have multiple outputs
 /// It expects a configuration in the format
@@ -243,7 +239,7 @@ pub(crate) struct ZenohSinkState {
 /// <input_id> : <key expression>
 /// <input_id> : <key expression>
 ///
-/// It espects the input defined in the configuration to be connected.
+/// It expects the input(s) defined in the configuration to be connected.
 pub(crate) struct ZenohSink<'a> {
     _session: Arc<Session>,
     inputs: HashMap<PortId, InputRaw>,

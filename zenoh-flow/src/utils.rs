@@ -20,7 +20,7 @@ use std::str::FromStr;
 use url::Url;
 
 /// Given a string representing a [`Url`](`url::Url`), transform it into a
-/// [`URIStruct`](`zenoh_flow::runtime:dataflow::loader::URIStruct`).
+/// [`ZFUri`](`zenoh_flow::model::ZFUri`).
 ///
 /// Supported schemes:
 /// - `file://`
@@ -31,7 +31,7 @@ use url::Url;
 /// This function will return an error in the following situations:
 /// - The provided string does not match the syntax of a [`Url`](`url::Url`).
 /// - The scheme is not supported
-/// - In case of `builtin://`, the URI struct does not match `<middleware>/[source|sink]`
+/// - In case of `builtin://`, the authority part, `<middleware>`, is not supported.
 /// - In case of `file://`, the resulting path cannot be [`canonicalized`](`std::fs::canonicalize`).
 pub(crate) fn parse_uri(url_str: &str) -> Result<ZFUri> {
     let uri = Url::parse(url_str).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
