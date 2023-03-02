@@ -188,7 +188,13 @@ impl NodeDescriptor {
             }
             ZFUri::Builtin(mw) => match mw {
                 Middleware::Zenoh => match &self.configuration {
-                    Some(configuration) => get_zenoh_source_descriptor(configuration),
+                    Some(configuration) => {
+                        let mut desc = get_zenoh_source_descriptor(configuration)?;
+                        desc.id = self.id;
+                        desc.configuration =
+                            global_configuration.merge_overwrite(desc.configuration);
+                        Ok(desc)
+                    }
                     None => {
                         bail!(
                             ErrorKind::MissingConfiguration,
@@ -231,7 +237,13 @@ impl NodeDescriptor {
             }
             ZFUri::Builtin(mw) => match mw {
                 Middleware::Zenoh => match &self.configuration {
-                    Some(configuration) => get_zenoh_sink_descriptor(configuration),
+                    Some(configuration) => {
+                        let mut desc = get_zenoh_sink_descriptor(configuration)?;
+                        desc.id = self.id;
+                        desc.configuration =
+                            global_configuration.merge_overwrite(desc.configuration);
+                        Ok(desc)
+                    }
                     None => {
                         bail!(
                             ErrorKind::MissingConfiguration,
