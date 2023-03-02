@@ -109,7 +109,13 @@ impl NodeDescriptor {
         global_configuration: Option<Configuration>,
         ancestors: &mut Vec<String>,
     ) -> Result<Vec<OperatorDescriptor>> {
-        let descriptor = self.try_load().await?;
+        let descriptor = match parse_uri(&self.descriptor)? {
+            crate::model::URIStruct::File(path) => try_load_descriptor_from_file(path).await,
+            crate::model::URIStruct::Builtin(_, _) => bail!(
+                ErrorKind::ConfigurationError,
+                "Builtin operators are not yet supported!"
+            ),
+        }?;
 
         // We try to load the descriptor, first we try as simple one, if it fails we try as a
         // composite one, if that also fails it is malformed.
@@ -162,20 +168,45 @@ impl NodeDescriptor {
         self,
         global_configuration: Option<Configuration>,
     ) -> Result<SourceDescriptor> {
-        let descriptor = self.try_load().await?;
+        log::trace!("[Descriptor] Loading Source {}", self.id);
 
-        log::trace!("Loading source {}", self.descriptor);
+        match parse_uri(&self.descriptor)? {
+            URIStruct::File(path) => {
+                let descriptor = try_load_descriptor_from_file(path).await?;
 
-        match SourceDescriptor::from_yaml(&descriptor) {
-            Ok(mut desc) => {
-                desc.id = self.id;
-                desc.configuration = global_configuration.merge_overwrite(desc.configuration);
-                Ok(desc)
+                match SourceDescriptor::from_yaml(&descriptor) {
+                    Ok(mut desc) => {
+                        desc.id = self.id;
+                        desc.configuration =
+                            global_configuration.merge_overwrite(desc.configuration);
+                        Ok(desc)
+                    }
+                    Err(e) => {
+                        log::warn!("Unable to read descriptor {}, error {}", self.id, e);
+                        Err(e)
+                    }
+                }
             }
-            Err(e) => {
-                log::warn!("Unable to flatten {}, error {}", self.id, e);
-                Err(e)
-            }
+            URIStruct::Builtin(mw, kind) => match mw {
+                Middleware::Zenoh => match kind {
+                    NodeKind::Operator => bail!(
+                        ErrorKind::Unimplemented,
+                        "Cannot load an operator as source"
+                    ),
+                    NodeKind::Source => match &self.configuration {
+                        Some(configuration) => get_zenoh_source_descriptor(configuration),
+                        None => {
+                            bail!(
+                                ErrorKind::MissingConfiguration,
+                                "Builtin Zenoh Sink needs a configuration!"
+                            )
+                        }
+                    },
+                    NodeKind::Sink => {
+                        bail!(ErrorKind::Unimplemented, "Cannot load an sink as source")
+                    }
+                },
+            },
         }
     }
 
@@ -189,38 +220,44 @@ impl NodeDescriptor {
         self,
         global_configuration: Option<Configuration>,
     ) -> Result<SinkDescriptor> {
-        let descriptor = self.try_load().await?;
-        log::trace!("Loading sink {}", self.descriptor);
+        log::trace!("[Descriptor] Loading sink {}", self.id);
 
-        // We try to load the descriptor, first we try as simple one, if it fails
-        // we try as a composite one, if that also fails it is malformed.
-        match SinkDescriptor::from_yaml(&descriptor) {
-            Ok(mut desc) => {
-                desc.id = self.id;
-                desc.configuration = global_configuration.merge_overwrite(desc.configuration);
-                Ok(desc)
-            }
-            Err(e) => {
-                log::warn!("Unable to flatten {}, error {}", self.id, e);
-                Err(e)
-            }
-        }
-    }
-
-    /// Attempt to asynchronously read the `descriptor_url`.
-    ///
-    /// This function will also expand the mustache notations present (if there are any).
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error in the following situations:
-    /// - The provided `descriptor_url` is incorrect, i.e. not mathching Zenoh-Flow URI structure
-    /// - The content of the file could not be read. If `file://`.
-    /// - The URI struct does not match `<middleware>/[source|sink]` If `builtin://`
-    async fn try_load(&self) -> Result<String> {
         match parse_uri(&self.descriptor)? {
-            URIStruct::File(path) => try_load_descriptor_from_file(path).await,
-            URIStruct::Builtin(mw, kind) => make_builtin_descriptor(mw, kind, &self.configuration),
+            URIStruct::File(path) => {
+                let descriptor = try_load_descriptor_from_file(path).await?;
+
+                match SinkDescriptor::from_yaml(&descriptor) {
+                    Ok(mut desc) => {
+                        desc.id = self.id;
+                        desc.configuration =
+                            global_configuration.merge_overwrite(desc.configuration);
+                        Ok(desc)
+                    }
+                    Err(e) => {
+                        log::warn!("Unable to read descriptor {}, error {}", self.id, e);
+                        Err(e)
+                    }
+                }
+            }
+            URIStruct::Builtin(mw, kind) => match mw {
+                Middleware::Zenoh => match kind {
+                    NodeKind::Operator => {
+                        bail!(ErrorKind::Unimplemented, "Cannot load an operator as sink")
+                    }
+                    NodeKind::Sink => match &self.configuration {
+                        Some(configuration) => get_zenoh_sink_descriptor(configuration),
+                        None => {
+                            bail!(
+                                ErrorKind::MissingConfiguration,
+                                "Builtin Zenoh Sink needs a configuration!"
+                            )
+                        }
+                    },
+                    NodeKind::Source => {
+                        bail!(ErrorKind::Unimplemented, "Cannot load an source as sink")
+                    }
+                },
+            },
         }
     }
 }
@@ -237,46 +274,4 @@ impl NodeDescriptor {
 async fn try_load_descriptor_from_file(descriptor_path: PathBuf) -> Result<String> {
     let data = async_std::fs::read_to_string(&descriptor_path).await?;
     Vars::expand_mustache_yaml(&data)
-}
-
-/// This functions generates the string representation of a descriptor for
-/// builtin nodes.
-///
-/// # Errors
-///
-/// This function will return an error in the following situation:
-/// - The builtin node is not supported. So far only `builtin://zenoh/[source|sink]`
-/// are supported.
-/// - The builtin node is missing the configuration.
-fn make_builtin_descriptor(
-    mw: Middleware,
-    kind: NodeKind,
-    configuration: &Option<Configuration>,
-) -> Result<String> {
-    match mw {
-        Middleware::Zenoh => match kind {
-            NodeKind::Operator => bail!(
-                ErrorKind::Unimplemented,
-                "Zenoh builtin nodes can only be Source or Sink"
-            ),
-            NodeKind::Sink => match configuration {
-                Some(configuration) => get_zenoh_sink_descriptor(configuration)?.to_yaml(),
-                None => {
-                    bail!(
-                        ErrorKind::MissingConfiguration,
-                        "Builtin Zenoh Sink needs a configuration!"
-                    )
-                }
-            },
-            NodeKind::Source => match configuration {
-                Some(configuration) => get_zenoh_source_descriptor(configuration)?.to_yaml(),
-                None => {
-                    bail!(
-                        ErrorKind::MissingConfiguration,
-                        "Builtin Zenoh Source needs a configuration!"
-                    )
-                }
-            },
-        },
-    }
 }

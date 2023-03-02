@@ -13,10 +13,11 @@
 //
 
 use crate::model::descriptor::link::{CompositeInputDescriptor, CompositeOutputDescriptor};
-use crate::model::descriptor::node::NodeDescriptor;
+use crate::model::descriptor::node::{try_load_descriptor_from_file, NodeDescriptor};
 use crate::model::descriptor::{LinkDescriptor, PortDescriptor};
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId};
+use crate::utils::parse_uri;
 use crate::zfresult::{ErrorKind, ZFResult as Result};
 use crate::{bail, zferror};
 use async_recursion::async_recursion;
@@ -206,7 +207,13 @@ impl CompositeOperatorDescriptor {
         self.configuration = global_configuration.merge_overwrite(self.configuration);
 
         for o in self.operators {
-            let description = o.try_load().await?;
+            let description = match parse_uri(&o.descriptor)? {
+                crate::model::URIStruct::File(path) => try_load_descriptor_from_file(path).await,
+                crate::model::URIStruct::Builtin(_, _) => bail!(
+                    ErrorKind::ConfigurationError,
+                    "Builtin operators are not yet supported!"
+                ),
+            }?;
 
             let NodeDescriptor {
                 id: operator_id,
