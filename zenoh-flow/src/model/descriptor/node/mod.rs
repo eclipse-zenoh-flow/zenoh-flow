@@ -34,8 +34,6 @@ use crate::zfresult::ErrorKind;
 use crate::{bail, zferror, Result};
 use serde::{Deserialize, Serialize};
 
-use super::PortDescriptor;
-
 /// Describes an node of the graph
 ///
 /// ```yaml
@@ -111,7 +109,7 @@ impl NodeDescriptor {
         global_configuration: Option<Configuration>,
         ancestors: &mut Vec<String>,
     ) -> Result<Vec<OperatorDescriptor>> {
-        let descriptor = self.try_load_descriptor().await?;
+        let descriptor = self.try_load().await?;
 
         // We try to load the descriptor, first we try as simple one, if it fails we try as a
         // composite one, if that also fails it is malformed.
@@ -164,7 +162,7 @@ impl NodeDescriptor {
         self,
         global_configuration: Option<Configuration>,
     ) -> Result<SourceDescriptor> {
-        let descriptor = self.try_load_descriptor().await?;
+        let descriptor = self.try_load().await?;
 
         log::trace!("Loading source {}", self.descriptor);
 
@@ -191,7 +189,7 @@ impl NodeDescriptor {
         self,
         global_configuration: Option<Configuration>,
     ) -> Result<SinkDescriptor> {
-        let descriptor = self.try_load_descriptor().await?;
+        let descriptor = self.try_load().await?;
         log::trace!("Loading sink {}", self.descriptor);
 
         // We try to load the descriptor, first we try as simple one, if it fails
@@ -219,7 +217,7 @@ impl NodeDescriptor {
     /// - The provided `descriptor_url` is incorrect, i.e. not mathching Zenoh-Flow URI structure
     /// - The content of the file could not be read. If `file://`.
     /// - The URI struct does not match `<middleware>/[source|sink]` If `builtin://`
-    async fn try_load_descriptor(&self) -> Result<String> {
+    async fn try_load(&self) -> Result<String> {
         match parse_uri(&self.descriptor)? {
             URIStruct::File(path) => try_load_descriptor_from_file(path).await,
             URIStruct::Builtin(mw, kind) => make_builtin_descriptor(mw, kind, &self.configuration),
@@ -249,6 +247,7 @@ async fn try_load_descriptor_from_file(descriptor_path: PathBuf) -> Result<Strin
 /// This function will return an error in the following situation:
 /// - The builtin node is not supported. So far only `builtin://zenoh/[source|sink]`
 /// are supported.
+/// - The builtin node is missing the configuration.
 fn make_builtin_descriptor(
     mw: Middleware,
     kind: NodeKind,
@@ -261,7 +260,7 @@ fn make_builtin_descriptor(
                 "Zenoh builtin nodes can only be Source or Sink"
             ),
             NodeKind::Sink => match configuration {
-                Some(configuration) => get_zenoh_sink_descriptor::<T>(configuration),
+                Some(configuration) => get_zenoh_sink_descriptor(configuration)?.to_yaml(),
                 None => {
                     bail!(
                         ErrorKind::MissingConfiguration,
@@ -270,7 +269,7 @@ fn make_builtin_descriptor(
                 }
             },
             NodeKind::Source => match configuration {
-                Some(configuration) => get_zenoh_source_descriptor::<T>(configuration),
+                Some(configuration) => get_zenoh_source_descriptor(configuration)?.to_yaml(),
                 None => {
                     bail!(
                         ErrorKind::MissingConfiguration,

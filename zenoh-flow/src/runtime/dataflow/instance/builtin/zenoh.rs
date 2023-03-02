@@ -14,7 +14,7 @@
 
 use crate::{
     bail,
-    model::descriptor::{LoadedNode, PortDescriptor},
+    model::descriptor::{PortDescriptor, SinkDescriptor, SourceDescriptor},
     prelude::{
         zferror, Configuration, Context, ErrorKind, InputRaw, Inputs, Node, OutputRaw, Outputs,
         PortId, Sink, Source,
@@ -64,9 +64,9 @@ pub(crate) fn get_zenoh_source_declaration() -> NodeDeclaration<SourceFn> {
 }
 
 /// Private function to retrieve the Descriptor for the ZenohSource
-pub(crate) fn get_zenoh_source_descriptor<T: LoadedNode>(
+pub(crate) fn get_zenoh_source_descriptor(
     configuration: &Configuration,
-) -> ZFResult<T> {
+) -> ZFResult<SourceDescriptor> {
     let mut outputs = vec![];
     let local_configuration = configuration.as_object().ok_or(zferror!(
         ErrorKind::ConfigurationError,
@@ -81,17 +81,12 @@ pub(crate) fn get_zenoh_source_descriptor<T: LoadedNode>(
         outputs.push(port_descriptor);
     }
 
-    T::from_parameters(
-        "zenoh-source".into(),
-        Some(configuration.clone()),
-        Some("builtin://zenoh/source".to_string()),
-        None,
-        Some(outputs),
-        None,
-        None,
-        None,
-        None,
-    )
+    Ok(SourceDescriptor {
+        id: "zenoh-source".into(),
+        outputs,
+        uri: Some("builtin://zenoh/source".to_string()),
+        configuration: Some(configuration.clone()),
+    })
 }
 
 #[async_trait]
@@ -231,9 +226,7 @@ pub(crate) fn get_zenoh_sink_declaration() -> NodeDeclaration<SinkFn> {
 }
 
 /// Private function to retrieve the Descriptor for the ZenohSink
-pub(crate) fn get_zenoh_sink_descriptor<T: LoadedNode>(
-    configuration: &Configuration,
-) -> ZFResult<T> {
+pub(crate) fn get_zenoh_sink_descriptor(configuration: &Configuration) -> ZFResult<SinkDescriptor> {
     let mut inputs = vec![];
     let local_configuration = configuration.as_object().ok_or(zferror!(
         ErrorKind::ConfigurationError,
@@ -248,17 +241,12 @@ pub(crate) fn get_zenoh_sink_descriptor<T: LoadedNode>(
         inputs.push(port_descriptor);
     }
 
-    T::from_parameters(
-        "zenoh-sink".into(),
-        Some(configuration.clone()),
-        Some("builtin://zenoh/sink".to_string()),
-        Some(inputs),
-        None,
-        None,
-        None,
-        None,
-        None,
-    )
+    Ok(SinkDescriptor {
+        id: "zenoh-sink".into(),
+        inputs,
+        uri: Some("builtin://zenoh/sink".to_string()),
+        configuration: Some(configuration.clone()),
+    })
 }
 
 #[async_trait]
