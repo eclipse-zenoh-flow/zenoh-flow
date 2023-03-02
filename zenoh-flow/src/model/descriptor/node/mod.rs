@@ -22,8 +22,7 @@ pub mod source;
 pub use source::SourceDescriptor;
 
 use crate::model::descriptor::{LinkDescriptor, Vars};
-use crate::model::registry::NodeKind;
-use crate::model::{Middleware, URIStruct};
+use crate::model::{Middleware, ZFUri};
 use crate::runtime::dataflow::instance::builtin::zenoh::{
     get_zenoh_sink_descriptor, get_zenoh_source_descriptor,
 };
@@ -110,8 +109,8 @@ impl NodeDescriptor {
         ancestors: &mut Vec<String>,
     ) -> Result<Vec<OperatorDescriptor>> {
         let descriptor = match parse_uri(&self.descriptor)? {
-            crate::model::URIStruct::File(path) => try_load_descriptor_from_file(path).await,
-            crate::model::URIStruct::Builtin(_, _) => bail!(
+            crate::model::ZFUri::File(path) => try_load_descriptor_from_file(path).await,
+            crate::model::ZFUri::Builtin(_) => bail!(
                 ErrorKind::ConfigurationError,
                 "Builtin operators are not yet supported!"
             ),
@@ -171,7 +170,7 @@ impl NodeDescriptor {
         log::trace!("[Descriptor] Loading Source {}", self.id);
 
         match parse_uri(&self.descriptor)? {
-            URIStruct::File(path) => {
+            ZFUri::File(path) => {
                 let descriptor = try_load_descriptor_from_file(path).await?;
 
                 match SourceDescriptor::from_yaml(&descriptor) {
@@ -187,23 +186,14 @@ impl NodeDescriptor {
                     }
                 }
             }
-            URIStruct::Builtin(mw, kind) => match mw {
-                Middleware::Zenoh => match kind {
-                    NodeKind::Operator => bail!(
-                        ErrorKind::Unimplemented,
-                        "Cannot load an operator as source"
-                    ),
-                    NodeKind::Source => match &self.configuration {
-                        Some(configuration) => get_zenoh_source_descriptor(configuration),
-                        None => {
-                            bail!(
-                                ErrorKind::MissingConfiguration,
-                                "Builtin Zenoh Sink needs a configuration!"
-                            )
-                        }
-                    },
-                    NodeKind::Sink => {
-                        bail!(ErrorKind::Unimplemented, "Cannot load an sink as source")
+            ZFUri::Builtin(mw) => match mw {
+                Middleware::Zenoh => match &self.configuration {
+                    Some(configuration) => get_zenoh_source_descriptor(configuration),
+                    None => {
+                        bail!(
+                            ErrorKind::MissingConfiguration,
+                            "Builtin Zenoh Sink needs a configuration!"
+                        )
                     }
                 },
             },
@@ -223,7 +213,7 @@ impl NodeDescriptor {
         log::trace!("[Descriptor] Loading sink {}", self.id);
 
         match parse_uri(&self.descriptor)? {
-            URIStruct::File(path) => {
+            ZFUri::File(path) => {
                 let descriptor = try_load_descriptor_from_file(path).await?;
 
                 match SinkDescriptor::from_yaml(&descriptor) {
@@ -239,22 +229,14 @@ impl NodeDescriptor {
                     }
                 }
             }
-            URIStruct::Builtin(mw, kind) => match mw {
-                Middleware::Zenoh => match kind {
-                    NodeKind::Operator => {
-                        bail!(ErrorKind::Unimplemented, "Cannot load an operator as sink")
-                    }
-                    NodeKind::Sink => match &self.configuration {
-                        Some(configuration) => get_zenoh_sink_descriptor(configuration),
-                        None => {
-                            bail!(
-                                ErrorKind::MissingConfiguration,
-                                "Builtin Zenoh Sink needs a configuration!"
-                            )
-                        }
-                    },
-                    NodeKind::Source => {
-                        bail!(ErrorKind::Unimplemented, "Cannot load an source as sink")
+            ZFUri::Builtin(mw) => match mw {
+                Middleware::Zenoh => match &self.configuration {
+                    Some(configuration) => get_zenoh_sink_descriptor(configuration),
+                    None => {
+                        bail!(
+                            ErrorKind::MissingConfiguration,
+                            "Builtin Zenoh Sink needs a configuration!"
+                        )
                     }
                 },
             },

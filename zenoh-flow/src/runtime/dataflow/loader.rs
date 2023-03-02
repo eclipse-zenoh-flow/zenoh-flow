@@ -18,7 +18,7 @@ use super::node::{
     SourceFn,
 };
 use crate::model::record::{OperatorRecord, SinkRecord, SourceRecord};
-use crate::model::{Middleware, URIStruct};
+use crate::model::{Middleware, ZFUri};
 use crate::types::Configuration;
 use crate::utils::parse_uri;
 use crate::zfresult::ErrorKind;
@@ -311,7 +311,7 @@ impl Loader {
     ) -> Result<SourceConstructor> {
         if let Some(uri) = &record.uri {
             match parse_uri(uri)? {
-                URIStruct::File(file_path) => {
+                ZFUri::File(file_path) => {
                     let (library, constructor) = unsafe {
                         self.load_node_from_file::<SourceFn>(
                             NodeSymbol::Source,
@@ -326,7 +326,7 @@ impl Loader {
                         Arc::new(library),
                     ))
                 }
-                URIStruct::Builtin(mw, _kind) => {
+                ZFUri::Builtin(mw) => {
                     let constructor = self.load_source_from_builtin(mw)?;
                     Ok(SourceConstructor::new_static(record, constructor))
                 }
@@ -358,7 +358,7 @@ impl Loader {
     ) -> Result<OperatorConstructor> {
         if let Some(uri) = &record.uri {
             match parse_uri(uri)? {
-                URIStruct::File(file_path) => {
+                ZFUri::File(file_path) => {
                     let (library, constructor) = unsafe {
                         self.load_node_from_file::<OperatorFn>(
                             NodeSymbol::Operator,
@@ -373,7 +373,7 @@ impl Loader {
                         Arc::new(library),
                     ))
                 }
-                URIStruct::Builtin(_mw, _kind) => {
+                ZFUri::Builtin(_mw) => {
                     bail!(
                         ErrorKind::Unimplemented,
                         "Loading builtin operators is not supported < {} >.",
@@ -404,7 +404,7 @@ impl Loader {
     pub(crate) fn load_sink_constructor(&self, mut record: SinkRecord) -> Result<SinkConstructor> {
         if let Some(uri) = &record.uri {
             match parse_uri(uri)? {
-                URIStruct::File(file_path) => {
+                ZFUri::File(file_path) => {
                     let (library, constructor) = unsafe {
                         self.load_node_from_file::<SinkFn>(
                             NodeSymbol::Sink,
@@ -419,7 +419,7 @@ impl Loader {
                         Arc::new(library),
                     ))
                 }
-                URIStruct::Builtin(mw, _kind) => {
+                ZFUri::Builtin(mw) => {
                     let constructor = self.load_sink_from_builtin(mw)?;
                     Ok(SinkConstructor::new_static(record, constructor))
                 }

@@ -16,8 +16,6 @@ use std::{path::PathBuf, str::FromStr};
 
 use crate::{bail, prelude::ErrorKind, zfresult::ZFError};
 
-use self::registry::NodeKind;
-
 pub mod descriptor;
 pub mod record;
 pub mod registry;
@@ -36,7 +34,10 @@ impl FromStr for Middleware {
         if s == "zenoh" {
             return Ok(Self::Zenoh);
         }
-        bail!(ErrorKind::ParsingError, "{s} is not a valid middleware!")
+        bail!(
+            ErrorKind::ParsingError,
+            "Unsupported middleware: '{s}'. Currently supported middlewares: 'zenoh'."
+        )
     }
 }
 
@@ -48,7 +49,7 @@ impl ToString for Middleware {
 
 #[derive(Debug)]
 /// Zenoh-Flow's custom URI struct used for loading nodes.
-pub(crate) enum URIStruct {
+pub(crate) enum ZFUri {
     File(PathBuf),
-    Builtin(Middleware, NodeKind),
+    Builtin(Middleware),
 }

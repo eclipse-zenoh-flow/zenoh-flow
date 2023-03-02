@@ -208,8 +208,8 @@ impl CompositeOperatorDescriptor {
 
         for o in self.operators {
             let description = match parse_uri(&o.descriptor)? {
-                crate::model::URIStruct::File(path) => try_load_descriptor_from_file(path).await,
-                crate::model::URIStruct::Builtin(_, _) => bail!(
+                crate::model::ZFUri::File(path) => try_load_descriptor_from_file(path).await,
+                crate::model::ZFUri::Builtin(_) => bail!(
                     ErrorKind::ConfigurationError,
                     "Builtin operators are not yet supported!"
                 ),

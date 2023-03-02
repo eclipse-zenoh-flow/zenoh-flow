@@ -279,8 +279,8 @@ impl<'a> Sink for ZenohSink<'a> {
                         .to_string();
 
                     let input = inputs.take_raw(id).ok_or(zferror!(
-                        ErrorKind::MissingOutput(id.clone()),
-                        "Unable to find output: {id}"
+                        ErrorKind::MissingInput(id.clone()),
+                        "Unable to find input: {id}"
                     ))?;
                     let subscriber = context.zenoh_session().declare_publisher(ke).res().await?;
 

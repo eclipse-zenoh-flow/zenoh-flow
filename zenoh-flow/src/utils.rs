@@ -12,8 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::registry::NodeKind;
-use crate::model::{Middleware, URIStruct};
+
+use crate::model::{Middleware, ZFUri};
 use crate::prelude::ErrorKind;
 use crate::{bail, zferror, Result};
 use std::path::{Path, PathBuf};
@@ -34,7 +34,7 @@ use url::Url;
 /// - The scheme is not supported
 /// - In case of `builtin://`, the URI struct does not match `<middleware>/[source|sink]`
 /// - In case of `file://`, the resulting path cannot be [`canonicalized`](`std::fs::canonicalize`).
-pub(crate) fn parse_uri(url_str: &str) -> Result<URIStruct> {
+pub(crate) fn parse_uri(url_str: &str) -> Result<ZFUri> {
     let uri = Url::parse(url_str).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
 
     let uri_path = match uri.host_str() {
@@ -43,21 +43,15 @@ pub(crate) fn parse_uri(url_str: &str) -> Result<URIStruct> {
     };
 
     match uri.scheme() {
-        "file" => Ok(URIStruct::File(try_make_file_path(&uri_path)?)),
+        "file" => Ok(ZFUri::File(try_make_file_path(&uri_path)?)),
         "builtin" => {
-            let chunks: Vec<&str> = uri_path.split('/').collect();
-            if chunks.len() != 2 {
-                // Expected two chunks because of structure
-                bail!(ErrorKind::ParsingError, "{uri_path} does not match the `builtin://` struture: <middleware>/[source|sink]");
-            }
-            let mw = Middleware::from_str(chunks[0])?;
-            let kind = NodeKind::from_str(chunks[1])?;
-            Ok(URIStruct::Builtin(mw, kind))
+            let mw = Middleware::from_str(&uri_path)?;
+            Ok(ZFUri::Builtin(mw))
         }
         _ => {
             bail!(
                 ErrorKind::ParsingError,
-                "Shceme: {}:// is not supported. Supported ones are `file://` and `builtin://`",
+                "Scheme: {}:// is not supported. Supported ones are `file://` and `builtin://`",
                 uri.scheme()
             );
         }
