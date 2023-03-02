@@ -26,62 +26,10 @@ pub use node::{
 };
 pub mod validator;
 
-use crate::prelude::{Configuration, NodeId};
 use crate::zfresult::{ErrorKind, ZFResult as Result};
 use crate::{bail, zferror};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, time::Duration};
-
-pub trait LoadedNode: Sized {
-    #[allow(clippy::too_many_arguments)]
-    fn from_parameters(
-        id: NodeId,
-        configuration: Option<Configuration>,
-        uri: Option<String>,
-        inputs: Option<Vec<PortDescriptor>>,
-        outputs: Option<Vec<PortDescriptor>>,
-        operators: Option<Vec<NodeDescriptor>>,
-        links: Option<Vec<LinkDescriptor>>,
-        composite_inputs: Option<Vec<CompositeInputDescriptor>>,
-        compisite_outpus: Option<Vec<CompositeOutputDescriptor>>,
-    ) -> Result<Self>;
-
-    /// Gets the `NodeID` of the `LoadedNode`
-    fn get_id(&self) -> &NodeId;
-
-    /// Sets the `NodeID` of the `LoadedNode`
-    fn set_id(&mut self, id: NodeId);
-
-    /// Gets the eventual `Configuration` of the `LoadedNode`
-    fn get_configuration(&self) -> &Option<Configuration>;
-
-    /// Sets the `Configuration` of the `LoadedNode`
-    fn set_configuration(&mut self, configuration: Option<Configuration>);
-
-    /// Creates a new `LoadedNode` from its YAML representation.
-    ///
-    ///  # Errors
-    /// A variant error is returned if deserialization fails.
-    fn from_yaml(data: &str) -> Result<Self>;
-
-    /// Creates a new `LoadedNode` from its JSON representation.
-    ///
-    ///  # Errors
-    /// A variant error is returned if deserialization fails.
-    fn from_json(data: &str) -> Result<Self>;
-
-    /// Returns the JSON representation of the `LoadedNode`.
-    ///
-    ///  # Errors
-    /// A variant error is returned if serialization fails.
-    fn to_json(&self) -> Result<String>;
-
-    /// Returns the YAML representation of the `LoadedNode`.
-    ///
-    ///  # Errors
-    /// A variant error is returned if serialization fails.
-    fn to_yaml(&self) -> Result<String>;
-}
 
 /// The unit of duration used in different descriptors.
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -12,15 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::descriptor::{
-    CompositeInputDescriptor, CompositeOutputDescriptor, LinkDescriptor, LoadedNode, PortDescriptor,
-};
+use crate::model::descriptor::PortDescriptor;
 use crate::types::{Configuration, NodeId};
+use crate::zferror;
 use crate::zfresult::{ErrorKind, ZFResult as Result};
-use crate::{bail, zferror};
 use serde::{Deserialize, Serialize};
-
-use super::NodeDescriptor;
 
 /// Describes a source.
 ///
@@ -51,52 +47,12 @@ impl std::fmt::Display for SourceDescriptor {
     }
 }
 
-impl LoadedNode for SourceDescriptor {
-    fn from_parameters(
-        id: NodeId,
-        configuration: Option<Configuration>,
-        uri: Option<String>,
-        _inputs: Option<Vec<PortDescriptor>>,
-        outputs: Option<Vec<PortDescriptor>>,
-        _operators: Option<Vec<NodeDescriptor>>,
-        _links: Option<Vec<LinkDescriptor>>,
-        _composite_inputs: Option<Vec<CompositeInputDescriptor>>,
-        _compisite_outpus: Option<Vec<CompositeOutputDescriptor>>,
-    ) -> Result<Self> {
-        match outputs {
-            Some(outputs) =>{
-                Ok(Self{
-                    id,
-                    configuration,
-                    uri,
-                    outputs,
-                })
-            },
-            _ => bail!(ErrorKind::InvalidData, "Creating a SourceDescriptor requires: id, configuration, uri, and outputs. Maybe some parameters are set as None?")
-        }
-    }
-
-    fn get_id(&self) -> &NodeId {
-        &self.id
-    }
-
-    fn set_id(&mut self, id: NodeId) {
-        self.id = id
-    }
-
-    fn get_configuration(&self) -> &Option<Configuration> {
-        &self.configuration
-    }
-
-    fn set_configuration(&mut self, configuration: Option<Configuration>) {
-        self.configuration = configuration
-    }
-
+impl SourceDescriptor {
     /// Creates a new `SourceDescriptor` from its YAML representation.
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    fn from_yaml(data: &str) -> Result<Self> {
+    pub fn from_yaml(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_yaml::from_str::<SourceDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
@@ -106,7 +62,7 @@ impl LoadedNode for SourceDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if deserialization fails.
-    fn from_json(data: &str) -> Result<Self> {
+    pub fn from_json(data: &str) -> Result<Self> {
         let dataflow_descriptor = serde_json::from_str::<SourceDescriptor>(data)
             .map_err(|e| zferror!(ErrorKind::ParsingError, e))?;
         Ok(dataflow_descriptor)
@@ -116,7 +72,7 @@ impl LoadedNode for SourceDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    fn to_json(&self) -> Result<String> {
+    pub fn to_json(&self) -> Result<String> {
         serde_json::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 
@@ -124,7 +80,7 @@ impl LoadedNode for SourceDescriptor {
     ///
     ///  # Errors
     /// A variant error is returned if serialization fails.
-    fn to_yaml(&self) -> Result<String> {
+    pub fn to_yaml(&self) -> Result<String> {
         serde_yaml::to_string(&self).map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
     }
 }
