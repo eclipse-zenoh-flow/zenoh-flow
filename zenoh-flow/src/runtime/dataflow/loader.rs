@@ -12,17 +12,20 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use super::instance::builtin::zenoh::{get_zenoh_sink_declaration, get_zenoh_source_declaration};
 use super::node::{
     ConstructorFn, OperatorConstructor, OperatorFn, SinkConstructor, SinkFn, SourceConstructor,
     SourceFn,
 };
 use crate::model::record::{OperatorRecord, SinkRecord, SourceRecord};
+use crate::model::{Middleware, ZFUri};
 use crate::types::Configuration;
+use crate::utils::parse_uri;
 use crate::zfresult::ErrorKind;
 use crate::Result;
 use crate::{bail, zferror};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 #[cfg(target_family = "unix")]
@@ -200,7 +203,7 @@ impl Loader {
         Self { config }
     }
 
-    /// Loads a node library, using one of the extension configured within the loader.
+    /// Loads a node library from a file, using one of the extension configured within the loader.
     ///
     /// # Errors
     ///
@@ -208,17 +211,14 @@ impl Loader {
     /// - different version of Zenoh-Flow used to build the node
     /// - different version of the rust compiler used to build the node
     /// - the library does not contain the symbols
-    /// - the URI is missing
-    /// - the URI scheme is not known (so far only `file://` is supported)
     /// - the extension is not known
     /// - the node does not match the extension interface
-    unsafe fn load_node<T: ConstructorFn>(
+    unsafe fn load_node_from_file<T: ConstructorFn>(
         &self,
         node_symbol: NodeSymbol,
-        uri: &str,
+        file_path: PathBuf,
         configuration: &mut Option<Configuration>,
     ) -> Result<(Library, T)> {
-        let file_path = crate::utils::try_make_file_path(uri)?;
         let file_extension = crate::utils::get_file_extension(&file_path).ok_or_else(|| {
             zferror!(
                 ErrorKind::LoadingError,
@@ -273,6 +273,36 @@ impl Loader {
         Ok((library, decl.constructor))
     }
 
+    /// Loads a source from the builtin ones.
+    ///
+    /// # Errors
+    ///
+    /// It can fail because of:
+    /// - the buitin middleware is not supported (so far only Zenoh is supported)
+    fn load_source_from_builtin(&self, middleware: Middleware) -> Result<SourceFn> {
+        match middleware {
+            Middleware::Zenoh => {
+                let declaration = get_zenoh_source_declaration();
+                Ok(declaration.constructor)
+            }
+        }
+    }
+
+    /// Loads a sink from the builtin ones
+    ///
+    /// # Errors
+    ///
+    /// It can fail because of:
+    /// - the buitin middleware is not supported (so far only Zenoh is supported)
+    fn load_sink_from_builtin(&self, middleware: Middleware) -> Result<SinkFn> {
+        match middleware {
+            Middleware::Zenoh => {
+                let declaration = get_zenoh_sink_declaration();
+                Ok(declaration.constructor)
+            }
+        }
+    }
+
     /// Tries to load a Source from the information passed within the
     /// [`SourceRecord`](`SourceRecord`).
     ///
@@ -289,15 +319,27 @@ impl Loader {
         mut record: SourceRecord,
     ) -> Result<SourceConstructor> {
         if let Some(uri) = &record.uri {
-            let (library, constructor) = unsafe {
-                self.load_node::<SourceFn>(NodeSymbol::Source, uri, &mut record.configuration)?
-            };
+            match parse_uri(uri)? {
+                ZFUri::File(file_path) => {
+                    let (library, constructor) = unsafe {
+                        self.load_node_from_file::<SourceFn>(
+                            NodeSymbol::Source,
+                            file_path,
+                            &mut record.configuration,
+                        )?
+                    };
 
-            Ok(SourceConstructor::new_dynamic(
-                record,
-                constructor,
-                Arc::new(library),
-            ))
+                    Ok(SourceConstructor::new_dynamic(
+                        record,
+                        constructor,
+                        Arc::new(library),
+                    ))
+                }
+                ZFUri::Builtin(mw) => {
+                    let constructor = self.load_source_from_builtin(mw)?;
+                    Ok(SourceConstructor::new_static(record, constructor))
+                }
+            }
         } else {
             bail!(
                 ErrorKind::LoadingError,
@@ -324,15 +366,30 @@ impl Loader {
         mut record: OperatorRecord,
     ) -> Result<OperatorConstructor> {
         if let Some(uri) = &record.uri {
-            let (library, constructor) = unsafe {
-                self.load_node::<OperatorFn>(NodeSymbol::Operator, uri, &mut record.configuration)?
-            };
+            match parse_uri(uri)? {
+                ZFUri::File(file_path) => {
+                    let (library, constructor) = unsafe {
+                        self.load_node_from_file::<OperatorFn>(
+                            NodeSymbol::Operator,
+                            file_path,
+                            &mut record.configuration,
+                        )?
+                    };
 
-            Ok(OperatorConstructor::new_dynamic(
-                record,
-                constructor,
-                Arc::new(library),
-            ))
+                    Ok(OperatorConstructor::new_dynamic(
+                        record,
+                        constructor,
+                        Arc::new(library),
+                    ))
+                }
+                ZFUri::Builtin(_mw) => {
+                    bail!(
+                        ErrorKind::Unimplemented,
+                        "Loading builtin operators is not supported < {} >.",
+                        record.id.clone()
+                    )
+                }
+            }
         } else {
             bail!(
                 ErrorKind::LoadingError,
@@ -355,15 +412,27 @@ impl Loader {
     /// - the URI scheme is not known (so far only `file://` is known).
     pub(crate) fn load_sink_constructor(&self, mut record: SinkRecord) -> Result<SinkConstructor> {
         if let Some(uri) = &record.uri {
-            let (library, constructor) = unsafe {
-                self.load_node::<SinkFn>(NodeSymbol::Sink, uri, &mut record.configuration)?
-            };
+            match parse_uri(uri)? {
+                ZFUri::File(file_path) => {
+                    let (library, constructor) = unsafe {
+                        self.load_node_from_file::<SinkFn>(
+                            NodeSymbol::Sink,
+                            file_path,
+                            &mut record.configuration,
+                        )?
+                    };
 
-            Ok(SinkConstructor::new_dynamic(
-                record,
-                constructor,
-                Arc::new(library),
-            ))
+                    Ok(SinkConstructor::new_dynamic(
+                        record,
+                        constructor,
+                        Arc::new(library),
+                    ))
+                }
+                ZFUri::Builtin(mw) => {
+                    let constructor = self.load_sink_from_builtin(mw)?;
+                    Ok(SinkConstructor::new_static(record, constructor))
+                }
+            }
         } else {
             bail!(
                 ErrorKind::LoadingError,

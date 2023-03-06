@@ -97,7 +97,11 @@ pub async fn map_to_infrastructure(
             .entry(o.id.clone())
             .or_insert_with(|| runtime_id.clone());
     }
-
+    log::trace!(
+        "[Dataflow mapping] Mapping for: {} is {:?}",
+        descriptor.flow,
+        mapping
+    );
     descriptor.mapping = Some(mapping);
     Ok(descriptor)
 }

@@ -12,34 +12,60 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::model::{Middleware, ZFUri};
 use crate::prelude::ErrorKind;
 use crate::{bail, zferror, Result};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use url::Url;
 
 /// Given a string representing a [`Url`](`url::Url`), transform it into a
-/// [`PathBuf`](`std::path::PathBuf`).
+/// [`ZFUri`](`zenoh_flow::model::ZFUri`).
 ///
-/// Only one scheme, for now, is supported: `file://`. This will change in upcoming releases of
-/// Zenoh-Flow.
+/// Supported schemes:
+/// - `file://`
+/// - `builtin://`
 ///
 /// # Errors
 ///
 /// This function will return an error in the following situations:
 /// - The provided string does not match the syntax of a [`Url`](`url::Url`).
-/// - The scheme used for the url is NOT `file://`.
-/// - The resulting path cannot be [`canonicalized`](`std::fs::canonicalize`).
-pub(crate) fn try_make_file_path(url_str: &str) -> Result<PathBuf> {
+/// - The scheme is not supported
+/// - In case of `builtin://`, the authority part, `<middleware>`, is not supported.
+/// - In case of `file://`, the resulting path cannot be [`canonicalized`](`std::fs::canonicalize`).
+pub(crate) fn parse_uri(url_str: &str) -> Result<ZFUri> {
     let uri = Url::parse(url_str).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
 
-    if uri.scheme() != "file" {
-        bail!(
-            ErrorKind::ParsingError,
-            "Only the 'file://' scheme is supported, found: {}://",
-            uri.scheme()
-        );
-    }
+    let uri_path = match uri.host_str() {
+        Some(h) => format!("{}{}", h, uri.path()),
+        None => uri.path().to_string(),
+    };
 
+    match uri.scheme() {
+        "file" => Ok(ZFUri::File(try_make_file_path(&uri_path)?)),
+        "builtin" => {
+            let mw = Middleware::from_str(&uri_path)?;
+            Ok(ZFUri::Builtin(mw))
+        }
+        _ => {
+            bail!(
+                ErrorKind::ParsingError,
+                "Scheme: {}:// is not supported. Supported ones are `file://` and `builtin://`",
+                uri.scheme()
+            );
+        }
+    }
+}
+
+/// Given a string representing a path, transform it into a
+/// [`PathBuf`](`std::path::PathBuf`).
+///
+///
+/// # Errors
+///
+/// This function will return an error in the following situations:
+/// - The resulting path cannot be [`canonicalized`](`std::fs::canonicalize`).
+pub(crate) fn try_make_file_path(file_path: &str) -> Result<PathBuf> {
     let mut path = PathBuf::new();
     #[cfg(test)]
     {
@@ -49,10 +75,6 @@ pub(crate) fn try_make_file_path(url_str: &str) -> Result<PathBuf> {
         path.push(env!("CARGO_MANIFEST_DIR"));
     }
 
-    let file_path = match uri.host_str() {
-        Some(h) => format!("{}{}", h, uri.path()),
-        None => uri.path().to_string(),
-    };
     path.push(file_path);
     let path = std::fs::canonicalize(&path)
         .map_err(|e| zferror!(ErrorKind::IOError, "{}: {}", e, &path.to_string_lossy()))?;
