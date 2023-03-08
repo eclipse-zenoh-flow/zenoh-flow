@@ -6,12 +6,7 @@ vars:
 uri: file://sub-operator-1.so
 
 inputs:
-  - id: sub-operator-1-in-1
-    type: "{{ type-any }}"
+  - sub-operator-1-in-1
+  - sub-operator-1-in-2
 
-  - id: sub-operator-1-in-2
-    type: "{{ type-any }}"
-
-outputs:
-  - id: sub-operator-1-out
-    type: "{{ type-any }}"
+outputs: [sub-operator-1-out]

@@ -229,7 +229,7 @@ impl Node for GenericSink {
 
 // Run dataflow in single runtime
 async fn single_runtime() {
-    env_logger::init();
+    let _ = env_logger::try_init();
 
     let session = Arc::new(
         zenoh::open(zenoh::config::Config::default())
@@ -256,7 +256,6 @@ async fn single_runtime() {
         outputs: vec![PortRecord {
             uid: 0,
             port_id: OUT_TYPED.into(),
-            port_type: "int".into(),
         }],
         uri: None,
         configuration: None,
@@ -280,24 +279,20 @@ async fn single_runtime() {
             PortRecord {
                 uid: 1,
                 port_id: IN_RAW.into(),
-                port_type: "int".into(),
             },
             PortRecord {
                 uid: 2,
                 port_id: IN_TYPED.into(),
-                port_type: "int".into(),
             },
         ],
         outputs: vec![
             PortRecord {
                 uid: 3,
                 port_id: OUT_RAW.into(),
-                port_type: "int".into(),
             },
             PortRecord {
                 uid: 4,
                 port_id: OUT_TYPED.into(),
-                port_type: "int".into(),
             },
         ],
         uri: None,
@@ -325,24 +320,20 @@ async fn single_runtime() {
             PortRecord {
                 uid: 5,
                 port_id: IN_RAW.into(),
-                port_type: "int".into(),
             },
             PortRecord {
                 uid: 6,
                 port_id: IN_TYPED.into(),
-                port_type: "int".into(),
             },
         ],
         outputs: vec![
             PortRecord {
                 uid: 7,
                 port_id: OUT_RAW.into(),
-                port_type: "int".into(),
             },
             PortRecord {
                 uid: 8,
                 port_id: OUT_TYPED.into(),
-                port_type: "int".into(),
             },
         ],
         uri: None,
@@ -370,12 +361,10 @@ async fn single_runtime() {
             PortRecord {
                 uid: 9,
                 port_id: IN_TYPED.into(),
-                port_type: "int".into(),
             },
             PortRecord {
                 uid: 10,
                 port_id: IN_RAW.into(),
-                port_type: "int".into(),
             },
         ],
         uri: None,
@@ -495,6 +484,8 @@ async fn single_runtime() {
 
 #[test]
 fn run_single_runtime() {
+    let _ = env_logger::try_init();
+
     let h1 = async_std::task::spawn(async move { single_runtime().await });
 
     async_std::task::block_on(async move { h1.await })

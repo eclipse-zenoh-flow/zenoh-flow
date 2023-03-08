@@ -17,7 +17,7 @@ use crate::model::descriptor::{
 };
 use crate::model::record::connector::{ZFConnectorKind, ZFConnectorRecord};
 use crate::model::record::{LinkRecord, OperatorRecord, PortRecord, SinkRecord, SourceRecord};
-use crate::types::{NodeId, PortId, PortType, RuntimeId, PORT_TYPE_ANY};
+use crate::types::{NodeId, PortId, RuntimeId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;
@@ -25,7 +25,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 use uuid::Uuid;
 
 /// A `DataFlowRecord` is an instance of a [`FlattenDataFlowDescriptor`](`FlattenDataFlowDescriptor`).
@@ -83,30 +82,6 @@ impl DataFlowRecord {
             None => match self.sources.get(id) {
                 Some(s) => Some(s.runtime.clone()),
                 None => self.sinks.get(id).map(|s| s.runtime.clone()),
-            },
-        }
-    }
-
-    /// Returns the output type for the given node and port.
-    pub fn find_node_output_type(&self, id: &str, output: &str) -> Option<&PortType> {
-        log::trace!("find_node_output_type({:?},{:?})", id, output);
-        match self.operators.get(id) {
-            Some(o) => o.get_output_type(output),
-            None => match self.sources.get(id) {
-                Some(s) => s.get_output_type(output),
-                None => None,
-            },
-        }
-    }
-
-    /// Returns the input type for the given node and port.
-    pub fn find_node_input_type(&self, id: &str, input: &str) -> Option<&PortType> {
-        log::trace!("find_node_input_type({:?},{:?})", id, input);
-        match self.operators.get(id) {
-            Some(o) => o.get_input_type(input),
-            None => match self.sinks.get(id) {
-                Some(s) => s.get_input_type(input),
-                None => None,
             },
         }
     }
@@ -189,44 +164,6 @@ impl DataFlowRecord {
                 }
             };
 
-            let from_type = match self.find_node_output_type(&l.from.node, &l.from.output) {
-                Some(t) => t.clone(),
-                None => {
-                    return Err(zferror!(ErrorKind::PortNotFound((
-                        l.from.node.clone(),
-                        l.from.output.clone(),
-                    )))
-                    .into())
-                }
-            };
-
-            let to_type = match self.find_node_input_type(&l.to.node, &l.to.input) {
-                Some(t) => t.clone(),
-                None => {
-                    return Err(zferror!(ErrorKind::PortNotFound((
-                        l.to.node.clone(),
-                        l.to.input.clone(),
-                    )))
-                    .into())
-                }
-            };
-
-            if from_type != to_type
-                && from_type.as_ref() != PORT_TYPE_ANY
-                && to_type.as_ref() != PORT_TYPE_ANY
-            {
-                // NOTE `Arc::clone` for two reasons:
-                // - Clippy considers calls to `.clone()` as redundant but rustc complains if there
-                //   is no clone,
-                // - this is just a temporary fix as we will introduce proper types that will
-                //   implement Clone and (under the hood) use Arc::clone
-                return Err(zferror!(ErrorKind::PortTypeNotMatching((
-                    Arc::clone(&from_type),
-                    Arc::clone(&to_type)
-                )))
-                .into());
-            }
-
             if from_runtime == to_runtime {
                 log::debug!("Adding link: {:?}… OK", l);
                 // link between nodes on the same runtime
@@ -269,7 +206,6 @@ impl DataFlowRecord {
                         link_id: PortRecord {
                             uid: self.counter,
                             port_id: l.from.output.clone(),
-                            port_type: from_type.clone(),
                         },
 
                         runtime: from_runtime,
@@ -307,7 +243,6 @@ impl DataFlowRecord {
                     link_id: PortRecord {
                         uid: self.counter,
                         port_id: l.to.input.clone(),
-                        port_type: to_type.clone(),
                     },
 
                     runtime: to_runtime,

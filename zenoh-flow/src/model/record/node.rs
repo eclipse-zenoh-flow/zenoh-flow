@@ -13,7 +13,7 @@
 //
 
 use crate::model::record::PortRecord;
-use crate::types::{Configuration, NodeId, PortType, RuntimeId};
+use crate::types::{Configuration, NodeId, RuntimeId};
 use serde::{Deserialize, Serialize};
 
 /// A `SinkRecord` is an instance of a [`SinkDescriptor`](`crate::model::descriptor::SinkDescriptor`)
@@ -30,16 +30,6 @@ pub struct SinkRecord {
 impl std::fmt::Display for SinkRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Sink", self.id)
-    }
-}
-
-impl SinkRecord {
-    /// Returns the `PortType` for the input.
-    pub fn get_input_type(&self, id: impl AsRef<str>) -> Option<&PortType> {
-        self.inputs
-            .iter()
-            .find(|&lid| lid.port_id.as_ref() == id.as_ref())
-            .map(|lid| &lid.port_type)
     }
 }
 
@@ -60,16 +50,6 @@ impl std::fmt::Display for SourceRecord {
     }
 }
 
-impl SourceRecord {
-    /// Returns the `PortType` for the output.
-    pub fn get_output_type(&self, id: impl AsRef<str>) -> Option<&PortType> {
-        self.outputs
-            .iter()
-            .find(|&lid| lid.port_id.as_ref() == id.as_ref())
-            .map(|lid| &lid.port_type)
-    }
-}
-
 /// An `OperatorRecord` is an instance of an [`OperatorDescriptor`](`crate::model::descriptor::OperatorDescriptor`)
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OperatorRecord {
@@ -85,23 +65,5 @@ pub struct OperatorRecord {
 impl std::fmt::Display for OperatorRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{} - Kind: Operator", self.id)
-    }
-}
-
-impl OperatorRecord {
-    /// Returns the `PortType` for the given output.
-    pub fn get_output_type(&self, id: impl AsRef<str>) -> Option<&PortType> {
-        self.outputs
-            .iter()
-            .find(|&lid| lid.port_id.as_ref() == id.as_ref())
-            .map(|lid| &lid.port_type)
-    }
-
-    /// Return the `PortType` for the given input.
-    pub fn get_input_type(&self, id: impl AsRef<str>) -> Option<&PortType> {
-        self.inputs
-            .iter()
-            .find(|&lid| lid.port_id.as_ref() == id.as_ref())
-            .map(|lid| &lid.port_type)
     }
 }

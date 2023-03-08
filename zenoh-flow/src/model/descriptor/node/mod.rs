@@ -108,6 +108,7 @@ impl NodeDescriptor {
         global_configuration: Option<Configuration>,
         ancestors: &mut Vec<String>,
     ) -> Result<Vec<OperatorDescriptor>> {
+        log::trace!("[Descriptor] loading operator {}", self.id);
         let descriptor = match parse_uri(&self.descriptor)? {
             crate::model::ZFUri::File(path) => try_load_descriptor_from_file(path).await,
             crate::model::ZFUri::Builtin(_) => bail!(
@@ -120,6 +121,7 @@ impl NodeDescriptor {
         // composite one, if that also fails it is malformed.
         let res_simple = OperatorDescriptor::from_yaml(&descriptor);
         if let Ok(mut simple_operator) = res_simple {
+            log::trace!("[Descriptor] Operator {} is simple", simple_operator.id);
             simple_operator.configuration = global_configuration
                 .clone()
                 .merge_overwrite(simple_operator.configuration);
@@ -129,7 +131,16 @@ impl NodeDescriptor {
 
         let res_composite = CompositeOperatorDescriptor::from_yaml(&descriptor);
         if let Ok(composite_operator) = res_composite {
+            log::trace!(
+                "[Descriptor] Operator {} is composite",
+                composite_operator.id
+            );
             if let Ok(index) = ancestors.binary_search(&self.descriptor) {
+                log::error!(
+                    "Possible recursion detected, < {} > would be included again after: {:?}",
+                    self.descriptor,
+                    &ancestors[index..]
+                );
                 bail!(
                     ErrorKind::GenericError, // FIXME Dedicated error?
                     "Possible recursion detected, < {} > would be included again after: {:?}",

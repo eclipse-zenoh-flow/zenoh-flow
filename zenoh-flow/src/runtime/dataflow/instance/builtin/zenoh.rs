@@ -84,11 +84,7 @@ pub(crate) fn get_zenoh_source_descriptor(
         configuration
     ))?;
     for id in local_configuration.keys() {
-        let port_descriptor = PortDescriptor {
-            port_id: id.clone().into(),
-            port_type: "_any_".into(),
-        };
-        outputs.push(port_descriptor);
+        outputs.push(id.clone().into());
     }
 
     Ok(SourceDescriptor {
@@ -251,11 +247,7 @@ pub(crate) fn get_zenoh_sink_descriptor(configuration: &Configuration) -> ZFResu
         configuration
     ))?;
     for id in local_configuration.keys() {
-        let port_descriptor = PortDescriptor {
-            port_id: id.clone().into(),
-            port_type: "_any_".into(),
-        };
-        inputs.push(port_descriptor);
+        inputs.push(id.clone().into());
     }
 
     Ok(SinkDescriptor {

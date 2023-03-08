@@ -20,6 +20,8 @@ use crate::model::descriptor::{
 
 #[test]
 fn test_flatten_composite_descriptor_non_nested() {
+    let _ = env_logger::try_init();
+
     let composite_descriptor = CompositeOperatorDescriptor {
         id: "composite-test".into(),
         inputs: vec![
@@ -89,18 +91,15 @@ fn test_flatten_composite_descriptor_non_nested() {
     let expected_operators = vec![
         OperatorDescriptor {
             id: "composite/my-operator-1".into(),
-            inputs: vec![
-                PortDescriptor::new("operator-1-in-1", "_any_"),
-                PortDescriptor::new("operator-1-in-2", "_any_"),
-            ],
-            outputs: vec![PortDescriptor::new("operator-1-out", "_any_")],
+            inputs: vec!["operator-1-in-1".into(), "operator-1-in-2".into()],
+            outputs: vec!["operator-1-out".into()],
             uri: Some("file://operator-1.so".into()),
             configuration: None,
         },
         OperatorDescriptor {
             id: "composite/my-operator-2".into(),
-            inputs: vec![PortDescriptor::new("operator-2-in", "_any_")],
-            outputs: vec![PortDescriptor::new("operator-2-out", "_any_")],
+            inputs: vec!["operator-2-in".into()],
+            outputs: vec!["operator-2-out".into()],
             uri: Some("file://operator-2.so".into()),
             configuration: None,
         },
@@ -144,6 +143,8 @@ fn test_flatten_composite_descriptor_non_nested() {
 
 #[test]
 fn test_flatten_composite_descriptor_nested() {
+    let _ = env_logger::try_init();
+
     let nested_composite_descriptor = CompositeOperatorDescriptor {
         id: "nested-composite-test".into(),
         inputs: vec![CompositeInputDescriptor::new(
@@ -210,32 +211,29 @@ fn test_flatten_composite_descriptor_nested() {
     let expected_operators = vec![
         OperatorDescriptor {
             id: "composite/composite-outer-o".into(),
-            inputs: vec![PortDescriptor::new("composite-outer-in", "_any_")],
-            outputs: vec![PortDescriptor::new("composite-outer-out", "_any_")],
+            inputs: vec!["composite-outer-in".into()],
+            outputs: vec!["composite-outer-out".into()],
             uri: Some("file://composite-outer.so".into()),
             configuration: None,
         },
         OperatorDescriptor {
             id: "composite/composite-nested/operator-1".into(),
-            inputs: vec![
-                PortDescriptor::new("operator-1-in-1", "_any_"),
-                PortDescriptor::new("operator-1-in-2", "_any_"),
-            ],
-            outputs: vec![PortDescriptor::new("operator-1-out", "_any_")],
+            inputs: vec!["operator-1-in-1".into(), "operator-1-in-2".into()],
+            outputs: vec!["operator-1-out".into()],
             uri: Some("file://operator-1.so".into()),
             configuration: None,
         },
         OperatorDescriptor {
             id: "composite/composite-nested/operator-2".into(),
-            inputs: vec![PortDescriptor::new("operator-2-in", "_any_")],
-            outputs: vec![PortDescriptor::new("operator-2-out", "_any_")],
+            inputs: vec!["operator-2-in".into()],
+            outputs: vec!["operator-2-out".into()],
             uri: Some("file://operator-2.so".into()),
             configuration: None,
         },
         OperatorDescriptor {
             id: "composite/composite-outer-i".into(),
-            inputs: vec![PortDescriptor::new("composite-outer-in", "_any_")],
-            outputs: vec![PortDescriptor::new("composite-outer-out", "_any_")],
+            inputs: vec!["composite-outer-in".into()],
+            outputs: vec!["composite-outer-out".into()],
             uri: Some("file://composite-outer.so".into()),
             configuration: None,
         },

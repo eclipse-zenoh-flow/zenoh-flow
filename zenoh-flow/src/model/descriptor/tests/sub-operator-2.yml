@@ -2,12 +2,9 @@ id: leaf-operator-2
 
 uri: file://sub-operator-2.so
 
-inputs:
-  - id: sub-operator-2-in
-    type: _any_
+inputs: [sub-operator-2-in]
 
 outputs:
-  - id: sub-operator-2-out-1
-    type: _any_
-  - id: sub-operator-2-out-2
-    type: _any_
+  - sub-operator-2-out-1
+  - sub-operator-2-out-2
+

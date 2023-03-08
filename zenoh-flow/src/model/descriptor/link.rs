@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::types::{NodeId, PortId, PortType};
+use crate::types::{NodeId, PortId};
 use serde::{Deserialize, Serialize};
 use std::{fmt, sync::Arc};
 
@@ -63,27 +63,23 @@ impl LinkDescriptor {
 ///
 /// ```yaml
 /// id: Counter
-/// type: usize
 /// ```
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct PortDescriptor {
     #[serde(alias = "id")]
     pub port_id: PortId,
-    #[serde(alias = "type")]
-    pub port_type: PortType,
 }
 
 impl std::fmt::Display for PortDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}:{}", self.port_id, self.port_type)
+        write!(f, "{}", self.port_id)
     }
 }
 
 impl PortDescriptor {
-    pub fn new(port_id: impl AsRef<str>, port_type: impl AsRef<str>) -> Self {
+    pub fn new(port_id: impl AsRef<str>) -> Self {
         Self {
             port_id: port_id.as_ref().into(),
-            port_type: port_type.as_ref().into(),
         }
     }
 }

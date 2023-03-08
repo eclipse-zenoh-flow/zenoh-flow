@@ -27,8 +27,8 @@ path="src/lib.rs"
 [package.metadata.zenohflow]
 id = "{name}"
 kind = "operator"
-inputs=[ \{id ="INPUT", type="bytes"}]
-outputs=[ \{id ="OUTPUT", type="bytes"}]
+inputs=["INPUT"]
+outputs=["OUTPUT"]
 
 "#;
 
@@ -44,7 +44,7 @@ path="src/lib.rs"
 [package.metadata.zenohflow]
 id = "{name}"
 kind = "source"
-outputs=[ \{id ="Data", type="bytes"}]
+outputs=["Data"]
 
 "#;
 
@@ -60,7 +60,7 @@ path="src/lib.rs"
 [package.metadata.zenohflow]
 id = "{name}"
 kind = "sink"
-inputs=[ \{id ="Data", type="bytes"}]
+inputs=["Data"]
 
 "#;
 

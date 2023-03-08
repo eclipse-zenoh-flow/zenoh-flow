@@ -12,10 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::descriptor::PortDescriptor;
 use crate::types::NodeId;
 use crate::zferror;
 use crate::zfresult::ErrorKind;
+use crate::{model::descriptor::PortDescriptor, prelude::PortId};
 use serde::{Deserialize, Serialize};
 
 /// The kind of a graph node.
@@ -68,8 +68,8 @@ pub struct RegistryNode {
     pub kind: NodeKind,
     pub classes: Vec<String>,
     pub tags: Vec<RegistryNodeTag>,
-    pub inputs: Vec<PortDescriptor>,
-    pub outputs: Vec<PortDescriptor>,
+    pub inputs: Vec<PortId>,
+    pub outputs: Vec<PortId>,
 }
 
 impl RegistryNode {

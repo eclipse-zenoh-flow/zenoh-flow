@@ -13,7 +13,7 @@
 //
 
 use crate::model::descriptor::{InputDescriptor, LinkDescriptor, OutputDescriptor, PortDescriptor};
-use crate::types::{PortId, PortType};
+use crate::types::PortId;
 use serde::{Deserialize, Serialize};
 
 /// The record of a link.
@@ -68,31 +68,24 @@ impl From<(LinkDescriptor, u32)> for LinkRecord {
 /// ```yaml
 /// id: Counter
 /// uid: 3
-/// type: usize
 /// ```
 #[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct PortRecord {
     pub uid: u32,
     #[serde(alias = "id")]
     pub port_id: PortId,
-    #[serde(alias = "type")]
-    pub port_type: PortType,
 }
 
 impl std::fmt::Display for PortRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({}) {}:{}", self.uid, self.port_id, self.port_type)
+        write!(f, "({}) {}", self.uid, self.port_id)
     }
 }
 
-impl From<(PortDescriptor, u32)> for PortRecord {
-    fn from(data: (PortDescriptor, u32)) -> Self {
-        let (desc, uid) = data;
+impl From<(PortId, u32)> for PortRecord {
+    fn from(data: (PortId, u32)) -> Self {
+        let (port_id, uid) = data;
 
-        Self {
-            uid,
-            port_id: desc.port_id,
-            port_type: desc.port_type,
-        }
+        Self { uid, port_id }
     }
 }

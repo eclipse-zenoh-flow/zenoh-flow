@@ -22,6 +22,7 @@ use serde::Deserialize;
 use std::process::Command;
 use zenoh_flow::model::descriptor::PortDescriptor;
 use zenoh_flow::model::registry::{NodeKind, RegistryNode};
+use zenoh_flow::types::PortId;
 
 pub static ZF_OUTPUT_DIRECTORY: &str = "zenoh-flow";
 static ZF_CPP_REPO: &str = "https://github.com/ZettaScaleLabs/zenoh-flow-cxx";
@@ -70,8 +71,8 @@ pub struct CargoPkgMetadata {
 pub struct CargoZenohFlow {
     pub id: String,
     pub kind: NodeKind,
-    pub inputs: Option<Vec<PortDescriptor>>,
-    pub outputs: Option<Vec<PortDescriptor>>,
+    pub inputs: Option<Vec<PortId>>,
+    pub outputs: Option<Vec<PortId>>,
 }
 
 pub fn from_manifest(

@@ -7,7 +7,5 @@ vars:
 uri: "{{ file-uri }}source-composite.so"
 
 outputs:
-  - id: source-composite-out-1
-    type: "{{ any }}"
-  - id: source-composite-out-2
-    type: "{{ any }}"
+  - source-composite-out-1
+  - source-composite-out-2

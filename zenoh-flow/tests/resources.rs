@@ -21,6 +21,8 @@ use zenoh_flow::{
 
 #[test]
 fn runtime_macros() {
+    let _ = env_logger::try_init();
+
     let correct_path = String::from("zenoh-flow/runtimes/1/info");
     let gen_path = RT_INFO_PATH!(ROOT_STANDALONE, "1");
 

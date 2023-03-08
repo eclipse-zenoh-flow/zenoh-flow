@@ -6,7 +6,5 @@ vars:
 uri: file://sink-composite.so
 
 inputs:
-  - id: sink-composite-in-1
-    type: "{{  any }}"
-  - id: sink-composite-in-2
-    type: "{{ any    }}"
+  - sink-composite-in-1
+  - sink-composite-in-2
