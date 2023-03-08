@@ -57,7 +57,6 @@ impl LinkDescriptor {
     }
 }
 
-
 /// Describes one output
 ///
 /// Example:
