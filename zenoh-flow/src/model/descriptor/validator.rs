@@ -12,9 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::descriptor::{
-    FlattenDataFlowDescriptor, InputDescriptor, OutputDescriptor, PortDescriptor,
-};
+use crate::model::descriptor::{FlattenDataFlowDescriptor, InputDescriptor, OutputDescriptor};
 use crate::types::{NodeId, PortId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
@@ -174,7 +172,7 @@ impl DataFlowValidator {
         let node_checker_idx = self.node_checker.add_node(id.clone());
         if self
             .map_id_to_node_checker_idx
-            .insert(id.clone(), node_checker_idx)
+            .insert(id, node_checker_idx)
             .is_some()
         {
             // NOTE `Arc::clone` for two reasons:

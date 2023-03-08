@@ -14,7 +14,7 @@
 
 use crate::{
     bail,
-    model::descriptor::{PortDescriptor, SinkDescriptor, SourceDescriptor},
+    model::descriptor::{SinkDescriptor, SourceDescriptor},
     prelude::{
         zferror, Configuration, Context, ErrorKind, InputRaw, Inputs, Node, OutputRaw, Outputs,
         PortId, Sink, Source,

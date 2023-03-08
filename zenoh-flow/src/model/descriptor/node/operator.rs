@@ -14,7 +14,7 @@
 
 use crate::model::descriptor::link::{CompositeInputDescriptor, CompositeOutputDescriptor};
 use crate::model::descriptor::node::{try_load_descriptor_from_file, NodeDescriptor};
-use crate::model::descriptor::{LinkDescriptor, PortDescriptor};
+use crate::model::descriptor::LinkDescriptor;
 use crate::prelude::PortId;
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId};

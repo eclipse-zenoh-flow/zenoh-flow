@@ -20,7 +20,7 @@ use async_std::prelude::*;
 // use git2::Repository;
 use serde::Deserialize;
 use std::process::Command;
-use zenoh_flow::model::descriptor::PortDescriptor;
+
 use zenoh_flow::model::registry::{NodeKind, RegistryNode};
 use zenoh_flow::types::PortId;
 

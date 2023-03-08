@@ -16,7 +16,7 @@ use serde_json::json;
 
 use crate::model::descriptor::{
     DataFlowDescriptor, InputDescriptor, LinkDescriptor, OperatorDescriptor, OutputDescriptor,
-    PortDescriptor, SinkDescriptor, SourceDescriptor,
+    SinkDescriptor, SourceDescriptor,
 };
 use std::{
     fs::File,

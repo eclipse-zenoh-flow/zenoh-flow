@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::descriptor::{InputDescriptor, LinkDescriptor, OutputDescriptor, PortDescriptor};
+use crate::model::descriptor::{InputDescriptor, LinkDescriptor, OutputDescriptor};
 use crate::types::PortId;
 use serde::{Deserialize, Serialize};
 

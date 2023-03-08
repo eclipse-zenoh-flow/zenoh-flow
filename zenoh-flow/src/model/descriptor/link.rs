@@ -57,32 +57,6 @@ impl LinkDescriptor {
     }
 }
 
-/// The description of a port.
-///
-/// Example:
-///
-/// ```yaml
-/// id: Counter
-/// ```
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct PortDescriptor {
-    #[serde(alias = "id")]
-    pub port_id: PortId,
-}
-
-impl std::fmt::Display for PortDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.port_id)
-    }
-}
-
-impl PortDescriptor {
-    pub fn new(port_id: impl AsRef<str>) -> Self {
-        Self {
-            port_id: port_id.as_ref().into(),
-        }
-    }
-}
 
 /// Describes one output
 ///

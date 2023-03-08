@@ -12,10 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::prelude::PortId;
 use crate::types::NodeId;
 use crate::zferror;
 use crate::zfresult::ErrorKind;
-use crate::{model::descriptor::PortDescriptor, prelude::PortId};
 use serde::{Deserialize, Serialize};
 
 /// The kind of a graph node.

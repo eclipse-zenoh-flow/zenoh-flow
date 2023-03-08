@@ -15,7 +15,6 @@
 use crate::model::descriptor::{
     CompositeInputDescriptor, CompositeOperatorDescriptor, CompositeOutputDescriptor,
     InputDescriptor, LinkDescriptor, NodeDescriptor, OperatorDescriptor, OutputDescriptor,
-    PortDescriptor,
 };
 
 #[test]

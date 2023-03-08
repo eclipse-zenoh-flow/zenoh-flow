@@ -12,7 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::descriptor::PortDescriptor;
 use crate::prelude::PortId;
 use crate::types::{Configuration, NodeId};
 use crate::zferror;
