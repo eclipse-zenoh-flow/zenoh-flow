@@ -28,8 +28,7 @@ use serde::{Deserialize, Serialize};
 /// uri: file://./target/release/libcounter_source.so
 /// configuration:
 ///   start: 10
-/// outputs:
-///   - Counter
+/// outputs: [Counter]
 /// ```
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
