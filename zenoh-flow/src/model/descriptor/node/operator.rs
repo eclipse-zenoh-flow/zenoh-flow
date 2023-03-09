@@ -36,10 +36,8 @@ use std::collections::HashMap;
 /// uri: file://./target/release/libmy_op.so
 /// configuration:
 ///   by: 10
-/// inputs:
-///     - Number
-/// outputs:
-///   - Multiplied
+/// inputs: [Number]
+/// outputs: [Multiplied]
 /// ```
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
