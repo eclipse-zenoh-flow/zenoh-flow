@@ -12,10 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::descriptor::{
-    FlattenDataFlowDescriptor, InputDescriptor, OutputDescriptor, PortDescriptor,
-};
-use crate::types::{NodeId, PortId, PortType, PORT_TYPE_ANY};
+use crate::model::descriptor::{FlattenDataFlowDescriptor, InputDescriptor, OutputDescriptor};
+use crate::types::{NodeId, PortId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;
@@ -39,8 +37,8 @@ use std::sync::Arc;
 /// `graph_checker` is an accurate representation of the dataflow. We use it to apply well-known
 /// graph algorithms.
 ///
-/// `node_checker` is used to check that all ports are connected and that input ports do not have
-/// more than one link. In `node_checker` we view a triplet `(NodeId, PortId, PortKind)` as a
+/// `node_checker` is used to check that all ports are connected.
+///  In `node_checker` we view a triplet `(NodeId, PortId, PortKind)` as a
 /// "node". For example, an Operator with one input and one output will be viewed as two nodes:
 /// (Operator, input, PortKind::Input) and (Operator, output, PortKind::Output).
 /// These triplets are used to check that no two ports of the same kind and for the same node have
@@ -51,7 +49,6 @@ use std::sync::Arc;
 /// - `output_indexes` does the same for all outputs (i.e. for Operators and Sources),
 /// - `map_id_to_node_checker_idx` maps the `(NodeId, PortId, PortKind)` to the indexes in
 ///   `node_checker`,
-/// - `map_id_to_type` maps the `(NodeId, PortId, PortKind)` to the type declared in the YAML file,
 /// - `map_id_to_graph_checker_idx` maps the `NodeId` to the indexes in `graph_checker`,
 /// - `loops_node_ids` stores the ids of the nodes involved in loops (ingress and egress).
 ///
@@ -62,11 +59,10 @@ use std::sync::Arc;
 /// - `validate_loop`
 pub(crate) struct DataFlowValidator {
     graph_checker: Graph<(NodeId, NodeKind), (PortId, PortId, EdgeIndex)>,
-    node_checker: Graph<PortUniqueId, PortType>,
+    node_checker: Graph<PortUniqueId, ()>,
     input_indexes: HashSet<NodeIndex>,
     output_indexes: HashSet<NodeIndex>,
     map_id_to_node_checker_idx: HashMap<PortUniqueId, NodeIndex>,
-    map_id_to_type: HashMap<PortUniqueId, PortType>,
     map_id_to_graph_checker_idx: HashMap<NodeId, (NodeKind, NodeIndex)>,
 }
 
@@ -132,12 +128,11 @@ impl DataFlowValidator {
     pub(crate) fn new() -> Self {
         Self {
             graph_checker: Graph::new(),
-            node_checker: Graph::new(),
             input_indexes: HashSet::new(),
             output_indexes: HashSet::new(),
             map_id_to_node_checker_idx: HashMap::new(),
-            map_id_to_type: HashMap::new(),
             map_id_to_graph_checker_idx: HashMap::new(),
+            node_checker: Graph::new(),
         }
     }
 
@@ -166,18 +161,18 @@ impl DataFlowValidator {
     fn try_add_node(
         &mut self,
         node_id: NodeId,
-        port: PortDescriptor,
+        port: PortId,
         port_kind: PortKind,
     ) -> ZFResult<NodeIndex> {
         let id = PortUniqueId {
             node_id: node_id.clone(),
-            port_id: port.port_id.clone(),
+            port_id: port.clone(),
             kind: port_kind,
         };
         let node_checker_idx = self.node_checker.add_node(id.clone());
         if self
             .map_id_to_node_checker_idx
-            .insert(id.clone(), node_checker_idx)
+            .insert(id, node_checker_idx)
             .is_some()
         {
             // NOTE `Arc::clone` for two reasons:
@@ -187,11 +182,10 @@ impl DataFlowValidator {
             //   Clone and (under the hood) use Arc::clone
             return Err(zferror!(ErrorKind::DuplicatedPort((
                 Arc::clone(&node_id),
-                Arc::clone(&port.port_id)
+                Arc::clone(&port)
             )))
             .into());
         }
-        self.map_id_to_type.insert(id, port.port_type);
 
         Ok(node_checker_idx)
     }
@@ -200,7 +194,7 @@ impl DataFlowValidator {
     ///
     /// # Errors
     /// It can fail when calling `try_add_node`.
-    pub(crate) fn try_add_input(&mut self, node_id: NodeId, input: PortDescriptor) -> ZFResult<()> {
+    pub(crate) fn try_add_input(&mut self, node_id: NodeId, input: PortId) -> ZFResult<()> {
         let node_checker_idx = self.try_add_node(node_id, input, PortKind::Input)?;
         self.input_indexes.insert(node_checker_idx);
         Ok(())
@@ -210,11 +204,7 @@ impl DataFlowValidator {
     ///
     /// # Errors
     /// It can fail when calling `try_add_node`.
-    pub(crate) fn try_add_output(
-        &mut self,
-        node_id: NodeId,
-        output: PortDescriptor,
-    ) -> ZFResult<()> {
+    pub(crate) fn try_add_output(&mut self, node_id: NodeId, output: PortId) -> ZFResult<()> {
         let node_checker_idx = self.try_add_node(node_id, output, PortKind::Output)?;
         self.output_indexes.insert(node_checker_idx);
         Ok(())
@@ -224,11 +214,7 @@ impl DataFlowValidator {
     ///
     /// #Errors
     /// It can fail when calling `try_add_output` or `try_add_id`.
-    pub(crate) fn try_add_source(
-        &mut self,
-        node_id: NodeId,
-        outputs: &[PortDescriptor],
-    ) -> ZFResult<()> {
+    pub(crate) fn try_add_source(&mut self, node_id: NodeId, outputs: &[PortId]) -> ZFResult<()> {
         self.try_add_id(NodeKind::Source, node_id.clone())?;
 
         outputs
@@ -240,11 +226,7 @@ impl DataFlowValidator {
     ///
     /// # Errors
     /// It can fail when calling `try_add_output` or `try_add_id`.
-    pub(crate) fn try_add_sink(
-        &mut self,
-        node_id: NodeId,
-        inputs: &[PortDescriptor],
-    ) -> ZFResult<()> {
+    pub(crate) fn try_add_sink(&mut self, node_id: NodeId, inputs: &[PortId]) -> ZFResult<()> {
         self.try_add_id(NodeKind::Sink, node_id.clone())?;
 
         inputs
@@ -260,8 +242,8 @@ impl DataFlowValidator {
     pub(crate) fn try_add_operator(
         &mut self,
         node_id: NodeId,
-        inputs: &[PortDescriptor],
-        outputs: &[PortDescriptor],
+        inputs: &[PortId],
+        outputs: &[PortId],
     ) -> ZFResult<()> {
         self.try_add_id(NodeKind::Operator, node_id.clone())?;
 
@@ -307,49 +289,38 @@ impl DataFlowValidator {
             kind: PortKind::Input,
         };
 
-        log::debug!("Looking for port type of < {:?} >…", &from_id);
-        let from_type = self.map_id_to_type.get(&from_id).ok_or_else(|| {
-            zferror!(ErrorKind::PortNotFound((
-                from.node.clone(),
-                from.output.clone()
-            )))
-        })?;
-        log::debug!("Looking for port type of < {:?} >… OK.", &from_id);
-        log::debug!("Looking for port type of < {:?} >…", &to_id);
-        let to_type = self.map_id_to_type.get(&to_id).ok_or_else(|| {
-            zferror!(ErrorKind::PortNotFound((to.node.clone(), to.input.clone())))
-        })?;
-        log::debug!("Looking for port type of < {:?} >… OK.", &to_id);
-        log::debug!("Port types are identical…");
-        if from_type != to_type
-            && from_type.as_ref() != PORT_TYPE_ANY
-            && to_type.as_ref() != PORT_TYPE_ANY
-        {
-            return Err(zferror!(ErrorKind::PortTypeNotMatching((
-                from_type.clone(),
-                to_type.clone(),
-            )))
-            .into());
-        }
-        log::debug!("Port types are identical… OK.");
-
         let edge_idx = self.graph_checker.add_edge(
             *from_graph_checker_idx,
             *to_graph_checker_idx,
             (from.output.clone(), to.input.clone(), EdgeIndex::default()),
         );
-        // NOTE: We can "safely" unwrap as we just added that edge to the graph.
-        let mut edge_weight = self.graph_checker.edge_weight_mut(edge_idx).unwrap();
+        log::trace!("FromId {from_id:?} ToId: {to_id:?}");
+        let mut edge_weight = self
+            .graph_checker
+            .edge_weight_mut(edge_idx)
+            .ok_or_else(|| {
+                zferror!(
+                    ErrorKind::NotFound,
+                    "Link with id {edge_idx:?}, between {from:?} => {to:?} not found"
+                )
+            })?;
         edge_weight.2 = edge_idx;
 
-        let from_node_checker_idx = self.map_id_to_node_checker_idx.get(&from_id).unwrap();
-        let to_node_checker_idx = self.map_id_to_node_checker_idx.get(&to_id).unwrap();
+        let from_node_checker_idx =
+            self.map_id_to_node_checker_idx
+                .get(&from_id)
+                .ok_or_else(|| {
+                    zferror!(ErrorKind::PortNotFound((
+                        from.node.clone(),
+                        from.output.clone()
+                    )))
+                })?;
+        let to_node_checker_idx = self.map_id_to_node_checker_idx.get(&to_id).ok_or_else(|| {
+            zferror!(ErrorKind::PortNotFound((to.node.clone(), to.input.clone())))
+        })?;
 
-        self.node_checker.add_edge(
-            *from_node_checker_idx,
-            *to_node_checker_idx,
-            from_type.clone(),
-        );
+        self.node_checker
+            .add_edge(*from_node_checker_idx, *to_node_checker_idx, ());
         Ok(())
     }
 

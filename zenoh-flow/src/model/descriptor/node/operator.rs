@@ -14,7 +14,8 @@
 
 use crate::model::descriptor::link::{CompositeInputDescriptor, CompositeOutputDescriptor};
 use crate::model::descriptor::node::{try_load_descriptor_from_file, NodeDescriptor};
-use crate::model::descriptor::{LinkDescriptor, PortDescriptor};
+use crate::model::descriptor::LinkDescriptor;
+use crate::prelude::PortId;
 use crate::types::configuration::Merge;
 use crate::types::{Configuration, NodeId};
 use crate::utils::parse_uri;
@@ -35,19 +36,15 @@ use std::collections::HashMap;
 /// uri: file://./target/release/libmy_op.so
 /// configuration:
 ///   by: 10
-/// inputs:
-///     - id: Number
-///       type: usize
-/// outputs:
-///   - id: Multiplied
-///     type: usize
+/// inputs: [Number]
+/// outputs: [Multiplied]
 /// ```
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct OperatorDescriptor {
     pub id: NodeId,
-    pub inputs: Vec<PortDescriptor>,
-    pub outputs: Vec<PortDescriptor>,
+    pub inputs: Vec<PortId>,
+    pub outputs: Vec<PortId>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
 }
@@ -203,6 +200,7 @@ impl CompositeOperatorDescriptor {
         global_configuration: Option<Configuration>,
         ancestors: &mut Vec<String>,
     ) -> Result<Vec<OperatorDescriptor>> {
+        log::trace!("[Descriptor] Flattening {}", self.id);
         let mut simple_operators = vec![];
         self.configuration = global_configuration.merge_overwrite(self.configuration);
 
@@ -225,6 +223,11 @@ impl CompositeOperatorDescriptor {
 
             let res_simple = OperatorDescriptor::from_yaml(&description);
             if let Ok(mut simple_operator) = res_simple {
+                log::trace!(
+                    "[Descriptor] Flattening {} - {} is simple",
+                    self.id,
+                    simple_operator.id
+                );
                 let new_id: NodeId = format!("{composite_id}/{operator_id}").into();
 
                 let output_ids: HashMap<_, _> = self
@@ -281,13 +284,24 @@ impl CompositeOperatorDescriptor {
                     .clone()
                     .merge_overwrite(simple_operator.configuration);
 
+                log::trace!(
+                    "[Descriptor] Flattening {} - Pushing simple {}",
+                    self.id,
+                    simple_operator.id
+                );
                 // Adding in the list of operators
                 simple_operators.push(simple_operator);
+
                 continue;
             }
 
             let res_composite = CompositeOperatorDescriptor::from_yaml(&description);
             if let Ok(composite_operator) = res_composite {
+                log::trace!(
+                    "[Descriptor] Flattening {} - {} is composite",
+                    self.id,
+                    composite_operator.id
+                );
                 if let Ok(index) = ancestors.binary_search(&descriptor) {
                     bail!(
                         ErrorKind::GenericError, // FIXME Dedicated error?

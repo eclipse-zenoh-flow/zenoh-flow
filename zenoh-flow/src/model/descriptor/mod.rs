@@ -17,7 +17,7 @@ pub use dataflow::{DataFlowDescriptor, FlattenDataFlowDescriptor};
 pub mod link;
 pub use link::{
     CompositeInputDescriptor, CompositeOutputDescriptor, InputDescriptor, LinkDescriptor,
-    OutputDescriptor, PortDescriptor,
+    OutputDescriptor,
 };
 pub mod node;
 pub use node::{

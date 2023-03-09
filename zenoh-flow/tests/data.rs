@@ -47,6 +47,8 @@ impl ZFData for TestData {
 
 #[test]
 fn data_wrapping_unwrapping() {
+    let _ = env_logger::try_init();
+
     let test_data = TestData {
         field1: 16u8,
         field2: String::from("TestString"),

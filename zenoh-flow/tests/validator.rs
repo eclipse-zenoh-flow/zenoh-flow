@@ -20,24 +20,20 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    inputs:
-      - id: Number
-        type: usize
-    outputs:
-      - id: Sum
-        type: usize
+    inputs: [Number]
+
+    outputs: [Sum]
+
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
+    outputs: [Counter]
+
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
+    inputs: [Data]
+
 
 links:
 - from:
@@ -56,6 +52,7 @@ links:
 
 #[test]
 fn validate_ok() {
+    let _ = env_logger::try_init();
     let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_OK);
     assert!(r.is_ok());
 }
@@ -65,24 +62,20 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    inputs:
-      - id: Number
-        type: usize
-    outputs:
-      - id: Sum
-        type: usize
+    inputs: [Number]
+
+    outputs: [Sum]
+
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
+    outputs: [Counter]
+
 sinks:
   - id : PrintSink
 uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
+    inputs: [Data]
+
 
 links:
 - from:
@@ -90,6 +83,7 @@ links:
 
 #[test]
 fn validate_ko_invalid_yaml() {
+    let _ = env_logger::try_init();
     let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_KO_INVALID_YAML);
     assert!(matches!(r.err().unwrap().into(), ErrorKind::ParsingError))
 }
@@ -99,66 +93,21 @@ static DESCRIPTOR_KO_INVALID_JSON: &str = r#"
 "operators":[{
   "id" : "SumOperator",
     "uri": "file://./target/release/libsum_and_send.dylib",
-    "inputs": [{"id": "Number","type": "usize"}],
-    "outputs":[{"id": "Sum","type": "usize"}]
+    "inputs": ["Number"],
+    "outputs":["Sum"]
     }],
     "sources": [{"id" : "Counter",
     "uri": "file://./target/release/libcounter_source.dylib",
-    "outputs":[{"id": "Counter","type": "usize"}]
+    "outputs":["Counter"]
     }],
     "sinks":[{"id" : "PrintSink","uri": file://./target/release/libgeneric_sink.dylib"}}}]
 "#;
 
 #[test]
 fn validate_ko_invalid_json() {
+    let _ = env_logger::try_init();
     let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_KO_INVALID_JSON);
     assert!(matches!(r.err().unwrap().into(), ErrorKind::ParsingError))
-}
-
-static DESCRIPTOR_KO_DIFFERENT_TYPES: &str = r#"
-flow: SimplePipeline
-operators:
-  - id : SumOperator
-    uri: file://./target/release/libsum_and_send.dylib
-    inputs:
-      - id: Number
-        type: usize
-    outputs:
-      - id: Sum
-        type: isize
-sources:
-  - id : Counter
-    uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
-sinks:
-  - id : PrintSink
-    uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
-
-links:
-- from:
-    node : Counter
-    output : Counter
-  to:
-    node : SumOperator
-    input : Number
-- from:
-    node : SumOperator
-    output : Sum
-  to:
-    node : PrintSink
-    input : Data
-"#;
-
-#[test]
-fn validate_ko_different_port_types() {
-    let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_KO_DIFFERENT_TYPES);
-    let error = ErrorKind::PortTypeNotMatching(("isize".into(), "usize".into()));
-    assert_eq!(ErrorKind::from(r.err().unwrap()), error)
 }
 
 static DESCRIPTOR_KO_UNCONNECTED: &str = r#"
@@ -166,26 +115,22 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    inputs:
-      - id: Number
-        type: usize
+    inputs: [Number]
+
     outputs:
-      - id: Sum
-        type: usize
-      - id: Sub
-        type: usize
+      - Sum
+      - Sub
+
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
+    outputs: [Counter]
+
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
+    inputs: [Data]
+
 
 links:
 - from:
@@ -204,8 +149,8 @@ links:
 
 #[test]
 fn validate_ko_unconnected() {
+    let _ = env_logger::try_init();
     let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_KO_UNCONNECTED);
-
     let error = ErrorKind::PortNotConnected(("SumOperator".into(), "Sub".into()));
     assert_eq!(ErrorKind::from(r.err().unwrap()), error)
 }
@@ -215,31 +160,26 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    inputs:
-      - id: Number
-        type: usize
+    inputs: [Number]
+
     outputs:
-      - id: Sum
-        type: usize
-      - id: Sum
-        type: usize
+      - Sum
+      - Sum
+
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
+    outputs: [Counter]
+
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
+    inputs: [Data]
+
   - id : PrintSink2
     uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
+    inputs: [Data]
+
 
 links:
 - from:
@@ -264,6 +204,7 @@ links:
 
 #[test]
 fn validate_ko_duplicated_output() {
+    let _ = env_logger::try_init();
     let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_KO_DUPLICATED_OUTPUT_PORT);
     let error = ErrorKind::DuplicatedPort(("SumOperator".into(), "Sum".into()));
     assert_eq!(ErrorKind::from(r.err().unwrap()), error)
@@ -275,25 +216,20 @@ operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
     inputs:
-      - id: Number
-        type: usize
-      - id: Number
-        type: usize
-    outputs:
-      - id: Sum
-        type: usize
+      - Number
+      - Number
+    outputs: [Sum]
+
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
+    outputs: [Counter]
+
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
+    inputs: [Data]
+
 
 links:
 - from:
@@ -312,6 +248,7 @@ links:
 
 #[test]
 fn validate_ko_duplicated_input() {
+    let _ = env_logger::try_init();
     let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_KO_DUPLICATED_INPUT_PORT);
     let error = ErrorKind::DuplicatedPort(("SumOperator".into(), "Number".into()));
     assert_eq!(ErrorKind::from(r.err().unwrap()), error)
@@ -322,29 +259,24 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    inputs:
-      - id: Number
-        type: usize
-    outputs:
-      - id: Sum
-        type: usize
+    inputs: [Number]
+
+    outputs: [Sum]
+
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
+    outputs: [Counter]
+
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
+    outputs: [Counter]
+
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
+    inputs: [Data]
+
 
 links:
 - from:
@@ -363,6 +295,7 @@ links:
 
 #[test]
 fn validate_ko_duplicated_node() {
+    let _ = env_logger::try_init();
     let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_KO_DUPLICATED_NODE);
     let error = ErrorKind::DuplicatedNodeId("Counter".into());
     assert_eq!(ErrorKind::from(r.err().unwrap()), error)
@@ -373,29 +306,23 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    inputs:
-      - id: Number
-        type: usize
-    outputs:
-      - id: Sum
-        type: usize
+    inputs: [Number]
+    outputs: [Sum]
+
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
+    outputs: [Counter]
+
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
+    inputs: [Data]
+
   - id : PrintSink2
     uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
+    inputs: [Data]
+
 
 links:
 - from:
@@ -420,6 +347,7 @@ links:
 
 #[test]
 fn validate_ok_duplicated_connection() {
+    let _ = env_logger::try_init();
     let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_OK_DUPLICATED_CONNECTION);
     assert!(r.is_ok())
 }
@@ -429,24 +357,19 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    inputs:
-      - id: Number
-        type: usize
-    outputs:
-      - id: Sum
-        type: usize
+    inputs: [Number]
+    outputs: [Sum]
+
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
+    outputs: [Counter]
+
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
+    inputs: [Data]
+
 
 links:
 - from:
@@ -465,6 +388,7 @@ links:
 
 #[test]
 fn validate_ko_port_not_found() {
+    let _ = env_logger::try_init();
     let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_KO_PORT_NOT_FOUND);
     let error = ErrorKind::PortNotFound(("SumOperator".into(), "Sum_typo".into()));
     assert_eq!(ErrorKind::from(r.err().unwrap()), error)
@@ -475,24 +399,20 @@ flow: SimplePipeline
 operators:
   - id : SumOperator
     uri: file://./target/release/libsum_and_send.dylib
-    inputs:
-      - id: Number
-        type: usize
-    outputs:
-      - id: Sum
-        type: usize
+    inputs: [Number]
+
+    outputs: [Sum]
+
 sources:
   - id : Counter
     uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
+    outputs: [Counter]
+
 sinks:
   - id : PrintSink
     uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: usize
+    inputs: [Data]
+
 
 links:
 - from:
@@ -511,52 +431,8 @@ links:
 
 #[test]
 fn validate_ko_node_not_found() {
+    let _ = env_logger::try_init();
     let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_KO_NODE_NOT_FOUND);
     let error = ErrorKind::NodeNotFound("SumOperator_typo".into());
     assert_eq!(ErrorKind::from(r.err().unwrap()), error)
-}
-
-static DESCRIPTOR_OK_TYPE_ANY: &str = r#"
-flow: SimplePipeline
-operators:
-  - id : SumOperator
-    uri: file://./target/release/libsum_and_send.dylib
-    inputs:
-      - id: Number
-        type: usize
-    outputs:
-      - id: Sum
-        type: isize
-sources:
-  - id : Counter
-    uri: file://./target/release/libcounter_source.dylib
-    outputs:
-      - id: Counter
-        type: usize
-sinks:
-  - id : PrintSink
-    uri: file://./target/release/libgeneric_sink.dylib
-    inputs:
-      - id: Data
-        type: _any_
-
-links:
-- from:
-    node : Counter
-    output : Counter
-  to:
-    node : SumOperator
-    input : Number
-- from:
-    node : SumOperator
-    output : Sum
-  to:
-    node : PrintSink
-    input : Data
-"#;
-
-#[test]
-fn validate_ok_type_any() {
-    let r = FlattenDataFlowDescriptor::from_yaml(DESCRIPTOR_OK_TYPE_ANY);
-    assert!(r.is_ok(), "{}", "Unexpected error: {r:?}")
 }

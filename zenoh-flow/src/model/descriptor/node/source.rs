@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::descriptor::PortDescriptor;
+use crate::prelude::PortId;
 use crate::types::{Configuration, NodeId};
 use crate::zferror;
 use crate::zfresult::{ErrorKind, ZFResult as Result};
@@ -28,15 +28,13 @@ use serde::{Deserialize, Serialize};
 /// uri: file://./target/release/libcounter_source.so
 /// configuration:
 ///   start: 10
-/// output:
-///   id: Counter
-///   type: usize
+/// outputs: [Counter]
 /// ```
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SourceDescriptor {
     pub id: NodeId,
-    pub outputs: Vec<PortDescriptor>,
+    pub outputs: Vec<PortId>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
 }

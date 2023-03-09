@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::model::descriptor::PortDescriptor;
+use crate::prelude::PortId;
 use crate::types::{Configuration, NodeId};
 use crate::zferror;
 use crate::zfresult::{ErrorKind, ZFResult as Result};
@@ -28,15 +28,13 @@ use serde::{Deserialize, Serialize};
 /// uri: file://./target/release/libgeneric_sink.so
 /// configuration:
 ///   file: /tmp/generic-sink.txt
-/// input:
-///   id: Data
-///   type: usize
+/// inputs: [Data]
 /// ```
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SinkDescriptor {
     pub id: NodeId,
-    pub inputs: Vec<PortDescriptor>,
+    pub inputs: Vec<PortId>,
     pub uri: Option<String>,
     pub configuration: Option<Configuration>,
 }

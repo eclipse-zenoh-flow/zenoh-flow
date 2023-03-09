@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::types::{NodeId, PortId, PortType};
+use crate::types::{NodeId, PortId};
 use serde::{Deserialize, Serialize};
 
 use anyhow::Error as AnyError;
@@ -108,7 +108,6 @@ pub enum ErrorKind {
     DuplicatedPort((NodeId, PortId)),
     DuplicatedLink(((NodeId, PortId), (NodeId, PortId))),
     MultipleOutputsToInput((NodeId, PortId)),
-    PortTypeNotMatching((PortType, PortType)),
     NodeNotFound(NodeId),
     PortNotFound((NodeId, PortId)),
     PortNotConnected((NodeId, PortId)),

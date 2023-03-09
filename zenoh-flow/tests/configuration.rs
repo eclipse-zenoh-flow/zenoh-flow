@@ -30,6 +30,8 @@ list1:
 
 #[test]
 fn configuration() {
+    let _ = env_logger::try_init();
+
     let deserialized_config: Result<Configuration, serde_yaml::Error> =
         serde_yaml::from_str(EXAMPLE_CONFIG);
 

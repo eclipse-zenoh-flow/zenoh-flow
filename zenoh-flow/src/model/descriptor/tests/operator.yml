@@ -2,10 +2,6 @@ id: operator
 
 uri: file://operator.so
 
-inputs:
-  - id: operator-in
-    type: _any_
+inputs: [operator-in]
 
-outputs:
-  - id: operator-out
-    type: _any_
+outputs: [operator-out]
