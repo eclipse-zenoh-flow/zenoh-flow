@@ -28,8 +28,7 @@ use serde::{Deserialize, Serialize};
 /// uri: file://./target/release/libgeneric_sink.so
 /// configuration:
 ///   file: /tmp/generic-sink.txt
-/// inputs:
-///   - Data
+/// inputs: [Data]
 /// ```
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
