@@ -23,9 +23,10 @@ use serde::{Deserialize, Serialize};
 /// of a node in the graph. (e.g. it is a source, a sink or an operator?)
 /// It is used internally when all nodes are mixed inside some data structure.
 ///
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum NodeKind {
+    #[default]
     Operator,
     Sink,
     Source,
@@ -54,11 +55,6 @@ impl std::string::ToString for NodeKind {
     }
 }
 
-impl Default for NodeKind {
-    fn default() -> Self {
-        NodeKind::Operator
-    }
-}
 // Registry metadata
 
 /// The metadata for a node stored in the registry.
