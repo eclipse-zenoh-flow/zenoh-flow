@@ -37,6 +37,8 @@ use zenoh::buffers::SharedMemoryManager;
 use zenoh::{prelude::r#async::*, publication::Publisher, subscriber::Subscriber};
 
 static DEFAULT_SHM_SIZE_MB: u64 = 10_485_760; //10MiB
+static KEY_KEYEXPRESSIONS: &str = "key-expressions";
+static KEY_SHM_SIZE: &str = "shared_memory_size";
 
 /// Internal type of pending futures for the ZenohSource
 pub(crate) type ZSubFut =
@@ -112,7 +114,7 @@ impl<'a> Source for ZenohSource<'a> {
 
         match configuration {
             Some(configuration) => {
-                let keyexpressions = configuration.get("key-expressions").ok_or(zferror!(
+                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or(zferror!(
                     ErrorKind::ConfigurationError,
                     "Missing key-expressions in builtin sink configuration"
                 ))?;
@@ -290,12 +292,12 @@ impl<'a> Sink for ZenohSink<'a> {
         match configuration {
             Some(configuration) => {
                 let shm_size = configuration
-                    .get("shared_memory_size")
+                    .get(KEY_SHM_SIZE)
                     .unwrap_or(&serde_json::Value::from(DEFAULT_SHM_SIZE_MB))
                     .as_u64()
                     .unwrap_or(DEFAULT_SHM_SIZE_MB) as usize;
 
-                let keyexpressions = configuration.get("key-expressions").ok_or(zferror!(
+                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or(zferror!(
                     ErrorKind::ConfigurationError,
                     "Missing key-expressions in builtin sink configuration"
                 ))?;
