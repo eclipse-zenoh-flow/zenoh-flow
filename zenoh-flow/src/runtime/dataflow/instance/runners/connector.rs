@@ -20,14 +20,18 @@ use crate::types::{LinkMessage, NodeId};
 use crate::zferror;
 use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;
+use async_std::sync::Mutex;
 use async_trait::async_trait;
 use flume::Receiver;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use uhlc::HLC;
+use zenoh::buffers::SharedMemoryManager;
 use zenoh::prelude::r#async::*;
 use zenoh::subscriber::Subscriber;
 use zenoh_util::core::AsyncResolve;
+
+static DEFAULT_SHM_SIZE_MB: usize = 10_485_760; //10MiB
 
 /// The `ZenohSender` is the connector that sends the data to Zenoh when nodes are running on
 /// different runtimes.
@@ -36,6 +40,7 @@ pub(crate) struct ZenohSender {
     pub(crate) input_raw: InputRaw,
     pub(crate) z_session: Arc<zenoh::Session>,
     pub(crate) key_expr: KeyExpr<'static>,
+    pub(crate) shm: Arc<Mutex<SharedMemoryManager>>,
 }
 
 impl ZenohSender {
@@ -77,6 +82,16 @@ impl ZenohSender {
             },
             z_session: session.clone(),
             key_expr,
+            shm: Arc::new(Mutex::new(
+                SharedMemoryManager::make(record.resource.clone(), DEFAULT_SHM_SIZE_MB).map_err(
+                    |_| {
+                        zferror!(
+                            ErrorKind::ConfigurationError,
+                            "Unable to allocate {DEFAULT_SHM_SIZE_MB} bytes of shared memory"
+                        )
+                    },
+                )?,
+            )),
         })
     }
 }
@@ -93,10 +108,47 @@ impl Node for ZenohSender {
     /// - zenoh put fails
     /// - link recv fails
     async fn iteration(&self) -> ZFResult<()> {
+        // Getting shared memory manager
+        let mut shm = self.shm.lock().await;
         match self.input_raw.recv().await {
             Ok(message) => {
+                // Serializing
+                let serialized = message.serialize_bincode()?;
+
+                // Getting the shared memory buffer
+                let mut buff = match shm.alloc(DEFAULT_SHM_SIZE_MB) {
+                    Ok(buf) => buf,
+                    Err(_) => {
+                        async_std::task::sleep(std::time::Duration::from_millis(100)).await;
+                        log::trace!(
+                            "After failing allocation the GC collected: {} bytes -- retrying",
+                            shm.garbage_collect()
+                        );
+                        log::trace!(
+                            "Trying to de-fragment memory... De-fragmented {} bytes",
+                            shm.defragment()
+                        );
+                        shm.alloc(DEFAULT_SHM_SIZE_MB).map_err(|_| {
+                            zferror!(
+                                ErrorKind::ConfigurationError,
+                                "Unable to allocated {DEFAULT_SHM_SIZE_MB} in the shared memory buffer!"
+                            )
+                        })?
+                    }
+                };
+
+                // Getting the underlying slice in the shared memory
+                let slice = unsafe { buff.as_mut_slice() };
+
+                // WARNING ACHTUNG ATTENTION
+                // We are coping memory here!
+                // we should be able to serialize directly in the shared
+                // memory buffer.
+                let data_len = serialized.len();
+                slice[0..data_len].copy_from_slice(&serialized);
+
                 self.z_session
-                    .put(self.key_expr.clone(), message.serialize_bincode()?)
+                    .put(self.key_expr.clone(), buff)
                     .congestion_control(CongestionControl::Block)
                     .res()
                     .await

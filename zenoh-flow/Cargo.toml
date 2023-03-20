@@ -58,7 +58,7 @@ typetag = "0.2"
 uhlc = "0.5.1"
 url = "2.2"
 uuid = { version = "1.1", features = ["serde", "v4"] }
-zenoh = { version = "=0.7.0-rc" }
+zenoh = { version = "=0.7.0-rc", features = ["shared-memory"]}
 zenoh-flow-derive = {version = "=0.5.0-dev", path = "../zenoh-flow-derive"}
 zenoh-sync = { version = "=0.7.0-rc" }
 zenoh-util = { version = "=0.7.0-rc" }
