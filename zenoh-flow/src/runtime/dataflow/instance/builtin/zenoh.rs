@@ -36,9 +36,17 @@ use std::{collections::HashMap, pin::Pin};
 use zenoh::buffers::SharedMemoryManager;
 use zenoh::{prelude::r#async::*, publication::Publisher, subscriber::Subscriber};
 
-static DEFAULT_SHM_SIZE_MB: u64 = 10_485_760; //10MiB
+/// Default Shared Memory size (10MiB)
+static DEFAULT_SHM_SIZE: u64 = 10_485_760;
+
+/// Key for the key expressions used by the built-in Source/Sink
 static KEY_KEYEXPRESSIONS: &str = "key-expressions";
+
+/// Key for the shared memory size used by the built-in Source/Sink
 static KEY_SHM_SIZE: &str = "shared_memory_size";
+
+/// Default Shared allocation backoff time (100ms)
+static SHM_ALLOCATION_BACKOFF_MS: u64 = 100;
 
 /// Internal type of pending futures for the ZenohSource
 pub(crate) type ZSubFut =
@@ -293,9 +301,9 @@ impl<'a> Sink for ZenohSink<'a> {
             Some(configuration) => {
                 let shm_size = configuration
                     .get(KEY_SHM_SIZE)
-                    .unwrap_or(&serde_json::Value::from(DEFAULT_SHM_SIZE_MB))
+                    .unwrap_or(&serde_json::Value::from(DEFAULT_SHM_SIZE))
                     .as_u64()
-                    .unwrap_or(DEFAULT_SHM_SIZE_MB) as usize;
+                    .unwrap_or(DEFAULT_SHM_SIZE) as usize;
 
                 let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or(zferror!(
                     ErrorKind::ConfigurationError,
@@ -389,7 +397,10 @@ impl<'a> Node for ZenohSink<'a> {
                 let mut buff = match shm.alloc(self.shm_size) {
                     Ok(buf) => buf,
                     Err(_) => {
-                        async_std::task::sleep(std::time::Duration::from_millis(100)).await;
+                        async_std::task::sleep(std::time::Duration::from_millis(
+                            SHM_ALLOCATION_BACKOFF_MS,
+                        ))
+                        .await;
                         log::trace!(
                             "After failing allocation the GC collected: {} bytes -- retrying",
                         shm.alloc(self.shm_size).map_err(|_| {

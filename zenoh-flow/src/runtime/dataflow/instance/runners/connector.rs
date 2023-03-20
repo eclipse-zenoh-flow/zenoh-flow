@@ -31,7 +31,11 @@ use zenoh::prelude::r#async::*;
 use zenoh::subscriber::Subscriber;
 use zenoh_util::core::AsyncResolve;
 
-static DEFAULT_SHM_SIZE_MB: usize = 10_485_760; //10MiB
+/// Default Shared Memory size (10MiB)
+static DEFAULT_SHM_SIZE: usize = 10_485_760;
+
+/// Default Shared allocation backoff time (100ms)
+static SHM_ALLOCATION_BACKOFF_MS: u64 = 100;
 
 /// The `ZenohSender` is the connector that sends the data to Zenoh when nodes are running on
 /// different runtimes.
@@ -83,11 +87,11 @@ impl ZenohSender {
             z_session: session.clone(),
             key_expr,
             shm: Arc::new(Mutex::new(
-                SharedMemoryManager::make(record.resource.clone(), DEFAULT_SHM_SIZE_MB).map_err(
+                SharedMemoryManager::make(record.resource.clone(), DEFAULT_SHM_SIZE).map_err(
                     |_| {
                         zferror!(
                             ErrorKind::ConfigurationError,
-                            "Unable to allocate {DEFAULT_SHM_SIZE_MB} bytes of shared memory"
+                            "Unable to allocate {DEFAULT_SHM_SIZE} bytes of shared memory"
                         )
                     },
                 )?,
@@ -112,14 +116,14 @@ impl Node for ZenohSender {
         let mut shm = self.shm.lock().await;
         match self.input_raw.recv().await {
             Ok(message) => {
-                // Serializing
-                let serialized = message.serialize_bincode()?;
-
                 // Getting the shared memory buffer
-                let mut buff = match shm.alloc(DEFAULT_SHM_SIZE_MB) {
+                let mut buff = match shm.alloc(DEFAULT_SHM_SIZE) {
                     Ok(buf) => buf,
                     Err(_) => {
-                        async_std::task::sleep(std::time::Duration::from_millis(100)).await;
+                        async_std::task::sleep(std::time::Duration::from_millis(
+                            SHM_ALLOCATION_BACKOFF_MS,
+                        ))
+                        .await;
                         log::trace!(
                             "After failing allocation the GC collected: {} bytes -- retrying",
                             shm.garbage_collect()
@@ -128,10 +132,10 @@ impl Node for ZenohSender {
                             "Trying to de-fragment memory... De-fragmented {} bytes",
                             shm.defragment()
                         );
-                        shm.alloc(DEFAULT_SHM_SIZE_MB).map_err(|_| {
+                        shm.alloc(DEFAULT_SHM_SIZE).map_err(|_| {
                             zferror!(
                                 ErrorKind::ConfigurationError,
-                                "Unable to allocated {DEFAULT_SHM_SIZE_MB} in the shared memory buffer!"
+                                "Unable to allocated {DEFAULT_SHM_SIZE} in the shared memory buffer!"
                             )
                         })?
                     }
@@ -141,11 +145,9 @@ impl Node for ZenohSender {
                 let slice = unsafe { buff.as_mut_slice() };
 
                 // WARNING ACHTUNG ATTENTION
-                // We are coping memory here!
-                // we should be able to serialize directly in the shared
-                // memory buffer.
-                let data_len = serialized.len();
-                slice[0..data_len].copy_from_slice(&serialized);
+                // This may fail as the message could be bigger than
+                // the shared memory buffer that was allocated.
+                message.serialize_bincode_into(slice)?;
 
                 self.z_session
                     .put(self.key_expr.clone(), buff)
