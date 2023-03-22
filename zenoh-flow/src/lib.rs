@@ -72,3 +72,12 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Complete string with the Zenoh Flow version, including commit id.
 pub const FULL_VERSION: &str = formatcp!("{}-{}", VERSION, GIT_VERSION);
+
+/// Default Shared Memory size (10MiB).
+static DEFAULT_SHM_ELEMENT_SIZE: u64 = 10_485_760;
+
+/// Default Shared Memory elements (10).
+static DEFAULT_SHM_TOTAL_ELEMENTS: u64 = 10;
+
+/// Default Shared allocation backoff time (100ms)
+static DEFAULT_SHM_ALLOCATION_BACKOFF_MS: u64 = 100;

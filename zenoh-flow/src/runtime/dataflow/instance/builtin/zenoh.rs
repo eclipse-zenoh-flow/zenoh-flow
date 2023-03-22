@@ -24,7 +24,8 @@ use crate::{
         node::{SinkFn, SourceFn},
     },
     types::LinkMessage,
-    Result as ZFResult,
+    Result as ZFResult, DEFAULT_SHM_ALLOCATION_BACKOFF_MS, DEFAULT_SHM_ELEMENT_SIZE,
+    DEFAULT_SHM_TOTAL_ELEMENTS,
 };
 use async_std::sync::Mutex;
 use async_trait::async_trait;
@@ -36,17 +37,18 @@ use std::{collections::HashMap, pin::Pin};
 use zenoh::buffers::SharedMemoryManager;
 use zenoh::{prelude::r#async::*, publication::Publisher, subscriber::Subscriber};
 
-/// Default Shared Memory size (10MiB)
-static DEFAULT_SHM_SIZE: u64 = 10_485_760;
-
-/// Key for the key expressions used by the built-in Source/Sink
+/// Key for the key expressions used by the built-in Source/Sink.
 static KEY_KEYEXPRESSIONS: &str = "key-expressions";
 
-/// Key for the shared memory size used by the built-in Source/Sink
-static KEY_SHM_SIZE: &str = "shared_memory_size";
+/// Key for the shared memory element size used by the built-in Sink.
+static KEY_SHM_ELEM_SIZE: &str = "shared_memory_element_size";
 
-/// Default Shared allocation backoff time (100ms)
-static SHM_ALLOCATION_BACKOFF_MS: u64 = 100;
+/// Key for the number of shared memory element of size KEY_SHM_ELEM_SIZE
+///  used by the built-in Sink.
+static KEY_SHM_TOTAL_ELEMENTS: &str = "shared_memory_elements";
+
+/// Key for the backoff time to be used when no shared memory element are available.
+static KEY_SHM_BACKOFF: &str = "shared_memory_backoff";
 
 /// Internal type of pending futures for the ZenohSource
 pub(crate) type ZSubFut =
@@ -248,6 +250,7 @@ pub(crate) struct ZenohSink<'a> {
     futs: Arc<Mutex<Vec<ZFInputFut>>>,
     shm: Arc<Mutex<SharedMemoryManager>>,
     shm_size: usize,
+    shm_backoff: u64,
 }
 
 /// Private function to retrieve the "Constructor" for the ZenohSink
@@ -299,11 +302,27 @@ impl<'a> Sink for ZenohSink<'a> {
         let id = uuid::Uuid::new_v4().to_string();
         match configuration {
             Some(configuration) => {
-                let shm_size = configuration
-                    .get(KEY_SHM_SIZE)
-                    .unwrap_or(&serde_json::Value::from(DEFAULT_SHM_SIZE))
+                let shm_elem_size = configuration
+                    .get(KEY_SHM_ELEM_SIZE)
+                    .unwrap_or(&serde_json::Value::from(DEFAULT_SHM_ELEMENT_SIZE))
                     .as_u64()
-                    .unwrap_or(DEFAULT_SHM_SIZE) as usize;
+                    .unwrap_or(DEFAULT_SHM_ELEMENT_SIZE)
+                    as usize;
+
+                let shm_elem_count = configuration
+                    .get(KEY_SHM_TOTAL_ELEMENTS)
+                    .unwrap_or(&serde_json::Value::from(DEFAULT_SHM_TOTAL_ELEMENTS))
+                    .as_u64()
+                    .unwrap_or(DEFAULT_SHM_TOTAL_ELEMENTS)
+                    as usize;
+
+                let shm_size = shm_elem_size * shm_elem_count;
+
+                let shm_backoff = configuration
+                    .get(KEY_SHM_BACKOFF)
+                    .unwrap_or(&serde_json::Value::from(DEFAULT_SHM_ALLOCATION_BACKOFF_MS))
+                    .as_u64()
+                    .unwrap_or(DEFAULT_SHM_ALLOCATION_BACKOFF_MS);
 
                 let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or(zferror!(
                     ErrorKind::ConfigurationError,
@@ -356,7 +375,8 @@ impl<'a> Sink for ZenohSink<'a> {
                             )
                         })?,
                     )),
-                    shm_size,
+                    shm_size: shm_elem_size,
+                    shm_backoff,
                 })
             }
             None => {
@@ -397,10 +417,8 @@ impl<'a> Node for ZenohSink<'a> {
                 let mut buff = match shm.alloc(self.shm_size) {
                     Ok(buf) => buf,
                     Err(_) => {
-                        async_std::task::sleep(std::time::Duration::from_millis(
-                            SHM_ALLOCATION_BACKOFF_MS,
-                        ))
-                        .await;
+                        async_std::task::sleep(std::time::Duration::from_millis(self.shm_backoff))
+                            .await;
                         log::trace!(
                             "After failing allocation the GC collected: {} bytes -- retrying",
                         shm.alloc(self.shm_size).map_err(|_| {
@@ -416,15 +434,20 @@ impl<'a> Node for ZenohSink<'a> {
                 // Getting the underlying slice in the shared memory
                 let slice = unsafe { buff.as_mut_slice() };
 
-                // WARNING ACHTUNG ATTENTION
-                // We are coping memory here!
-                // we should be able to serialize directly in the shared
-                // memory buffer.
                 let data_len = data.len();
-                slice[0..data_len].copy_from_slice(&data);
 
-                // Sending the data as shared memory
-                publisher.put(buff).res().await?;
+                // If the shared memory slice is big enough we
+                if data_len < slice.len() {
+                    // WARNING ACHTUNG ATTENTION
+                    // We are coping memory here!
+                    // we should be able to serialize directly in the shared
+                    // memory buffer.
+                    slice[0..data_len].copy_from_slice(&data);
+                    // Sending the data as shared memory
+                    publisher.put(buff).res().await?;
+                } else {
+                    publisher.put(&**data).res().await?;
+                }
             }
             Ok(_) => (), // Not the right message, ignore it.
             Err(e) => log::error!("[ZenohSink] got error on link {id}: {e:?}"),
