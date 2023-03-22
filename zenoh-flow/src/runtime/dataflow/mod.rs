@@ -118,9 +118,9 @@ impl DataFlow {
             uid: self.counter,
             from,
             to,
-            size: None,
-            queueing_policy: None,
-            priority: None,
+            shared_memory_element_size: None,
+            shared_memory_elements: None,
+            shared_memory_backoff: None,
         });
         self.counter += 1;
     }

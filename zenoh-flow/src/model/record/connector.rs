@@ -40,6 +40,9 @@ pub struct ZFConnectorRecord {
     pub resource: String,
     pub link_id: PortRecord,
     pub runtime: RuntimeId,
+    pub shared_memory_element_size: Option<usize>,
+    pub shared_memory_elements: Option<usize>,
+    pub shared_memory_backoff: Option<u64>,
 }
 
 impl std::fmt::Display for ZFConnectorRecord {

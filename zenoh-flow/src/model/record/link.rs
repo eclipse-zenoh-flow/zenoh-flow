@@ -35,9 +35,9 @@ pub struct LinkRecord {
     pub uid: u32,
     pub from: OutputDescriptor,
     pub to: InputDescriptor,
-    pub size: Option<usize>,
-    pub queueing_policy: Option<String>,
-    pub priority: Option<usize>,
+    pub shared_memory_element_size: Option<usize>,
+    pub shared_memory_elements: Option<usize>,
+    pub shared_memory_backoff: Option<u64>,
 }
 
 impl std::fmt::Display for LinkRecord {
@@ -54,9 +54,9 @@ impl From<(LinkDescriptor, u32)> for LinkRecord {
             uid,
             from: desc.from,
             to: desc.to,
-            size: desc.size,
-            queueing_policy: desc.queueing_policy,
-            priority: desc.priority,
+            shared_memory_element_size: desc.shared_memory_element_size,
+            shared_memory_elements: desc.shared_memory_elements,
+            shared_memory_backoff: desc.shared_memory_backoff,
         }
     }
 }

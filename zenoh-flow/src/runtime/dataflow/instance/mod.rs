@@ -245,7 +245,6 @@ impl DataFlowInstance {
         }
 
         for (connector_id, connector_record) in &data_flow.connectors {
-            let session = instance_context.runtime.session.clone();
             let node = match &connector_record.kind {
                 ZFConnectorKind::Sender => {
                     let (inputs, _) = links.remove(connector_id).ok_or_else(|| {
@@ -255,8 +254,10 @@ impl DataFlowInstance {
                             connector_id
                         )
                     })?;
-                    Arc::new(ZenohSender::new(connector_record, session, inputs).await?)
-                        as Arc<dyn Node>
+                    Arc::new(
+                        ZenohSender::new(connector_record, instance_context.clone(), inputs)
+                            .await?,
+                    ) as Arc<dyn Node>
                 }
                 ZFConnectorKind::Receiver => {
                     let (_, outputs) = links.remove(connector_id).ok_or_else(|| {
@@ -267,7 +268,8 @@ impl DataFlowInstance {
                         )
                     })?;
                     Arc::new(
-                        ZenohReceiver::new(connector_record, session, hlc.clone(), outputs).await?,
+                        ZenohReceiver::new(connector_record, instance_context.clone(), outputs)
+                            .await?,
                     ) as Arc<dyn Node>
                 }
             };

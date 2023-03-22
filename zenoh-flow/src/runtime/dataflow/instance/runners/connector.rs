@@ -15,6 +15,7 @@
 use crate::io::{Inputs, Outputs};
 use crate::model::record::ZFConnectorRecord;
 use crate::prelude::{InputRaw, OutputRaw};
+use crate::runtime::InstanceContext;
 use crate::traits::Node;
 use crate::types::{LinkMessage, NodeId};
 use crate::zferror;
@@ -25,17 +26,10 @@ use async_trait::async_trait;
 use flume::Receiver;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
-use uhlc::HLC;
 use zenoh::buffers::SharedMemoryManager;
 use zenoh::prelude::r#async::*;
 use zenoh::subscriber::Subscriber;
 use zenoh_util::core::AsyncResolve;
-
-/// Default Shared Memory size (10MiB)
-static DEFAULT_SHM_SIZE: usize = 10_485_760;
-
-/// Default Shared allocation backoff time (100ms)
-static SHM_ALLOCATION_BACKOFF_MS: u64 = 100;
 
 /// The `ZenohSender` is the connector that sends the data to Zenoh when nodes are running on
 /// different runtimes.
@@ -45,6 +39,8 @@ pub(crate) struct ZenohSender {
     pub(crate) z_session: Arc<zenoh::Session>,
     pub(crate) key_expr: KeyExpr<'static>,
     pub(crate) shm: Arc<Mutex<SharedMemoryManager>>,
+    pub(crate) shm_size: usize,
+    pub(crate) shm_backoff: u64,
 }
 
 impl ZenohSender {
@@ -60,7 +56,7 @@ impl ZenohSender {
     /// - the declaration of the key expression failed.
     pub(crate) async fn new(
         record: &ZFConnectorRecord,
-        session: Arc<Session>,
+        ctx: Arc<InstanceContext>,
         mut inputs: Inputs,
     ) -> ZFResult<Self> {
         let receivers = inputs.hmap.remove(&record.link_id.port_id).ok_or_else(|| {
@@ -72,11 +68,23 @@ impl ZenohSender {
             )
         })?;
 
-        let key_expr = session
+        let key_expr = ctx
+            .runtime
+            .session
             .declare_keyexpr(record.resource.clone())
             .res()
             .await?
             .into_owned();
+
+        let shm_size = record
+            .shared_memory_element_size
+            .unwrap_or(ctx.runtime.shared_memory_element_size)
+            * record
+                .shared_memory_elements
+                .unwrap_or(ctx.runtime.shared_memory_elements);
+        let shm_backoff = record
+            .shared_memory_backoff
+            .unwrap_or(ctx.runtime.shared_memory_backoff);
 
         Ok(Self {
             id: record.id.clone(),
@@ -84,18 +92,20 @@ impl ZenohSender {
                 port_id: record.link_id.port_id.clone(),
                 receivers,
             },
-            z_session: session.clone(),
+            z_session: ctx.runtime.session.clone(),
             key_expr,
             shm: Arc::new(Mutex::new(
-                SharedMemoryManager::make(record.resource.clone(), DEFAULT_SHM_SIZE).map_err(
-                    |_| {
-                        zferror!(
-                            ErrorKind::ConfigurationError,
-                            "Unable to allocate {DEFAULT_SHM_SIZE} bytes of shared memory"
-                        )
-                    },
-                )?,
+                SharedMemoryManager::make(record.resource.clone(), shm_size).map_err(|_| {
+                    zferror!(
+                        ErrorKind::ConfigurationError,
+                        "Unable to allocate {shm_size} bytes of shared memory"
+                    )
+                })?,
             )),
+            shm_size: record
+                .shared_memory_element_size
+                .unwrap_or(ctx.runtime.shared_memory_element_size),
+            shm_backoff,
         })
     }
 }
@@ -117,25 +127,26 @@ impl Node for ZenohSender {
         match self.input_raw.recv().await {
             Ok(message) => {
                 // Getting the shared memory buffer
-                let mut buff = match shm.alloc(DEFAULT_SHM_SIZE) {
+                let mut buff = match shm.alloc(self.shm_size) {
                     Ok(buf) => buf,
                     Err(_) => {
-                        async_std::task::sleep(std::time::Duration::from_millis(
-                            SHM_ALLOCATION_BACKOFF_MS,
-                        ))
-                        .await;
+                        async_std::task::sleep(std::time::Duration::from_millis(self.shm_backoff))
+                            .await;
                         log::trace!(
-                            "After failing allocation the GC collected: {} bytes -- retrying",
+                            "[ZenohSender: {}] After failing allocation the GC collected: {} bytes -- retrying",
+                            self.id,
                             shm.garbage_collect()
                         );
                         log::trace!(
-                            "Trying to de-fragment memory... De-fragmented {} bytes",
+                            "[ZenohSender: {}] Trying to de-fragment memory... De-fragmented {} bytes",
+                            self.id,
                             shm.defragment()
                         );
-                        shm.alloc(DEFAULT_SHM_SIZE).map_err(|_| {
+                        shm.alloc(self.shm_size).map_err(|_| {
                             zferror!(
                                 ErrorKind::ConfigurationError,
-                                "Unable to allocated {DEFAULT_SHM_SIZE} in the shared memory buffer!"
+                                "Unable to allocated {} in the shared memory buffer!",
+                                self.shm_size
                             )
                         })?
                     }
@@ -147,13 +158,32 @@ impl Node for ZenohSender {
                 // WARNING ACHTUNG ATTENTION
                 // This may fail as the message could be bigger than
                 // the shared memory buffer that was allocated.
-                message.serialize_bincode_into(slice)?;
-
-                self.z_session
-                    .put(self.key_expr.clone(), buff)
-                    .congestion_control(CongestionControl::Block)
-                    .res()
-                    .await
+                match message.serialize_bincode_into(slice) {
+                    Ok(_) => {
+                        // If the serialization is success then we send the
+                        // shared memory buffer.
+                        self.z_session
+                            .put(self.key_expr.clone(), buff)
+                            .congestion_control(CongestionControl::Block)
+                            .res()
+                            .await
+                    }
+                    Err(e) => {
+                        // Otherwise we log a warn and we serialize on a normal
+                        // Vec<u8>
+                        log::warn!(
+                            "[ZenohSender: {}] Unable to serialize into shared memory: {}",
+                            self.id,
+                            e
+                        );
+                        let data = message.serialize_bincode()?;
+                        self.z_session
+                            .put(self.key_expr.clone(), data)
+                            .congestion_control(CongestionControl::Block)
+                            .res()
+                            .await
+                    }
+                }
             }
             Err(e) => Err(zferror!(
                 ErrorKind::Disconnected,
@@ -188,16 +218,22 @@ impl ZenohReceiver {
     /// - the link for this connector was not created.
     pub(crate) async fn new(
         record: &ZFConnectorRecord,
-        session: Arc<Session>,
-        hlc: Arc<HLC>,
+        ctx: Arc<InstanceContext>,
         mut outputs: Outputs,
     ) -> ZFResult<Self> {
-        let key_expr = session
+        let key_expr = ctx
+            .runtime
+            .session
             .declare_keyexpr(record.resource.clone())
             .res()
             .await?
             .into_owned();
-        let subscriber = session.declare_subscriber(key_expr.clone()).res().await?;
+        let subscriber = ctx
+            .runtime
+            .session
+            .declare_subscriber(key_expr.clone())
+            .res()
+            .await?;
         let senders = outputs
             .hmap
             .remove(&record.link_id.port_id)
@@ -215,8 +251,10 @@ impl ZenohReceiver {
             output_raw: OutputRaw {
                 port_id: record.link_id.port_id.clone(),
                 senders,
-                hlc: hlc.clone(),
-                last_watermark: Arc::new(AtomicU64::new(hlc.new_timestamp().get_time().as_u64())),
+                hlc: ctx.runtime.hlc.clone(),
+                last_watermark: Arc::new(AtomicU64::new(
+                    ctx.runtime.hlc.new_timestamp().get_time().as_u64(),
+                )),
             },
             subscriber,
         })

@@ -19,11 +19,14 @@ use zenoh::prelude::r#async::*;
 use zenoh_flow::io::{Inputs, Outputs};
 use zenoh_flow::model::descriptor::{InputDescriptor, OutputDescriptor};
 use zenoh_flow::model::record::{OperatorRecord, PortRecord, SinkRecord, SourceRecord};
-use zenoh_flow::prelude::*;
 use zenoh_flow::runtime::dataflow::instance::DataFlowInstance;
 use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::types::{Configuration, Context, LinkMessage, Message};
+use zenoh_flow::{
+    prelude::*, DEFAULT_SHM_ALLOCATION_BACKOFF_MS, DEFAULT_SHM_ELEMENT_SIZE,
+    DEFAULT_SHM_TOTAL_ELEMENTS,
+};
 
 static SOURCE: &str = "counter-source";
 static OP_RAW: &str = "operator-raw";
@@ -246,6 +249,9 @@ async fn single_runtime() {
         loader: Arc::new(Loader::new(LoaderConfig::new())),
         runtime_name: runtime_name.clone(),
         runtime_uuid: rt_uuid,
+        shared_memory_element_size: DEFAULT_SHM_ELEMENT_SIZE as usize,
+        shared_memory_elements: DEFAULT_SHM_TOTAL_ELEMENTS as usize,
+        shared_memory_backoff: DEFAULT_SHM_ALLOCATION_BACKOFF_MS,
     };
 
     let mut dataflow = zenoh_flow::runtime::dataflow::DataFlow::new("test", ctx.clone());
