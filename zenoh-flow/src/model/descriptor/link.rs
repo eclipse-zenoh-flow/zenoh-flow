@@ -13,6 +13,7 @@
 //
 
 use crate::types::{NodeId, PortId};
+use crate::utils::{deserialize_size, deserialize_time};
 use serde::{Deserialize, Serialize};
 use std::{fmt, sync::Arc};
 
@@ -34,8 +35,12 @@ use std::{fmt, sync::Arc};
 pub struct LinkDescriptor {
     pub from: OutputDescriptor,
     pub to: InputDescriptor,
+    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_size")]
     pub shared_memory_element_size: Option<usize>,
     pub shared_memory_elements: Option<usize>,
+    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_time")]
     pub shared_memory_backoff: Option<u64>,
 }
 

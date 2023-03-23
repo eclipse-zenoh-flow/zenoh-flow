@@ -46,7 +46,7 @@ pub mod traits;
 pub mod types;
 pub mod zfdata;
 
-pub(crate) mod utils;
+pub mod utils;
 pub mod zfresult;
 
 pub use anyhow::anyhow;
@@ -80,4 +80,4 @@ pub static DEFAULT_SHM_ELEMENT_SIZE: u64 = 10_485_760;
 pub static DEFAULT_SHM_TOTAL_ELEMENTS: u64 = 10;
 
 /// Default Shared allocation backoff time (100ms)
-pub static DEFAULT_SHM_ALLOCATION_BACKOFF_MS: u64 = 100;
+pub static DEFAULT_SHM_ALLOCATION_BACKOFF_NS: u64 = 100_000_000;

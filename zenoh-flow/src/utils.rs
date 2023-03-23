@@ -15,6 +15,7 @@
 use crate::model::{Middleware, ZFUri};
 use crate::prelude::ErrorKind;
 use crate::{bail, zferror, Result};
+use serde::Deserializer;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use url::Url;
@@ -98,4 +99,27 @@ pub(crate) fn is_dynamic_library(ext: &str) -> bool {
         return true;
     }
     false
+}
+
+pub fn deserialize_size<'de, D>(deserializer: D) -> std::result::Result<Option<usize>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let buf: &str = serde::de::Deserialize::deserialize(deserializer)?;
+    Ok(Some(
+        bytesize::ByteSize::from_str(buf)
+            .map_err(|_| serde::de::Error::custom(format!("Unable to parse value as bytes {buf}")))?
+            .as_u64() as usize,
+    ))
+}
+
+pub fn deserialize_time<'de, D>(deserializer: D) -> std::result::Result<Option<u64>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let buf: &str = serde::de::Deserialize::deserialize(deserializer)?;
+    let ht = buf
+        .parse::<humantime::Duration>()
+        .map_err(serde::de::Error::custom)?;
+    Ok(Some(ht.as_nanos() as u64))
 }

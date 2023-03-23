@@ -24,7 +24,7 @@ use zenoh_flow::runtime::dataflow::loader::{Loader, LoaderConfig};
 use zenoh_flow::runtime::RuntimeContext;
 use zenoh_flow::types::{Configuration, Context, LinkMessage, Message};
 use zenoh_flow::{
-    prelude::*, DEFAULT_SHM_ALLOCATION_BACKOFF_MS, DEFAULT_SHM_ELEMENT_SIZE,
+    prelude::*, DEFAULT_SHM_ALLOCATION_BACKOFF_NS, DEFAULT_SHM_ELEMENT_SIZE,
     DEFAULT_SHM_TOTAL_ELEMENTS,
 };
 
@@ -251,7 +251,7 @@ async fn single_runtime() {
         runtime_uuid: rt_uuid,
         shared_memory_element_size: DEFAULT_SHM_ELEMENT_SIZE as usize,
         shared_memory_elements: DEFAULT_SHM_TOTAL_ELEMENTS as usize,
-        shared_memory_backoff: DEFAULT_SHM_ALLOCATION_BACKOFF_MS,
+        shared_memory_backoff: DEFAULT_SHM_ALLOCATION_BACKOFF_NS,
     };
 
     let mut dataflow = zenoh_flow::runtime::dataflow::DataFlow::new("test", ctx.clone());

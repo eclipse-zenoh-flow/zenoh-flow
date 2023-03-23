@@ -39,8 +39,9 @@ use zenoh_flow::runtime::{
     DaemonInterface, DaemonInterfaceInternal, RuntimeConfig, RuntimeContext,
 };
 use zenoh_flow::types::ControlMessage;
+use zenoh_flow::utils::{deserialize_size, deserialize_time};
 use zenoh_flow::{
-    bail, DaemonResult, DEFAULT_SHM_ALLOCATION_BACKOFF_MS, DEFAULT_SHM_ELEMENT_SIZE,
+    bail, DaemonResult, DEFAULT_SHM_ALLOCATION_BACKOFF_NS, DEFAULT_SHM_ELEMENT_SIZE,
     DEFAULT_SHM_TOTAL_ELEMENTS,
 };
 use zrpc::ZServe;
@@ -71,10 +72,14 @@ pub struct DaemonConfig {
     /// The size of the worker pool.
     pub worker_pool_size: usize,
     /// The default size of the shared memory element.
+    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_size")]
     pub default_shared_memory_element_size: Option<usize>,
     /// The default number of the shared memory elements.
     pub default_shared_memory_elements: Option<usize>,
     /// The default backoff when shared memory elements are not available.
+    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_time")]
     pub default_shared_memory_backoff: Option<u64>,
 }
 
@@ -294,7 +299,7 @@ impl Daemon {
                 .unwrap_or(DEFAULT_SHM_TOTAL_ELEMENTS as usize),
             shared_memory_backoff: config
                 .default_shared_memory_backoff
-                .unwrap_or(DEFAULT_SHM_ALLOCATION_BACKOFF_MS),
+                .unwrap_or(DEFAULT_SHM_ALLOCATION_BACKOFF_NS),
         };
 
         Ok(Self::new(z, ctx, rt_config, pool_size))

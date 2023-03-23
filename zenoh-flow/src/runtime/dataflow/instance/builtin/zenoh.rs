@@ -420,7 +420,7 @@ impl<'a> Node for ZenohSink<'a> {
                 let mut buff = match shm.alloc(self.shm_size) {
                     Ok(buf) => buf,
                     Err(_) => {
-                        async_std::task::sleep(std::time::Duration::from_millis(self.shm_backoff))
+                        async_std::task::sleep(std::time::Duration::from_nanos(self.shm_backoff))
                             .await;
                         log::trace!(
                             "After failing allocation the GC collected: {} bytes -- retrying",
