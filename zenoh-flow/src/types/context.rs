@@ -21,34 +21,27 @@ use uuid::Uuid;
 use zenoh::Session;
 
 /// The `Context` is a structure to obtain information about the runtime, use the Hybrid Logical
-/// Clock (HLC) of the runtime to generate timestamps and register callbacks.
+/// Clock (HLC) of the runtime to generate timestamps and access runtime-wise shared memory configuration.
 ///
 /// The following runtime information are exposed through accessors:
 /// - `runtime_name`: the name given to the runtime (in its configuration file);
 /// - `runtime_uuid`: the generated unique identifier of the runtime;
 /// - `flow_name`: the name given to the flow (in the descriptor file);
 /// - `instance_id`: the generated unique identifier of this instanciation of the flow.
+/// - `shared_memory_element_size` :  the default size of each shared memory chunk
+/// - `shared_memory_elements` : the default total number of shared memory chunks
+/// - `shared_memory_backoff` : the default backoff time when no chunks are available
 ///
 /// The HLC is directly accessible thanks to a `Deref` implementation.
 #[derive(Clone)]
 pub struct Context {
-    pub(crate) runtime_name: RuntimeId,
-    pub(crate) runtime_uuid: Uuid,
-    pub(crate) flow_name: FlowId,
-    pub(crate) instance_id: Uuid,
-    pub(crate) hlc: Arc<HLC>,
-    pub(crate) zenoh_session: Arc<Session>,
+    instance_ctx: InstanceContext,
 }
 
 impl Context {
-    pub(crate) fn new(instance_context: &InstanceContext) -> Self {
+    pub(crate) fn new(instance_ctx: &InstanceContext) -> Self {
         Self {
-            runtime_name: instance_context.runtime.runtime_name.clone(),
-            runtime_uuid: instance_context.runtime.runtime_uuid,
-            flow_name: instance_context.flow_id.clone(),
-            instance_id: instance_context.instance_id,
-            hlc: instance_context.runtime.hlc.clone(),
-            zenoh_session: instance_context.runtime.session.clone(),
+            instance_ctx: instance_ctx.clone(),
         }
     }
 
@@ -57,7 +50,7 @@ impl Context {
     /// Note that, for the same instance of a flow (i.e. the `flow_id` and `instance_id` are equal),
     /// different nodes can be running on different runtimes.
     pub fn get_runtime_name(&self) -> &RuntimeId {
-        &self.runtime_name
+        &self.instance_ctx.runtime.runtime_name
     }
 
     /// Returns the unique identifier of the runtime in which the calling node is running.
@@ -65,23 +58,38 @@ impl Context {
     /// Note that, for the same instance of a flow (i.e. the `flow_id` and `instance_id` are equal),
     /// different nodes can be running on different runtimes.
     pub fn get_runtime_uuid(&self) -> &Uuid {
-        &self.runtime_uuid
+        &self.instance_ctx.runtime.runtime_uuid
     }
 
     /// Returns the (user given) name of the data flow.
     pub fn get_flow_name(&self) -> &FlowId {
-        &self.flow_name
+        &self.instance_ctx.flow_id
     }
 
     /// Returns the unique identifier of the running instance of the data flow.
     pub fn get_instance_id(&self) -> &Uuid {
-        &self.instance_id
+        &self.instance_ctx.instance_id
     }
 
     /// Returns a thread-safe reference over the Zenoh session used by the Zenoh-Flow daemon running
     /// the node.
     pub fn zenoh_session(&self) -> Arc<Session> {
-        self.zenoh_session.clone()
+        self.instance_ctx.runtime.session.clone()
+    }
+
+    /// Returns the default size of each shared memory chunk.
+    pub fn shared_memory_element_size(&self) -> &usize {
+        &self.instance_ctx.runtime.shared_memory_element_size
+    }
+
+    /// Returns the default number of shared memory chunks.
+    pub fn shared_memory_elements(&self) -> &usize {
+        &self.instance_ctx.runtime.shared_memory_elements
+    }
+
+    /// Returns the default backoff time when there are no shared memory chunk available.
+    pub fn shared_memory_backoff(&self) -> &u64 {
+        &self.instance_ctx.runtime.shared_memory_backoff
     }
 }
 
@@ -89,6 +97,6 @@ impl Deref for Context {
     type Target = HLC;
 
     fn deref(&self) -> &Self::Target {
-        &self.hlc
+        &self.instance_ctx.runtime.hlc
     }
 }

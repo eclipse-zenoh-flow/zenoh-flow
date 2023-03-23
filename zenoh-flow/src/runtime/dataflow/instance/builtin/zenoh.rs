@@ -24,8 +24,7 @@ use crate::{
         node::{SinkFn, SourceFn},
     },
     types::LinkMessage,
-    Result as ZFResult, DEFAULT_SHM_ALLOCATION_BACKOFF_MS, DEFAULT_SHM_ELEMENT_SIZE,
-    DEFAULT_SHM_TOTAL_ELEMENTS,
+    Result as ZFResult,
 };
 use async_std::sync::Mutex;
 use async_trait::async_trait;
@@ -304,25 +303,29 @@ impl<'a> Sink for ZenohSink<'a> {
             Some(configuration) => {
                 let shm_elem_size = configuration
                     .get(KEY_SHM_ELEM_SIZE)
-                    .unwrap_or(&serde_json::Value::from(DEFAULT_SHM_ELEMENT_SIZE))
+                    .unwrap_or(&serde_json::Value::from(
+                        *context.shared_memory_element_size() as u64,
+                    ))
                     .as_u64()
-                    .unwrap_or(DEFAULT_SHM_ELEMENT_SIZE)
+                    .unwrap_or(*context.shared_memory_element_size() as u64)
                     as usize;
 
                 let shm_elem_count = configuration
                     .get(KEY_SHM_TOTAL_ELEMENTS)
-                    .unwrap_or(&serde_json::Value::from(DEFAULT_SHM_TOTAL_ELEMENTS))
+                    .unwrap_or(&serde_json::Value::from(
+                        *context.shared_memory_elements() as u64
+                    ))
                     .as_u64()
-                    .unwrap_or(DEFAULT_SHM_TOTAL_ELEMENTS)
+                    .unwrap_or(*context.shared_memory_elements() as u64)
                     as usize;
 
                 let shm_size = shm_elem_size * shm_elem_count;
 
                 let shm_backoff = configuration
                     .get(KEY_SHM_BACKOFF)
-                    .unwrap_or(&serde_json::Value::from(DEFAULT_SHM_ALLOCATION_BACKOFF_MS))
+                    .unwrap_or(&serde_json::Value::from(*context.shared_memory_backoff()))
                     .as_u64()
-                    .unwrap_or(DEFAULT_SHM_ALLOCATION_BACKOFF_MS);
+                    .unwrap_or(*context.shared_memory_backoff());
 
                 let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or(zferror!(
                     ErrorKind::ConfigurationError,
