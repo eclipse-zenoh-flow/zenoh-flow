@@ -123,12 +123,12 @@ impl<'a> Source for ZenohSource<'a> {
 
         match configuration {
             Some(configuration) => {
-                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or(zferror!(
+                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| zferror!(
                     ErrorKind::ConfigurationError,
                     "Missing key-expressions in builtin sink configuration"
                 ))?;
 
-                let keyexpressions = keyexpressions.as_object().ok_or(zferror!(
+                let keyexpressions = keyexpressions.as_object().ok_or_else(|| zferror!(
                     ErrorKind::ConfigurationError,
                     "Unable to convert configuration to HashMap: {:?}",
                     configuration
@@ -301,7 +301,7 @@ impl<'a> Sink for ZenohSink<'a> {
         let id = uuid::Uuid::new_v4().to_string();
         match configuration {
             Some(configuration) => {
-                let get_or_default = |configuration : &serde_json::Value, key, default| {
+                let get_or_default = |configuration: &serde_json::Value, key, default| {
                     if let Some(value) = configuration.get(key) {
                         if let Some(value) = value.as_u64() {
                             return value;
@@ -330,12 +330,12 @@ impl<'a> Sink for ZenohSink<'a> {
 
                 let shm_size = shm_elem_size * shm_elem_count;
 
-                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or(zferror!(
+                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| zferror!(
                     ErrorKind::ConfigurationError,
                     "Missing key-expressions in builtin sink configuration"
                 ))?;
 
-                let keyexpressions = keyexpressions.as_object().ok_or(zferror!(
+                let keyexpressions = keyexpressions.as_object().ok_or_else(|| zferror!(
                     ErrorKind::ConfigurationError,
                     "Unable to convert configuration to HashMap: {:?}",
                     configuration
@@ -414,7 +414,7 @@ impl<'a> Node for ZenohSink<'a> {
                 let data = dm.get_inner_data().try_as_bytes()?;
 
                 // Getting publisher
-                let publisher = self.publishers.get(&id).ok_or(zferror!(
+                let publisher = self.publishers.get(&id).ok_or_else(|| zferror!(
                     ErrorKind::SendError,
                     "Unable to find Publisher for {id}"
                 ))?;
@@ -481,3 +481,4 @@ impl<'a> Node for ZenohSink<'a> {
 
         Ok(())
     }
+}
