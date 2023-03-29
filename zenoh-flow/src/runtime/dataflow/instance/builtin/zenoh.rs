@@ -248,7 +248,7 @@ pub(crate) struct ZenohSink<'a> {
     publishers: HashMap<PortId, Publisher<'a>>,
     futs: Arc<Mutex<Vec<ZFInputFut>>>,
     shm: Arc<Mutex<SharedMemoryManager>>,
-    shm_size: usize,
+    shm_element_size: usize,
     shm_backoff: u64,
 }
 
@@ -301,31 +301,34 @@ impl<'a> Sink for ZenohSink<'a> {
         let id = uuid::Uuid::new_v4().to_string();
         match configuration {
             Some(configuration) => {
-                let shm_elem_size = configuration
-                    .get(KEY_SHM_ELEM_SIZE)
-                    .unwrap_or(&serde_json::Value::from(
-                        *context.shared_memory_element_size() as u64,
-                    ))
-                    .as_u64()
-                    .unwrap_or(*context.shared_memory_element_size() as u64)
-                    as usize;
+                let get_or_default = |configuration : &serde_json::Value, key, default| {
+                    if let Some(value) = configuration.get(key) {
+                        if let Some(value) = value.as_u64() {
+                            return value;
+                        }
+                        log::warn!("Failed to parse / interpret provided value for {key} into u64, using default value: {default}");
+                    }
 
-                let shm_elem_count = configuration
-                    .get(KEY_SHM_TOTAL_ELEMENTS)
-                    .unwrap_or(&serde_json::Value::from(
-                        *context.shared_memory_elements() as u64
-                    ))
-                    .as_u64()
-                    .unwrap_or(*context.shared_memory_elements() as u64)
-                    as usize;
+                    default
+                };
+
+                let shm_elem_size = get_or_default(
+                    &configuration,
+                    KEY_SHM_ELEM_SIZE,
+                    *context.shared_memory_element_size() as u64,
+                ) as usize;
+                let shm_elem_count = get_or_default(
+                    &configuration,
+                    KEY_SHM_TOTAL_ELEMENTS,
+                    *context.shared_memory_elements() as u64,
+                ) as usize;
+                let shm_backoff = get_or_default(
+                    &configuration,
+                    KEY_SHM_BACKOFF,
+                    *context.shared_memory_backoff(),
+                );
 
                 let shm_size = shm_elem_size * shm_elem_count;
-
-                let shm_backoff = configuration
-                    .get(KEY_SHM_BACKOFF)
-                    .unwrap_or(&serde_json::Value::from(*context.shared_memory_backoff()))
-                    .as_u64()
-                    .unwrap_or(*context.shared_memory_backoff());
 
                 let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or(zferror!(
                     ErrorKind::ConfigurationError,
@@ -378,7 +381,7 @@ impl<'a> Sink for ZenohSink<'a> {
                             )
                         })?,
                     )),
-                    shm_size: shm_elem_size,
+                    shm_element_size: shm_elem_size,
                     shm_backoff,
                 })
             }
@@ -417,18 +420,24 @@ impl<'a> Node for ZenohSink<'a> {
                 ))?;
 
                 // Getting the shared memory buffer
-                let mut buff = match shm.alloc(self.shm_size) {
+                let mut buff = match shm.alloc(self.shm_element_size) {
                     Ok(buf) => buf,
                     Err(_) => {
                         async_std::task::sleep(std::time::Duration::from_nanos(self.shm_backoff))
                             .await;
                         log::trace!(
                             "After failing allocation the GC collected: {} bytes -- retrying",
-                        shm.alloc(self.shm_size).map_err(|_| {
+                            shm.garbage_collect()
+                        );
+                        log::trace!(
+                            "Trying to de-fragment memory... De-fragmented {} bytes",
+                            shm.defragment()
+                        );
+                        shm.alloc(self.shm_element_size).map_err(|_| {
                             zferror!(
                                 ErrorKind::ConfigurationError,
                                 "Unable to allocated {} in the shared memory buffer!",
-                                self.shm_size
+                                self.shm_element_size
                             )
                         })?
                     }
@@ -439,7 +448,8 @@ impl<'a> Node for ZenohSink<'a> {
 
                 let data_len = data.len();
 
-                // If the shared memory slice is big enough we
+                // If the shared memory block is big enough we send the data through it,
+                // otherwise we go through the network.
                 if data_len < slice.len() {
                     // WARNING ACHTUNG ATTENTION
                     // We are coping memory here!
@@ -450,6 +460,7 @@ impl<'a> Node for ZenohSink<'a> {
                     publisher.put(buff).res().await?;
                 } else {
                     publisher.put(&**data).res().await?;
+                    log::warn!("[ZenohSink] Sending data via network, has we are unable to send it over shared memory, the serialized size is {} while shared memory is {}", data_len, self.shm_element_size);
                 }
             }
             Ok(_) => (), // Not the right message, ignore it.

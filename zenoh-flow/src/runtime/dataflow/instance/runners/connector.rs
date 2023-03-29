@@ -39,7 +39,7 @@ pub(crate) struct ZenohSender {
     pub(crate) z_session: Arc<zenoh::Session>,
     pub(crate) key_expr: KeyExpr<'static>,
     pub(crate) shm: Arc<Mutex<SharedMemoryManager>>,
-    pub(crate) shm_size: usize,
+    pub(crate) shm_element_size: usize,
     pub(crate) shm_backoff: u64,
 }
 
@@ -102,7 +102,7 @@ impl ZenohSender {
                     )
                 })?,
             )),
-            shm_size: record
+            shm_element_size: record
                 .shared_memory_element_size
                 .unwrap_or(ctx.runtime.shared_memory_element_size),
             shm_backoff,
@@ -127,7 +127,7 @@ impl Node for ZenohSender {
         match self.input_raw.recv().await {
             Ok(message) => {
                 // Getting the shared memory buffer
-                let mut buff = match shm.alloc(self.shm_size) {
+                let mut buff = match shm.alloc(self.shm_element_size) {
                     Ok(buf) => buf,
                     Err(_) => {
                         async_std::task::sleep(std::time::Duration::from_millis(self.shm_backoff))
@@ -142,11 +142,11 @@ impl Node for ZenohSender {
                             self.id,
                             shm.defragment()
                         );
-                        shm.alloc(self.shm_size).map_err(|_| {
+                        shm.alloc(self.shm_element_size).map_err(|_| {
                             zferror!(
                                 ErrorKind::ConfigurationError,
                                 "Unable to allocated {} in the shared memory buffer!",
-                                self.shm_size
+                                self.shm_element_size
                             )
                         })?
                     }
@@ -171,12 +171,15 @@ impl Node for ZenohSender {
                     Err(e) => {
                         // Otherwise we log a warn and we serialize on a normal
                         // Vec<u8>
-                        log::warn!(
-                            "[ZenohSender: {}] Unable to serialize into shared memory: {}",
-                            self.id,
-                            e
-                        );
                         let data = message.serialize_bincode()?;
+                        log::warn!(
+                            "[ZenohSender: {}] Unable to serialize into shared memory: {}, serialized size {}, shared memory size {}",
+                            self.id,
+                            e,
+                            data.len(),
+                            self.shm_element_size,
+                        );
+
                         self.z_session
                             .put(self.key_expr.clone(), data)
                             .congestion_control(CongestionControl::Block)
