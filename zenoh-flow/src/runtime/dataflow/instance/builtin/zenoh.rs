@@ -78,11 +78,13 @@ pub(crate) fn get_zenoh_source_descriptor(
     configuration: &Configuration,
 ) -> ZFResult<SourceDescriptor> {
     let mut outputs = vec![];
-    let local_configuration = configuration.as_object().ok_or(zferror!(
-        ErrorKind::ConfigurationError,
-        "Unable to convert configuration to HashMap: {:?}",
-        configuration
-    ))?;
+    let local_configuration = configuration.as_object().ok_or_else(|| {
+        zferror!(
+            ErrorKind::ConfigurationError,
+            "Unable to convert configuration to HashMap: {:?}",
+            configuration
+        )
+    })?;
     for id in local_configuration.keys() {
         outputs.push(id.clone().into());
     }
@@ -107,20 +109,24 @@ impl<'a> Source for ZenohSource<'a> {
 
         match configuration {
             Some(configuration) => {
-                let configuration = configuration.as_object().ok_or(zferror!(
-                    ErrorKind::ConfigurationError,
-                    "Unable to convert configuration to HashMap: {:?}",
-                    configuration
-                ))?;
+                let configuration = configuration.as_object().ok_or_else(|| {
+                    zferror!(
+                        ErrorKind::ConfigurationError,
+                        "Unable to convert configuration to HashMap: {:?}",
+                        configuration
+                    )
+                })?;
 
                 for (id, value) in configuration {
                     let ke = value
                         .as_str()
-                        .ok_or(zferror!(
-                            ErrorKind::ConfigurationError,
-                            "Unable to convert value to string: {:?}",
-                            value
-                        ))?
+                        .ok_or_else(|| {
+                            zferror!(
+                                ErrorKind::ConfigurationError,
+                                "Unable to convert value to string: {:?}",
+                                value
+                            )
+                        })?
                         .to_string();
 
                     let output = outputs.take_raw(id).ok_or(zferror!(
@@ -187,10 +193,12 @@ impl<'a> Node for ZenohSource<'a> {
         }
 
         // Add back the subscriber that got polled
-        let sub = self.subscribers.get(&id).ok_or(zferror!(
-            ErrorKind::RecvError,
-            "Unable to find < {id} > for built-in Zenoh Source"
-        ))?;
+        let sub = self.subscribers.get(&id).ok_or_else(|| {
+            zferror!(
+                ErrorKind::RecvError,
+                "Unable to find < {id} > for built-in Zenoh Source"
+            )
+        })?;
         remaining.push(wait_zenoh_sub(id, sub));
 
         // Setting back a complete list for the next iteration
@@ -241,11 +249,13 @@ pub(crate) fn get_zenoh_sink_declaration() -> NodeDeclaration<SinkFn> {
 /// Private function to retrieve the Descriptor for the ZenohSink
 pub(crate) fn get_zenoh_sink_descriptor(configuration: &Configuration) -> ZFResult<SinkDescriptor> {
     let mut inputs = vec![];
-    let local_configuration = configuration.as_object().ok_or(zferror!(
-        ErrorKind::ConfigurationError,
-        "Unable to convert configuration to HashMap: {:?}",
-        configuration
-    ))?;
+    let local_configuration = configuration.as_object().ok_or_else(|| {
+        zferror!(
+            ErrorKind::ConfigurationError,
+            "Unable to convert configuration to HashMap: {:?}",
+            configuration
+        )
+    })?;
     for id in local_configuration.keys() {
         inputs.push(id.clone().into());
     }
@@ -270,20 +280,24 @@ impl<'a> Sink for ZenohSink<'a> {
 
         match configuration {
             Some(configuration) => {
-                let configuration = configuration.as_object().ok_or(zferror!(
-                    ErrorKind::ConfigurationError,
-                    "Unable to convert configuration to HashMap: {:?}",
-                    configuration
-                ))?;
+                let configuration = configuration.as_object().ok_or_else(|| {
+                    zferror!(
+                        ErrorKind::ConfigurationError,
+                        "Unable to convert configuration to HashMap: {:?}",
+                        configuration
+                    )
+                })?;
 
                 for (id, value) in configuration {
                     let ke = value
                         .as_str()
-                        .ok_or(zferror!(
-                            ErrorKind::ConfigurationError,
-                            "Unable to convert value to string: {:?}",
-                            value
-                        ))?
+                        .ok_or_else(|| {
+                            zferror!(
+                                ErrorKind::ConfigurationError,
+                                "Unable to convert value to string: {:?}",
+                                value
+                            )
+                        })?
                         .to_string();
 
                     let input = inputs.take_raw(id).ok_or(zferror!(
@@ -331,10 +345,9 @@ impl<'a> Node for ZenohSink<'a> {
         match result {
             Ok(LinkMessage::Data(mut dm)) => {
                 let data = dm.get_inner_data().try_as_bytes()?;
-                let publisher = self.publishers.get(&id).ok_or(zferror!(
-                    ErrorKind::SendError,
-                    "Unable to find Publisher for {id}"
-                ))?;
+                let publisher = self.publishers.get(&id).ok_or_else(|| {
+                    zferror!(ErrorKind::SendError, "Unable to find Publisher for {id}")
+                })?;
                 publisher.put(&**data).res().await?;
             }
             Ok(_) => (), // Not the right message, ignore it.
@@ -342,10 +355,12 @@ impl<'a> Node for ZenohSink<'a> {
         }
 
         // Add back the input that got polled
-        let input = self.inputs.get(&id).ok_or(zferror!(
-            ErrorKind::RecvError,
-            "Unable to find input < {id} > for built-in Zenoh Sink"
-        ))?;
+        let input = self.inputs.get(&id).ok_or_else(|| {
+            zferror!(
+                ErrorKind::RecvError,
+                "Unable to find input < {id} > for built-in Zenoh Sink"
+            )
+        })?;
         remaining.push(wait_flow_input(id, input));
 
         // Set back the complete list for the next iteration
