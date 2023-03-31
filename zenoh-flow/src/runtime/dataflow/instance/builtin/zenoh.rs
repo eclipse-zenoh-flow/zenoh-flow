@@ -123,16 +123,20 @@ impl<'a> Source for ZenohSource<'a> {
 
         match configuration {
             Some(configuration) => {
-                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| zferror!(
-                    ErrorKind::ConfigurationError,
-                    "Missing key-expressions in builtin sink configuration"
-                ))?;
+                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| {
+                    zferror!(
+                        ErrorKind::ConfigurationError,
+                        "Missing key-expressions in builtin sink configuration"
+                    )
+                })?;
 
-                let keyexpressions = keyexpressions.as_object().ok_or_else(|| zferror!(
-                    ErrorKind::ConfigurationError,
-                    "Unable to convert configuration to HashMap: {:?}",
-                    configuration
-                ))?;
+                let keyexpressions = keyexpressions.as_object().ok_or_else(|| {
+                    zferror!(
+                        ErrorKind::ConfigurationError,
+                        "Unable to convert configuration to HashMap: {:?}",
+                        configuration
+                    )
+                })?;
 
                 for (id, value) in keyexpressions {
                     let ke = value
@@ -330,16 +334,20 @@ impl<'a> Sink for ZenohSink<'a> {
 
                 let shm_size = shm_elem_size * shm_elem_count;
 
-                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| zferror!(
-                    ErrorKind::ConfigurationError,
-                    "Missing key-expressions in builtin sink configuration"
-                ))?;
+                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| {
+                    zferror!(
+                        ErrorKind::ConfigurationError,
+                        "Missing key-expressions in builtin sink configuration"
+                    )
+                })?;
 
-                let keyexpressions = keyexpressions.as_object().ok_or_else(|| zferror!(
-                    ErrorKind::ConfigurationError,
-                    "Unable to convert configuration to HashMap: {:?}",
-                    configuration
-                ))?;
+                let keyexpressions = keyexpressions.as_object().ok_or_else(|| {
+                    zferror!(
+                        ErrorKind::ConfigurationError,
+                        "Unable to convert configuration to HashMap: {:?}",
+                        configuration
+                    )
+                })?;
 
                 for (id, value) in keyexpressions {
                     let ke = value
@@ -414,10 +422,9 @@ impl<'a> Node for ZenohSink<'a> {
                 let data = dm.get_inner_data().try_as_bytes()?;
 
                 // Getting publisher
-                let publisher = self.publishers.get(&id).ok_or_else(|| zferror!(
-                    ErrorKind::SendError,
-                    "Unable to find Publisher for {id}"
-                ))?;
+                let publisher = self.publishers.get(&id).ok_or_else(|| {
+                    zferror!(ErrorKind::SendError, "Unable to find Publisher for {id}")
+                })?;
 
                 // Getting the shared memory buffer
                 let mut buff = match shm.alloc(self.shm_element_size) {
