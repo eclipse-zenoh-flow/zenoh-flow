@@ -467,7 +467,7 @@ impl<'a> Node for ZenohSink<'a> {
                     publisher.put(buff).res().await?;
                 } else {
                     publisher.put(&**data).res().await?;
-                    log::warn!("[ZenohSink] Sending data via network, has we are unable to send it over shared memory, the serialized size is {} while shared memory is {}", data_len, self.shm_element_size);
+                    log::warn!("[ZenohSink] Sending data via network as we are unable to send it over shared memory, the serialized size is {} while shared memory is {}", data_len, self.shm_element_size);
                 }
             }
             Ok(_) => (), // Not the right message, ignore it.
