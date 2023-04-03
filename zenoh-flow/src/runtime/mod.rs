@@ -50,6 +50,9 @@ pub struct RuntimeContext {
     pub hlc: Arc<HLC>,
     pub runtime_name: RuntimeId,
     pub runtime_uuid: Uuid,
+    pub shared_memory_element_size: usize,
+    pub shared_memory_elements: usize,
+    pub shared_memory_backoff: u64,
 }
 
 /// The context of a Zenoh Flow graph instance.

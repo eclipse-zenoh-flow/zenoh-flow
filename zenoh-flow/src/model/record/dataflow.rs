@@ -207,7 +207,9 @@ impl DataFlowRecord {
                             uid: self.counter,
                             port_id: l.from.output.clone(),
                         },
-
+                        shared_memory_element_size: l.shared_memory_element_size,
+                        shared_memory_elements: l.shared_memory_elements,
+                        shared_memory_backoff: l.shared_memory_backoff,
                         runtime: from_runtime,
                     };
                     self.counter += 1;
@@ -219,9 +221,9 @@ impl DataFlowRecord {
                             node: sender_id.clone(),
                             input: l.from.output.clone(),
                         },
-                        size: None,
-                        queueing_policy: None,
-                        priority: None,
+                        shared_memory_element_size: l.shared_memory_element_size,
+                        shared_memory_elements: l.shared_memory_elements,
+                        shared_memory_backoff: l.shared_memory_backoff,
                     };
 
                     // storing info in the dataflow record
@@ -244,7 +246,9 @@ impl DataFlowRecord {
                         uid: self.counter,
                         port_id: l.to.input.clone(),
                     },
-
+                    shared_memory_element_size: l.shared_memory_element_size,
+                    shared_memory_elements: l.shared_memory_elements,
+                    shared_memory_backoff: l.shared_memory_backoff,
                     runtime: to_runtime,
                 };
                 self.counter += 1;
@@ -256,9 +260,9 @@ impl DataFlowRecord {
                         output: l.to.input.clone(),
                     },
                     to: l.to.clone(),
-                    size: None,
-                    queueing_policy: None,
-                    priority: None,
+                    shared_memory_element_size: l.shared_memory_element_size,
+                    shared_memory_elements: l.shared_memory_elements,
+                    shared_memory_backoff: l.shared_memory_backoff,
                 };
 
                 // storing info in the data flow record

@@ -305,6 +305,33 @@ impl LinkMessage {
         }
     }
 
+    /// Serializes the `Message` using bincode into the given slice.
+    ///
+    /// # Errors
+    ///
+    /// An error variant is returned in case of:
+    /// - fails to serialize
+    /// - there is not enough space in the slice
+    pub fn serialize_bincode_into(&self, buff: &mut [u8]) -> Result<()> {
+        match &self {
+            LinkMessage::Data(data_message) => match &data_message.data {
+                Payload::Bytes(_) => bincode::serialize_into(buff, &self)
+                    .map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
+                Payload::Typed(_) => {
+                    let serialized_data = data_message.data.try_as_bytes()?;
+                    let serialized_message = LinkMessage::Data(DataMessage::new_serialized(
+                        serialized_data,
+                        data_message.timestamp,
+                    ));
+                    bincode::serialize_into(buff, &serialized_message)
+                        .map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
+                }
+            },
+            _ => bincode::serialize_into(buff, &self)
+                .map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
+        }
+    }
+
     /// Returns the `Timestamp` associated with the message.
     pub fn get_timestamp(&self) -> Timestamp {
         match self {

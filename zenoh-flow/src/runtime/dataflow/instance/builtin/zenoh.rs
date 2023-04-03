@@ -33,7 +33,21 @@ use futures::{future::select_all, Future};
 use std::mem;
 use std::sync::Arc;
 use std::{collections::HashMap, pin::Pin};
+use zenoh::buffers::SharedMemoryManager;
 use zenoh::{prelude::r#async::*, publication::Publisher, subscriber::Subscriber};
+
+/// Key for the key expressions used by the built-in Source/Sink.
+static KEY_KEYEXPRESSIONS: &str = "key-expressions";
+
+/// Key for the shared memory element size used by the built-in Sink.
+static KEY_SHM_ELEM_SIZE: &str = "shared_memory_element_size";
+
+/// Key for the number of shared memory element of size KEY_SHM_ELEM_SIZE
+///  used by the built-in Sink.
+static KEY_SHM_TOTAL_ELEMENTS: &str = "shared_memory_elements";
+
+/// Key for the backoff time to be used when no shared memory element are available.
+static KEY_SHM_BACKOFF: &str = "shared_memory_backoff";
 
 /// Internal type of pending futures for the ZenohSource
 pub(crate) type ZSubFut =
@@ -109,7 +123,14 @@ impl<'a> Source for ZenohSource<'a> {
 
         match configuration {
             Some(configuration) => {
-                let configuration = configuration.as_object().ok_or_else(|| {
+                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| {
+                    zferror!(
+                        ErrorKind::ConfigurationError,
+                        "Missing key-expressions in builtin sink configuration"
+                    )
+                })?;
+
+                let keyexpressions = keyexpressions.as_object().ok_or_else(|| {
                     zferror!(
                         ErrorKind::ConfigurationError,
                         "Unable to convert configuration to HashMap: {:?}",
@@ -117,7 +138,7 @@ impl<'a> Source for ZenohSource<'a> {
                     )
                 })?;
 
-                for (id, value) in configuration {
+                for (id, value) in keyexpressions {
                     let ke = value
                         .as_str()
                         .ok_or_else(|| {
@@ -230,6 +251,9 @@ pub(crate) struct ZenohSink<'a> {
     inputs: HashMap<PortId, InputRaw>,
     publishers: HashMap<PortId, Publisher<'a>>,
     futs: Arc<Mutex<Vec<ZFInputFut>>>,
+    shm: Arc<Mutex<SharedMemoryManager>>,
+    shm_element_size: usize,
+    shm_backoff: u64,
 }
 
 /// Private function to retrieve the "Constructor" for the ZenohSink
@@ -278,9 +302,46 @@ impl<'a> Sink for ZenohSink<'a> {
         let mut sink_inputs: HashMap<PortId, InputRaw> = HashMap::new();
         let mut publishers: HashMap<PortId, Publisher<'a>> = HashMap::new();
 
+        let id = uuid::Uuid::new_v4().to_string();
         match configuration {
             Some(configuration) => {
-                let configuration = configuration.as_object().ok_or_else(|| {
+                let get_or_default = |configuration: &serde_json::Value, key, default| {
+                    if let Some(value) = configuration.get(key) {
+                        if let Some(value) = value.as_u64() {
+                            return value;
+                        }
+                        log::warn!("Failed to parse / interpret provided value for {key} into u64, using default value: {default}");
+                    }
+
+                    default
+                };
+
+                let shm_elem_size = get_or_default(
+                    &configuration,
+                    KEY_SHM_ELEM_SIZE,
+                    *context.shared_memory_element_size() as u64,
+                ) as usize;
+                let shm_elem_count = get_or_default(
+                    &configuration,
+                    KEY_SHM_TOTAL_ELEMENTS,
+                    *context.shared_memory_elements() as u64,
+                ) as usize;
+                let shm_backoff = get_or_default(
+                    &configuration,
+                    KEY_SHM_BACKOFF,
+                    *context.shared_memory_backoff(),
+                );
+
+                let shm_size = shm_elem_size * shm_elem_count;
+
+                let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| {
+                    zferror!(
+                        ErrorKind::ConfigurationError,
+                        "Missing key-expressions in builtin sink configuration"
+                    )
+                })?;
+
+                let keyexpressions = keyexpressions.as_object().ok_or_else(|| {
                     zferror!(
                         ErrorKind::ConfigurationError,
                         "Unable to convert configuration to HashMap: {:?}",
@@ -288,7 +349,7 @@ impl<'a> Sink for ZenohSink<'a> {
                     )
                 })?;
 
-                for (id, value) in configuration {
+                for (id, value) in keyexpressions {
                     let ke = value
                         .as_str()
                         .ok_or_else(|| {
@@ -320,6 +381,16 @@ impl<'a> Sink for ZenohSink<'a> {
                     inputs: sink_inputs,
                     publishers,
                     futs: Arc::new(Mutex::new(futs)),
+                    shm: Arc::new(Mutex::new(
+                        SharedMemoryManager::make(id, shm_size).map_err(|_| {
+                            zferror!(
+                                ErrorKind::ConfigurationError,
+                                "Unable to allocate {shm_size} bytes of shared memory"
+                            )
+                        })?,
+                    )),
+                    shm_element_size: shm_elem_size,
+                    shm_backoff,
                 })
             }
             None => {
@@ -335,6 +406,9 @@ impl<'a> Sink for ZenohSink<'a> {
 #[async_trait]
 impl<'a> Node for ZenohSink<'a> {
     async fn iteration(&self) -> ZFResult<()> {
+        // Getting shared memory manager
+        let mut shm = self.shm.lock().await;
+
         // Getting the list of futures to poll in a temporary variable (that `select_all` can take
         // ownership of)
         let mut futs = self.futs.lock().await;
@@ -344,11 +418,57 @@ impl<'a> Node for ZenohSink<'a> {
 
         match result {
             Ok(LinkMessage::Data(mut dm)) => {
+                // Getting serialized data
                 let data = dm.get_inner_data().try_as_bytes()?;
+
+                // Getting publisher
                 let publisher = self.publishers.get(&id).ok_or_else(|| {
                     zferror!(ErrorKind::SendError, "Unable to find Publisher for {id}")
                 })?;
-                publisher.put(&**data).res().await?;
+
+                // Getting the shared memory buffer
+                let mut buff = match shm.alloc(self.shm_element_size) {
+                    Ok(buf) => buf,
+                    Err(_) => {
+                        async_std::task::sleep(std::time::Duration::from_nanos(self.shm_backoff))
+                            .await;
+                        log::trace!(
+                            "After failing allocation the GC collected: {} bytes -- retrying",
+                            shm.garbage_collect()
+                        );
+                        log::trace!(
+                            "Trying to de-fragment memory... De-fragmented {} bytes",
+                            shm.defragment()
+                        );
+                        shm.alloc(self.shm_element_size).map_err(|_| {
+                            zferror!(
+                                ErrorKind::ConfigurationError,
+                                "Unable to allocated {} in the shared memory buffer!",
+                                self.shm_element_size
+                            )
+                        })?
+                    }
+                };
+
+                // Getting the underlying slice in the shared memory
+                let slice = unsafe { buff.as_mut_slice() };
+
+                let data_len = data.len();
+
+                // If the shared memory block is big enough we send the data through it,
+                // otherwise we go through the network.
+                if data_len < slice.len() {
+                    // WARNING ACHTUNG ATTENTION
+                    // We are coping memory here!
+                    // we should be able to serialize directly in the shared
+                    // memory buffer.
+                    slice[0..data_len].copy_from_slice(&data);
+                    // Sending the data as shared memory
+                    publisher.put(buff).res().await?;
+                } else {
+                    publisher.put(&**data).res().await?;
+                    log::warn!("[ZenohSink] Sending data via network as we are unable to send it over shared memory, the serialized size is {} while shared memory is {}", data_len, self.shm_element_size);
+                }
             }
             Ok(_) => (), // Not the right message, ignore it.
             Err(e) => log::error!("[ZenohSink] got error on link {id}: {e:?}"),
