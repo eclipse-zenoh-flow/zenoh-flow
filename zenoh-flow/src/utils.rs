@@ -35,7 +35,14 @@ use url::Url;
 /// - In case of `builtin://`, the authority part, `<middleware>`, is not supported.
 /// - In case of `file://`, the resulting path cannot be [`canonicalized`](`std::fs::canonicalize`).
 pub(crate) fn parse_uri(url_str: &str) -> Result<ZFUri> {
-    let uri = Url::parse(url_str).map_err(|err| zferror!(ErrorKind::ParsingError, err))?;
+    let uri = Url::parse(url_str).map_err(|err| {
+        zferror!(
+            ErrorKind::ParsingError,
+            "Error while parsing URI: {} - {}",
+            url_str,
+            err
+        )
+    })?;
 
     let uri_path = match uri.host_str() {
         Some(h) => format!("{}{}", h, uri.path()),
