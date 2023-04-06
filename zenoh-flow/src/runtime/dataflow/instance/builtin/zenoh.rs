@@ -521,3 +521,7 @@ impl<'a> Node for ZenohSink<'a> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "./tests/builtin-zenoh.rs"]
+mod tests;
