@@ -99,7 +99,23 @@ pub(crate) fn get_zenoh_source_descriptor(
             configuration
         )
     })?;
-    for id in local_configuration.keys() {
+
+    let keyexpressions = local_configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| {
+        zferror!(
+            ErrorKind::ConfigurationError,
+            "Missing key-expressions in builtin sink configuration"
+        )
+    })?;
+
+    let keyexpressions = keyexpressions.as_object().ok_or_else(|| {
+        zferror!(
+            ErrorKind::ConfigurationError,
+            "Unable to convert configuration to HashMap: {:?}",
+            configuration
+        )
+    })?;
+
+    for id in keyexpressions.keys() {
         outputs.push(id.clone().into());
     }
 
@@ -280,7 +296,23 @@ pub(crate) fn get_zenoh_sink_descriptor(configuration: &Configuration) -> ZFResu
             configuration
         )
     })?;
-    for id in local_configuration.keys() {
+
+    let keyexpressions = local_configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| {
+        zferror!(
+            ErrorKind::ConfigurationError,
+            "Missing key-expressions in builtin sink configuration"
+        )
+    })?;
+
+    let keyexpressions = keyexpressions.as_object().ok_or_else(|| {
+        zferror!(
+            ErrorKind::ConfigurationError,
+            "Unable to convert configuration to HashMap: {:?}",
+            configuration
+        )
+    })?;
+
+    for id in keyexpressions.keys() {
         inputs.push(id.clone().into());
     }
 
