@@ -68,8 +68,6 @@ impl ZenohSender {
             )
         })?;
 
-        let use_shm = ctx.runtime.use_shm;
-
         let key_expr = ctx
             .runtime
             .session
@@ -78,38 +76,34 @@ impl ZenohSender {
             .await?
             .into_owned();
 
-        let (shm_element_size, shm_backoff, shm_manager) = match use_shm {
-            true => {
-                let shm_size = record
-                    .shared_memory_element_size
-                    .unwrap_or(ctx.runtime.shared_memory_element_size)
-                    * record
-                        .shared_memory_elements
-                        .unwrap_or(ctx.runtime.shared_memory_elements);
-                let shm_backoff = record
-                    .shared_memory_backoff
-                    .unwrap_or(ctx.runtime.shared_memory_backoff);
+        let mut shm_element_size = 0;
+        let mut shm_backoff = 0;
+        let mut shm_manager = None;
 
-                let shm_manager = SharedMemoryManager::make(record.resource.clone(), shm_size)
-                    .map_err(|_| {
-                        zferror!(
-                            ErrorKind::ConfigurationError,
-                            "Unable to allocate {shm_size} bytes of shared memory"
-                        )
-                    })?;
+        if ctx.runtime.use_shm {
+            let shm_size = record
+                .shared_memory_element_size
+                .unwrap_or(ctx.runtime.shared_memory_element_size)
+                * record
+                    .shared_memory_elements
+                    .unwrap_or(ctx.runtime.shared_memory_elements);
+            shm_backoff = record
+                .shared_memory_backoff
+                .unwrap_or(ctx.runtime.shared_memory_backoff);
 
-                let shm_element_size = record
-                    .shared_memory_element_size
-                    .unwrap_or(ctx.runtime.shared_memory_element_size);
+            shm_manager = Some(Arc::new(Mutex::new(
+                SharedMemoryManager::make(record.resource.clone(), shm_size).map_err(|_| {
+                    zferror!(
+                        ErrorKind::ConfigurationError,
+                        "Unable to allocate {shm_size} bytes of shared memory"
+                    )
+                })?,
+            )));
 
-                (
-                    shm_element_size,
-                    shm_backoff,
-                    Some(Arc::new(Mutex::new(shm_manager))),
-                )
-            }
-            false => (0, 0, None),
-        };
+            shm_element_size = record
+                .shared_memory_element_size
+                .unwrap_or(ctx.runtime.shared_memory_element_size);
+        }
 
         Ok(Self {
             id: record.id.clone(),

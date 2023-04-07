@@ -348,43 +348,38 @@ impl<'a> Sink for ZenohSink<'a> {
                     default
                 };
 
-                let (shm_element_size, shm_backoff, shm_manager) =
-                    match context.shared_memory_enabled() {
-                        true => {
-                            let shm_elem_size = get_or_default(
-                                &configuration,
-                                KEY_SHM_ELEM_SIZE,
-                                *context.shared_memory_element_size() as u64,
-                            ) as usize;
-                            let shm_elem_count = get_or_default(
-                                &configuration,
-                                KEY_SHM_TOTAL_ELEMENTS,
-                                *context.shared_memory_elements() as u64,
-                            ) as usize;
-                            let shm_backoff = get_or_default(
-                                &configuration,
-                                KEY_SHM_BACKOFF,
-                                *context.shared_memory_backoff(),
-                            );
+                let mut shm_element_size = 0;
+                let mut shm_backoff = 0;
+                let mut shm_manager = None;
 
-                            let shm_size = shm_elem_size * shm_elem_count;
+                if *context.shared_memory_enabled() {
+                    shm_element_size = get_or_default(
+                        &configuration,
+                        KEY_SHM_ELEM_SIZE,
+                        *context.shared_memory_element_size() as u64,
+                    ) as usize;
+                    let shm_elem_count = get_or_default(
+                        &configuration,
+                        KEY_SHM_TOTAL_ELEMENTS,
+                        *context.shared_memory_elements() as u64,
+                    ) as usize;
+                    shm_backoff = get_or_default(
+                        &configuration,
+                        KEY_SHM_BACKOFF,
+                        *context.shared_memory_backoff(),
+                    );
 
-                            let shm_manager =
-                                SharedMemoryManager::make(id, shm_size).map_err(|_| {
-                                    zferror!(
-                                        ErrorKind::ConfigurationError,
-                                        "Unable to allocate {shm_size} bytes of shared memory"
-                                    )
-                                })?;
+                    let shm_size = shm_element_size * shm_elem_count;
 
-                            (
-                                shm_elem_size,
-                                shm_backoff,
-                                Some(Arc::new(Mutex::new(shm_manager))),
+                    shm_manager = Some(Arc::new(Mutex::new(
+                        SharedMemoryManager::make(id, shm_size).map_err(|_| {
+                            zferror!(
+                                ErrorKind::ConfigurationError,
+                                "Unable to allocate {shm_size} bytes of shared memory"
                             )
-                        }
-                        false => (0, 0, None),
-                    };
+                        })?,
+                    )));
+                }
 
                 let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| {
                     zferror!(
