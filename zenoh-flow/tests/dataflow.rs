@@ -252,6 +252,7 @@ async fn single_runtime() {
         shared_memory_element_size: DEFAULT_SHM_ELEMENT_SIZE as usize,
         shared_memory_elements: DEFAULT_SHM_TOTAL_ELEMENTS as usize,
         shared_memory_backoff: DEFAULT_SHM_ALLOCATION_BACKOFF_NS,
+        use_shm: false,
     };
 
     let mut dataflow = zenoh_flow::runtime::dataflow::DataFlow::new("test", ctx.clone());

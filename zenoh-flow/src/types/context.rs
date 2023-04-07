@@ -91,6 +91,11 @@ impl Context {
     pub fn shared_memory_backoff(&self) -> &u64 {
         &self.instance_ctx.runtime.shared_memory_backoff
     }
+
+    /// Returns wheteher the shared memory is enabled or not
+    pub fn shared_memory_enabled(&self) -> &bool {
+        &self.instance_ctx.runtime.use_shm
+    }
 }
 
 impl Deref for Context {

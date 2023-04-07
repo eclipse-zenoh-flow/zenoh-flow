@@ -42,7 +42,7 @@ use zenoh_flow::types::ControlMessage;
 use zenoh_flow::utils::{deserialize_size, deserialize_time};
 use zenoh_flow::{
     bail, DaemonResult, DEFAULT_SHM_ALLOCATION_BACKOFF_NS, DEFAULT_SHM_ELEMENT_SIZE,
-    DEFAULT_SHM_TOTAL_ELEMENTS,
+    DEFAULT_SHM_TOTAL_ELEMENTS, DEFAULT_USE_SHM,
 };
 use zrpc::ZServe;
 use zrpc_macros::zserver;
@@ -81,6 +81,8 @@ pub struct DaemonConfig {
     #[serde(default)]
     #[serde(deserialize_with = "deserialize_time")]
     pub default_shared_memory_backoff: Option<u64>,
+    // Whether or not Shared Memory is enabled.
+    pub use_shm: Option<bool>,
 }
 
 /// The Zenoh flow daemon
@@ -300,6 +302,7 @@ impl Daemon {
             shared_memory_backoff: config
                 .default_shared_memory_backoff
                 .unwrap_or(DEFAULT_SHM_ALLOCATION_BACKOFF_NS),
+            use_shm: config.use_shm.unwrap_or(DEFAULT_USE_SHM),
         };
 
         Ok(Self::new(z, ctx, rt_config, pool_size))
