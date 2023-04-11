@@ -81,3 +81,6 @@ pub static DEFAULT_SHM_TOTAL_ELEMENTS: u64 = 10;
 
 /// Default Shared allocation backoff time (100ms)
 pub static DEFAULT_SHM_ALLOCATION_BACKOFF_NS: u64 = 100_000_000;
+
+/// Default Shared memory usage (false)
+pub static DEFAULT_USE_SHM: bool = false;

@@ -38,7 +38,7 @@ pub(crate) struct ZenohSender {
     pub(crate) input_raw: InputRaw,
     pub(crate) z_session: Arc<zenoh::Session>,
     pub(crate) key_expr: KeyExpr<'static>,
-    pub(crate) shm: Arc<Mutex<SharedMemoryManager>>,
+    pub(crate) shm: Option<Arc<Mutex<SharedMemoryManager>>>,
     pub(crate) shm_element_size: usize,
     pub(crate) shm_backoff: u64,
 }
@@ -76,15 +76,34 @@ impl ZenohSender {
             .await?
             .into_owned();
 
-        let shm_size = record
-            .shared_memory_element_size
-            .unwrap_or(ctx.runtime.shared_memory_element_size)
-            * record
-                .shared_memory_elements
-                .unwrap_or(ctx.runtime.shared_memory_elements);
-        let shm_backoff = record
-            .shared_memory_backoff
-            .unwrap_or(ctx.runtime.shared_memory_backoff);
+        let mut shm_element_size = 0;
+        let mut shm_backoff = 0;
+        let mut shm_manager = None;
+
+        if ctx.runtime.use_shm {
+            let shm_size = record
+                .shared_memory_element_size
+                .unwrap_or(ctx.runtime.shared_memory_element_size)
+                * record
+                    .shared_memory_elements
+                    .unwrap_or(ctx.runtime.shared_memory_elements);
+            shm_backoff = record
+                .shared_memory_backoff
+                .unwrap_or(ctx.runtime.shared_memory_backoff);
+
+            shm_manager = Some(Arc::new(Mutex::new(
+                SharedMemoryManager::make(record.resource.clone(), shm_size).map_err(|_| {
+                    zferror!(
+                        ErrorKind::ConfigurationError,
+                        "Unable to allocate {shm_size} bytes of shared memory"
+                    )
+                })?,
+            )));
+
+            shm_element_size = record
+                .shared_memory_element_size
+                .unwrap_or(ctx.runtime.shared_memory_element_size);
+        }
 
         Ok(Self {
             id: record.id.clone(),
@@ -94,17 +113,8 @@ impl ZenohSender {
             },
             z_session: ctx.runtime.session.clone(),
             key_expr,
-            shm: Arc::new(Mutex::new(
-                SharedMemoryManager::make(record.resource.clone(), shm_size).map_err(|_| {
-                    zferror!(
-                        ErrorKind::ConfigurationError,
-                        "Unable to allocate {shm_size} bytes of shared memory"
-                    )
-                })?,
-            )),
-            shm_element_size: record
-                .shared_memory_element_size
-                .unwrap_or(ctx.runtime.shared_memory_element_size),
+            shm: shm_manager,
+            shm_element_size,
             shm_backoff,
         })
     }
@@ -122,72 +132,84 @@ impl Node for ZenohSender {
     /// - zenoh put fails
     /// - link recv fails
     async fn iteration(&self) -> ZFResult<()> {
-        // Getting shared memory manager
-        let mut shm = self.shm.lock().await;
         match self.input_raw.recv().await {
-            Ok(message) => {
-                // Getting the shared memory buffer
-                let mut buff = match shm.alloc(self.shm_element_size) {
-                    Ok(buf) => buf,
-                    Err(_) => {
-                        async_std::task::sleep(std::time::Duration::from_millis(self.shm_backoff))
+            Ok(message) => match &self.shm {
+                Some(shm) => {
+                    // Getting shared memory manager
+                    let mut shm = shm.lock().await;
+                    // Getting the shared memory buffer
+                    let mut buff = match shm.alloc(self.shm_element_size) {
+                        Ok(buf) => buf,
+                        Err(_) => {
+                            async_std::task::sleep(std::time::Duration::from_millis(
+                                self.shm_backoff,
+                            ))
                             .await;
-                        log::trace!(
-                            "[ZenohSender: {}] After failing allocation the GC collected: {} bytes -- retrying",
-                            self.id,
-                            shm.garbage_collect()
-                        );
-                        log::trace!(
-                            "[ZenohSender: {}] Trying to de-fragment memory... De-fragmented {} bytes",
-                            self.id,
-                            shm.defragment()
-                        );
-                        shm.alloc(self.shm_element_size).map_err(|_| {
-                            zferror!(
-                                ErrorKind::ConfigurationError,
-                                "Unable to allocated {} in the shared memory buffer!",
-                                self.shm_element_size
-                            )
-                        })?
-                    }
-                };
+                            log::trace!(
+                                "[ZenohSender: {}] After failing allocation the GC collected: {} bytes -- retrying",
+                                self.id,
+                                shm.garbage_collect()
+                            );
+                            log::trace!(
+                                "[ZenohSender: {}] Trying to de-fragment memory... De-fragmented {} bytes",
+                                self.id,
+                                shm.defragment()
+                            );
+                            shm.alloc(self.shm_element_size).map_err(|_| {
+                                zferror!(
+                                    ErrorKind::ConfigurationError,
+                                    "Unable to allocated {} in the shared memory buffer!",
+                                    self.shm_element_size
+                                )
+                            })?
+                        }
+                    };
 
-                // Getting the underlying slice in the shared memory
-                let slice = unsafe { buff.as_mut_slice() };
+                    // Getting the underlying slice in the shared memory
+                    let slice = unsafe { buff.as_mut_slice() };
 
-                // WARNING ACHTUNG ATTENTION
-                // This may fail as the message could be bigger than
-                // the shared memory buffer that was allocated.
-                match message.serialize_bincode_into(slice) {
-                    Ok(_) => {
-                        // If the serialization is success then we send the
-                        // shared memory buffer.
-                        self.z_session
-                            .put(self.key_expr.clone(), buff)
-                            .congestion_control(CongestionControl::Block)
-                            .res()
-                            .await
-                    }
-                    Err(e) => {
-                        // Otherwise we log a warn and we serialize on a normal
-                        // Vec<u8>
-                        let data = message.serialize_bincode()?;
-                        log::warn!(
-                            "[ZenohSender: {}] Unable to serialize into shared memory: {}, serialized size {}, shared memory size {}",
-                            self.id,
-                            e,
-                            data.len(),
-                            self.shm_element_size,
-                        );
+                    // WARNING ACHTUNG ATTENTION
+                    // This may fail as the message could be bigger than
+                    // the shared memory buffer that was allocated.
+                    match message.serialize_bincode_into(slice) {
+                        Ok(_) => {
+                            // If the serialization is success then we send the
+                            // shared memory buffer.
+                            self.z_session
+                                .put(self.key_expr.clone(), buff)
+                                .congestion_control(CongestionControl::Block)
+                                .res()
+                                .await
+                        }
+                        Err(e) => {
+                            // Otherwise we log a warn and we serialize on a normal
+                            // Vec<u8>
+                            let data = message.serialize_bincode()?;
+                            log::warn!(
+                                "[ZenohSender: {}] Unable to serialize into shared memory: {}, serialized size {}, shared memory size {}",
+                                self.id,
+                                e,
+                                data.len(),
+                                self.shm_element_size,
+                            );
 
-                        self.z_session
-                            .put(self.key_expr.clone(), data)
-                            .congestion_control(CongestionControl::Block)
-                            .res()
-                            .await
+                            self.z_session
+                                .put(self.key_expr.clone(), data)
+                                .congestion_control(CongestionControl::Block)
+                                .res()
+                                .await
+                        }
                     }
                 }
-            }
+                None => {
+                    let data = message.serialize_bincode()?;
+                    self.z_session
+                        .put(self.key_expr.clone(), data)
+                        .congestion_control(CongestionControl::Block)
+                        .res()
+                        .await
+                }
+            },
             Err(e) => Err(zferror!(
                 ErrorKind::Disconnected,
                 "[ZenohSender: {}] {:?}",
@@ -198,7 +220,6 @@ impl Node for ZenohSender {
         }
     }
 }
-
 /// A `ZenohReceiver` receives the messages from Zenoh when nodes are running on different runtimes.
 pub(crate) struct ZenohReceiver {
     pub(crate) id: NodeId,
