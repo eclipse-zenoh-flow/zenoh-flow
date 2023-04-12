@@ -274,10 +274,7 @@ impl<T: Send + Sync + 'static> Input<T> {
     pub fn try_recv(&self) -> Result<(Message<T>, Timestamp)> {
         match self.input_raw.try_recv()? {
             LinkMessage::Data(DataMessage { data, timestamp }) => Ok((
-                Message::Data(Data::try_from_payload(
-                    data,
-                    Arc::clone(&self.deserializer),
-                )?),
+                Message::Data(Data::try_from_payload(data, self.deserializer.clone())?),
                 timestamp,
             )),
             LinkMessage::Watermark(ts) => Ok((Message::Watermark, ts)),
