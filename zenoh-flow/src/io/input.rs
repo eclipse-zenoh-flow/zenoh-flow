@@ -13,7 +13,7 @@
 //
 
 use crate::prelude::{ErrorKind, Message, PortId};
-use crate::types::{Data, DataMessage, LinkMessage};
+use crate::types::{Data, DataMessage, DeserializerFn, LinkMessage};
 use crate::{bail, Result};
 
 use flume::TryRecvError;
@@ -199,13 +199,6 @@ impl InputRaw {
         }
     }
 }
-
-/// This function is what Zenoh-Flow will use to deserialize the data received on the `Input`.
-///
-/// It will be called for instance when data is received serialized (i.e. from an upstream node that
-/// is either not implemented in Rust or on a different process) before it is given to the user's
-/// code.
-pub(crate) type DeserializerFn<T> = dyn Fn(&[u8]) -> anyhow::Result<T> + Send + Sync;
 
 /// A typed `Input` that tries to automatically downcast or deserialize the data received into an
 /// instance of `T`.

@@ -13,7 +13,6 @@
 //
 
 use crate::bail;
-use crate::io::input::DeserializerFn;
 use crate::prelude::ErrorKind;
 use crate::traits::SendSyncAny;
 use crate::types::{FlowId, NodeId, PortId};
@@ -33,6 +32,13 @@ use uuid::Uuid;
 /// Passing around the function allows us to serialize only when needed and without requiring prior
 /// knowledge.
 pub(crate) type SerializerFn = dyn Fn(Arc<dyn SendSyncAny>) -> Result<Vec<u8>> + Send + Sync;
+
+/// This function is what Zenoh-Flow will use to deserialize the data received on the `Input`.
+///
+/// It will be called for instance when data is received serialized (i.e. from an upstream node that
+/// is either not implemented in Rust or on a different process) before it is given to the user's
+/// code.
+pub(crate) type DeserializerFn<T> = dyn Fn(&[u8]) -> anyhow::Result<T> + Send + Sync;
 
 /// A `Payload` is Zenoh-Flow's lowest message container.
 ///
