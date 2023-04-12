@@ -12,9 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::prelude::{Data, ErrorKind, Payload, PortId, ZFData};
-use crate::types::LinkMessage;
-use crate::{zferror, Result};
+use crate::prelude::{Data, ErrorKind, PortId};
+use crate::types::{LinkMessage, Payload, SerializerFn};
+use crate::{bail, zferror, Result};
 use flume::Sender;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -77,7 +77,11 @@ impl Outputs {
     /// calling `take_raw` and using an [`OutputRaw`](`OutputRaw`) will be more efficient. An
     /// [`OutputRaw`](`OutputRaw`) has a dedicated `forward` method that performs no additional
     /// operation and, simply, forwards a [`LinkMessage`](`LinkMessage`).
-    pub fn take<T: ZFData>(&mut self, port_id: impl AsRef<str>) -> Option<Output<T>> {
+    pub fn take<T: Send + Sync + 'static>(
+        &mut self,
+        port_id: impl AsRef<str>,
+        serializer: impl Fn(&T) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
+    ) -> Option<Output<T>> {
         self.hmap.remove(port_id.as_ref()).map(|senders| Output {
             _phantom: PhantomData,
             output_raw: OutputRaw {
@@ -88,6 +92,19 @@ impl Outputs {
                     self.hlc.new_timestamp().get_time().as_u64(),
                 )),
             },
+            serializer: Arc::new(move |data| {
+                if let Some(typed) = (*data).as_any().downcast_ref::<T>() {
+                    match (serializer)(typed) {
+                        Ok(serialized_data) => Ok(serialized_data),
+                        Err(e) => bail!(ErrorKind::DeserializationError, e),
+                    }
+                } else {
+                    bail!(
+                        ErrorKind::DeserializationError,
+                        "Failed to downcast provided value"
+                    )
+                }
+            }),
         })
     }
 
@@ -208,7 +225,7 @@ impl OutputRaw {
     /// it on the remaining channels. For each failing channel, an error is logged and counted for.
     pub fn try_send(&self, data: impl Into<Payload>, timestamp: Option<u64>) -> Result<()> {
         let ts = self.check_timestamp(timestamp)?;
-        let message = LinkMessage::from_serdedata(data.into(), ts);
+        let message = LinkMessage::from_payload(data.into(), ts);
 
         self.try_forward(message)
     }
@@ -287,7 +304,7 @@ impl OutputRaw {
     /// it on the remaining channels. For each failing channel, an error is logged and counted for.
     pub async fn send(&self, data: impl Into<Payload>, timestamp: Option<u64>) -> Result<()> {
         let ts = self.check_timestamp(timestamp)?;
-        let message = LinkMessage::from_serdedata(data.into(), ts);
+        let message = LinkMessage::from_payload(data.into(), ts);
 
         self.forward(message).await
     }
@@ -324,6 +341,7 @@ impl OutputRaw {
 pub struct Output<T> {
     _phantom: PhantomData<T>,
     pub(crate) output_raw: OutputRaw,
+    pub(crate) serializer: Arc<SerializerFn>,
 }
 
 // Dereferencing to the [`OutputRaw`](`OutputRaw`) allows to directly call methods on it with a
@@ -336,7 +354,18 @@ impl<T> Deref for Output<T> {
     }
 }
 
-impl<T: ZFData + 'static> Output<T> {
+impl<T: Send + Sync + 'static> Output<T> {
+    // Construct the `LinkMessage` to send.
+    fn construct_message(
+        &self,
+        data: impl Into<Data<T>>,
+        timestamp: Option<u64>,
+    ) -> Result<LinkMessage> {
+        let ts = self.check_timestamp(timestamp)?;
+        let payload = Payload::from_data(data.into(), Arc::clone(&self.serializer));
+        Ok(LinkMessage::from_payload(payload, ts))
+    }
+
     /// Send, *asynchronously*, the provided `data` to all downstream Nodes.
     ///
     /// If no `timestamp` is provided, the current timestamp — as per the [`HLC`](`HLC`) used by the
@@ -353,9 +382,9 @@ impl<T: ZFData + 'static> Output<T> {
     /// on the remaining channels. For each failing channel, an error is logged and counted for. The
     /// total number of encountered errors is returned.
     pub async fn send(&self, data: impl Into<Data<T>>, timestamp: Option<u64>) -> Result<()> {
-        let ts = self.check_timestamp(timestamp)?;
-        let message = LinkMessage::from_serdedata(Into::<Payload>::into(data.into()), ts);
-        self.output_raw.forward(message).await
+        self.output_raw
+            .forward(self.construct_message(data, timestamp)?)
+            .await
     }
 
     /// Tries to send the provided `data` to all downstream Nodes.
@@ -374,8 +403,11 @@ impl<T: ZFData + 'static> Output<T> {
     /// on the remaining channels. For each failing channel, an error is logged and counted for. The
     /// total number of encountered errors is returned.
     pub fn try_send(&self, data: impl Into<Data<T>>, timestamp: Option<u64>) -> Result<()> {
-        let ts = self.check_timestamp(timestamp)?;
-        let message = LinkMessage::from_serdedata(Into::<Payload>::into(data.into()), ts);
-        self.output_raw.try_forward(message)
+        self.output_raw
+            .try_forward(self.construct_message(data, timestamp)?)
     }
 }
+
+#[cfg(test)]
+#[path = "./tests/output-tests.rs"]
+mod tests;

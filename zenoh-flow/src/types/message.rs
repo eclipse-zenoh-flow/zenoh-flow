@@ -12,131 +12,66 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-extern crate serde;
-
-use crate::traits::ZFData;
+use crate::bail;
+use crate::io::input::DeserializerFn;
+use crate::prelude::ErrorKind;
+use crate::traits::SendSyncAny;
 use crate::types::{FlowId, NodeId, PortId};
-use crate::zfresult::ErrorKind;
-use crate::Result;
-use crate::{bail, zferror};
+use crate::{zferror, Result};
 
+use async_std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+use std::ops::Deref;
 use std::{cmp::Ordering, fmt::Debug};
 use uhlc::Timestamp;
 use uuid::Uuid;
 
+/// `SerializerFn` is a type-erased version of the serializer function provided by node developer.
+///
+/// It is passed to downstream nodes (residing on the same process) in case they need to serialize
+/// the data they receive typed.
+/// Passing around the function allows us to serialize only when needed and without requiring prior
+/// knowledge.
+pub(crate) type SerializerFn = dyn Fn(Arc<dyn SendSyncAny>) -> Result<Vec<u8>> + Send + Sync;
+
 /// A `Payload` is Zenoh-Flow's lowest message container.
 ///
-/// It either contains serialized data (if received from the network, or from nodes not written in
-/// Rust), or `Typed` data as [`ZFData`](`ZFData`).
-///
-/// The `Typed` data is never serialized directly when sending over Zenoh or to an operator not
-/// written in Rust.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// It either contains serialized data, i.e. `Bytes` (if received from the network, or from nodes
+/// not written in Rust), or `Typed` data as a tuple `(`[`Any`](`Any`)`, SerializerFn)`.
+#[derive(Clone, Serialize, Deserialize)]
 pub enum Payload {
-    /// Serialized data, coming either from Zenoh of from non-rust node.
+    /// Serialized data, coming either from Zenoh of from non-Rust node.
     Bytes(Arc<Vec<u8>>),
     #[serde(skip_serializing, skip_deserializing)]
-    /// Actual data as instance of 'ZFData` coming from a Rust node.
-    ///
-    /// This is never serialized directly.
-    Typed(Arc<dyn ZFData>),
+    /// Data coming from another Rust node located on the same process that can either be downcasted
+    /// (provided that its actual type is known) or serialized.
+    Typed((Arc<dyn SendSyncAny>, Arc<SerializerFn>)),
 }
 
 impl Payload {
-    /// Tries to return a serialized representation of the data.
-    ///
-    /// It does not actually change the internal representation. The serialized representation in
-    /// stored inside an `Arc` to avoid copies.
-    ///
-    /// # Errors
-    ///
-    /// If it fails to serialize an error variant will be returned.
-    pub fn try_as_bytes(&self) -> Result<Arc<Vec<u8>>> {
-        match &self {
-            Self::Bytes(bytes) => Ok(bytes.clone()),
-            Self::Typed(typed) => {
-                let serialized_data = typed
-                    .try_serialize()
-                    .map_err(|e| zferror!(ErrorKind::SerializationError, "{:?}", e))?;
-                Ok(Arc::new(serialized_data))
+    pub fn from_data<T: Send + Sync + 'static>(
+        data: Data<T>,
+        serializer: Arc<SerializerFn>,
+    ) -> Self {
+        match data.inner {
+            DataInner::Payload { payload, data: _ } => payload,
+            DataInner::Data(data) => {
+                Self::Typed((Arc::new(data) as Arc<dyn SendSyncAny>, serializer))
             }
         }
     }
 
-    /// Tries to cast the data to the given type.
-    ///
-    /// If the data is represented as serialized, this will try to deserialize the bytes and change
-    /// the internal representation of the data.
-    ///
-    /// If the data is already represented with as `Typed` then it will return an *immutable*
-    /// reference to the internal data.
-    ///
-    /// This reference is *immutable* because one Output can send data to multiple Inputs, therefore
-    /// to avoid copies the same `Arc` is sent to multiple operators, thus it is multiple-owned and
-    /// the data inside cannot be modified.
-    ///
-    /// # Errors
-    ///
-    /// If fails to cast an error variant will be returned.
-    pub fn try_get<Typed>(&mut self) -> Result<&Typed>
-    where
-        Typed: ZFData + 'static,
-    {
-        *self = (match &self {
-            Self::Bytes(bytes) => {
-                let data: Arc<dyn ZFData> = Arc::new(
-                    Typed::try_deserialize(bytes.as_slice())
-                        .map_err(|e| zferror!(ErrorKind::DeserializationError, "{:?}", e))?,
-                );
-                Ok(Self::Typed(data.clone()))
-            }
-            Self::Typed(typed) => Ok(Self::Typed(typed.clone())),
-        } as Result<Self>)?;
-
+    /// Return a vector of bytes representing a serialized version of the instance of `T`.
+    pub(crate) fn try_as_bytes(&self) -> Result<Vec<u8>> {
         match self {
-            Self::Typed(typed) => Ok(typed
-                .as_any()
-                .downcast_ref::<Typed>()
-                .ok_or_else(|| zferror!(ErrorKind::InvalidData, "Could not downcast"))?),
-            _ => Err(zferror!(ErrorKind::InvalidData, "Should be deserialized first").into()),
+            Payload::Bytes(bytes) => Ok((**bytes).clone()),
+            Payload::Typed((typed_data, serializer)) => (serializer)(Arc::clone(typed_data)),
         }
     }
 }
 
-/// Creates a Data from an `Arc` of typed data.
-/// The typed data has to be an instance of `ZFData`.
-impl<UT> From<Arc<UT>> for Payload
-where
-    UT: ZFData + 'static,
-{
-    fn from(data: Arc<UT>) -> Self {
-        Self::Typed(data)
-    }
-}
-
-/// Creates a Data from  typed data.
-/// The typed data has to be an instance of `ZFData`.
-/// The data is then stored inside an `Arc` to avoid copies.
-impl<UT> From<UT> for Payload
-where
-    UT: ZFData + 'static,
-{
-    fn from(data: UT) -> Self {
-        Self::Typed(Arc::new(data))
-    }
-}
-
-/// Creates a new `Data` from a `Arc<Vec<u8>>`.
-impl From<Arc<Vec<u8>>> for Payload {
-    fn from(bytes: Arc<Vec<u8>>) -> Self {
-        Self::Bytes(bytes)
-    }
-}
-
-/// Creates a new `Data` from a `Vec<u8>`,
+/// Creates a new `Data` from a `Vec<u8>`.
+///
 /// In order to avoid copies it puts the data inside an `Arc`.
 impl From<Vec<u8>> for Payload {
     fn from(bytes: Vec<u8>) -> Self {
@@ -151,12 +86,6 @@ impl From<&[u8]> for Payload {
     }
 }
 
-impl<T: ZFData + 'static> From<Data<T>> for Payload {
-    fn from(data: Data<T>) -> Self {
-        data.payload
-    }
-}
-
 impl From<DataMessage> for Payload {
     fn from(data_message: DataMessage) -> Self {
         data_message.data
@@ -167,7 +96,7 @@ impl From<DataMessage> for Payload {
 ///
 /// It contains the actual data, the timestamp associated, the end to end deadline, the end to end
 /// deadline misses and loop contexts.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct DataMessage {
     pub(crate) data: Payload,
     pub(crate) timestamp: Timestamp,
@@ -181,52 +110,13 @@ impl Deref for DataMessage {
     }
 }
 
-impl DerefMut for DataMessage {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.data
-    }
-}
-
 impl DataMessage {
-    /// Creates a new [`DataMessage`](`DataMessage`) with given `Data`,
-    ///  `Timestamp` and `Vec<E2EDeadline>`.
-    pub fn new(data: Payload, timestamp: Timestamp) -> Self {
-        Self { data, timestamp }
-    }
-
-    /// Returns a mutable reference over the Data representation (i.e. `Bytes` or `Typed`).
-    ///
-    /// This method should be called in conjonction with `try_get::<Typed>()` in order to get a
-    /// reference of the desired type. For instance:
-    ///
-    /// `let zf_usise: &ZFUsize = data_message.get_inner_data().try_get::<ZFUsize>()?;`
-    ///
-    /// Note that the prerequisite for the above code to work is that `ZFUsize` implements the
-    /// traits: `ZFData` and `Deserializable`.
-    pub fn get_inner_data(&mut self) -> &mut Payload {
-        &mut self.data
-    }
-
-    /// Returns a reference to the data `Timestamp`.
-    pub fn get_timestamp(&self) -> &Timestamp {
-        &self.timestamp
-    }
-
     /// Creates a new message from serialized data.
-    /// This is used when the message is coming from Zenoh or from a non-rust
-    /// node.
-    pub fn new_serialized(data: Arc<Vec<u8>>, timestamp: Timestamp) -> Self {
+    ///
+    /// This is used when the message is coming from Zenoh or from a non-rust node.
+    pub fn new_serialized(data: Vec<u8>, timestamp: Timestamp) -> Self {
         Self {
-            data: Payload::Bytes(data),
-            timestamp,
-        }
-    }
-
-    /// Creates a messages from `Typed` data.
-    /// This is used when the data is generated from rust nodes.
-    pub fn new_deserialized(data: Arc<dyn ZFData>, timestamp: Timestamp) -> Self {
-        Self {
-            data: Payload::Typed(data),
+            data: Payload::Bytes(Arc::new(data)),
             timestamp,
         }
     }
@@ -263,7 +153,7 @@ pub enum ControlMessage {
 ///
 /// It contains either a [`DataMessage`](`DataMessage`) or a [`Timestamp`](`uhlc::Timestamp`),
 /// in such case the `LinkMessage` variant is `Watermark`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum LinkMessage {
     Data(DataMessage),
     Watermark(Timestamp),
@@ -271,11 +161,11 @@ pub enum LinkMessage {
 
 impl LinkMessage {
     /// Creates a `LinkMessage::Data` from a [`Payload`](`Payload`).
-    pub fn from_serdedata(output: Payload, timestamp: Timestamp) -> Self {
-        match output {
-            Payload::Typed(data) => Self::Data(DataMessage::new_deserialized(data, timestamp)),
-            Payload::Bytes(data) => Self::Data(DataMessage::new_serialized(data, timestamp)),
-        }
+    pub fn from_payload(output: Payload, timestamp: Timestamp) -> Self {
+        Self::Data(DataMessage {
+            data: output,
+            timestamp,
+        })
     }
 
     /// Serializes the `Message` using bincode.
@@ -289,12 +179,12 @@ impl LinkMessage {
             LinkMessage::Data(data_message) => match &data_message.data {
                 Payload::Bytes(_) => bincode::serialize(&self)
                     .map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
-                Payload::Typed(_) => {
-                    let serialized_data = data_message.data.try_as_bytes()?;
-                    let serialized_message = LinkMessage::Data(DataMessage::new_serialized(
-                        serialized_data,
-                        data_message.timestamp,
-                    ));
+                Payload::Typed((data, serializer)) => {
+                    let serialized_data = (serializer)(Arc::clone(data))?;
+                    let serialized_message = LinkMessage::Data(DataMessage {
+                        data: Payload::Bytes(Arc::new(serialized_data)),
+                        timestamp: data_message.timestamp,
+                    });
 
                     bincode::serialize(&serialized_message)
                         .map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
@@ -318,7 +208,7 @@ impl LinkMessage {
                 Payload::Bytes(_) => bincode::serialize_into(buff, &self)
                     .map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
                 Payload::Typed(_) => {
-                    let serialized_data = data_message.data.try_as_bytes()?;
+                    let serialized_data = data_message.try_as_bytes()?;
                     let serialized_message = LinkMessage::Data(DataMessage::new_serialized(
                         serialized_data,
                         data_message.timestamp,
@@ -371,7 +261,7 @@ impl Eq for LinkMessage {}
 /// `recv`.
 ///
 /// A `Message<T>` can either contain [`Data<T>`](`Data`), or signal a _Watermark_.
-pub enum Message<T: ZFData> {
+pub enum Message<T> {
     Data(Data<T>),
     Watermark,
 }
@@ -384,28 +274,58 @@ pub enum Message<T: ZFData> {
 /// ## Performance
 ///
 /// When deserializing, an allocation is performed.
-#[derive(Debug)]
 pub struct Data<T> {
-    payload: Payload,
-    bytes: Option<Vec<u8>>,
-    // CAVEAT: Setting the value **typed** to `None` when it was already set to `Some` can cause a
-    // panic! The visibility of the entire structure is private to force us not to make such
-    // mistake.
-    // In short, tread carefully!
-    typed: Option<T>,
+    inner: DataInner<T>,
 }
 
-// CAVEAT: The implementation of `Deref` is what allows users to transparently manipulate the type
-// `T`. However, for things to go well, the `typed` field MUST BE MANIPULATED WITH CAUTION.
-impl<T: ZFData + 'static> Deref for Data<T> {
+/// The `DataInner` enum represents the two ways to send data in an [`Output<T>`](`Output`).
+///
+/// The `Payload` variant corresponds to a previously generated `Data<T>` being sent.
+/// The `Data` variant corresponds to a new instance of `T` being sent.
+pub(crate) enum DataInner<T> {
+    Payload { payload: Payload, data: Option<T> },
+    Data(T),
+}
+
+// Implementing `From<T>` allows us to accept instances of `T` in the signature of `send` and
+// `try_send` methods as `T` will implement `impl Into<Data<T>>`.
+impl<T: Send + Sync + 'static> From<T> for Data<T> {
+    fn from(value: T) -> Self {
+        Self {
+            inner: DataInner::Data(value),
+        }
+    }
+}
+
+// The implementation of `Deref` is what allows users to transparently manipulate the type `T`.
+//
+// ## SAFETY
+//
+// Despite the presence of `expect` and `panic!`, we should never end up in these situations in
+// normal circumstances.
+//
+// Let us reason here as to why this is "safe".
+//
+// The call to `expect` happens when the inner data is a [`Typed`](`Payload::Typed`) payload and the
+// downcasts to `T` fails. This should not happen because of the way a [`Data`](`Data`) is created:
+// upon creation we first perform a check that the provided typed payload can actually be downcasted
+// to `T` — see the method `Data::try_from_payload`.
+//
+// The call to `panic!` happens when the inner data is a [`Bytes`](`Payload::Bytes`) payload and the
+// `data` field is `None`. Again, this should not happen because of the way a [`Data`](`Data`) is
+// created: upon creation, if the data is received as bytes, we first deserialize it and set the
+// `data` field to `Some(T)` — see the method `Data::try_from_payload`.
+impl<T: 'static> Deref for Data<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        if let Some(ref typed) = self.typed {
-            typed
-        } else if let Payload::Typed(ref typed) = self.payload {
-            typed.as_any().downcast_ref::<T>().expect(
-                r#"You probably managed to find a very nasty flaw in Zenoh-Flow’s code as we
+        match &self.inner {
+            DataInner::Payload { payload, data } => {
+                if let Some(data) = data {
+                    data
+                } else if let Payload::Typed((typed, _)) = payload {
+                    (**typed).as_any().downcast_ref::<T>().expect(
+                        r#"You probably managed to find a very nasty flaw in Zenoh-Flow’s code as we
 believed this situation would never happen (unless explicitely triggered — "explicitely" being an
 understatement here, we feel it’s more like you really, really, wanted to see that message — in
 which case, congratulations!).
@@ -420,10 +340,10 @@ happened and we would be eager to investigate.
 
 Feel free to contact us at < zenoh@zettascale.tech >.
 "#,
-            )
-        } else {
-            panic!(
-                r#"You probably managed to find a very nasty flaw in Zenoh-Flow's code as we
+                    )
+                } else {
+                    panic!(
+                        r#"You probably managed to find a very nasty flaw in Zenoh-Flow's code as we
 believed this situation would never happen (unless explicitely triggered — "explicitely" being an
 understatement here, we feel it's more like you really, really, wanted to see that message — in
 which case, congratulations!).
@@ -437,12 +357,15 @@ happened and we would be eager to investigate.
 
 Feel free to contact us at < zenoh@zettascale.tech >.
 "#
-            )
+                    )
+                }
+            }
+            DataInner::Data(data) => data,
         }
     }
 }
 
-impl<T: ZFData + 'static> Data<T> {
+impl<T: 'static> Data<T> {
     /// Try to create a new [`Data<T>`](`Data`) based on a [`Payload`](`Payload`).
     ///
     /// Depending on the variant of [`Payload`](`Payload`) different steps are performed:
@@ -455,71 +378,29 @@ impl<T: ZFData + 'static> Data<T> {
     ///
     /// An error will be returned if the Payload does not match `T`, i.e. if the deserialization or
     /// the downcast failed.
-    pub(crate) fn try_new(payload: Payload) -> Result<Self> {
+    pub(crate) fn try_from_payload(
+        payload: Payload,
+        deserializer: Arc<DeserializerFn<T>>,
+    ) -> Result<Self> {
         let mut typed = None;
 
         match payload {
-            Payload::Bytes(ref bytes) => typed = Some(T::try_deserialize(bytes)?),
-            Payload::Typed(ref typed) => {
-                if !(*typed).as_any().is::<T>() {
+            Payload::Bytes(ref bytes) => typed = Some((deserializer)(bytes.as_slice())?),
+            Payload::Typed((ref typed, _)) => {
+                if !(**typed).as_any().is::<T>() {
                     bail!(
                         ErrorKind::DeserializationError,
-                        "Could not downcast payload"
+                        "Failed to downcast provided value",
                     )
                 }
             }
         }
 
         Ok(Self {
-            payload,
-            bytes: None,
-            typed,
+            inner: DataInner::Payload {
+                payload,
+                data: typed,
+            },
         })
-    }
-
-    /// Try to obtain the bytes representation of `T`.
-    ///
-    /// Depending on how the [`Payload`](`Payload`) was received, this method either tries to
-    /// serialize it or simply returns a slice view.
-    ///
-    /// ## Errors
-    ///
-    /// This method can return an error if the serialization failed.
-    pub fn try_as_bytes(&mut self) -> Result<&[u8]> {
-        match &self.payload {
-            Payload::Bytes(bytes) => Ok(bytes.as_slice()),
-            Payload::Typed(typed) => {
-                if self.bytes.is_none() {
-                    self.bytes = Some(typed.try_serialize()?);
-                }
-                Ok(self
-                    .bytes
-                    .as_ref()
-                    .expect("This cannot fail as we serialized above"))
-            }
-        }
-    }
-}
-
-// Implementing `From<T>` allows us to accept instances of `T` in the signature of `send` and
-// `try_send` methods as `T` will implement `impl Into<Data<T>>`.
-impl<T: ZFData + 'static> From<T> for Data<T> {
-    fn from(data: T) -> Self {
-        let payload = Payload::Typed(Arc::new(data));
-        Self {
-            payload,
-            bytes: None,
-            typed: None,
-        }
-    }
-}
-
-impl<T: ZFData + 'static> From<DataMessage> for Data<T> {
-    fn from(value: DataMessage) -> Self {
-        Self {
-            payload: value.data,
-            bytes: None,
-            typed: None,
-        }
     }
 }

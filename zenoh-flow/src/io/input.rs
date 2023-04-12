@@ -12,13 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::prelude::{ErrorKind, Message, PortId, ZFData};
+use crate::prelude::{ErrorKind, Message, PortId};
 use crate::types::{Data, DataMessage, LinkMessage};
 use crate::{bail, Result};
+
 use flume::TryRecvError;
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::ops::Deref;
+use std::sync::Arc;
 use uhlc::Timestamp;
 
 /// The [`Inputs`](`Inputs`) structure contains all the receiving channels we created for a
@@ -75,13 +76,17 @@ impl Inputs {
     ///
     /// If the underlying data is not relevant then these additional operations can be avoided by
     /// calling `take_raw` and using an [`InputRaw`](`InputRaw`) instead.
-    pub fn take<T: ZFData>(&mut self, port_id: impl AsRef<str>) -> Option<Input<T>> {
+    pub fn take<T: Send + Sync + 'static>(
+        &mut self,
+        port_id: impl AsRef<str>,
+        deserializer: impl Fn(&[u8]) -> anyhow::Result<T> + Send + Sync + 'static,
+    ) -> Option<Input<T>> {
         self.hmap.remove(port_id.as_ref()).map(|receivers| Input {
-            _phantom: PhantomData,
             input_raw: InputRaw {
                 port_id: port_id.as_ref().into(),
                 receivers,
             },
+            deserializer: Arc::new(deserializer),
         })
     }
 
@@ -195,15 +200,30 @@ impl InputRaw {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Input<T: ZFData + 'static> {
-    _phantom: PhantomData<T>,
+/// This function is what Zenoh-Flow will use to deserialize the data received on the `Input`.
+///
+/// It will be called for instance when data is received serialized (i.e. from an upstream node that
+/// is either not implemented in Rust or on a different process) before it is given to the user's
+/// code.
+pub(crate) type DeserializerFn<T> = dyn Fn(&[u8]) -> anyhow::Result<T> + Send + Sync;
+
+/// A typed `Input` that tries to automatically downcast or deserialize the data received into an
+/// instance of `T`.
+///
+/// ## Performance
+///
+/// If the data is received serialized from the upstream node, an allocation is performed to host
+/// the deserialized `T`.
+///
+/// If the data is received typed, the downcast performs a pointer indirection.
+pub struct Input<T> {
     pub(crate) input_raw: InputRaw,
+    pub(crate) deserializer: Arc<DeserializerFn<T>>,
 }
 
 // Dereferencing to the [`InputRaw`](`InputRaw`) allows to directly call methods on it with a typed
 // [`Input`](`Input`).
-impl<T: ZFData + 'static> Deref for Input<T> {
+impl<T: Send + Sync + 'static> Deref for Input<T> {
     type Target = InputRaw;
 
     fn deref(&self) -> &Self::Target {
@@ -211,7 +231,7 @@ impl<T: ZFData + 'static> Deref for Input<T> {
     }
 }
 
-impl<T: ZFData + 'static> Input<T> {
+impl<T: Send + Sync + 'static> Input<T> {
     /// Returns the first [`Message<T>`](`Message`) that was received, *asynchronously*, on any of
     /// the channels associated with this Input.
     ///
@@ -235,9 +255,10 @@ impl<T: ZFData + 'static> Input<T> {
     /// - Zenoh-Flow failed at interpreting the received data as an instance of `T`.
     pub async fn recv(&self) -> Result<(Message<T>, Timestamp)> {
         match self.input_raw.recv().await? {
-            LinkMessage::Data(DataMessage { data, timestamp }) => {
-                Ok((Message::Data(Data::try_new(data)?), timestamp))
-            }
+            LinkMessage::Data(DataMessage { data, timestamp }) => Ok((
+                Message::Data(Data::try_from_payload(data, self.deserializer.clone())?),
+                timestamp,
+            )),
             LinkMessage::Watermark(timestamp) => Ok((Message::Watermark, timestamp)),
         }
     }
@@ -259,10 +280,18 @@ impl<T: ZFData + 'static> Input<T> {
     /// Note that if some channels are disconnected, for each of such channel an error is logged.
     pub fn try_recv(&self) -> Result<(Message<T>, Timestamp)> {
         match self.input_raw.try_recv()? {
-            LinkMessage::Data(DataMessage { data, timestamp }) => {
-                Ok((Message::Data(Data::try_new(data)?), timestamp))
-            }
+            LinkMessage::Data(DataMessage { data, timestamp }) => Ok((
+                Message::Data(Data::try_from_payload(
+                    data,
+                    Arc::clone(&self.deserializer),
+                )?),
+                timestamp,
+            )),
             LinkMessage::Watermark(ts) => Ok((Message::Watermark, ts)),
         }
     }
 }
+
+#[cfg(test)]
+#[path = "./tests/input-tests.rs"]
+mod tests;

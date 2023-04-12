@@ -34,7 +34,6 @@
 //! Zenoh Flow provides several working examples that illustrate how to
 //! define operators, sources and sinks as well as how to
 //! declaratively define they data flow graph by means of a YAML file.
-
 use const_format::formatcp;
 
 pub use ::zenoh_flow_derive;
@@ -44,7 +43,6 @@ pub mod model;
 pub mod runtime;
 pub mod traits;
 pub mod types;
-pub mod zfdata;
 
 pub mod utils;
 pub mod zfresult;
@@ -54,11 +52,11 @@ pub use zfresult::{DaemonResult, ZFResult as Result};
 
 pub mod prelude {
     pub use crate::io::{Input, InputRaw, Inputs, Output, OutputRaw, Outputs};
-    pub use crate::traits::{DowncastAny, Node, Operator, Sink, Source, ZFData};
+    pub use crate::traits::{Node, Operator, SendSyncAny, Sink, Source};
     pub use crate::types::{
-        Configuration, Context, Data, DataMessage, Message, NodeId, Payload, PortId, RuntimeId,
+        Configuration, Context, Data, DataMessage, Message, NodeId, PortId, RuntimeId,
     };
-    pub use crate::zenoh_flow_derive::{export_operator, export_sink, export_source, ZFData};
+    pub use crate::zenoh_flow_derive::{export_operator, export_sink, export_source};
     pub use crate::zferror;
     pub use crate::zfresult::{Error, ErrorKind, ZFResult as Result};
 }
