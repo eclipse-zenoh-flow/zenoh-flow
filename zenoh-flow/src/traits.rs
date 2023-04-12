@@ -27,10 +27,16 @@ use std::any::Any;
 /// there is absolutely no need to manually implement it.
 pub trait SendSyncAny: Send + Sync {
     fn as_any(&self) -> &dyn Any;
+
+    fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
 impl<T: 'static + Send + Sync> SendSyncAny for T {
     fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn Any {
         self
     }
 }
