@@ -15,73 +15,24 @@
 use crate::prelude::{Inputs, Outputs};
 use crate::types::{Configuration, Context};
 use crate::Result;
+
 use async_trait::async_trait;
 use std::any::Any;
-use std::fmt::Debug;
 
-/// This trait is used to ensure the data can donwcast to [`Any`](`Any`)
-/// NOTE: This trait is separate from `ZFData` so that we can provide
-/// a `#derive` macro to automatically implement it for the users.
+/// The `SendSyncAny` trait allows Zenoh-Flow to send data between nodes running in the same process
+/// without serializing.
 ///
-/// This can be derived using the `#[derive(ZFData)]`
-///
-/// ## Example
-///
-/// ```no_run
-/// use zenoh_flow::prelude::*;
-///
-/// #[derive(Debug, Clone, ZFData)]
-/// pub struct MyString(pub String);
-/// ```
-pub trait DowncastAny {
-    /// Donwcast as a reference to [`Any`](`Any`)
+/// This trait is implemented for any type that has the `static` lifetime and implements `Send` and
+/// `Sync`. These constraints are the same than for the typed `Input` and `Output` which means that
+/// there is absolutely no need to manually implement it.
+pub trait SendSyncAny: Send + Sync {
     fn as_any(&self) -> &dyn Any;
-
-    /// Donwcast as a mutable reference to [`Any`](`Any`)
-    fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
-/// This trait abstracts the user's data type inside Zenoh Flow.
-///
-/// User types should implement this trait otherwise Zenoh Flow will
-/// not be able to handle the data, serialize and deserialize them when needed.
-///
-/// ## Example
-///
-/// ```no_run
-/// use zenoh_flow::prelude::*;
-///
-/// #[derive(Debug, Clone, ZFData)]
-/// pub struct MyString(pub String);
-/// impl ZFData for MyString {
-///     fn try_serialize(&self) -> Result<Vec<u8>> {
-///         Ok(self.0.as_bytes().to_vec())
-///     }
-///
-/// fn try_deserialize(bytes: &[u8]) -> Result<MyString>
-///     where
-///         Self: Sized,
-///     {
-///         Ok(MyString(
-///             String::from_utf8(bytes.to_vec()).map_err(|e| zferror!(ErrorKind::DeserializationError, e))?,
-///         ))
-///     }
-/// }
-/// ```
-pub trait ZFData: DowncastAny + Debug + Send + Sync {
-    /// Tries to serialize the data as `Vec<u8>`
-    ///
-    /// # Errors
-    /// If it fails to serialize an error variant will be returned.
-    fn try_serialize(&self) -> Result<Vec<u8>>;
-
-    /// Tries to deserialize from a slice of `u8`.
-    ///
-    /// # Errors
-    /// If it fails to deserialize an error variant will be returned.
-    fn try_deserialize(bytes: &[u8]) -> Result<Self>
-    where
-        Self: Sized;
+impl<T: 'static + Send + Sync> SendSyncAny for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 /// The `Source` trait represents a Source of data in Zenoh Flow. Sources only possess `Outputs` and
@@ -114,7 +65,10 @@ pub trait ZFData: DowncastAny + Debug + Send + Sync {
 ///         _configuration: Option<Configuration>,
 ///         mut outputs: Outputs,
 ///     ) -> Result<Self> {
-///         let output = outputs.take("out").expect("No output called 'out' found");
+///         let output = outputs
+///             .take("out", |data| todo!("Provide your serializer here"))
+///             .expect("No output called 'out' found");
+///             
 ///         Ok(Self { output })
 ///     }
 /// }
@@ -184,7 +138,9 @@ pub trait Source: Node + Send + Sync {
 ///         _configuration: Option<Configuration>,
 ///         mut inputs: Inputs,
 ///     ) -> Result<Self> {
-///         let input = inputs.take("in").expect("No input called 'in' found");
+///         let input = inputs
+///             .take("in", |bytes| todo!("Provide your deserializer here"))
+///             .expect("No input called 'in' found");
 ///
 ///         Ok(GenericSink { input })
 ///     }
@@ -255,8 +211,12 @@ pub trait Sink: Node + Send + Sync {
 ///         mut outputs: Outputs,
 ///     ) -> Result<Self> {
 ///         Ok(NoOp {
-///             input: inputs.take("in").expect("No input called 'in' found"),
-///             output: outputs.take("out").expect("No output called 'out' found"),
+///             input: inputs
+///                 .take("in", |bytes| todo!("Provide your deserializer here"))
+///                 .expect("No input called 'in' found"),
+///             output: outputs
+///                 .take("out", |data| todo!("Provide your serializer here"))
+///                 .expect("No output called 'out' found"),
 ///         })
 ///     }
 /// }

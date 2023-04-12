@@ -454,9 +454,9 @@ impl<'a> Node for ZenohSink<'a> {
         let ((id, result), _index, mut remaining) = select_all(tmp).await;
 
         match result {
-            Ok(LinkMessage::Data(mut dm)) => {
+            Ok(LinkMessage::Data(dm)) => {
                 // Getting serialized data
-                let data = dm.get_inner_data().try_as_bytes()?;
+                let data = dm.try_as_bytes()?;
 
                 // Getting publisher
                 let publisher = self.publishers.get(&id).ok_or_else(|| {
@@ -508,10 +508,10 @@ impl<'a> Node for ZenohSink<'a> {
                             publisher.put(buff).res().await?;
                         } else {
                             log::warn!("[ZenohSink] Sending data via network as we are unable to send it over shared memory, the serialized size is {} while shared memory is {}", data_len, self.shm_element_size);
-                            publisher.put(&**data).res().await?;
+                            publisher.put(data.as_slice()).res().await?;
                         }
                     }
-                    None => publisher.put(&**data).res().await?,
+                    None => publisher.put(data.as_slice()).res().await?,
                 };
             }
             Ok(_) => (), // Not the right message, ignore it.
