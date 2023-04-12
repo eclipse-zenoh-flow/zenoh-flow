@@ -54,6 +54,15 @@ pub enum Payload {
     Typed((Arc<dyn SendSyncAny>, Arc<SerializerFn>)),
 }
 
+impl Debug for Payload {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Payload::Bytes(_) => write!(f, "Payload::Bytes"),
+            Payload::Typed(_) => write!(f, "Payload::Typed"),
+        }
+    }
+}
+
 impl Payload {
     pub fn from_data<T: Send + Sync + 'static>(
         data: Data<T>,
@@ -102,7 +111,7 @@ impl From<DataMessage> for Payload {
 ///
 /// It contains the actual data, the timestamp associated, the end to end deadline, the end to end
 /// deadline misses and loop contexts.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
     pub(crate) data: Payload,
     pub(crate) timestamp: Timestamp,
@@ -159,7 +168,7 @@ pub enum ControlMessage {
 ///
 /// It contains either a [`DataMessage`](`DataMessage`) or a [`Timestamp`](`uhlc::Timestamp`),
 /// in such case the `LinkMessage` variant is `Watermark`.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum LinkMessage {
     Data(DataMessage),
     Watermark(Timestamp),
@@ -267,6 +276,7 @@ impl Eq for LinkMessage {}
 /// `recv`.
 ///
 /// A `Message<T>` can either contain [`Data<T>`](`Data`), or signal a _Watermark_.
+#[derive(Debug)]
 pub enum Message<T> {
     Data(Data<T>),
     Watermark,
@@ -280,6 +290,7 @@ pub enum Message<T> {
 /// ## Performance
 ///
 /// When deserializing, an allocation is performed.
+#[derive(Debug)]
 pub struct Data<T> {
     inner: DataInner<T>,
 }
@@ -291,6 +302,18 @@ pub struct Data<T> {
 pub(crate) enum DataInner<T> {
     Payload { payload: Payload, data: Option<T> },
     Data(T),
+}
+
+impl<T> Debug for DataInner<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DataInner::Payload { payload, data } => {
+                let data = if data.is_some() { "Some" } else { "None" };
+                write!(f, "DataInner::Payload: {:?} - data: {}", payload, data)
+            }
+            DataInner::Data(_) => write!(f, "DataInner::Data(T)"),
+        }
+    }
 }
 
 // Implementing `From<T>` allows us to accept instances of `T` in the signature of `send` and
