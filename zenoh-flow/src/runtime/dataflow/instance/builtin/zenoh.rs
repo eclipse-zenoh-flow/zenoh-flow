@@ -166,10 +166,13 @@ impl<'a> Source for ZenohSource<'a> {
                         })?
                         .to_string();
 
-                    let output = outputs.take_raw(id).ok_or(zferror!(
-                        ErrorKind::MissingOutput(id.clone()),
-                        "Unable to find output: {id}"
-                    ))?;
+                    let output = outputs
+                        .take(id)
+                        .ok_or(zferror!(
+                            ErrorKind::MissingOutput(id.clone()),
+                            "Unable to find output: {id}"
+                        ))?
+                        .build_raw();
                     let subscriber = context
                         .zenoh_session()
                         .declare_subscriber(&ke)
@@ -408,10 +411,13 @@ impl<'a> Sink for ZenohSink<'a> {
                         })?
                         .to_string();
 
-                    let input = inputs.take_raw(id).ok_or(zferror!(
-                        ErrorKind::MissingInput(id.clone()),
-                        "Unable to find input: {id}"
-                    ))?;
+                    let input = inputs
+                        .take(id)
+                        .ok_or(zferror!(
+                            ErrorKind::MissingInput(id.clone()),
+                            "Unable to find input: {id}"
+                        ))?
+                        .build_raw();
                     let subscriber = context.zenoh_session().declare_publisher(ke).res().await?;
 
                     publishers.insert(id.clone().into(), subscriber);

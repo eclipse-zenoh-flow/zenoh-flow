@@ -72,8 +72,9 @@ impl<T: 'static + Send + Sync> SendSyncAny for T {
 ///         mut outputs: Outputs,
 ///     ) -> Result<Self> {
 ///         let output = outputs
-///             .take("out", |data| todo!("Provide your serializer here"))
-///             .expect("No output called 'out' found");
+///             .take("out")
+///             .expect("No output called 'out' found")
+///             .build_typed(|data| todo!("Provide your serializer here"));
 ///             
 ///         Ok(Self { output })
 ///     }
@@ -145,8 +146,9 @@ pub trait Source: Node + Send + Sync {
 ///         mut inputs: Inputs,
 ///     ) -> Result<Self> {
 ///         let input = inputs
-///             .take("in", |bytes| todo!("Provide your deserializer here"))
-///             .expect("No input called 'in' found");
+///             .take("in")
+///             .expect("No input called 'in' found")
+///             .build_typed(|bytes| todo!("Provide your deserializer here"));
 ///
 ///         Ok(GenericSink { input })
 ///     }
@@ -218,11 +220,13 @@ pub trait Sink: Node + Send + Sync {
 ///     ) -> Result<Self> {
 ///         Ok(NoOp {
 ///             input: inputs
-///                 .take("in", |bytes| todo!("Provide your deserializer here"))
-///                 .expect("No input called 'in' found"),
+///                 .take("in")
+///                 .expect("No input called 'in' found")
+///                 .build_typed(|bytes| todo!("Provide your deserializer here")),
 ///             output: outputs
-///                 .take("out", |data| todo!("Provide your serializer here"))
-///                 .expect("No output called 'out' found"),
+///                 .take("out")
+///                 .expect("No output called 'out' found")
+///                 .build_typed(|data| todo!("Provide your serializer here")),
 ///         })
 ///     }
 /// }

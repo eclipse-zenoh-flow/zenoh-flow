@@ -65,51 +65,127 @@ impl Inputs {
             .push(rx)
     }
 
-    /// Returns the typed [`Input<T>`](`Input`) associated to the provided `port_id`, if one is
-    /// associated, otherwise `None` is returned.
+    /// Returns an [InputBuilder] for the provided `port_id`, if an input was declared with this
+    /// exact name in the descriptor of the node, otherwise returns `None`.
     ///
-    /// ## Performance
+    /// # Usage
     ///
-    /// With a typed [`Input<T>`](`Input`), Zenoh-Flow will perform operations on the underlying
-    /// data: if the data are received serialized then Zenoh-Flow will deserialize them, if they are
-    /// received "typed" then Zenoh-Flow will check that the type matches what is expected.
+    /// This builder can either produce a, typed, [`Input<T>`] or an [InputRaw]. The main difference
+    /// between both is the type of data they expose: an [`Input<T>`] automatically tries to downcast
+    /// or deserialize the data contained in the message to expose `&T`, while an [InputRaw] simply
+    /// exposes a [LinkMessage].
     ///
-    /// If the underlying data is not relevant then these additional operations can be avoided by
-    /// calling `take_raw` and using an [`InputRaw`](`InputRaw`) instead.
-    pub fn take<T: Send + Sync + 'static>(
-        &mut self,
-        port_id: impl AsRef<str>,
-        deserializer: impl Fn(&[u8]) -> anyhow::Result<T> + Send + Sync + 'static,
-    ) -> Option<Input<T>> {
-        self.hmap.remove(port_id.as_ref()).map(|receivers| Input {
-            input_raw: InputRaw {
-                port_id: port_id.as_ref().into(),
-                receivers,
-            },
-            deserializer: Arc::new(deserializer),
-        })
-    }
-
-    /// Returns the [`InputRaw`](`InputRaw`) associated to the provided `port_id`, if one is
-    /// associated, otherwise `None` is returned.
+    /// As long as data need to be manipulated, a typed [`Input<T>`] should be favored.
     ///
-    /// ## Convenience
+    /// ## Typed
     ///
-    /// With an [`InputRaw`](`InputRaw`), Zenoh-Flow will not manipulate the underlying data, for
-    /// instance trying to deserialize them to a certain `T`.
+    /// To obtain an [`Input<T>`] one must call `build_typed` and provide a deserializer function. In
+    /// the example below we rely on the `serde_json` crate to do the deserialization.
     ///
-    /// It is thus up to the user to call `try_get::<T>()` on the [`Payload`](`crate::prelude::Payload`) and handle
-    /// the error that could surface.
+    /// ```ignore
+    /// let input_typed: Input<u64> = inputs
+    ///     .take("test")
+    ///     .expect("No input named 'test' found")
+    ///     .build_typed(
+    ///         |bytes: &[u8]| serde_json::from_slice(bytes).map_err(|e| anyhow::anyhow!(e))
+    ///     );
+    /// ```
     ///
-    /// If all the data must be "converted" to the same type `T` then calling `take::<T>()` and
-    /// using a typed [`Input`](`Input`) will be more convenient and as efficient.
-    pub fn take_raw(&mut self, port_id: impl AsRef<str>) -> Option<InputRaw> {
+    /// ## Raw
+    ///
+    /// To obtain an [InputRaw] one must call `build_raw`.
+    ///
+    /// ```ignore
+    /// let input_raw: InputRaw = inputs
+    ///     .take("test")
+    ///     .expect("No input named 'test' found")
+    ///     .build_raw();
+    /// ```
+    pub fn take(&mut self, port_id: impl AsRef<str>) -> Option<InputBuilder> {
         self.hmap
             .remove(port_id.as_ref())
-            .map(|receivers| InputRaw {
+            .map(|receivers| InputBuilder {
                 port_id: port_id.as_ref().into(),
                 receivers,
             })
+    }
+}
+
+/// An `InputBuilder` is the intermediate structure to obtain either an [`Input<T>`] or an
+/// [InputRaw].
+///
+/// The main difference between both is the type of data they expose: an [`Input<T>`] automatically
+/// tries to downcast or deserialize the data contained in the message to expose `&T`, while an
+/// [InputRaw] simply exposes a [LinkMessage].
+///
+/// # Planned evolution
+///
+/// Zenoh-Flow will allow tweaking the behaviour of the underlying channels. For now, the
+/// `receivers` channels are _unbounded_ and do not implement a dropping policy, which could lead to
+/// issues.
+pub struct InputBuilder {
+    pub(crate) port_id: PortId,
+    pub(crate) receivers: Vec<flume::Receiver<LinkMessage>>,
+}
+
+impl InputBuilder {
+    /// Consume the `InputBuilder` to produce an [InputRaw].
+    ///
+    /// An [InputRaw] exposes the [LinkMessage] it receives, without trying to perform any
+    /// conversion on the data.
+    ///
+    /// The [InputRaw] was designed for use cases such as load-balancing or rate-limiting. In these
+    /// scenarios, the node does not need to access the underlying data.
+    ///
+    /// # `InputRaw` vs `Input<T>`
+    ///
+    /// If the node needs access to the data to perform computations, an [`Input<T>`] should be
+    /// favored as it performs the conversion automatically.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let input_raw: InputRaw = inputs
+    ///     .take("test")
+    ///     .expect("No input named 'test' found")
+    ///     .build_raw();
+    /// ```
+    pub fn build_raw(self) -> InputRaw {
+        InputRaw {
+            port_id: self.port_id,
+            receivers: self.receivers,
+        }
+    }
+
+    /// Consume the `InputBuilder` to produce an [`Input<T>`].
+    ///
+    /// An [`Input<T>`] tries to automatically convert the data contained in the [LinkMessage] in
+    /// order to expose `&T`. Depending on if the data is received serialized or not, to perform
+    /// this conversion either the `deserializer` is called or a downcast is attempted.
+    ///
+    /// # `Input<T>` vs `InputRaw`
+    ///
+    /// If the node does need to access the data contained in the [LinkMessage], an [InputRaw]
+    /// should be favored as it does not try to perform the extra conversion steps.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let input_typed: Input<u64> = inputs
+    ///     .take("test")
+    ///     .expect("No input named 'test' found")
+    ///     .build_typed(
+    ///         |bytes: &[u8]| serde_json::from_slice(bytes).map_err(|e| anyhow::anyhow!(e))
+    ///     );
+    /// ```
+    pub fn build_typed<T>(
+        self,
+        deserializer: impl Fn(&[u8]) -> anyhow::Result<T> + Send + Sync + 'static,
+    ) -> Input<T> {
+        Input {
+            input_raw: self.build_raw(),
+            deserializer: Arc::new(deserializer),
+        }
     }
 }
 
