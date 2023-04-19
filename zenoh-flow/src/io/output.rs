@@ -59,39 +59,143 @@ impl Outputs {
         }
     }
 
-    /// Insert the `flume::Sender` in the [`Inputs`](`Inputs`), creating the entry if needed in the
-    /// internal `HashMap`.
+    /// Insert the `flume::Sender` in the [Outputs], creating the entry if needed in the internal
+    /// `HashMap`.
     pub(crate) fn insert(&mut self, port_id: PortId, tx: Sender<LinkMessage>) {
         self.hmap.entry(port_id).or_insert_with(Vec::new).push(tx)
     }
 
-    /// Returns the typed [`Output<T>`](`Output`) associated to the provided `port_id`, if one is
-    /// associated, otherwise `None` is returned.
+    /// Returns an [OutputBuilder] for the provided `port_id`, if an output was declared with this
+    /// exact name in the descriptor of the node, otherwise returns `None`.
     ///
-    /// ## Performance
+    /// # Usage
     ///
-    /// With a typed [`Output<T>`](`Output`), only `impl Into<Data<T>>` can be passed to the `send`
-    /// methods. This provides type guarantees and leaves the encapsulation to Zenoh-Flow.
+    /// This builder can either produce a, typed, [`Output<T>`] or an [OutputRaw]. The main difference
+    /// between both is the type of data they accept: an [`Output<T>`] accepts anything that is
+    /// `Into<T>` while an [OutputRaw] accepts a [LinkMessage] or anything that is
+    /// `Into<`[Payload]`>`.
     ///
-    /// If the underlying data is not relevant (i.e. there is no need to access the `T`) then
-    /// calling `take_raw` and using an [`OutputRaw`](`OutputRaw`) will be more efficient. An
-    /// [`OutputRaw`](`OutputRaw`) has a dedicated `forward` method that performs no additional
-    /// operation and, simply, forwards a [`LinkMessage`](`LinkMessage`).
-    pub fn take<T: Send + Sync + 'static>(
-        &mut self,
-        port_id: impl AsRef<str>,
-        serializer: impl Fn(&T) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
-    ) -> Option<Output<T>> {
-        self.hmap.remove(port_id.as_ref()).map(|senders| Output {
-            _phantom: PhantomData,
-            output_raw: OutputRaw {
+    /// As long as data are produced or manipulated, a typed [`Output<T>`] should be favored.
+    ///
+    /// ## Typed
+    ///
+    /// To obtain an [`Output<T>`] one must call `build_typed` and provide a serializer function. In
+    /// the example below we rely on the `serde_json` crate to do the serialization.
+    ///
+    /// ```ignore
+    /// let output_typed: Output<u64> = outputs
+    ///     .take("test")
+    ///     .expect("No key named 'test' found")
+    ///     .build_typed(|data: &u64| serde_json::to_vec(data).map_err(|e| anyhow::anyhow!(e)));
+    /// ```
+    ///
+    /// ## Raw
+    ///
+    /// To obtain an [OutputRaw] one must call `build_raw`.
+    ///
+    /// ```ignore
+    /// let output_raw = outputs
+    ///     .take("test")
+    ///     .expect("No key named 'test' found")
+    ///     .build_raw();
+    /// ```
+    pub fn take(&mut self, port_id: impl AsRef<str>) -> Option<OutputBuilder> {
+        self.hmap
+            .remove(port_id.as_ref())
+            .map(|senders| OutputBuilder {
                 port_id: port_id.as_ref().into(),
                 senders,
                 hlc: Arc::clone(&self.hlc),
                 last_watermark: Arc::new(AtomicU64::new(
                     self.hlc.new_timestamp().get_time().as_u64(),
                 )),
-            },
+            })
+    }
+}
+
+/// An [OutputBuilder] is the intermediate structure to obtain either an [`Output<T>`] or an
+/// [OutputRaw].
+///
+/// The main difference between both is the type of data they accept: an [`Output<T>`] accepts
+/// anything that is `Into<T>` while an [OutputRaw] accepts a [LinkMessage] or anything that is
+/// `Into<`[Payload]`>`.
+///
+/// # Planned evolution
+///
+/// Zenoh-Flow will allow tweaking the behaviour of the underlying channels. For now, the `senders`
+/// channels are _unbounded_ and do not implement a dropping policy, which could lead to issues.
+pub struct OutputBuilder {
+    pub(crate) port_id: PortId,
+    pub(crate) senders: Vec<flume::Sender<LinkMessage>>,
+    pub(crate) hlc: Arc<HLC>,
+    pub(crate) last_watermark: Arc<AtomicU64>,
+}
+
+impl OutputBuilder {
+    /// Consume this `OutputBuilder` to produce an [OutputRaw].
+    ///
+    /// An [OutputRaw] sends [LinkMessage]s (through `forward`) or anything that is
+    /// `Into<`[Payload]`>` (through `send` and `try_send`) to downstream nodes.
+    ///
+    /// The [OutputRaw] was designed for use cases such as load-balancing or rate-limiting. In this
+    /// scenarios, the node does not need to access the underlying data and the message can simply
+    /// be forwarded downstream.
+    ///
+    /// # `OutputRaw` vs `Output<T>`
+    ///
+    /// If the node produces instances of `T` as a result of computations, an [`Output<T>`] should be
+    /// favored as it sends anything that is `Into<T>`. Thus, contrary to an [OutputRaw], there is
+    /// no need to encapsulate `T` inside a [Payload].
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let output_raw = outputs
+    ///     .take("test")
+    ///     .expect("No key named 'test' found")
+    ///     .build_raw();
+    /// ```
+    pub fn build_raw(self) -> OutputRaw {
+        OutputRaw {
+            port_id: self.port_id,
+            senders: self.senders,
+            hlc: self.hlc,
+            last_watermark: self.last_watermark,
+        }
+    }
+
+    /// Consume this `OutputBuilder` to produce an [`Output<T>`].
+    ///
+    /// An [`Output<T>`] sends anything that is `Into<T>` (through `send` and `try_send`) to
+    /// downstream nodes.
+    ///
+    /// An [`Output<T>`] requires knowing how to serialize `T`. Data is only serialized when it is (a)
+    /// transmitted to a node located on another process or (b) transmitted to a node written in a
+    /// programming language other than Rust.
+    ///
+    /// The serialization will automatically be performed by Zenoh-Flow and only when needed.
+    ///
+    /// # `Output<T>` vs `OutputRaw`
+    ///
+    /// If the node does not process any data and only has access to a [LinkMessage], an [OutputRaw]
+    /// would be better suited as it does not require to downcast it into an object that
+    /// implements `Into<T>`.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let output_typed: Output<u64> = outputs
+    ///     .take("test")
+    ///     .expect("No key named 'test' found")
+    ///     .build_typed(|data: &u64| serde_json::to_vec(data).map_err(|e| anyhow::anyhow!(e)));
+    /// ```
+    pub fn build_typed<T: Send + Sync + 'static>(
+        self,
+        serializer: impl Fn(&T) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
+    ) -> Output<T> {
+        Output {
+            _phantom: PhantomData,
+            output_raw: self.build_raw(),
             serializer: Arc::new(move |data| {
                 if let Some(typed) = (*data).as_any().downcast_ref::<T>() {
                     match (serializer)(typed) {
@@ -105,26 +209,7 @@ impl Outputs {
                     )
                 }
             }),
-        })
-    }
-
-    /// Returns the [`OutputRaw`](`OutputRaw`) associated to the provided `port_id`, if one is
-    /// associated, otherwise `None` is returned.
-    ///
-    /// ## Convenience
-    ///
-    /// With an [`OutputRaw`](`OutputRaw`), Zenoh-Flow expects a [`LinkMessage`](`LinkMessage`). It
-    /// is up to the user to encapsulate an instance of `T` in a [`LinkMessage`](`LinkMessage`).
-    ///
-    /// If all the data must be encapsulated then calling `take::<T>()` and using a typed
-    /// [`Output<T>`](`Output`) will be more convenient and *as efficient*.
-    pub fn take_raw(&mut self, port_id: impl AsRef<str>) -> Option<OutputRaw> {
-        self.hmap.remove(port_id.as_ref()).map(|senders| OutputRaw {
-            port_id: port_id.as_ref().into(),
-            senders,
-            hlc: Arc::clone(&self.hlc),
-            last_watermark: Arc::new(AtomicU64::new(self.hlc.new_timestamp().get_time().as_u64())),
-        })
+        }
     }
 }
 

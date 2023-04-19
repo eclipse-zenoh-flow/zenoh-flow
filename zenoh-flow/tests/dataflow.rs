@@ -73,9 +73,13 @@ impl Source for TestSource {
     ) -> Result<Self> {
         println!("[TestSource] constructor");
         let output = outputs
-            .take(OUT_TYPED, |data| serialize_serde_json(data, "TestSource"))
-            .unwrap();
-        let output_raw = outputs.take_raw(OUT_RAW).expect("Wrong `output_raw` name");
+            .take(OUT_TYPED)
+            .expect("No `OUT_TYPED` for TestSource")
+            .build_typed(|data| serialize_serde_json(data, "TestSource"));
+        let output_raw = outputs
+            .take(OUT_RAW)
+            .expect("No `OUT_RAW` for TestSource")
+            .build_raw();
 
         Ok(TestSource { output, output_raw })
     }
@@ -122,15 +126,21 @@ impl Operator for TestOperator {
         println!("[TestOperator] constructor");
         Ok(TestOperator {
             input_typed: inputs
-                .take(IN_TYPED, |bytes| {
-                    deserialize_serde_json(bytes, "TestOperator")
-                })
-                .unwrap(),
-            input_raw: inputs.take_raw(IN_RAW).unwrap(),
+                .take(IN_TYPED)
+                .expect("No input `IN_TYPED` for TestOperator")
+                .build_typed(|bytes| deserialize_serde_json(bytes, "TestOperator")),
+            input_raw: inputs
+                .take(IN_RAW)
+                .expect("No input `IN_RAW` for TestOperator")
+                .build_raw(),
             output_typed: outputs
-                .take(OUT_TYPED, |data| serialize_serde_json(data, "TestOperator"))
-                .unwrap(),
-            output_raw: outputs.take_raw(OUT_RAW).unwrap(),
+                .take(OUT_TYPED)
+                .expect("No output `OUT_TYPED` for TestOperator")
+                .build_typed(|data| serialize_serde_json(data, "TestOperator")),
+            output_raw: outputs
+                .take(OUT_RAW)
+                .expect("No output `OUT_RAW` for TestOperator")
+                .build_raw(),
         })
     }
 }
@@ -194,10 +204,11 @@ impl Sink for TestSink {
         mut inputs: Inputs,
     ) -> Result<Self> {
         println!("[TestSink] constructor");
-        let input_raw = inputs.take_raw(IN_RAW).unwrap();
+        let input_raw = inputs.take(IN_RAW).unwrap().build_raw();
         let input_typed = inputs
-            .take(IN_TYPED, |bytes| deserialize_serde_json(bytes, "TestSink"))
-            .unwrap();
+            .take(IN_TYPED)
+            .expect("Missing input IN_TYPED for TestSink")
+            .build_typed(|bytes| deserialize_serde_json(bytes, "TestSink"));
 
         Ok(TestSink {
             input_raw,

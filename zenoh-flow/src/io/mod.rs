@@ -15,5 +15,5 @@
 pub mod input;
 pub mod output;
 
-pub use input::{Input, InputRaw, Inputs};
-pub use output::{Output, OutputRaw, Outputs};
+pub use input::{Input, InputBuilder, InputRaw, Inputs};
+pub use output::{Output, OutputBuilder, OutputRaw, Outputs};
