@@ -25,17 +25,16 @@ use std::sync::{
 };
 use uhlc::{Timestamp, HLC};
 
-/// The [`Outputs`](`Outputs`) structure contains all the sender channels we created for a
-/// [`Source`](`crate::prelude::Source`) or an [`Operator`](`crate::prelude::Operator`).
+/// The [Outputs] structure contains all the outputs created for a [Source](crate::prelude::Source)
+/// or an [Operator](crate::prelude::Operator).
 ///
-/// To access these underlying channels, two methods are available:
-/// - `take`: this will return an `Output<T>` where `T` implements [`ZFData`](`ZFData`),
-/// - `take_raw`: this will return an [`OutputRaw`](`OutputRaw`) — a type agnostic sender.
+/// Each output is indexed by its **port identifier**: the name that was indicated in the descriptor
+/// of the node. These names are _case sensitive_ and should be an exact match to what was written
+/// in the descriptor.
 ///
-/// Choosing between `take` and `take_raw` is a trade-off between convenience and performance: an
-/// `Output<T>` conveniently accepts instances of `T` and is thus less performant as Zenoh-Flow has
-/// to manipulate the data (transforming it into a [`LinkMessage`](`LinkMessage`)); an `OutputRaw`
-/// is more performant but the transformation must be performed in the code of the Node.
+/// Zenoh-Flow provides two flavors of output: [OutputRaw] and [`Output<T>`]. An [`Output<T>`]
+/// conveniently accepts instances of `T` while an [OutputRaw] operates at the message level,
+/// potentially disregarding the data it contains.
 pub struct Outputs {
     pub(crate) hmap: HashMap<PortId, Vec<flume::Sender<LinkMessage>>>,
     pub(crate) hlc: Arc<HLC>,
@@ -213,11 +212,11 @@ impl OutputBuilder {
     }
 }
 
-/// An [`OutputRaw`](`OutputRaw`) sends [`LinkMessage`](`LinkMessage`) to downstream Nodes.
+/// An [OutputRaw] sends [LinkMessage] or `Into<`[Payload]`>` to downstream Nodes.
 ///
-/// It's primary purpose is to ensure "optimal" performance by performing no operation on the
-/// received [`LinkMessage`](`LinkMessage`). This can be useful to implement behaviour where actual
-/// access to the underlying data is irrelevant.
+/// Its primary purpose is to ensure optimal performance: any message received on an input can
+/// transparently be sent downstream, without requiring (a potentially expensive) access to the data
+/// it contained.
 #[derive(Clone)]
 pub struct OutputRaw {
     pub(crate) port_id: PortId,
@@ -239,7 +238,7 @@ impl OutputRaw {
 
     /// If a timestamp is provided, check that it is not inferior to the latest watermark.
     ///
-    /// If no timestamp is provided, a new one is generated from the HLC.
+    /// If no timestamp is provided, a new one is generated from the [HLC](uhlc::HLC).
     pub(crate) fn check_timestamp(&self, timestamp: Option<u64>) -> Result<Timestamp> {
         let ts = match timestamp {
             Some(ts_u64) => Timestamp::new(uhlc::NTP64(ts_u64), *self.hlc.get_id()),
@@ -255,13 +254,13 @@ impl OutputRaw {
 
     /// Attempt to forward, *synchronously*, the message to the downstream Nodes.
     ///
-    /// ## Asynchronous alternative: `forward`
+    /// # Asynchronous alternative: `forward`
     ///
     /// This method is a synchronous fail-fast alternative to it's asynchronous counterpart:
     /// `forward`. Hence, although synchronous, this method will not block the thread on which it is
     /// executed.
     ///
-    /// ## Errors
+    /// # Errors
     ///
     /// If an error occurs while sending the message on a channel, Zenoh-Flow still tries to send it
     /// on the remaining channels. For each failing channel, an error is logged.
@@ -294,17 +293,17 @@ impl OutputRaw {
         Ok(())
     }
 
-    /// Attempt to send, synchronously, the `data` on all channels to the downstream Nodes.
+    /// Attempt to send, *synchronously*, the `data` on all channels to the downstream Nodes.
     ///
-    /// If no `timestamp` is provided, the current timestamp — as per the [`HLC`](`HLC`) used by the
-    /// Zenoh-Flow daemon running this Node — is taken.
+    /// If no `timestamp` is provided, the current timestamp (as per the [HLC](uhlc::HLC) used by
+    /// the Zenoh-Flow daemon running this Node) is taken.
     ///
-    /// ## Asynchronous alternative: `send`
+    /// # Asynchronous alternative: `send`
     ///
     /// This method is a synchronous fail-fast alternative to its asynchronous counterpart: `send`.
     /// Hence, although synchronous, this method will not block the thread on which it is executed.
     ///
-    /// ## Errors
+    /// # Errors
     ///
     /// If an error occurs while sending the watermark on a channel, Zenoh-Flow still tries to send
     /// it on the remaining channels. For each failing channel, an error is logged and counted for.
@@ -317,15 +316,15 @@ impl OutputRaw {
 
     /// Attempt to send, *synchronously*, the watermark on all channels to the downstream Nodes.
     ///
-    /// If no `timestamp` is provided, the current timestamp — as per the [`HLC`](`HLC`) used by the
-    /// Zenoh-Flow daemon running this Node — is taken.
+    /// If no `timestamp` is provided, the current timestamp (as per the [HLC](uhlc::HLC) used by
+    /// the Zenoh-Flow daemon running this Node) is taken.
     ///
-    /// ## Asynchronous alternative: `send_watermark`
+    /// # Asynchronous alternative: `send_watermark`
     ///
     /// This method is a synchronous fail-fast alternative to it's asynchronous counterpart: `send`.
     /// Although synchronous, this method will not block the thread on which it is executed.
     ///
-    /// ## Errors
+    /// # Errors
     ///
     /// If an error occurs while sending the watermark on a channel, Zenoh-Flow still tries to send
     /// it on the remaining channels. For each failing channel, an error is logged and counted for.
@@ -337,10 +336,9 @@ impl OutputRaw {
         self.try_forward(message)
     }
 
-    /// Forward, *asynchronously*, the [`LinkMessage`](`LinkMessage`) on all channels to the
-    /// downstream Nodes.
+    /// Forward, *asynchronously*, the [LinkMessage] on all channels to the downstream Nodes.
     ///
-    /// ## Errors
+    /// # Errors
     ///
     /// If an error occurs while sending the message on a channel, Zenoh-Flow still tries to send
     /// it on the remaining channels. For each failing channel, an error is logged and counted for.
@@ -380,10 +378,10 @@ impl OutputRaw {
 
     /// Send, *asynchronously*, the `data` on all channels to the downstream Nodes.
     ///
-    /// If no `timestamp` is provided, the current timestamp — as per the [`HLC`](`HLC`) used by the
-    /// Zenoh-Flow daemon running this Node — is taken.
+    /// If no `timestamp` is provided, the current timestamp — as per the [HLC](uhlc::HLC) used by
+    /// the Zenoh-Flow daemon running this Node — is taken.
     ///
-    /// ## Errors
+    /// # Errors
     ///
     /// If an error occurs while sending the watermark on a channel, Zenoh-Flow still tries to send
     /// it on the remaining channels. For each failing channel, an error is logged and counted for.
@@ -394,18 +392,18 @@ impl OutputRaw {
         self.forward(message).await
     }
 
-    /// Send, *asynchronously*, a [`Watermark`](`LinkMessage::Watermark`) on all channels.
+    /// Send, *asynchronously*, a [Watermark](LinkMessage::Watermark) on all channels.
     ///
-    /// If no `timestamp` is provided, the current timestamp — as per the [`HLC`](`HLC`) used by the
-    /// Zenoh-Flow daemon running this Node — is taken.
+    /// If no `timestamp` is provided, the current timestamp (as per the [HLC](uhlc::HLC) used by
+    /// the Zenoh-Flow daemon running this Node) is taken.
     ///
-    /// ## Watermarks
+    /// # Watermarks
     ///
-    /// A [`Watermark`](`LinkMessage::Watermark`) is a special kind of message whose purpose is to
-    /// signal and guarantee the fact that no message with a lower [`Timestamp`](`Timestamp`) will
-    /// be send afterwards.
+    /// A [Watermark](LinkMessage::Watermark) is a special kind of message whose purpose is to
+    /// signal and guarantee the fact that no message with a lower [Timestamp] will be send
+    /// afterwards.
     ///
-    /// ## Errors
+    /// # Errors
     ///
     /// If an error occurs while sending the watermark on a channel, Zenoh-Flow still tries to send
     /// it on the remaining channels. For each failing channel, an error is logged and counted for.
@@ -418,7 +416,7 @@ impl OutputRaw {
     }
 }
 
-/// An [`Output<T>`](`Output`) sends instances of `T` to downstream Nodes.
+/// An [`Output<T>`] sends instances of `T` to downstream Nodes.
 ///
 /// It's primary purpose is to ensure type guarantees: only types that implement `Into<T>` can be
 /// sent to downstream Nodes.
@@ -453,15 +451,15 @@ impl<T: Send + Sync + 'static> Output<T> {
 
     /// Send, *asynchronously*, the provided `data` to all downstream Nodes.
     ///
-    /// If no `timestamp` is provided, the current timestamp — as per the [`HLC`](`HLC`) used by the
-    /// Zenoh-Flow daemon running this Node — is taken.
+    /// If no `timestamp` is provided, the current timestamp (as per the [HLC](uhlc::HLC) used by
+    /// the Zenoh-Flow daemon running this Node) is taken.
     ///
-    /// ## Constraint `Into<Data<T>>`
+    /// # Constraint `Into<Data<T>>`
     ///
     /// Both `T` and `Data<T>` implement this constraint. Hence, in practice, any type that
     /// implements `Into<T>` can be sent (provided that `Into::<T>::into(u)` is called first).
     ///
-    /// ## Errors
+    /// # Errors
     ///
     /// If an error occurs while sending the message on a channel, Zenoh-Flow still tries to send it
     /// on the remaining channels. For each failing channel, an error is logged and counted for. The
@@ -474,15 +472,15 @@ impl<T: Send + Sync + 'static> Output<T> {
 
     /// Tries to send the provided `data` to all downstream Nodes.
     ///
-    /// If no `timestamp` is provided, the current timestamp — as per the [`HLC`](`HLC`) used by the
-    /// Zenoh-Flow daemon running this Node — is taken.
+    /// If no `timestamp` is provided, the current timestamp (as per the [HLC](uhlc::HLC) used by
+    /// the Zenoh-Flow daemon running this Node) is taken.
     ///
-    /// ## Constraint `Into<Data<T>>`
+    /// # Constraint `Into<Data<T>>`
     ///
     /// Both `T` and `Data<T>` implement this constraint. Hence, in practice, any type that
     /// implements `Into<T>` can be sent (provided that `Into::<T>::into(u)` is called first).
     ///
-    /// ## Errors
+    /// # Errors
     ///
     /// If an error occurs while sending the message on a channel, Zenoh-Flow still tries to send it
     /// on the remaining channels. For each failing channel, an error is logged and counted for. The
