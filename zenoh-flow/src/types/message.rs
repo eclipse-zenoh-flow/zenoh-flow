@@ -43,7 +43,7 @@ pub(crate) type DeserializerFn<T> = dyn Fn(&[u8]) -> anyhow::Result<T> + Send + 
 /// A `Payload` is Zenoh-Flow's lowest message container.
 ///
 /// It either contains serialized data, i.e. `Bytes` (if received from the network, or from nodes
-/// not written in Rust), or `Typed` data as a tuple `(`[`Any`](`Any`)`, SerializerFn)`.
+/// not written in Rust), or `Typed` data as a tuple `(`[Any](`std::any::Any`)`, SerializerFn)`.
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Payload {
     /// Serialized data, coming either from Zenoh of from non-Rust node.
