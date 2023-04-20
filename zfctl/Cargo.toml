@@ -36,7 +36,7 @@ exitfailure = "0.5.1"
 failure = "0.1.8"
 git-version = "0.3.4"
 log = "0.4"
-prettytable-rs = "^0.9"
+prettytable-rs = "^0.10"
 rand = "0.8.3"
 semver = { version = "1.0.4", features = ["serde"]}
 serde = { version = "1.0.55", features = ["derive"] }
