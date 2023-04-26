@@ -47,10 +47,10 @@ pub(crate) struct ZenohSender {
 ///
 /// The fields are:
 /// - `shm` holds the [SharedMemoryManager] used to send data through Zenoh's shared memory;
-/// - `buffer` holds a growable vector of bytes in which the result of the serialization of the
-///   [LinkMessage] is stored.
-/// - `inner_buffer` holds a growable vector of bytes in which the result of the serialization
-///   of the [Payload] contained inside the [LinkMessage] is stored.
+/// - `message_buffer` holds a growable vector of bytes in which the result of the serialization of
+///   the [LinkMessage] is stored.
+/// - `payload_buffer` holds a growable vector of bytes in which the result of the serialization of
+///   the [Payload] contained inside the [LinkMessage] is stored.
 pub(crate) struct ZenohSenderState {
     pub(crate) shm: Option<SharedMemoryManager>,
     pub(crate) message_buffer: Vec<u8>,
@@ -198,8 +198,8 @@ impl Node for ZenohSender {
                         // the shared memory buffer that was allocated.
                         match message.serialize_bincode_into_shm(slice, &mut payload_buffer) {
                             Ok(_) => {
-                                // If the serialization is success then we send the
-                                // shared memory buffer.
+                                // If the serialization succeeded then we send the shared memory
+                                // buffer.
                                 self.z_session
                                     .put(self.key_expr.clone(), buff)
                                     .congestion_control(CongestionControl::Block)
