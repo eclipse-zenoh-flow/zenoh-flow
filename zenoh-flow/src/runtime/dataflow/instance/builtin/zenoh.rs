@@ -269,10 +269,22 @@ pub(crate) struct ZenohSink<'a> {
     _session: Arc<Session>,
     inputs: HashMap<PortId, InputRaw>,
     publishers: HashMap<PortId, Publisher<'a>>,
-    futs: Arc<Mutex<Vec<ZFInputFut>>>,
-    shm: Option<Arc<Mutex<SharedMemoryManager>>>,
+    state: Arc<Mutex<ZenohSinkState>>,
     shm_element_size: usize,
     shm_backoff: u64,
+}
+
+/// The ZenohSinkState stores in a single structure all the fields protected by a lock.
+///
+/// The fields are:
+/// - `futs` contains the pending futures waiting for inputs on their channel;
+/// - `shm` holds the [SharedMemoryManager] used to send data through Zenoh's shared memory;
+/// - `buffer` holds a growable vector of bytes in which the result of the serialization of the data
+///   is stored.
+pub(crate) struct ZenohSinkState {
+    pub(crate) futs: Vec<ZFInputFut>,
+    pub(crate) shm: Option<SharedMemoryManager>,
+    pub(crate) buffer: Vec<u8>,
 }
 
 /// Private function to retrieve the "Constructor" for the ZenohSink
@@ -374,14 +386,12 @@ impl<'a> Sink for ZenohSink<'a> {
 
                     let shm_size = shm_element_size * shm_elem_count;
 
-                    shm_manager = Some(Arc::new(Mutex::new(
-                        SharedMemoryManager::make(id, shm_size).map_err(|_| {
-                            zferror!(
-                                ErrorKind::ConfigurationError,
-                                "Unable to allocate {shm_size} bytes of shared memory"
-                            )
-                        })?,
-                    )));
+                    shm_manager = Some(SharedMemoryManager::make(id, shm_size).map_err(|_| {
+                        zferror!(
+                            ErrorKind::ConfigurationError,
+                            "Unable to allocate {shm_size} bytes of shared memory"
+                        )
+                    })?);
                 }
 
                 let keyexpressions = configuration.get(KEY_KEYEXPRESSIONS).ok_or_else(|| {
@@ -433,8 +443,11 @@ impl<'a> Sink for ZenohSink<'a> {
                     _session: context.zenoh_session(),
                     inputs: sink_inputs,
                     publishers,
-                    futs: Arc::new(Mutex::new(futs)),
-                    shm: shm_manager,
+                    state: Arc::new(Mutex::new(ZenohSinkState {
+                        futs,
+                        shm: shm_manager,
+                        buffer: Vec::new(),
+                    })),
                     shm_element_size,
                     shm_backoff,
                 })
@@ -454,25 +467,24 @@ impl<'a> Node for ZenohSink<'a> {
     async fn iteration(&self) -> ZFResult<()> {
         // Getting the list of futures to poll in a temporary variable (that `select_all` can take
         // ownership of)
-        let mut futs = self.futs.lock().await;
-        let tmp = mem::take(&mut (*futs));
+        let mut state = self.state.lock().await;
+        let tmp = mem::take(&mut state.futs);
 
         let ((id, result), _index, mut remaining) = select_all(tmp).await;
 
         match result {
             Ok(LinkMessage::Data(dm)) => {
                 // Getting serialized data
-                let data = dm.try_as_bytes()?;
+                dm.try_as_bytes_into(&mut state.buffer)?;
 
                 // Getting publisher
                 let publisher = self.publishers.get(&id).ok_or_else(|| {
                     zferror!(ErrorKind::SendError, "Unable to find Publisher for {id}")
                 })?;
 
-                match &self.shm {
-                    Some(shm) => {
+                match state.shm {
+                    Some(ref mut shm) => {
                         // Getting shared memory manager
-                        let mut shm = shm.lock().await;
                         let mut buff = match shm.alloc(self.shm_element_size) {
                             Ok(buf) => buf,
                             Err(_) => {
@@ -501,7 +513,7 @@ impl<'a> Node for ZenohSink<'a> {
                         // Getting the underlying slice in the shared memory
                         let slice = unsafe { buff.as_mut_slice() };
 
-                        let data_len = data.len();
+                        let data_len = state.buffer.len();
 
                         // If the shared memory block is big enough we send the data through it,
                         // otherwise we go through the network.
@@ -510,14 +522,14 @@ impl<'a> Node for ZenohSink<'a> {
                             // We are coping memory here!
                             // we should be able to serialize directly in the shared
                             // memory buffer.
-                            slice[0..data_len].copy_from_slice(&data);
+                            slice[0..data_len].copy_from_slice(&state.buffer);
                             publisher.put(buff).res().await?;
                         } else {
                             log::warn!("[ZenohSink] Sending data via network as we are unable to send it over shared memory, the serialized size is {} while shared memory is {}", data_len, self.shm_element_size);
-                            publisher.put(data.as_slice()).res().await?;
+                            publisher.put(state.buffer.as_slice()).res().await?;
                         }
                     }
-                    None => publisher.put(data.as_slice()).res().await?,
+                    None => publisher.put(state.buffer.as_slice()).res().await?,
                 };
             }
             Ok(_) => (), // Not the right message, ignore it.
@@ -534,7 +546,7 @@ impl<'a> Node for ZenohSink<'a> {
         remaining.push(wait_flow_input(id, input));
 
         // Set back the complete list for the next iteration
-        *futs = remaining;
+        state.futs = remaining;
 
         Ok(())
     }
