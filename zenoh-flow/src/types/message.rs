@@ -31,7 +31,8 @@ use uuid::Uuid;
 /// the data they receive typed.
 /// Passing around the function allows us to serialize only when needed and without requiring prior
 /// knowledge.
-pub(crate) type SerializerFn = dyn Fn(Arc<dyn SendSyncAny>) -> Result<Vec<u8>> + Send + Sync;
+pub(crate) type SerializerFn =
+    dyn Fn(&mut Vec<u8>, Arc<dyn SendSyncAny>) -> Result<()> + Send + Sync;
 
 /// This function is what Zenoh-Flow will use to deserialize the data received on the `Input`.
 ///
@@ -76,11 +77,26 @@ impl Payload {
         }
     }
 
-    /// Return a vector of bytes representing a serialized version of the instance of `T`.
-    pub(crate) fn try_as_bytes(&self) -> Result<Vec<u8>> {
+    /// Populate `buffer` with the bytes representation of the [Payload].
+    ///
+    /// # Performance
+    ///
+    /// This method will serialize the [Payload] if it is `Typed`. Otherwise, the bytes
+    /// representation is simply cloned.
+    ///
+    /// The provided `buffer` is reused and cleared between calls, so once its capacity stabilizes
+    /// no more allocation is performed.
+    pub(crate) fn try_as_bytes_into(&self, buffer: &mut Vec<u8>) -> Result<()> {
+        buffer.clear(); // remove previous data but keep the allocated capacity
+
         match self {
-            Payload::Bytes(bytes) => Ok((**bytes).clone()),
-            Payload::Typed((typed_data, serializer)) => (serializer)(Arc::clone(typed_data)),
+            Payload::Bytes(bytes) => {
+                (**bytes).clone_into(buffer);
+                Ok(())
+            }
+            Payload::Typed((typed_data, serializer)) => {
+                (serializer)(buffer, Arc::clone(typed_data))
+            }
         }
     }
 }
@@ -183,56 +199,86 @@ impl LinkMessage {
         })
     }
 
-    /// Serializes the `Message` using bincode.
+    /// Serializes the [LinkMessage] using [bincode] into the given `buffer`.
+    ///
+    /// The `inner_buffer` is used to serialize (if need be) the [Payload] contained inside the
+    /// [LinkMessage].
+    ///
+    /// # Performance
+    ///
+    /// The provided `buffer` and `inner_buffer` are reused and cleared between calls, so once their
+    /// capacity stabilizes no (re)allocation is performed.
     ///
     /// # Errors
     ///
     /// An error variant is returned in case of:
     /// - fails to serialize
-    pub fn serialize_bincode(&self) -> Result<Vec<u8>> {
+    pub fn serialize_bincode_into(
+        &self,
+        message_buffer: &mut Vec<u8>,
+        payload_buffer: &mut Vec<u8>,
+    ) -> Result<()> {
+        payload_buffer.clear(); // empty the buffers but keep their allocated capacity
+        message_buffer.clear();
+
         match &self {
             LinkMessage::Data(data_message) => match &data_message.data {
-                Payload::Bytes(_) => bincode::serialize(&self)
+                Payload::Bytes(_) => bincode::serialize_into(message_buffer, &self)
                     .map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
                 Payload::Typed((data, serializer)) => {
-                    let serialized_data = (serializer)(Arc::clone(data))?;
+                    (serializer)(payload_buffer, Arc::clone(data))?;
                     let serialized_message = LinkMessage::Data(DataMessage {
-                        data: Payload::Bytes(Arc::new(serialized_data)),
+                        data: Payload::Bytes(Arc::new(payload_buffer.clone())),
                         timestamp: data_message.timestamp,
                     });
 
-                    bincode::serialize(&serialized_message)
+                    bincode::serialize_into(message_buffer, &serialized_message)
                         .map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
                 }
             },
-            _ => bincode::serialize(&self)
+            _ => bincode::serialize_into(message_buffer, &self)
                 .map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
         }
     }
 
-    /// Serializes the `Message` using bincode into the given slice.
+    /// Serializes the [LinkMessage] using [bincode] into the given `shm_buffer` shared memory
+    /// buffer.
+    ///
+    /// The `inner_buffer` is used to serialize (if need be) the [Payload] contained inside the
+    /// [LinkMessage].
+    ///
+    /// # Performance
+    ///
+    /// The provided `inner_buffer` is reused and cleared between calls, so once its capacity
+    /// stabilizes no (re)allocation is performed.
     ///
     /// # Errors
     ///
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - there is not enough space in the slice
-    pub fn serialize_bincode_into(&self, buff: &mut [u8]) -> Result<()> {
+    pub fn serialize_bincode_into_shm(
+        &self,
+        shm_buffer: &mut [u8],
+        payload_buffer: &mut Vec<u8>,
+    ) -> Result<()> {
+        payload_buffer.clear(); // empty the buffer but keep the allocated capacity
+
         match &self {
             LinkMessage::Data(data_message) => match &data_message.data {
-                Payload::Bytes(_) => bincode::serialize_into(buff, &self)
+                Payload::Bytes(_) => bincode::serialize_into(shm_buffer, &self)
                     .map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
                 Payload::Typed(_) => {
-                    let serialized_data = data_message.try_as_bytes()?;
+                    data_message.try_as_bytes_into(payload_buffer)?;
                     let serialized_message = LinkMessage::Data(DataMessage::new_serialized(
-                        serialized_data,
+                        payload_buffer.clone(),
                         data_message.timestamp,
                     ));
-                    bincode::serialize_into(buff, &serialized_message)
+                    bincode::serialize_into(shm_buffer, &serialized_message)
                         .map_err(|e| zferror!(ErrorKind::SerializationError, e).into())
                 }
             },
-            _ => bincode::serialize_into(buff, &self)
+            _ => bincode::serialize_into(shm_buffer, &self)
                 .map_err(|e| zferror!(ErrorKind::SerializationError, e).into()),
         }
     }

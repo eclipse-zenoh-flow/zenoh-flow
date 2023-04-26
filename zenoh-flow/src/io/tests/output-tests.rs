@@ -42,7 +42,10 @@ use crate::types::{LinkMessage, Payload};
 fn test_typed_output<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'static>(
     expected_data: T,
     expected_serialized: Vec<u8>,
-    serializer: impl Fn(&T) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
+    serializer: impl for<'b, 'a> Fn(&'b mut Vec<u8>, &'a T) -> anyhow::Result<()>
+        + Send
+        + Sync
+        + 'static,
 ) {
     let hlc = uhlc::HLC::default();
     let key: Arc<str> = "test".into();
@@ -68,7 +71,8 @@ fn test_typed_output<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'sta
         LinkMessage::Data(data) => match &*data {
             Payload::Bytes(_) => panic!("Unexpected bytes payload"),
             Payload::Typed((dyn_data, serializer)) => {
-                let dyn_serialized = (serializer)(dyn_data.clone()).expect("Failed to serialize");
+                let mut dyn_serialized = Vec::new();
+                (serializer)(&mut dyn_serialized, dyn_data.clone()).expect("Failed to serialize");
                 assert_eq!(expected_serialized, dyn_serialized);
 
                 let data = (**dyn_data)
@@ -103,8 +107,9 @@ fn test_serde_json() {
     let expected_serialized =
         serde_json::ser::to_vec(&expected_data).expect("serde_json failed to serialize");
 
-    let serializer =
-        |data: &TestData| serde_json::ser::to_vec(data).map_err(|e| anyhow::anyhow!(e));
+    let serializer = |buffer: &mut Vec<u8>, data: &TestData| {
+        serde_json::ser::to_writer(buffer, data).map_err(|e| anyhow::anyhow!(e))
+    };
 
     test_typed_output(expected_data, expected_serialized, serializer)
 }
@@ -136,7 +141,9 @@ fn test_protobuf_prost() {
 
     let expected_serialized = expected_data.encode_to_vec();
 
-    let serializer = |data: &TestProto| Ok(data.encode_to_vec());
+    let serializer = |buffer: &mut Vec<u8>, data: &TestProto| {
+        data.encode(buffer).map_err(|e| anyhow::anyhow!(e))
+    };
 
     test_typed_output(expected_data, expected_serialized, serializer)
 }

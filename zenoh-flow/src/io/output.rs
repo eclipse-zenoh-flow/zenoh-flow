@@ -190,14 +190,14 @@ impl OutputBuilder {
     /// ```
     pub fn build_typed<T: Send + Sync + 'static>(
         self,
-        serializer: impl Fn(&T) -> anyhow::Result<Vec<u8>> + Send + Sync + 'static,
+        serializer: impl Fn(&mut Vec<u8>, &T) -> anyhow::Result<()> + Send + Sync + 'static,
     ) -> Output<T> {
         Output {
             _phantom: PhantomData,
             output_raw: self.build_raw(),
-            serializer: Arc::new(move |data| {
+            serializer: Arc::new(move |buffer, data| {
                 if let Some(typed) = (*data).as_any().downcast_ref::<T>() {
-                    match (serializer)(typed) {
+                    match (serializer)(buffer, typed) {
                         Ok(serialized_data) => Ok(serialized_data),
                         Err(e) => bail!(ErrorKind::DeserializationError, e),
                     }
