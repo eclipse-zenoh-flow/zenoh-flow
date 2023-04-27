@@ -435,7 +435,7 @@ checksum = "c1db59621ec70f09c5e9b597b220c7a2b43611f4710dc03ceb8748637775692c"
 
 [[package]]
 name = "cargo-zenoh-flow"
-version = "0.4.0-alpha.2"
+version = "0.4.0-alpha.3"
 dependencies = [
  "async-std",
  "cargo_toml",
@@ -3375,7 +3375,7 @@ dependencies = [
 
 [[package]]
 name = "zenoh-flow"
-version = "0.4.0-alpha.2"
+version = "0.4.0-alpha.3"
 dependencies = [
  "anyhow",
  "async-lock",
@@ -3422,7 +3422,7 @@ dependencies = [
 
 [[package]]
 name = "zenoh-flow-daemon"
-version = "0.4.0-alpha.2"
+version = "0.4.0-alpha.3"
 dependencies = [
  "async-ctrlc",
  "async-std",
@@ -3450,7 +3450,7 @@ dependencies = [
 
 [[package]]
 name = "zenoh-flow-derive"
-version = "0.4.0-alpha.2"
+version = "0.4.0-alpha.3"
 dependencies = [
  "Inflector",
  "async-std",
@@ -3468,7 +3468,7 @@ dependencies = [
 
 [[package]]
 name = "zenoh-flow-plugin"
-version = "0.4.0-alpha.2"
+version = "0.4.0-alpha.3"
 dependencies = [
  "async-std",
  "async-trait",
@@ -3761,7 +3761,7 @@ checksum = "2a0956f1ba7c7909bfb66c2e9e4124ab6f6482560f6628b5aaeba39207c9aad9"
 
 [[package]]
 name = "zfctl"
-version = "0.4.0-alpha.2"
+version = "0.4.0-alpha.3"
 dependencies = [
  "async-std",
  "base64 0.20.0",
