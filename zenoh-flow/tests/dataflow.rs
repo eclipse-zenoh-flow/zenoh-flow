@@ -90,7 +90,6 @@ impl Node for TestSource {
     async fn iteration(&self) -> Result<()> {
         println!("[TestSource] Starting iteration");
         self.output.send(TYPED_VALUE, None).await?;
-
         let mut buffer = Vec::new();
         serialize_serde_json(&mut buffer, &RAW_VALUE, "manual")
             .expect("Failed to serialize 10u64 using `serde_json`");
