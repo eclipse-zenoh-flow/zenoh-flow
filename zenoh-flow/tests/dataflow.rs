@@ -43,9 +43,9 @@ static RAW_VALUE: u64 = 10;
 static TYPED_VALUE: u64 = 1;
 
 // Use the `serde_json` crate to serialize and deserialize some u64 integers.
-fn serialize_serde_json(data: &u64, origin: &str) -> anyhow::Result<Vec<u8>> {
+fn serialize_serde_json(buffer: &mut Vec<u8>, data: &u64, origin: &str) -> anyhow::Result<()> {
     println!("Serializer called in: {origin}!");
-    serde_json::ser::to_vec(data).map_err(|e| anyhow::anyhow!(e))
+    serde_json::ser::to_writer(buffer, data).map_err(|e| anyhow::anyhow!(e))
 }
 
 fn deserialize_serde_json(bytes: &[u8], origin: &str) -> anyhow::Result<u64> {
@@ -75,7 +75,7 @@ impl Source for TestSource {
         let output = outputs
             .take(OUT_TYPED)
             .expect("No `OUT_TYPED` for TestSource")
-            .build_typed(|data| serialize_serde_json(data, "TestSource"));
+            .build_typed(|buffer, data| serialize_serde_json(buffer, data, "TestSource"));
         let output_raw = outputs
             .take(OUT_RAW)
             .expect("No `OUT_RAW` for TestSource")
@@ -91,9 +91,10 @@ impl Node for TestSource {
         println!("[TestSource] Starting iteration");
         self.output.send(TYPED_VALUE, None).await?;
 
-        let payload = serialize_serde_json(&RAW_VALUE, "manual")
+        let mut buffer = Vec::new();
+        serialize_serde_json(&mut buffer, &RAW_VALUE, "manual")
             .expect("Failed to serialize 10u64 using `serde_json`");
-        self.output_raw.send(payload, None).await?;
+        self.output_raw.send(buffer, None).await?;
 
         println!("[TestSource] iteration done, sleeping");
         async_std::task::sleep(Duration::from_secs(10)).await;
@@ -136,7 +137,7 @@ impl Operator for TestOperator {
             output_typed: outputs
                 .take(OUT_TYPED)
                 .expect("No output `OUT_TYPED` for TestOperator")
-                .build_typed(|data| serialize_serde_json(data, "TestOperator")),
+                .build_typed(|buffer, data| serialize_serde_json(buffer, data, "TestOperator")),
             output_raw: outputs
                 .take(OUT_RAW)
                 .expect("No output `OUT_RAW` for TestOperator")

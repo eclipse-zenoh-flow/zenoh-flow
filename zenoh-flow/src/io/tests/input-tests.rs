@@ -72,7 +72,7 @@ fn test_typed_input<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'stat
         Payload::Typed((
             Arc::new(expected_data.clone()) as Arc<dyn SendSyncAny>,
             // The serializer should never be called, hence the panic.
-            Arc::new(|_data| panic!("Unexpected call to serialize the data")),
+            Arc::new(|_buffer, _data| panic!("Unexpected call to serialize the data")),
         )),
         hlc.new_timestamp(),
     );
