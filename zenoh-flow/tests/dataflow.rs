@@ -75,11 +75,11 @@ impl Source for TestSource {
         let output = outputs
             .take(OUT_TYPED)
             .expect("No `OUT_TYPED` for TestSource")
-            .build_typed(|buffer, data| serialize_serde_json(buffer, data, "TestSource"));
+            .typed(|buffer, data| serialize_serde_json(buffer, data, "TestSource"));
         let output_raw = outputs
             .take(OUT_RAW)
             .expect("No `OUT_RAW` for TestSource")
-            .build_raw();
+            .raw();
 
         Ok(TestSource { output, output_raw })
     }
@@ -129,19 +129,19 @@ impl Operator for TestOperator {
             input_typed: inputs
                 .take(IN_TYPED)
                 .expect("No input `IN_TYPED` for TestOperator")
-                .build_typed(|bytes| deserialize_serde_json(bytes, "TestOperator")),
+                .typed(|bytes| deserialize_serde_json(bytes, "TestOperator")),
             input_raw: inputs
                 .take(IN_RAW)
                 .expect("No input `IN_RAW` for TestOperator")
-                .build_raw(),
+                .raw(),
             output_typed: outputs
                 .take(OUT_TYPED)
                 .expect("No output `OUT_TYPED` for TestOperator")
-                .build_typed(|buffer, data| serialize_serde_json(buffer, data, "TestOperator")),
+                .typed(|buffer, data| serialize_serde_json(buffer, data, "TestOperator")),
             output_raw: outputs
                 .take(OUT_RAW)
                 .expect("No output `OUT_RAW` for TestOperator")
-                .build_raw(),
+                .raw(),
         })
     }
 }
@@ -205,11 +205,11 @@ impl Sink for TestSink {
         mut inputs: Inputs,
     ) -> Result<Self> {
         println!("[TestSink] constructor");
-        let input_raw = inputs.take(IN_RAW).unwrap().build_raw();
+        let input_raw = inputs.take(IN_RAW).unwrap().raw();
         let input_typed = inputs
             .take(IN_TYPED)
             .expect("Missing input IN_TYPED for TestSink")
-            .build_typed(|bytes| deserialize_serde_json(bytes, "TestSink"));
+            .typed(|bytes| deserialize_serde_json(bytes, "TestSink"));
 
         Ok(TestSink {
             input_raw,

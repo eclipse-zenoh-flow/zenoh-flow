@@ -60,7 +60,7 @@ fn test_typed_output<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'sta
     let output = outputs
         .take(&key)
         .expect("Wrong key provided")
-        .build_typed(serializer);
+        .typed(serializer);
 
     output
         .try_send(expected_data.clone(), None)

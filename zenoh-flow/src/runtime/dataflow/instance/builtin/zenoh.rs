@@ -172,7 +172,7 @@ impl<'a> Source for ZenohSource<'a> {
                             ErrorKind::MissingOutput(id.clone()),
                             "Unable to find output: {id}"
                         ))?
-                        .build_raw();
+                        .raw();
                     let subscriber = context
                         .zenoh_session()
                         .declare_subscriber(&ke)
@@ -427,7 +427,7 @@ impl<'a> Sink for ZenohSink<'a> {
                             ErrorKind::MissingInput(id.clone()),
                             "Unable to find input: {id}"
                         ))?
-                        .build_raw();
+                        .raw();
                     let subscriber = context.zenoh_session().declare_publisher(ke).res().await?;
 
                     publishers.insert(id.clone().into(), subscriber);

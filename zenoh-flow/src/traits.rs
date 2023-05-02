@@ -74,7 +74,7 @@ impl<T: 'static + Send + Sync> SendSyncAny for T {
 ///         let output = outputs
 ///             .take("out")
 ///             .expect("No output called 'out' found")
-///             .build_typed(|buffer, data| todo!("Provide your serializer here"));
+///             .typed(|buffer, data| todo!("Provide your serializer here"));
 ///             
 ///         Ok(Self { output })
 ///     }
@@ -148,7 +148,7 @@ pub trait Source: Node + Send + Sync {
 ///         let input = inputs
 ///             .take("in")
 ///             .expect("No input called 'in' found")
-///             .build_typed(|bytes| todo!("Provide your deserializer here"));
+///             .typed(|bytes| todo!("Provide your deserializer here"));
 ///
 ///         Ok(GenericSink { input })
 ///     }
@@ -222,11 +222,11 @@ pub trait Sink: Node + Send + Sync {
 ///             input: inputs
 ///                 .take("in")
 ///                 .expect("No input called 'in' found")
-///                 .build_typed(|bytes| todo!("Provide your deserializer here")),
+///                 .typed(|bytes| todo!("Provide your deserializer here")),
 ///             output: outputs
 ///                 .take("out")
 ///                 .expect("No output called 'out' found")
-///                 .build_typed(|buffer, data| todo!("Provide your serializer here")),
+///                 .typed(|buffer, data| todo!("Provide your serializer here")),
 ///         })
 ///     }
 /// }

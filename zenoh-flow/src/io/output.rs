@@ -78,25 +78,25 @@ impl Outputs {
     ///
     /// ## Typed
     ///
-    /// To obtain an [`Output<T>`] one must call `build_typed` and provide a serializer function. In
+    /// To obtain an [`Output<T>`] one must call `typed` and provide a serializer function. In
     /// the example below we rely on the `serde_json` crate to do the serialization.
     ///
     /// ```ignore
     /// let output_typed: Output<u64> = outputs
     ///     .take("test")
     ///     .expect("No key named 'test' found")
-    ///     .build_typed(|data: &u64| serde_json::to_vec(data).map_err(|e| anyhow::anyhow!(e)));
+    ///     .typed(|data: &u64| serde_json::to_vec(data).map_err(|e| anyhow::anyhow!(e)));
     /// ```
     ///
     /// ## Raw
     ///
-    /// To obtain an [OutputRaw] one must call `build_raw`.
+    /// To obtain an [OutputRaw] one must call `raw`.
     ///
     /// ```ignore
     /// let output_raw = outputs
     ///     .take("test")
     ///     .expect("No key named 'test' found")
-    ///     .build_raw();
+    ///     .raw();
     /// ```
     pub fn take(&mut self, port_id: impl AsRef<str>) -> Option<OutputBuilder> {
         self.hmap
@@ -152,9 +152,9 @@ impl OutputBuilder {
     /// let output_raw = outputs
     ///     .take("test")
     ///     .expect("No key named 'test' found")
-    ///     .build_raw();
+    ///     .raw();
     /// ```
-    pub fn build_raw(self) -> OutputRaw {
+    pub fn raw(self) -> OutputRaw {
         OutputRaw {
             port_id: self.port_id,
             senders: self.senders,
@@ -186,15 +186,15 @@ impl OutputBuilder {
     /// let output_typed: Output<u64> = outputs
     ///     .take("test")
     ///     .expect("No key named 'test' found")
-    ///     .build_typed(|data: &u64| serde_json::to_vec(data).map_err(|e| anyhow::anyhow!(e)));
+    ///     .typed(|data: &u64| serde_json::to_vec(data).map_err(|e| anyhow::anyhow!(e)));
     /// ```
-    pub fn build_typed<T: Send + Sync + 'static>(
+    pub fn typed<T: Send + Sync + 'static>(
         self,
         serializer: impl Fn(&mut Vec<u8>, &T) -> anyhow::Result<()> + Send + Sync + 'static,
     ) -> Output<T> {
         Output {
             _phantom: PhantomData,
-            output_raw: self.build_raw(),
+            output_raw: self.raw(),
             serializer: Arc::new(move |buffer, data| {
                 if let Some(typed) = (*data).as_any().downcast_ref::<T>() {
                     match (serializer)(buffer, typed) {

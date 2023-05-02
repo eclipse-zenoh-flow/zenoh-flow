@@ -39,10 +39,10 @@ use uhlc::Timestamp;
 ///
 /// ```ignore
 /// let input_builder = inputs.take("test raw").expect("No input name 'test raw' found");
-/// let input_raw = input_builder.build_raw();
+/// let input_raw = input_builder.raw();
 ///
 /// let input_builder = inputs.take("test typed").expect("No input name 'test typed' found");
-/// let input: Input<u64> = input_build.build_typed(
+/// let input: Input<u64> = input_build.typed(
 ///                             |bytes| serde_json::from_slice(bytes)
 ///                                 .map_err(|e| anyhow::anyhow!(e))
 ///                         )?;
@@ -91,27 +91,27 @@ impl Inputs {
     ///
     /// ## Typed
     ///
-    /// To obtain an [`Input<T>`] one must call `build_typed` and provide a deserializer function. In
+    /// To obtain an [`Input<T>`] one must call `typed` and provide a deserializer function. In
     /// the example below we rely on the `serde_json` crate to do the deserialization.
     ///
     /// ```ignore
     /// let input_typed: Input<u64> = inputs
     ///     .take("test")
     ///     .expect("No input named 'test' found")
-    ///     .build_typed(
+    ///     .typed(
     ///         |bytes: &[u8]| serde_json::from_slice(bytes).map_err(|e| anyhow::anyhow!(e))
     ///     );
     /// ```
     ///
     /// ## Raw
     ///
-    /// To obtain an [InputRaw] one must call `build_raw`.
+    /// To obtain an [InputRaw] one must call `raw`.
     ///
     /// ```ignore
     /// let input_raw: InputRaw = inputs
     ///     .take("test")
     ///     .expect("No input named 'test' found")
-    ///     .build_raw();
+    ///     .raw();
     /// ```
     pub fn take(&mut self, port_id: impl AsRef<str>) -> Option<InputBuilder> {
         self.hmap
@@ -160,9 +160,9 @@ impl InputBuilder {
     /// let input_raw: InputRaw = inputs
     ///     .take("test")
     ///     .expect("No input named 'test' found")
-    ///     .build_raw();
+    ///     .raw();
     /// ```
-    pub fn build_raw(self) -> InputRaw {
+    pub fn raw(self) -> InputRaw {
         InputRaw {
             port_id: self.port_id,
             receivers: self.receivers,
@@ -186,16 +186,16 @@ impl InputBuilder {
     /// let input_typed: Input<u64> = inputs
     ///     .take("test")
     ///     .expect("No input named 'test' found")
-    ///     .build_typed(
+    ///     .typed(
     ///         |bytes: &[u8]| serde_json::from_slice(bytes).map_err(|e| anyhow::anyhow!(e))
     ///     );
     /// ```
-    pub fn build_typed<T>(
+    pub fn typed<T>(
         self,
         deserializer: impl Fn(&[u8]) -> anyhow::Result<T> + Send + Sync + 'static,
     ) -> Input<T> {
         Input {
-            input_raw: self.build_raw(),
+            input_raw: self.raw(),
             deserializer: Arc::new(deserializer),
         }
     }
