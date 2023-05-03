@@ -108,7 +108,7 @@ impl Payload {
     /// the [Arc] is cloned.
     //
     // NOTE: This method is used by, at least, our Python API.
-    pub fn try_as_gytes(&self) -> Result<Arc<Vec<u8>>> {
+    pub fn try_as_bytes(&self) -> Result<Arc<Vec<u8>>> {
         match self {
             Payload::Bytes(bytes) => Ok(bytes.clone()),
             Payload::Typed((typed_data, serializer)) => {
