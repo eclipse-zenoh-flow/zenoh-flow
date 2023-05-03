@@ -99,6 +99,25 @@ impl Payload {
             }
         }
     }
+
+    /// Return an [Arc] containing the bytes representation of the [Payload].
+    ///
+    /// # Performance
+    ///
+    /// This method will only serialize (and thus allocate) the [Payload] if it is typed. Otherwise
+    /// the [Arc] is cloned.
+    //
+    // NOTE: This method is used by, at least, our Python API.
+    pub fn try_as_gytes(&self) -> Result<Arc<Vec<u8>>> {
+        match self {
+            Payload::Bytes(bytes) => Ok(bytes.clone()),
+            Payload::Typed((typed_data, serializer)) => {
+                let mut buffer = Vec::default();
+                (serializer)(&mut buffer, Arc::clone(typed_data))?;
+                Ok(Arc::new(buffer))
+            }
+        }
+    }
 }
 
 /// Creates a new `Data` from a `Vec<u8>`.
@@ -150,6 +169,13 @@ impl DataMessage {
             data: Payload::Bytes(Arc::new(data)),
             timestamp,
         }
+    }
+
+    /// Return the [Timestamp] associated with this [DataMessage].
+    //
+    // NOTE: This method is used by, at least, our Python API.
+    pub fn get_timestamp(&self) -> &Timestamp {
+        &self.timestamp
     }
 }
 
