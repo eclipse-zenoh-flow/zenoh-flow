@@ -62,8 +62,8 @@ zenoh = { version = "=0.7.0-rc" }
 zenoh-flow-derive = {version = "=0.4.0-alpha.3", path = "../zenoh-flow-derive"}
 zenoh-sync = { version = "=0.7.0-rc" }
 zenoh-util = { version = "=0.7.0-rc" }
-zrpc = { version= "=0.6.1-alpha.1" }
-zrpc-macros = { version= "=0.6.1-alpha.1" }
+zrpc = { version= "=0.6.1-alpha.2" }
+zrpc-macros = { version= "=0.6.1-alpha.2" }
 
 [dev-dependencies]
 tempdir = "0.3.7"
