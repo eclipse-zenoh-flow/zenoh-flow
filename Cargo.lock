@@ -435,7 +435,7 @@ checksum = "c1db59621ec70f09c5e9b597b220c7a2b43611f4710dc03ceb8748637775692c"
 
 [[package]]
 name = "cargo-zenoh-flow"
-version = "0.4.0-alpha.3"
+version = "0.4.0-alpha.4"
 dependencies = [
  "async-std",
  "cargo_toml",
@@ -781,16 +781,7 @@ version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca3aa72a6f96ea37bbc5aa912f6788242832f75369bdfdadcb0e38423f100059"
 dependencies = [
- "dirs-sys 0.3.7",
-]
-
-[[package]]
-name = "dirs"
-version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dece029acd3353e3a58ac2e3eb3c8d6c35827a892edc6cc4138ef9c33df46ecd"
-dependencies = [
- "dirs-sys 0.4.0",
+ "dirs-sys",
 ]
 
 [[package]]
@@ -812,17 +803,6 @@ dependencies = [
  "libc",
  "redox_users",
  "winapi",
-]
-
-[[package]]
-name = "dirs-sys"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04414300db88f70d74c5ff54e50f9e1d1737d9a5b90f53fcf2e95ca2a9ab554b"
-dependencies = [
- "libc",
- "redox_users",
- "windows-sys 0.45.0",
 ]
 
 [[package]]
@@ -2444,7 +2424,7 @@ version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da03fa3b94cc19e3ebfc88c4229c49d8f08cdbd1228870a45f0ffdf84988e14b"
 dependencies = [
- "dirs 5.0.0",
+ "dirs",
 ]
 
 [[package]]
@@ -3375,7 +3355,7 @@ dependencies = [
 
 [[package]]
 name = "zenoh-flow"
-version = "0.4.0-alpha.3"
+version = "0.4.0-alpha.4"
 dependencies = [
  "anyhow",
  "async-lock",
@@ -3422,7 +3402,7 @@ dependencies = [
 
 [[package]]
 name = "zenoh-flow-daemon"
-version = "0.4.0-alpha.3"
+version = "0.4.0-alpha.4"
 dependencies = [
  "async-ctrlc",
  "async-std",
@@ -3450,7 +3430,7 @@ dependencies = [
 
 [[package]]
 name = "zenoh-flow-derive"
-version = "0.4.0-alpha.3"
+version = "0.4.0-alpha.4"
 dependencies = [
  "Inflector",
  "async-std",
@@ -3468,7 +3448,7 @@ dependencies = [
 
 [[package]]
 name = "zenoh-flow-plugin"
-version = "0.4.0-alpha.3"
+version = "0.4.0-alpha.4"
 dependencies = [
  "async-std",
  "async-trait",
@@ -3761,13 +3741,13 @@ checksum = "2a0956f1ba7c7909bfb66c2e9e4124ab6f6482560f6628b5aaeba39207c9aad9"
 
 [[package]]
 name = "zfctl"
-version = "0.4.0-alpha.3"
+version = "0.4.0-alpha.4"
 dependencies = [
  "async-std",
  "base64 0.20.0",
  "clap 4.2.4",
  "derive_more",
- "dirs 4.0.0",
+ "dirs",
  "env_logger 0.10.0",
  "exitfailure",
  "failure",
@@ -3790,9 +3770,9 @@ dependencies = [
 
 [[package]]
 name = "zrpc"
-version = "0.6.1-alpha.1"
+version = "0.6.1-alpha.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15232b5775b2c848e1e481ccf50657c9e9b6c7b2ef4f72e94baf072278a7933f"
+checksum = "b6b0cb41b9e3518fce595818e100f35c4fe880c141c71ce37dde42a42660b7c0"
 dependencies = [
  "async-std",
  "base64 0.20.0",
@@ -3810,9 +3790,9 @@ dependencies = [
 
 [[package]]
 name = "zrpc-macros"
-version = "0.6.1-alpha.1"
+version = "0.6.1-alpha.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c5b83792957663d50837100915834cb4b0944a717233ae94ef6404e2a65388b"
+checksum = "d324ce3521a2d346ef1ce54c60250b2c5e14edc3140169630269c00ed804c7dd"
 dependencies = [
  "Inflector",
  "async-std",
