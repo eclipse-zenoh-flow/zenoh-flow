@@ -103,16 +103,41 @@ pub struct Daemon {
 /// # Errors
 /// Returns an error variant if unable to get or parse the Uuid.
 pub fn get_machine_uuid() -> ZFResult<ZenohId> {
-    let mut machine_id_raw =
-        machine_uid::get().map_err(|e| zferror!(ErrorKind::ParsingError, "{}", e))?;
+    let machine_id = machine_uid::get().map_err(|e| zferror!(ErrorKind::ParsingError, "{}", e))?;
 
+    let machine_id = sanitize_machine_id(machine_id);
+
+    machine_id.parse::<ZenohId>()
+}
+
+fn sanitize_machine_id(mut machine_id: String) -> String {
     // To conform to the ZenohId, the machine_id should:
     // 1. not contain capital letters,
-    machine_id_raw.make_ascii_lowercase();
-    // 2. not contain dashes.
-    let valid_machine_id = machine_id_raw.split('-').collect::<String>();
+    machine_id.make_ascii_lowercase();
+    // 2. not contain dashes,
+    let mut machine_id = machine_id.split('-').collect::<String>();
+    // 3. not start by '0',
+    if machine_id.starts_with('0') {
+        log::warn!("machine_uuid starts with a '0', replacing it with 'a'");
+        machine_id.replace_range(0..1, "a");
+    }
+    // 4. length should be an even number.
+    if machine_id.len() % 2 != 0 {
+        machine_id.push('f');
+        log::warn!("machine_uuid has an odd number of characters, adding a final 'f'");
+    }
 
-    valid_machine_id.parse::<ZenohId>()
+    machine_id
+}
+
+#[test]
+fn test_sanitize_machine_uuid() {
+    assert_eq!(sanitize_machine_id("00-deadbeef".to_string()), "a0deadbeef");
+    assert_eq!(sanitize_machine_id("0DEADbeef".to_string()), "adeadbeeff");
+    assert_eq!(
+        sanitize_machine_id("oddDEADbeef".to_string()),
+        "odddeadbeeff"
+    );
 }
 
 /// Creates a new `Daemon` from a configuration file.
