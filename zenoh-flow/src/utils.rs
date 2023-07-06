@@ -112,21 +112,35 @@ pub fn deserialize_size<'de, D>(deserializer: D) -> std::result::Result<Option<u
 where
     D: Deserializer<'de>,
 {
-    let buf: &str = serde::de::Deserialize::deserialize(deserializer)?;
-    Ok(Some(
-        bytesize::ByteSize::from_str(buf)
-            .map_err(|_| serde::de::Error::custom(format!("Unable to parse value as bytes {buf}")))?
-            .as_u64() as usize,
-    ))
+    match serde::de::Deserialize::deserialize(deserializer) {
+        Ok(buf) => Ok(Some(
+            bytesize::ByteSize::from_str(buf)
+                .map_err(|_| {
+                    serde::de::Error::custom(format!("Unable to parse value as bytes {buf}"))
+                })?
+                .as_u64() as usize,
+        )),
+        Err(e) => {
+            log::warn!("failed to deserialize size: {:?}", e);
+            Ok(None)
+        }
+    }
 }
 
 pub fn deserialize_time<'de, D>(deserializer: D) -> std::result::Result<Option<u64>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let buf: &str = serde::de::Deserialize::deserialize(deserializer)?;
-    let ht = buf
-        .parse::<humantime::Duration>()
-        .map_err(serde::de::Error::custom)?;
-    Ok(Some(ht.as_nanos() as u64))
+    match serde::de::Deserialize::deserialize(deserializer) {
+        Ok::<&str, _>(buf) => {
+            let ht = (buf)
+                .parse::<humantime::Duration>()
+                .map_err(serde::de::Error::custom)?;
+            Ok(Some(ht.as_nanos() as u64))
+        }
+        Err(e) => {
+            log::warn!("failed to deserialize time: {:?}", e);
+            Ok(None)
+        }
+    }
 }

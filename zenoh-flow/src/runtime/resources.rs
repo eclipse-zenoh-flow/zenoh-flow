@@ -433,7 +433,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_runtime_info(&self, rtid: &Uuid) -> Result<RuntimeInfo> {
+    pub async fn get_runtime_info(&self, rtid: &ZenohId) -> Result<RuntimeInfo> {
         let selector = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
         self.get_from_zenoh::<RuntimeInfo>(&selector).await
@@ -474,7 +474,7 @@ impl DataStore {
     ///
     /// # Errors
     /// If zenoh delete fails an error variant is returned.
-    pub async fn remove_runtime_info(&self, rtid: &Uuid) -> Result<()> {
+    pub async fn remove_runtime_info(&self, rtid: &ZenohId) -> Result<()> {
         let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
         self.z.delete(&path).res().await
@@ -487,7 +487,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - zenoh put fails
-    pub async fn add_runtime_info(&self, rtid: &Uuid, rt_info: &RuntimeInfo) -> Result<()> {
+    pub async fn add_runtime_info(&self, rtid: &ZenohId, rt_info: &RuntimeInfo) -> Result<()> {
         let path = RT_INFO_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
@@ -500,7 +500,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_runtime_config(&self, rtid: &Uuid) -> Result<RuntimeConfig> {
+    pub async fn get_runtime_config(&self, rtid: &ZenohId) -> Result<RuntimeConfig> {
         let selector = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
         self.get_from_zenoh::<RuntimeConfig>(&selector).await
     }
@@ -514,7 +514,7 @@ impl DataStore {
     /// - fails to deserialize
     pub async fn subscribe_runtime_config(
         &self,
-        rtid: &Uuid,
+        rtid: &ZenohId,
     ) -> Result<zenoh::subscriber::Subscriber<'static, flume::Receiver<Sample>>> {
         // let selector = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid))?;
         //
@@ -529,7 +529,7 @@ impl DataStore {
     ///
     /// # Errors
     /// If zenoh delete fails an error variant is returned.
-    pub async fn remove_runtime_config(&self, rtid: &Uuid) -> Result<()> {
+    pub async fn remove_runtime_config(&self, rtid: &ZenohId) -> Result<()> {
         let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
 
         self.z.delete(&path).res().await
@@ -542,7 +542,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - zenoh put fails
-    pub async fn add_runtime_config(&self, rtid: &Uuid, rt_info: &RuntimeConfig) -> Result<()> {
+    pub async fn add_runtime_config(&self, rtid: &ZenohId, rt_info: &RuntimeConfig) -> Result<()> {
         let path = RT_CONFIGURATION_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
@@ -555,7 +555,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - no data present in zenoh
     /// - fails to deserialize
-    pub async fn get_runtime_status(&self, rtid: &Uuid) -> Result<RuntimeStatus> {
+    pub async fn get_runtime_status(&self, rtid: &ZenohId) -> Result<RuntimeStatus> {
         let selector = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
         self.get_from_zenoh::<RuntimeStatus>(&selector).await
     }
@@ -564,7 +564,7 @@ impl DataStore {
     ///
     /// # Errors
     /// If zenoh delete fails an error variant is returned.
-    pub async fn remove_runtime_status(&self, rtid: &Uuid) -> Result<()> {
+    pub async fn remove_runtime_status(&self, rtid: &ZenohId) -> Result<()> {
         let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
 
         self.z.delete(&path).res().await
@@ -578,7 +578,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - zenoh put fails
-    pub async fn add_runtime_status(&self, rtid: &Uuid, rt_info: &RuntimeStatus) -> Result<()> {
+    pub async fn add_runtime_status(&self, rtid: &ZenohId, rt_info: &RuntimeStatus) -> Result<()> {
         let path = RT_STATUS_PATH!(ROOT_STANDALONE, rtid);
 
         let encoded_info = serialize_data(rt_info)?;
@@ -594,7 +594,7 @@ impl DataStore {
     /// - fails to deserialize
     pub async fn get_runtime_flow_by_instance(
         &self,
-        rtid: &Uuid,
+        rtid: &ZenohId,
         iid: &Uuid,
     ) -> Result<DataFlowRecord> {
         let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, rtid, iid);
@@ -624,7 +624,7 @@ impl DataStore {
     /// - fails to deserialize
     pub async fn get_runtime_flow_instances(
         &self,
-        rtid: &Uuid,
+        rtid: &ZenohId,
         fid: &str,
     ) -> Result<Vec<DataFlowRecord>> {
         let selector = RT_FLOW_SELECTOR_BY_FLOW!(ROOT_STANDALONE, rtid, fid);
@@ -653,7 +653,7 @@ impl DataStore {
     }
 
     /// Gets all the runtimes UUID where the given instance `iid` is running.
-    pub async fn get_flow_instance_runtimes(&self, iid: &Uuid) -> Result<Vec<Uuid>> {
+    pub async fn get_flow_instance_runtimes(&self, iid: &Uuid) -> Result<Vec<ZenohId>> {
         let selector = RT_FLOW_SELECTOR_BY_INSTANCE!(ROOT_STANDALONE, "*", iid);
 
         let mut ds = self.z.get(&selector).res().await?;
@@ -674,10 +674,7 @@ impl DataStore {
                         );
                         zferror!(ErrorKind::DeserializationError)
                     })?;
-                runtimes.push(
-                    Uuid::parse_str(id)
-                        .map_err(|e| zferror!(ErrorKind::DeserializationError, e))?,
-                );
+                runtimes.push(id.parse::<ZenohId>()?);
             }
         }
 
@@ -691,7 +688,7 @@ impl DataStore {
     /// If zenoh delete fails an error variant is returned.
     pub async fn remove_runtime_flow_instance(
         &self,
-        rtid: &Uuid,
+        rtid: &ZenohId,
         fid: &str,
         iid: &Uuid,
     ) -> Result<()> {
@@ -709,7 +706,7 @@ impl DataStore {
     /// - zenoh put fails
     pub async fn add_runtime_flow(
         &self,
-        rtid: &Uuid,
+        rtid: &ZenohId,
         flow_instance: &DataFlowRecord,
     ) -> Result<()> {
         let path = RT_FLOW_PATH!(
@@ -781,7 +778,7 @@ impl DataStore {
     /// - fails to deserialize
     pub async fn subscribe_sumbitted_jobs(
         &self,
-        rtid: &Uuid,
+        rtid: &ZenohId,
     ) -> Result<zenoh::subscriber::Subscriber<'static, flume::Receiver<Sample>>> {
         let selector = JQ_SUMBITTED_SEL!(ROOT_STANDALONE, rtid);
         self.z.declare_subscriber(&selector).res().await
@@ -793,13 +790,13 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - zenoh put fails
-    pub async fn add_submitted_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
+    pub async fn add_submitted_job(&self, rtid: &ZenohId, job: &Job) -> Result<()> {
         let path = JQ_SUMBITTED_JOB!(ROOT_STANDALONE, rtid, &job.id);
         let encoded_info = serialize_data(job)?;
         self.z.put(&path, encoded_info).res().await
     }
 
-    pub async fn del_submitted_job(&self, rtid: &Uuid, id: &Uuid) -> Result<()> {
+    pub async fn del_submitted_job(&self, rtid: &ZenohId, id: &Uuid) -> Result<()> {
         let path = JQ_SUMBITTED_JOB!(ROOT_STANDALONE, rtid, id);
         self.z.delete(&path).res().await
     }
@@ -810,7 +807,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - zenoh put fails
-    pub async fn add_started_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
+    pub async fn add_started_job(&self, rtid: &ZenohId, job: &Job) -> Result<()> {
         let path = JQ_STARTED_JOB!(ROOT_STANDALONE, rtid, &job.id);
         let encoded_info = serialize_data(job)?;
         self.z.put(&path, encoded_info).res().await
@@ -822,7 +819,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - zenoh put fails
-    pub async fn add_done_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
+    pub async fn add_done_job(&self, rtid: &ZenohId, job: &Job) -> Result<()> {
         let path = JQ_DONE_JOB!(ROOT_STANDALONE, rtid, &job.id);
         let encoded_info = serialize_data(job)?;
         self.z.put(&path, encoded_info).res().await
@@ -834,7 +831,7 @@ impl DataStore {
     /// An error variant is returned in case of:
     /// - fails to serialize
     /// - zenoh put fails
-    pub async fn add_failed_job(&self, rtid: &Uuid, job: &Job) -> Result<()> {
+    pub async fn add_failed_job(&self, rtid: &ZenohId, job: &Job) -> Result<()> {
         let path = JQ_FAILED_JOB!(ROOT_STANDALONE, rtid, &job.id);
         let encoded_info = serialize_data(job)?;
         self.z.put(&path, encoded_info).res().await

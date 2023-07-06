@@ -33,8 +33,9 @@ use futures::{future::select_all, Future};
 use std::mem;
 use std::sync::Arc;
 use std::{collections::HashMap, pin::Pin};
-use zenoh::buffers::SharedMemoryManager;
-use zenoh::{prelude::r#async::*, publication::Publisher, subscriber::Subscriber};
+use zenoh::{
+    prelude::r#async::*, publication::Publisher, shm::SharedMemoryManager, subscriber::Subscriber,
+};
 
 /// Key for the key expressions used by the built-in Source/Sink.
 static KEY_KEYEXPRESSIONS: &str = "key-expressions";

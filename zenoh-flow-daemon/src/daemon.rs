@@ -20,8 +20,9 @@ use async_std::sync::RwLock;
 // use futures::stream::{AbortHandle, Abortable, Aborted};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use uhlc::{HLCBuilder, ID};
+use uhlc::HLCBuilder;
 use uuid::Uuid;
+use zenoh::prelude::ZenohId;
 
 use zenoh_flow::model::descriptor::{
     FlattenDataFlowDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor,
@@ -64,7 +65,7 @@ pub struct DaemonConfig {
     /// Name of the runtime, if None the hostname will be used.
     pub name: Option<String>,
     /// Uuid of the runtime, if None the machine id will be used.
-    pub uuid: Option<Uuid>,
+    pub uuid: Option<ZenohId>,
     /// Where to find the Zenoh configuration file
     pub zenoh_config: Option<String>,
     /// Where to locate the extension files.
@@ -101,11 +102,17 @@ pub struct Daemon {
 ///
 /// # Errors
 /// Returns an error variant if unable to get or parse the Uuid.
-pub fn get_machine_uuid() -> ZFResult<Uuid> {
-    let machine_id_raw =
+pub fn get_machine_uuid() -> ZFResult<ZenohId> {
+    let mut machine_id_raw =
         machine_uid::get().map_err(|e| zferror!(ErrorKind::ParsingError, "{}", e))?;
-    let node_str: &str = &machine_id_raw;
-    Uuid::parse_str(node_str).map_err(|e| zferror!(ErrorKind::ParsingError, e).into())
+
+    // To conform to the ZenohId, the machine_id should:
+    // 1. not contain capital letters,
+    machine_id_raw.make_ascii_lowercase();
+    // 2. not contain dashes.
+    let valid_machine_id = machine_id_raw.split('-').collect::<String>();
+
+    valid_machine_id.parse::<ZenohId>()
 }
 
 /// Creates a new `Daemon` from a configuration file.
@@ -280,8 +287,10 @@ impl Daemon {
         };
 
         // Creates the HLC.
-        let uhlc_id = ID::try_from(uuid.as_bytes())
-            .map_err(|e| zferror!(ErrorKind::InvalidData, "Unable to create ID {:?}", e))?;
+        let uhlc_id = uuid
+            .to_string()
+            .parse::<uhlc::ID>()
+            .map_err(|e| zferror!(ErrorKind::InvalidData, "Invalid uHLC ID {:?}", e))?;
         let hlc = Arc::new(HLCBuilder::new().with_id(uhlc_id).build());
 
         // Creates the loader.

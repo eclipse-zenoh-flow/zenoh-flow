@@ -29,19 +29,19 @@ repository.workspace = true
 
 [dependencies]
 async-std = { version = "=1.12.0", features = ["attributes"] }
-zenoh = { version = "=0.7.0-rc", optional = true}
-zenoh-util = { version = "=0.7.0-rc", optional = true }
-zenoh-flow = {path = "../zenoh-flow", version = "=0.5.0-dev"}
-clap = { version = "4.0", features = ["derive"] }
-serde_derive = "1.0"
-serde = { version = "1.0", features = ["derive"] }
 cargo_toml = "0.13"
-toml = "0.5.8"
-serde_yaml = {version = "0.9"}
-serde_json = "1.0"
-rand = { version = "0.8", optional =  true}
-tinytemplate = "1.2"
+clap = { version = "4.0", features = ["derive"] }
 colored = "2"
+rand = { version = "0.8", optional =  true}
+serde = { version = "1.0", features = ["derive"] }
+serde_derive = "1.0"
+serde_json = "1.0"
+serde_yaml = {version = "0.9"}
+tinytemplate = "1.2"
+toml = "0.5.8"
+zenoh = { workspace = true, optional = true}
+zenoh-flow = { path = "../zenoh-flow", version = "=0.5.0-dev" }
+zenoh-util = { workspace = true, optional = true }
 
 
 [[bin]]

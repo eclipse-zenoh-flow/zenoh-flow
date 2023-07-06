@@ -195,7 +195,7 @@ pub enum GetKind {
     #[clap(about = "Gets information about the given runtime")]
     Runtime {
         #[clap(name = "runtime uuid", help = "The runtime you are interested in")]
-        id: Uuid,
+        id: ZenohId,
     },
 }
 

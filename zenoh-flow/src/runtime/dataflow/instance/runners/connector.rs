@@ -26,8 +26,8 @@ use async_trait::async_trait;
 use flume::Receiver;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
-use zenoh::buffers::SharedMemoryManager;
 use zenoh::prelude::r#async::*;
+use zenoh::shm::SharedMemoryManager;
 use zenoh::subscriber::Subscriber;
 use zenoh_util::core::AsyncResolve;
 

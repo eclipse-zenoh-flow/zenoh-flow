@@ -33,6 +33,17 @@ license = " EPL-2.0 OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/eclipse-zenoh/zenoh-flow"
 
+[workspace.dependencies]
+zenoh = { version = "0.7.2-rc" }
+zenoh-sync = { version = "0.7.2-rc" }
+zenoh-util = { version = "0.7.2-rc" }
+zenoh-collections = { version = "0.7.2-rc" }
+zenoh-core = { version = "0.7.2-rc" }
+zenoh-ext = { version = "0.7.2-rc" }
+zenoh-plugin-trait = { version = "0.7.2-rc", default-features = false }
+zrpc = { version = "0.7.0-alpha.1" }
+zrpc-macros = { version = "0.7.0-alpha.1" }
+
 
 [profile.dev]
 debug=true

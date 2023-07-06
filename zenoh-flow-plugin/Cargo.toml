@@ -25,7 +25,7 @@ readme.workspace = true
 repository.workspace = true
 
 [lib]
-name = "zplugin_zenoh_flow"
+name = "zenoh_plugin_zenoh_flow"
 crate-type = ["cdylib"]
 
 [features]
@@ -33,24 +33,24 @@ no_mangle = ["zenoh-plugin-trait/no_mangle"]
 default = ["no_mangle"]
 
 [dependencies]
-async-trait = "0.1.57"
 async-std = "=1.12.0"
+async-trait = "0.1.57"
 clap = "4.0"
 env_logger = "0.10"
-futures = "0.3.24"
 flume = "0.10.14"
+futures = "0.3.24"
+git-version = "0.3.5"
+lazy_static = "1.4.0"
 log = "0.4.17"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
-lazy_static = "1.4.0"
-git-version = "0.3.5"
-zenoh = { version = "=0.7.0-rc", features = ["unstable"] }
-zenoh-collections = { version = "=0.7.0-rc" }
-zenoh-core = { version = "=0.7.0-rc" }
-zenoh-ext = { version = "=0.7.0-rc", features = ["unstable"] }
-zenoh-plugin-trait = { version = "=0.7.0-rc", default-features = false }
-zenoh-flow-daemon = {version = "=0.5.0-dev", path = "../zenoh-flow-daemon"}
+zenoh = { workspace = true, features = ["unstable"] }
+zenoh-collections = { workspace = true }
+zenoh-core = { workspace = true }
+zenoh-ext = { workspace = true, features = ["unstable"] }
 zenoh-flow = {version = "=0.5.0-dev", path = "../zenoh-flow"}
+zenoh-flow-daemon = {version = "=0.5.0-dev", path = "../zenoh-flow-daemon"}
+zenoh-plugin-trait = { workspace = true, default-features = false }
 
 [build-dependencies]
 rustc_version = "0.4"

@@ -18,6 +18,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use uhlc::HLC;
 use uuid::Uuid;
+use zenoh::prelude::ZenohId;
 use zenoh::Session;
 
 /// The `Context` is a structure to obtain information about the runtime, use the Hybrid Logical
@@ -57,7 +58,7 @@ impl Context {
     ///
     /// Note that, for the same instance of a flow (i.e. the `flow_id` and `instance_id` are equal),
     /// different nodes can be running on different runtimes.
-    pub fn get_runtime_uuid(&self) -> &Uuid {
+    pub fn get_runtime_uuid(&self) -> &ZenohId {
         &self.instance_ctx.runtime.runtime_uuid
     }
 

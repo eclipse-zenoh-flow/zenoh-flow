@@ -24,6 +24,7 @@ use flume::{unbounded, Receiver, Sender};
 use futures::stream::{AbortHandle, Abortable, Aborted};
 use uhlc::HLC;
 use uuid::Uuid;
+use zenoh::prelude::ZenohId;
 
 /// The trait of the different workers implementations.
 #[async_trait]
@@ -51,7 +52,7 @@ where
 pub type FnNewWorker = Arc<dyn FnNewWorkerTrait>;
 
 pub struct WorkerPool {
-    rtid: Uuid,
+    rtid: ZenohId,
     pool_size: usize,
     new_worker_fn: FnNewWorker,
     workers: Vec<Box<dyn WorkerTrait>>,
@@ -72,7 +73,7 @@ impl WorkerPool {
     pub fn new(
         pool_size: usize,
         session: DataStore,
-        rtid: Uuid,
+        rtid: ZenohId,
         hlc: Arc<HLC>,
         new_worker_fn: FnNewWorker,
     ) -> Self {

@@ -276,7 +276,7 @@ async fn single_runtime() {
             .unwrap(),
     );
     let hlc = async_std::sync::Arc::new(uhlc::HLC::default());
-    let rt_uuid = uuid::Uuid::new_v4();
+    let rt_uuid = ZenohId::rand();
     let runtime_name: RuntimeId = format!("test-runtime-{rt_uuid}").into();
     let ctx = RuntimeContext {
         session,

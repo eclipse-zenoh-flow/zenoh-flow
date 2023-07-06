@@ -23,6 +23,7 @@ use crate::model::record::DataFlowRecord;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
+use zenoh::prelude::ZenohId;
 
 use self::dataflow::loader::LoaderConfig;
 use crate::runtime::dataflow::loader::Loader;
@@ -49,7 +50,7 @@ pub struct RuntimeContext {
     pub loader: Arc<Loader>,
     pub hlc: Arc<HLC>,
     pub runtime_name: RuntimeId,
-    pub runtime_uuid: Uuid,
+    pub runtime_uuid: ZenohId,
     pub shared_memory_element_size: usize,
     pub shared_memory_elements: usize,
     pub shared_memory_backoff: u64,
@@ -124,7 +125,7 @@ pub enum RuntimeStatusKind {
 /// The Runtime information.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RuntimeInfo {
-    pub id: Uuid,
+    pub id: ZenohId,
     pub name: Arc<str>,
     pub tags: Vec<String>,
     pub status: RuntimeStatusKind,
@@ -134,7 +135,7 @@ pub struct RuntimeInfo {
 /// The detailed runtime status.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RuntimeStatus {
-    pub id: Uuid,
+    pub id: ZenohId,
     pub running_flows: usize,
     pub running_operators: usize,
     pub running_sources: usize,
@@ -186,7 +187,7 @@ pub struct RuntimeConfig {
     pub pid_file: String, //Where the PID file resides
     pub path: String,     //Where the libraries are downloaded/located
     pub name: String,
-    pub uuid: Uuid,
+    pub uuid: ZenohId,
     pub loader: LoaderConfig,
 }
 
@@ -353,7 +354,7 @@ impl Job {
 #[zservice(
     timeout_s = 60,
     prefix = "zf/daemon",
-    service_uuid = "00000000-0000-0000-0000-000000000001"
+    service_uuid = "11111111111111111111111111111111"
 )]
 pub trait DaemonInterface {
     /// Creates an instance of the given [`FlattenDataFlowDescriptor`][^note].
@@ -545,7 +546,7 @@ pub trait DaemonInterface {
 #[zservice(
     timeout_s = 600,
     prefix = "zf/daemon",
-    service_uuid = "00000000-0000-0000-0000-000000000002"
+    service_uuid = "22222222222222222222222222222222"
 )]
 pub trait DaemonInterfaceInternal {
     /// Prepares the runtime host the instance identified by the [`Uuid`].
