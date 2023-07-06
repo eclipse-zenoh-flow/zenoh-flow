@@ -48,8 +48,8 @@ zenoh = { workspace = true, features = ["unstable"] }
 zenoh-collections = { workspace = true }
 zenoh-core = { workspace = true }
 zenoh-ext = { workspace = true, features = ["unstable"] }
-zenoh-flow = {version = "=0.5.0-dev", path = "../zenoh-flow"}
-zenoh-flow-daemon = {version = "=0.5.0-dev", path = "../zenoh-flow-daemon"}
+zenoh-flow = {version = "0.5.0-alpha.1", path = "../zenoh-flow"}
+zenoh-flow-daemon = {version = "0.5.0-alpha.1", path = "../zenoh-flow-daemon"}
 zenoh-plugin-trait = { workspace = true, default-features = false }
 
 [build-dependencies]

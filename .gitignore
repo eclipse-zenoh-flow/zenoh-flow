@@ -13,6 +13,7 @@
 
 # Emacs temps
 *~
+*.el
 
 # MacOS Related
 .DS_Store
