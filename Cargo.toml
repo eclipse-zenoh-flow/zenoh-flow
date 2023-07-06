@@ -21,9 +21,8 @@ members = [
   "zenoh-flow-plugin",
 ]
 
-
 [workspace.package]
-version = "0.5.0-alpha.1"
+version = "0.6.0-dev"
 authors = ["ZettaScale Zenoh Team <zenoh@zettascale.tech>"]
 categories = ["network-programming"]
 description = "Zenoh-Flow: a Zenoh-based data flow programming framework for computations that span from the cloud to the device."

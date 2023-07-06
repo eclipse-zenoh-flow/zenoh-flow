@@ -17,7 +17,7 @@ use serde::Serialize;
 use tinytemplate::TinyTemplate;
 
 static CARGO_OPERATOR_TEMPLATE: &str = r#"
-zenoh-flow = \{ version = "=0.5.0-dev"}
+zenoh-flow = \{ version = "0.6.0-dev" }
 
 [lib]
 name = "{name}"
@@ -33,7 +33,7 @@ outputs=["OUTPUT"]
 "#;
 
 static CARGO_SOURCE_TEMPLATE: &str = r#"
-zenoh-flow = \{ version = "=0.5.0-dev"}
+zenoh-flow = \{ version = "0.6.0-dev" }
 async-trait = "0.1"
 
 [lib]
@@ -49,7 +49,7 @@ outputs=["Data"]
 "#;
 
 static CARGO_SINK_TEMPLATE: &str = r#"
-zenoh-flow = \{ version = "=0.5.0-dev"}
+zenoh-flow = \{ version = "0.6.0-dev" }
 async-trait = "0.1"
 
 [lib]
