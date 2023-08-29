@@ -12,25 +12,25 @@
 #   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 #
 [package]
-rust-version = "1.62.1"
-name = "zenoh-flow-plugin"
-version.workspace = true
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
 edition.workspace = true
 homepage.workspace = true
 license.workspace = true
+name = "zenoh-flow-plugin"
 readme.workspace = true
 repository.workspace = true
+rust-version = "1.62.1"
+version.workspace = true
 
 [lib]
-name = "zenoh_plugin_zenoh_flow"
 crate-type = ["cdylib"]
+name = "zenoh_plugin_zenoh_flow"
 
 [features]
-no_mangle = ["zenoh-plugin-trait/no_mangle"]
 default = ["no_mangle"]
+no_mangle = ["zenoh-plugin-trait/no_mangle"]
 
 [dependencies]
 async-std = "=1.12.0"
@@ -48,26 +48,41 @@ zenoh = { workspace = true, features = ["unstable"] }
 zenoh-collections = { workspace = true }
 zenoh-core = { workspace = true }
 zenoh-ext = { workspace = true, features = ["unstable"] }
-zenoh-flow = {version = "0.5.0-alpha.1", path = "../zenoh-flow"}
-zenoh-flow-daemon = {version = "0.5.0-alpha.1", path = "../zenoh-flow-daemon"}
+zenoh-flow = { version = "0.5.0-alpha.1", path = "../zenoh-flow" }
+zenoh-flow-daemon = { version = "0.5.0-alpha.1", path = "../zenoh-flow-daemon" }
 zenoh-plugin-trait = { workspace = true, default-features = false }
 
 [build-dependencies]
 rustc_version = "0.4"
 
-
 [package.metadata.deb]
-name = "zenoh-plugin-zenoh-flow"
-maintainer = "zenoh-dev@eclipse.org"
-copyright = "2017, 2022 ZettaScale Technology Inc."
-section = "net"
-license-file = ["../LICENSE", "0"]
-depends = "$auto, zenohd (=0.7.0-rc)"
 assets = [
-    # binary
-    ["target/release/libzplugin_zenoh_flow.so", "/usr/lib/libzplugin_zenoh_flow.so", "644"],
-    # assets
-    ["../zenoh-flow-daemon/etc/extensions.d/placeholder", "/etc/zenoh-flow/extensions.d/placeholder", "644"],
-    ["etc/zenoh-zf-plugin.json", "/etc/zenoh-flow/zenoh-zf-plugin.json", "644"],
-    ["../zenoh-flow-daemon/var/*", "/var/zenoh-flow", "644"],
+  # binary
+  [
+    "/usr/lib/libzenoh_plugin_zenoh_flow.so",
+    "644",
+    "target/release/libzenoh_plugin_zenoh_flow.so",
+  ],
+  # assets
+  [
+    "../zenoh-flow-daemon/etc/extensions.d/placeholder",
+    "/etc/zenoh-flow/extensions.d/placeholder",
+    "644",
+  ],
+  [
+    "../zenoh-flow-daemon/var/*",
+    "/var/zenoh-flow",
+    "644",
+  ],
+  [
+    "/etc/zenoh-flow/zenoh-zf-plugin.json",
+    "644",
+    "etc/zenoh-zf-plugin.json",
+  ],
 ]
+copyright = "2017, 2022 ZettaScale Technology Inc."
+depends = "$auto, zenohd (=0.7.0-rc)"
+license-file = ["../LICENSE", "0"]
+maintainer = "zenoh-dev@eclipse.org"
+name = "zenoh-plugin-zenoh-flow"
+section = "net"
