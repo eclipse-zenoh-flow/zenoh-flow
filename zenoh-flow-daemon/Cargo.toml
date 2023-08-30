@@ -13,47 +13,45 @@
 #
 
 [package]
-name = "zenoh-flow-daemon"
-version.workspace = true
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
 edition.workspace = true
 homepage.workspace = true
 license.workspace = true
+name = "zenoh-flow-daemon"
 readme.workspace = true
 repository.workspace = true
+version.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zenoh-flow = {version = "0.6.0-dev", path = "../zenoh-flow"}
-async-trait = "0.1.50"
-env_logger = "0.10.0"
-serde_derive = "1.0"
-serde = { version = "1.0", features = ["derive", "rc"] }
-serde_yaml = {version = "0.9"}
-serde_json = "1.0"
-log = "0.4"
+async-ctrlc = { version = "1.2.0", features = ["stream"] }
 async-std = { version = "=1.12.0", features = ["attributes"] }
-uuid = { version = "1.1", features = ["serde", "v4"] }
+async-trait = "0.1.50"
+clap = { workspace = true, features = ["derive"] }
+env_logger = "0.10.0"
+flume = "0.10"
+futures = "0.3.5"
+git-version = "0.3"
+hostname = "0.3.1"
+log = "0.4"
+machine-uid = "0.2.0"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_derive = "1.0"
+serde_json = "1.0"
+serde_yaml = { version = "0.9" }
 uhlc = "0.5.1"
+uuid = { version = "1.1", features = ["serde", "v4"] }
 zenoh = { workspace = true }
+zenoh-flow = { version = "0.6.0-dev", path = "../zenoh-flow" }
 zenoh-util = { workspace = true }
 zrpc = { workspace = true }
 zrpc-macros = { workspace = true }
-clap = { version = "4.0", features = ["derive"] }
-hostname = "0.3.1"
-machine-uid = "0.2.0"
-git-version = "0.3"
-async-ctrlc ={version = "1.2.0", features = ["stream"]}
-futures = "0.3.5"
-flume = "0.10"
 
 [[bin]]
 name = "zenoh-flow-daemon"
-
-
 
 # Debian package configuration
 
@@ -103,8 +101,8 @@ section = "utils"
 conf-files = ["/etc/zenoh-flow/runtime.yaml"]
 
 [package.metadata.deb.systemd-units]
-unit-scripts = "resources/"
 unit-name = "zenoh-flow.service"
+unit-scripts = "resources/"
 
 # RPM package configuration
 
@@ -118,9 +116,9 @@ buildflags = ["--release"]
 zenoh-flow-daemon = { path = "/usr/bin/zenoh-flow-daemon" }
 
 [package.metadata.rpm.files]
-"../etc/runtime.yaml" = { path = "/etc/zenoh-flow/runtime.yaml", mode = "644" }
-"../etc/zenoh-daemon.json" = { path = "/etc/zenoh-flow/zenoh-daemon.json", mode = "644" }
-"../etc/zenoh--zf-router.json" = { path = "/etc/zenoh-flow/zenoh-zf-router.json", mode = "644" }
 "../etc/extensions.d/placeholder" = { path = "/etc/zenoh-flow/extensions.d/placeholder", mode = "644" }
-"../var/placeholder" = { path = "/var/zenoh-flow/placeholder" }
+"../etc/runtime.yaml" = { path = "/etc/zenoh-flow/runtime.yaml", mode = "644" }
+"../etc/zenoh--zf-router.json" = { path = "/etc/zenoh-flow/zenoh-zf-router.json", mode = "644" }
+"../etc/zenoh-daemon.json" = { path = "/etc/zenoh-flow/zenoh-daemon.json", mode = "644" }
 "../resources/zenoh-flow.service" = { path = "/lib/systemd/system/zenoh-flow.service" }
+"../var/placeholder" = { path = "/var/zenoh-flow/placeholder" }

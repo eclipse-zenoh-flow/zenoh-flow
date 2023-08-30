@@ -33,6 +33,7 @@ readme = "README.md"
 repository = "https://github.com/eclipse-zenoh/zenoh-flow"
 
 [workspace.dependencies]
+clap = { version = "4.0" }
 zenoh = { version = "0.7.2-rc" }
 zenoh-sync = { version = "0.7.2-rc" }
 zenoh-util = { version = "0.7.2-rc" }
