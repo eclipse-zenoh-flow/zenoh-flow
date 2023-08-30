@@ -13,16 +13,15 @@
 #
 [workspace]
 members = [
-  "zenoh-flow",
-  "zenoh-flow-derive",
-  "zenoh-flow-daemon",
-  "zfctl",
   "cargo-zenoh-flow",
+  "zenoh-flow",
+  "zenoh-flow-daemon",
+  "zenoh-flow-derive",
   "zenoh-flow-plugin",
+  "zfctl",
 ]
 
 [workspace.package]
-version = "0.6.0-dev"
 authors = ["ZettaScale Zenoh Team <zenoh@zettascale.tech>"]
 categories = ["network-programming"]
 description = "Zenoh-Flow: a Zenoh-based data flow programming framework for computations that span from the cloud to the device."
@@ -31,28 +30,27 @@ homepage = "https://github.com/eclipse-zenoh/zenoh-flow"
 license = " EPL-2.0 OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/eclipse-zenoh/zenoh-flow"
+version = "0.6.0-dev"
 
 [workspace.dependencies]
 clap = { version = "4.0" }
 zenoh = { version = "0.7.2-rc" }
-zenoh-sync = { version = "0.7.2-rc" }
-zenoh-util = { version = "0.7.2-rc" }
 zenoh-collections = { version = "0.7.2-rc" }
 zenoh-core = { version = "0.7.2-rc" }
 zenoh-ext = { version = "0.7.2-rc" }
 zenoh-plugin-trait = { version = "0.7.2-rc", default-features = false }
+zenoh-sync = { version = "0.7.2-rc" }
+zenoh-util = { version = "0.7.2-rc" }
 zrpc = { version = "0.7.0-alpha.1" }
 zrpc-macros = { version = "0.7.0-alpha.1" }
 
-
 [profile.dev]
-debug=true
+debug = true
 opt-level = 0
 
-
 [profile.release]
-debug=true
-lto="fat"
-codegen-units=1
-opt-level=3
-panic="abort"
+codegen-units = 1
+debug = true
+lto = "fat"
+opt-level = 3
+panic = "abort"
