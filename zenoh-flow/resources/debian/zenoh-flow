@@ -1,5 +1,5 @@
 ##
-## Copyright (c) 2022 ZettaScale Technology
+## Copyright (c) 2021 - 2023 ZettaScale Technology
 ##
 ## This program and the accompanying materials are made available under the
 ## terms of the Eclipse Public License 2.0 which is available at
@@ -19,7 +19,7 @@ Standards-Version: 3.9.2
 
 Package: zenoh-flow
 Version: 0.1.0
-Maintainer: ADLINK Zenoh team <zenoh@adlink-labs.tech>
+Maintainer: ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 Depends: zenohd (=0.6.0~dev.0), zenoh-plugin-storages (=0.6.0~dev.0), zenoh-backend-influxdb (=0.6.0~dev.0), zenoh-flow-daemon (=0.1.0), zenoh-flow-ctl(=0.1.0)
 Vcs-Browser: https://github.com/eclipse-zenoh/zenoh-flow
 Vcs-Git: https://github.com/eclipse-zenoh/zenoh-flow

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2022 ZettaScale Technology
+# Copyright (c) 2021 - 2023 ZettaScale Technology
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
@@ -59,11 +59,11 @@ assets = [
   # config
   [".config/zfctl-zenoh.json", "/etc/zenoh-flow/zfctl-zenoh.json", "644"],
 ]
-copyright = "2021, ADLINK Technology Inc"
+copyright = "2021 - 2023, ZettaScale Technology"
 depends = "$auto"
 extended-description = "Eclipse Zenoh Flow CLI tool"
 license-file = ["../LICENSE", "0"]
-maintainer = "ADLINK Zenoh team <zenoh@adlink-labs.tech>"
+maintainer = "ZettaScale Zenoh Team, <zenoh@zettascale.tech>"
 priority = "optional"
 section = "utils"
 
