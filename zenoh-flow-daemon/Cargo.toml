@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2022 ZettaScale Technology
+# Copyright (c) 2021 - 2023 ZettaScale Technology
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License 2.0 which is available at
@@ -58,23 +58,47 @@ name = "zenoh-flow-daemon"
 # Debian package configuration
 
 [package.metadata.deb]
-maintainer = "ADLINK Zenoh team <zenoh@adlink-labs.tech>"
-copyright = "2021, ADLINK Technology Inc"
+assets = [
+  # binary
+  [
+    "/usr/bin/zenoh-flow-daemon",
+    "755",
+    "target/release/zenoh-flow-daemon",
+  ],
+  # assets
+  [
+    "/etc/zenoh-flow/extensions.d/placeholder",
+    "644",
+    "etc/extensions.d/placeholder",
+  ],
+  [
+    "/etc/zenoh-flow/runtime.yaml",
+    "644",
+    "etc/runtime.yaml",
+  ],
+  [
+    "/etc/zenoh-flow/zenoh-daemon.json",
+    "644",
+    "etc/zenoh-daemon.json",
+  ],
+  [
+    "/etc/zenoh-flow/zenoh-zf-router.json",
+    "644",
+    "etc/zenoh-zf-router.json",
+  ],
+  [
+    "/var/zenoh-flow",
+    "644",
+    "var/*",
+  ],
+]
+copyright = "2021 - 2023 ZettaScale Technology"
+depends = "$auto"
 extended-description = "Eclipse Zenoh Flow Daemon"
 license-file = ["../LICENSE", "0"]
-depends = "$auto"
-section = "utils"
+maintainer = "ZettaScale Zenoh Team, <zenoh@zettascale.tech>"
 priority = "optional"
-assets = [
-    # binary
-    ["target/release/zenoh-flow-daemon", "/usr/bin/zenoh-flow-daemon", "755"],
-    # assets
-    ["etc/runtime.yaml", "/etc/zenoh-flow/runtime.yaml", "644"],
-    ["etc/zenoh-daemon.json","/etc/zenoh-flow/zenoh-daemon.json","644"],
-    ["etc/zenoh-zf-router.json","/etc/zenoh-flow/zenoh-zf-router.json","644"],
-    ["etc/extensions.d/placeholder", "/etc/zenoh-flow/extensions.d/placeholder", "644"],
-    ["var/*", "/var/zenoh-flow", "644"],
-]
+section = "utils"
 
 conf-files = ["/etc/zenoh-flow/runtime.yaml"]
 
