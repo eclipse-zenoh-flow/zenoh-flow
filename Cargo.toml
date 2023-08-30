@@ -33,6 +33,7 @@ repository = "https://github.com/eclipse-zenoh/zenoh-flow"
 version = "0.5.0-alpha.1"
 
 [workspace.dependencies]
+clap = { version = "4.0" }
 zenoh = { version = "0.7.2-rc" }
 zenoh-collections = { version = "0.7.2-rc" }
 zenoh-core = { version = "0.7.2-rc" }
