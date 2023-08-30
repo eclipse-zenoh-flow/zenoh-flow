@@ -21,7 +21,6 @@ license.workspace = true
 name = "zenoh-flow-plugin"
 readme.workspace = true
 repository.workspace = true
-rust-version = "1.62.1"
 version.workspace = true
 
 [lib]

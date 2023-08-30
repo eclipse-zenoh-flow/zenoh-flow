@@ -13,17 +13,16 @@
 ##
 
 [package]
-name = "cargo-zenoh-flow"
-version.workspace = true
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
 edition.workspace = true
 homepage.workspace = true
 license.workspace = true
+name = "cargo-zenoh-flow"
 readme.workspace = true
 repository.workspace = true
-
+version.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -32,28 +31,24 @@ async-std = { version = "=1.12.0", features = ["attributes"] }
 cargo_toml = "0.13"
 clap = { version = "4.0", features = ["derive"] }
 colored = "2"
-rand = { version = "0.8", optional =  true}
+rand = { version = "0.8", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_derive = "1.0"
 serde_json = "1.0"
-serde_yaml = {version = "0.9"}
+serde_yaml = { version = "0.9" }
 tinytemplate = "1.2"
 toml = "0.5.8"
-zenoh = { workspace = true, optional = true}
+zenoh = { workspace = true, optional = true }
 zenoh-flow = { path = "../zenoh-flow", version = "0.5.0-alpha.1" }
 zenoh-util = { workspace = true, optional = true }
-
 
 [[bin]]
 name = "cargo-zenoh-flow"
 path = "src/bin/main.rs"
 
-
 [lib]
 path = "src/lib.rs"
 
 [features]
-
-local_registry = ["zenoh","zenoh-util", "rand"]
-
 default = []
+local_registry = ["rand", "zenoh", "zenoh-util"]
