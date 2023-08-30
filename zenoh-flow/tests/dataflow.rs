@@ -474,5 +474,5 @@ fn run_single_runtime() {
 
     let h1 = async_std::task::spawn(async move { single_runtime().await });
 
-    async_std::task::block_on(async move { h1.await })
+    async_std::task::block_on(h1)
 }
