@@ -39,7 +39,7 @@ serde_yaml = { version = "0.9" }
 tinytemplate = "1.2"
 toml = "0.5.8"
 zenoh = { workspace = true, optional = true }
-zenoh-flow = { path = "../zenoh-flow", version = "0.5.0-alpha.1" }
+zenoh-flow = { path = "../zenoh-flow", version = "0.5.0-alpha.4" }
 zenoh-util = { workspace = true, optional = true }
 
 [[bin]]
