@@ -42,7 +42,7 @@ zenoh-plugin-trait = { version = "0.7.2-rc", default-features = false }
 zenoh-sync = { version = "0.7.2-rc" }
 zenoh-util = { version = "0.7.2-rc" }
 zrpc = { version = "0.7.0-alpha.1" }
-zrpc-macros = { version = "0.7.0-alpha.1" }
+zrpc-macros = { version = "0.7.0-alpha.2" }
 
 [profile.dev]
 debug = true
