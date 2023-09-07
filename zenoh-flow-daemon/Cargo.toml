@@ -59,35 +59,35 @@ name = "zenoh-flow-daemon"
 assets = [
   # binary
   [
-    "/usr/bin/zenoh-flow-daemon",
-    "755",
     "target/release/zenoh-flow-daemon",
+    "/usr/bin/zenoh-flow-daemon",
+    "755"
   ],
   # assets
   [
-    "/etc/zenoh-flow/extensions.d/placeholder",
-    "644",
     "etc/extensions.d/placeholder",
+    "/etc/zenoh-flow/extensions.d/placeholder",
+    "644"
   ],
   [
-    "/etc/zenoh-flow/runtime.yaml",
-    "644",
     "etc/runtime.yaml",
+    "/etc/zenoh-flow/runtime.yaml",
+    "644"
   ],
   [
-    "/etc/zenoh-flow/zenoh-daemon.json",
-    "644",
     "etc/zenoh-daemon.json",
+    "/etc/zenoh-flow/zenoh-daemon.json",
+    "644"
   ],
   [
+     "etc/zenoh-zf-router.json",
     "/etc/zenoh-flow/zenoh-zf-router.json",
-    "644",
-    "etc/zenoh-zf-router.json",
+    "644"
   ],
   [
-    "/var/zenoh-flow",
-    "644",
     "var/*",
+    "/var/zenoh-flow",
+    "644"
   ],
 ]
 copyright = "2021 - 2023 ZettaScale Technology"
@@ -97,6 +97,7 @@ license-file = ["../LICENSE", "0"]
 maintainer = "ZettaScale Zenoh Team, <zenoh@zettascale.tech>"
 priority = "optional"
 section = "utils"
+revision = ""
 
 conf-files = ["/etc/zenoh-flow/runtime.yaml"]
 

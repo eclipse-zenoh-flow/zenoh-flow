@@ -55,7 +55,7 @@ zrpc-macros = { workspace = true }
 [package.metadata.deb]
 assets = [
   # binary
-  ["/usr/bin/zfctl", "755", "target/release/zfctl"],
+  ["target/release/zfctl", "/usr/bin/zfctl", "755"],
   # config
   [".config/zfctl-zenoh.json", "/etc/zenoh-flow/zfctl-zenoh.json", "644"],
 ]
@@ -66,6 +66,7 @@ license-file = ["../LICENSE", "0"]
 maintainer = "ZettaScale Zenoh Team, <zenoh@zettascale.tech>"
 priority = "optional"
 section = "utils"
+revision = ""
 
 # RPM package configuration
 

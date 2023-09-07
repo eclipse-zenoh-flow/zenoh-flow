@@ -59,9 +59,9 @@ rustc_version = "0.4"
 assets = [
   # binary
   [
-    "/usr/lib/libzenoh_plugin_zenoh_flow.so",
-    "644",
     "target/release/libzenoh_plugin_zenoh_flow.so",
+    "/usr/lib/libzenoh_plugin_zenoh_flow.so",
+    "644"
   ],
   # assets
   [
@@ -75,9 +75,9 @@ assets = [
     "644",
   ],
   [
+    "etc/zenoh-zf-plugin.json",
     "/etc/zenoh-flow/zenoh-zf-plugin.json",
     "644",
-    "etc/zenoh-zf-plugin.json",
   ],
 ]
 copyright = "2021 - 2023 ZettaScale Technology Inc."
@@ -86,3 +86,4 @@ license-file = ["../LICENSE", "0"]
 maintainer = "zenoh-dev@eclipse.org"
 name = "zenoh-plugin-zenoh-flow"
 section = "net"
+revision = ""
