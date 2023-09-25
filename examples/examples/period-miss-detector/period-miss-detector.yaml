@@ -1,0 +1,15 @@
+id: period-miss-detector
+
+vars:
+  BASE_DIR: "/Users/philip/dev/cxx/zenoh-flow"
+
+# Do not forget to change the extension depending on your operating system!
+# Linux   -> .so
+# Windows -> .dll (and remove the "lib" in front)
+# MacOS   -> .dylib
+uri: "file://{{ BASE_DIR }}/target/debug/examples/libperiod_miss_detector.dylib"
+# If the compilation is in release:
+# uri: file:///absolute/path/to/target/release/libperiod_miss_detector.dylib
+
+inputs: [in]
+outputs: [out]

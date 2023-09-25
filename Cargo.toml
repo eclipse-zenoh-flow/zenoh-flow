@@ -19,6 +19,7 @@ members = [
   "zenoh-flow-derive",
   "zenoh-flow-plugin",
   "zfctl",
+  "examples",
 ]
 
 [workspace.package]
