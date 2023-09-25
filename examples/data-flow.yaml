@@ -1,6 +1,7 @@
 flow: zenoh-flow-example
 
 vars:
+  #BASE_DIR: "/path/to/zenoh-flow"
   BASE_DIR: "/Users/philip/dev/cxx/zenoh-flow"
 
 sources:
@@ -8,6 +9,12 @@ sources:
     configuration:
       key-expressions:
         out: zf/getting-started/hello
+    descriptor: "builtin://zenoh"
+
+  - id: zenoh-pub
+    configuration:
+      key-expressions:
+        out: zf/period-miss-detector
     descriptor: "builtin://zenoh"
 
 operators:
@@ -36,7 +43,7 @@ links:
       input: name
 
   - from:
-      node: zenoh-sub
+      node: zenoh-pub
       output: out
     to:
       node: period-miss-detector

@@ -1,6 +1,7 @@
 id: period-miss-detector
 
 vars:
+  #BASE_DIR: "/path/to/zenoh-flow"
   BASE_DIR: "/Users/philip/dev/cxx/zenoh-flow"
 
 # Do not forget to change the extension depending on your operating system!
