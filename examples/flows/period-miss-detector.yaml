@@ -17,7 +17,7 @@ operators:
 sinks:
   - id: file-writer
     configuration:
-      file: "/tmp/greetings_my.txt"
+      file: "/tmp/greetings.txt"
     descriptor: "file://{{ BASE_DIR }}/file-writer/file-writer.yaml"
 
 links:
