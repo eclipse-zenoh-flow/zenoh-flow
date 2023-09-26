@@ -2,7 +2,7 @@ flow: zenoh-flow-example
 
 vars:
   #BASE_DIR: "/path/to/zenoh-flow"
-  BASE_DIR: "/Users/philip/dev/cxx/zenoh-flow"
+  BASE_DIR: "/Users/philip/dev/zenoh-flow"
 
 sources:
   - id: zenoh-sub

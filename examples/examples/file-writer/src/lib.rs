@@ -51,7 +51,7 @@ impl Sink for FileWriter {
     ) -> Result<Self> {
         Ok(FileWriter {
             file: Mutex::new(
-                File::create("/tmp/greetings.txt")
+                File::create("/tmp/greetings.txt") //File::create("/tmp/greetings.txt")
                     .await
                     .expect("Could not create '/tmp/greetings.txt'"),
             ),

@@ -1,0 +1,36 @@
+flow: period-miss-detector
+
+vars:
+  BASE_DIR: "/Users/philip/dev/zenoh-flow/examples/examples"
+
+sources:
+  - id: zenoh-sub
+    configuration:
+      key-expressions:
+        out: zf/period-miss-detector
+    descriptor: "builtin://zenoh"
+
+operators:
+  - id: period-miss-detector
+    descriptor: "file://{{ BASE_DIR }}/period-miss-detector/period-miss-detector.yaml"
+
+sinks:
+  - id: file-writer
+    configuration:
+      file: "/tmp/greetings_my.txt"
+    descriptor: "file://{{ BASE_DIR }}/file-writer/file-writer.yaml"
+
+links:
+  - from:
+      node: zenoh-sub
+      output: out
+    to:
+      node: period-miss-detector
+      input: in
+
+  - from:
+      node: period-miss-detector
+      output: out
+    to:
+      node: file-writer
+      input: in
