@@ -46,12 +46,19 @@ impl Node for FileWriter {
 impl Sink for FileWriter {
     async fn new(
         _context: Context,
-        _configuration: Option<Configuration>,
+        configuration: Option<Configuration>,
         mut inputs: Inputs,
     ) -> Result<Self> {
+        let file_path = match &configuration {
+            Some(conf) => conf["file"]
+                .as_str()
+                .ok_or_else(|| zferror!(ErrorKind::InvalidState))?,
+            None => "/tmp/greetings.txt",
+        };
+
         Ok(FileWriter {
             file: Mutex::new(
-                File::create("/tmp/greetings.txt") //File::create("/tmp/greetings.txt")
+                File::create(file_path) //File::create("/tmp/greetings.txt")
                     .await
                     .expect("Could not create '/tmp/greetings.txt'"),
             ),
