@@ -4,24 +4,28 @@
 
 ### Build
 
-   With the follows command it's possible to build only the examples :
+We can create all the zenoh-flow node libraries used in the examples with the following command:
    ```bash
   cargo build --examples
    ```
 
-   with the follows command it's possible to build only a single example:
+Alternatively, we can create a single library of a zenoh-flow node with the following command:
    ```bash
-  cargo build --example name_example 
+  cargo build --example name_node 
+
+  i.e.
+  cargo build --example greetings-maker
    ```
+
 ### Update the paths
 
 For each YAML file in the list below, check that the paths and filenames are
 correct:
-- data-flow.yaml
-- examples/period-miss-detector/period-miss-detector.yaml
+- flows/period-miss-detector.yaml 
+- flows/getting-started.yaml
 - examples/file-writer/file-writer.yaml
 - examples/greetings-maker/greetings-maker.yaml
-
+- examples/period-miss-detector/period-miss-detector.yaml
 
 ### Launch
 
@@ -43,12 +47,14 @@ cd ~/dev/zenoh-flow/ && ./target/debug/zenoh-flow-daemon -c ~/.config/zenoh-flow
 cd ~/dev/zenoh-flow && ./target/debug/zfctl launch ~/dev/zenoh-flow/examples/data-flow.yaml
 ```
 
-Then, if the flow was successfully launched, put values at regular intervals:
+Then, if the flow was successfully launched, put values at regular intervals into the "greetings-maker" example:
 
 ```shell
 # If you have compiled the `z_put` example of Zenoh in debug
 $ZENOH/target/debug/examples/z_put -k "zf/getting-started/hello" -v "Alice"
 ```
+
+Alternatively, in the "period-miss-detector" example, put values at regular intervals with:
 
 ```shell
 cd ~/dev/zenoh && ./target/debug/examples/z_put -k "zf/period-miss-detector" -v "3.1416"
