@@ -470,7 +470,7 @@ dependencies = [
  "tinytemplate",
  "toml",
  "zenoh",
- "zenoh-flow 0.6.0-dev",
+ "zenoh-flow",
  "zenoh-util",
 ]
 
@@ -3610,55 +3610,6 @@ dependencies = [
 
 [[package]]
 name = "zenoh-flow"
-version = "0.5.0-alpha.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46b4c3bc98e121fd7cd41301fd5b30bf2e5b9cf86649987aab5c8bdba915d97c"
-dependencies = [
- "anyhow",
- "async-lock",
- "async-recursion",
- "async-std",
- "async-trait",
- "base64 0.20.0",
- "bincode",
- "bytesize",
- "clap 4.4.4",
- "const_format",
- "derive_more",
- "env_logger 0.10.0",
- "event-listener",
- "flume",
- "futures",
- "futures-lite",
- "git-version",
- "humantime",
- "itertools",
- "libloading",
- "log",
- "more-asserts",
- "paste",
- "petgraph",
- "pin-project-lite",
- "ramhorns",
- "rustc_version",
- "serde",
- "serde_derive",
- "serde_json",
- "serde_yaml",
- "typetag",
- "uhlc 0.5.2",
- "url",
- "uuid",
- "zenoh",
- "zenoh-flow-derive 0.5.0-alpha.4",
- "zenoh-sync",
- "zenoh-util",
- "zrpc",
- "zrpc-macros",
-]
-
-[[package]]
-name = "zenoh-flow"
 version = "0.6.0-dev"
 dependencies = [
  "anyhow",
@@ -3700,7 +3651,7 @@ dependencies = [
  "url",
  "uuid",
  "zenoh",
- "zenoh-flow-derive 0.6.0-dev",
+ "zenoh-flow-derive",
  "zenoh-sync",
  "zenoh-util",
  "zrpc",
@@ -3729,29 +3680,10 @@ dependencies = [
  "uhlc 0.5.2",
  "uuid",
  "zenoh",
- "zenoh-flow 0.6.0-dev",
+ "zenoh-flow",
  "zenoh-util",
  "zrpc",
  "zrpc-macros",
-]
-
-[[package]]
-name = "zenoh-flow-derive"
-version = "0.5.0-alpha.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4e0dea1408591f385afcc080e23594bb6199c14d8fc98d38a144b0b9fe6ec89"
-dependencies = [
- "Inflector",
- "async-std",
- "darling",
- "futures",
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "serde",
- "serde_derive",
- "syn 1.0.109",
- "syn-serde",
 ]
 
 [[package]]
@@ -3780,7 +3712,7 @@ dependencies = [
  "async-trait",
  "prost",
  "rustc_version",
- "zenoh-flow 0.5.0-alpha.2",
+ "zenoh-flow",
 ]
 
 [[package]]
@@ -3803,7 +3735,7 @@ dependencies = [
  "zenoh-collections",
  "zenoh-core",
  "zenoh-ext",
- "zenoh-flow 0.6.0-dev",
+ "zenoh-flow",
  "zenoh-flow-daemon",
  "zenoh-plugin-trait",
 ]
@@ -4159,7 +4091,7 @@ dependencies = [
  "serde_yaml",
  "uuid",
  "zenoh",
- "zenoh-flow 0.6.0-dev",
+ "zenoh-flow",
  "zenoh-util",
  "zrpc",
  "zrpc-macros",
