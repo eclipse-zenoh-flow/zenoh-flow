@@ -1,14 +1,11 @@
 [package]
-#rust-version = { workspace = true }
 name = "zenoh-flow-examples"
 version.workspace = true
 repository.workspace = true
-#repository.workspace = true
 homepage.workspace = true
 categories.workspace = true
 description.workspace = true
 edition.workspace = true
-#homepage.workspace = true
 license.workspace = true
 readme = "README.md"
 

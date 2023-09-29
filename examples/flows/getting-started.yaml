@@ -1,7 +1,7 @@
 flow: getting-started
 
 vars:
-  BASE_DIR: "/Users/philip/dev/zenoh-flow/examples/examples"
+  BASE_DIR: "/path/to/zenoh-flow/examples/examples"
 
 sources:
   - id: zenoh-sub

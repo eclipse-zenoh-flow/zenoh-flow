@@ -1,8 +1,7 @@
 id: greetings-maker
 
 vars:
-  #BASE_DIR: "/path/to/zenoh-flow"
-  BASE_DIR: "/Users/philip/dev/zenoh-flow"
+  BASE_DIR: "/path/to/zenoh-flow"
 
 # Do not forget to change the extension depending on your operating system!
 # Linux   -> .so

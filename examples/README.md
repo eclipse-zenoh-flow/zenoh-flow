@@ -61,18 +61,14 @@ cd ~/dev/zenoh && ./target/debug/examples/z_put -k "zf/period-miss-detector" -v 
 ```
 #### 4rd terminal:
 
-
 The Sink node used in both examples creates a text file where the node writes the strings it receives.
 We can see the "getting-started" test file with:
-
 
 ```
 tail -f /tmp/greetings.txt
 ```
 
-
 Alternatively we can run the following command to see  "period-miss-detector" text result:
-
 
 ```
 tail -f /tmp/period-log.txt
