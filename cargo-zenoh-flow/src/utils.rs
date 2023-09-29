@@ -118,24 +118,24 @@ pub fn from_manifest(
     let manifest_path = Path::new(&root_package.manifest_path);
 
     let manifest_dir = manifest_path.parent().unwrap();
-    let content = std::fs::read(manifest_path)?;
 
-    let metadata = toml::from_slice::<Cargo>(&content)?
-        .package
-        .metadata
-        .ok_or_else(|| {
-            CZFError::MissingField(
-                root_package.id.clone(),
-                "Missing package.metadata.zenohflow",
-            )
-        })?
-        .zenohflow
-        .ok_or_else(|| {
-            CZFError::MissingField(
-                root_package.id.clone(),
-                "Missing package.metadata.zenohflow",
-            )
-        })?;
+    let metadata =
+        toml::from_str::<Cargo>(&String::from_utf8_lossy(&std::fs::read(manifest_path)?))?
+            .package
+            .metadata
+            .ok_or_else(|| {
+                CZFError::MissingField(
+                    root_package.id.clone(),
+                    "Missing package.metadata.zenohflow",
+                )
+            })?
+            .zenohflow
+            .ok_or_else(|| {
+                CZFError::MissingField(
+                    root_package.id.clone(),
+                    "Missing package.metadata.zenohflow",
+                )
+            })?;
 
     Ok((metadata, target_dir.into(), manifest_dir.into()))
 }

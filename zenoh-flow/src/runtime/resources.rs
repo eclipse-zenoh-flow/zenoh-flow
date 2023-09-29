@@ -779,7 +779,7 @@ impl DataStore {
     pub async fn subscribe_sumbitted_jobs(
         &self,
         rtid: &ZenohId,
-    ) -> Result<zenoh::subscriber::Subscriber<'static, flume::Receiver<Sample>>> {
+    ) -> Result<zenoh::subscriber::FlumeSubscriber<'static>> {
         let selector = JQ_SUMBITTED_SEL!(ROOT_STANDALONE, rtid);
         self.z.declare_subscriber(&selector).res().await
     }
