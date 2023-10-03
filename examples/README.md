@@ -11,14 +11,10 @@ We can create all the zenoh-flow node libraries used in the examples with the fo
 
 Alternatively, we can create a single library of a zenoh-flow node with the following command:
    ```bash
-  cargo build --example name_node 
-
-  i.e.
-  cargo build --example greetings-maker
+  cargo build --example <node>
    ```
 
-### Update the paths
-
+### Update and run the examples
 For each YAML file in the list below, check that the paths and filenames are
 correct:
 - flows/period-miss-detector.yaml 
@@ -27,9 +23,8 @@ correct:
 - examples/greetings-maker/greetings-maker.yaml
 - examples/period-miss-detector/period-miss-detector.yaml
 
-### Launch
-
-#### 1st terminal: Zenoh
+#### 1st terminal: Launch Zenoh router
+For more details you can consult the [documentation](https://github.com/eclipse-zenoh/zenoh-flow/wiki/Installation-(v0.4.0)#zenoh-plugin)
 
 ```shell
 cd ~/dev/zenoh && ./target/debug/zenohd -c ~/.config/zenoh-flow/zenoh.json
@@ -44,20 +39,18 @@ cd ~/dev/zenoh-flow/ && ./target/debug/zenoh-flow-daemon -c ~/.config/zenoh-flow
 #### 3rd terminal: launch the flow
 
 ```shell
-cd ~/dev/zenoh-flow && ./target/debug/zfctl launch ~/dev/zenoh-flow/examples/data-flow.yaml
+./target/debug/zfctl launch ~/dev/zenoh-flow/examples/data-flow.yaml
 ```
 
-Then, if the flow was successfully launched, put values at regular intervals into the "greetings-maker" example:
-
+If you have enabled the REST plugin of Zenoh
 ```shell
-# If you have compiled the `z_put` example of Zenoh in debug
-$ZENOH/target/debug/examples/z_put -k "zf/getting-started/hello" -v "Alice"
+curl -X PUT -d '"Hello World!"' http://localhost:8000/zf/gettig-started/hello
 ```
 
-Alternatively, in the "period-miss-detector" example, put values at regular intervals with:
+For the "period-miss-detector" example:
 
 ```shell
-cd ~/dev/zenoh && ./target/debug/examples/z_put -k "zf/period-miss-detector" -v "3.1416"
+curl -X PUT -d ‘2340' http://localhost:8000/zf/period-miss-detector
 ```
 #### 4rd terminal:
 
@@ -68,7 +61,7 @@ We can see the "getting-started" test file with:
 tail -f /tmp/greetings.txt
 ```
 
-Alternatively we can run the following command to see  "period-miss-detector" text result:
+For the "period-miss-detector" example:
 
 ```
 tail -f /tmp/period-log.txt

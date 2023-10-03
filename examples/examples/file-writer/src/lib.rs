@@ -52,15 +52,15 @@ impl Sink for FileWriter {
         let file_path = match &configuration {
             Some(conf) => conf["file"]
                 .as_str()
-                .ok_or_else(|| zferror!(ErrorKind::InvalidState))?,
+                .ok_or_else(|| zferror!(ErrorKind::ConfigurationError))?,
             None => "/tmp/greetings.txt",
         };
 
         Ok(FileWriter {
             file: Mutex::new(
-                File::create(file_path) //File::create("/tmp/greetings.txt")
+                File::create(file_path)
                     .await
-                    .expect("Could not create '/tmp/greetings.txt'"),
+                    .unwrap_or_else(|e| panic!("Could not create '{}'", e)),
             ),
             input: inputs
                 .take("in")
