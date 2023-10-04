@@ -12,15 +12,9 @@ readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[profile.dev]
-debug = true
-
-[profile.release]
-debug = true
-
 [dependencies]
-async-std = "1.12"
-async-trait = "0.1"
+async-std = { workspace = true }
+async-trait = { workspace = true }
 prost = "0.11"
 zenoh-flow = { path = "../zenoh-flow/" }
 
