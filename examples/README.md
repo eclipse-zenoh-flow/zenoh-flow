@@ -18,7 +18,7 @@ Alternatively, we can create a single library of a zenoh-flow node with the foll
 
 To configure and run the examples see the [documentation](https://github.com/eclipse-zenoh/zenoh-flow/wiki/Installation-(v0.4.0)#zenoh-plugin)
 
-#### 3rd terminal: launch the flow
+#### Launch the flow
 
 ```shell
 ./target/debug/zfctl launch ~/dev/zenoh-flow/examples/data-flow.yaml
@@ -34,7 +34,7 @@ For the "period-miss-detector" example:
 ```shell
 curl -X PUT -d ‘2340' http://localhost:8000/zf/period-miss-detector
 ```
-#### 4rd terminal:
+#### Show the result:
 
 The Sink node used in both examples creates a text file where the node writes the strings it receives.
 We can see the "getting-started" test file with:
