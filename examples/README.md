@@ -14,27 +14,9 @@ Alternatively, we can create a single library of a zenoh-flow node with the foll
   cargo build --example <node>
    ```
 
-### Update and run the examples
-For each YAML file in the list below, check that the paths and filenames are
-correct:
-- flows/period-miss-detector.yaml 
-- flows/getting-started.yaml
-- examples/file-writer/file-writer.yaml
-- examples/greetings-maker/greetings-maker.yaml
-- examples/period-miss-detector/period-miss-detector.yaml
+### Configure and run the examples
 
-#### 1st terminal: Launch Zenoh router
-For more details you can consult the [documentation](https://github.com/eclipse-zenoh/zenoh-flow/wiki/Installation-(v0.4.0)#zenoh-plugin)
-
-```shell
-cd ~/dev/zenoh && ./target/debug/zenohd -c ~/.config/zenoh-flow/zenoh.json
-```
-
-#### 2nd terminal: Zenoh-Flow daemon
-
-```shell
-cd ~/dev/zenoh-flow/ && ./target/debug/zenoh-flow-daemon -c ~/.config/zenoh-flow/runtime.yaml
-```
+To configure and run the examples see the [documentation](https://github.com/eclipse-zenoh/zenoh-flow/wiki/Installation-(v0.4.0)#zenoh-plugin)
 
 #### 3rd terminal: launch the flow
 
