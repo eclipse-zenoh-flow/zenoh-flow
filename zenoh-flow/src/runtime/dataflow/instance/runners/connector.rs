@@ -23,12 +23,11 @@ use crate::zfresult::ErrorKind;
 use crate::Result as ZFResult;
 use async_std::sync::Mutex;
 use async_trait::async_trait;
-use flume::Receiver;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use zenoh::prelude::r#async::*;
 use zenoh::shm::SharedMemoryManager;
-use zenoh::subscriber::Subscriber;
+use zenoh::subscriber::FlumeSubscriber;
 use zenoh_util::core::AsyncResolve;
 
 /// The `ZenohSender` is the connector that sends the data to Zenoh when nodes are running on
@@ -258,7 +257,7 @@ impl Node for ZenohSender {
 pub(crate) struct ZenohReceiver {
     pub(crate) id: NodeId,
     pub(crate) output_raw: OutputRaw,
-    pub(crate) subscriber: Subscriber<'static, Receiver<Sample>>,
+    pub(crate) subscriber: FlumeSubscriber<'static>,
 }
 
 impl ZenohReceiver {

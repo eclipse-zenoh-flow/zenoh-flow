@@ -28,13 +28,13 @@ use crate::{
 };
 use async_std::sync::Mutex;
 use async_trait::async_trait;
-use flume::{Receiver, RecvError};
 use futures::{future::select_all, Future};
-use std::mem;
 use std::sync::Arc;
 use std::{collections::HashMap, pin::Pin};
+use std::{error::Error, mem};
 use zenoh::{
-    prelude::r#async::*, publication::Publisher, shm::SharedMemoryManager, subscriber::Subscriber,
+    prelude::r#async::*, publication::Publisher, shm::SharedMemoryManager,
+    subscriber::FlumeSubscriber,
 };
 
 /// Key for the key expressions used by the built-in Source/Sink.
@@ -51,12 +51,13 @@ static KEY_SHM_TOTAL_ELEMENTS: &str = "shared_memory_elements";
 static KEY_SHM_BACKOFF: &str = "shared_memory_backoff";
 
 /// Internal type of pending futures for the ZenohSource
-pub(crate) type ZSubFut =
-    Pin<Box<dyn Future<Output = (PortId, Result<Sample, RecvError>)> + Send + Sync>>;
+pub(crate) type ZSubFut = Pin<
+    Box<dyn Future<Output = (PortId, Result<Sample, Box<dyn Error + Send + Sync>>)> + Send + Sync>,
+>;
 
-fn wait_zenoh_sub(id: PortId, sub: &Subscriber<Receiver<Sample>>) -> ZSubFut {
+fn wait_zenoh_sub(id: PortId, sub: &FlumeSubscriber<'_>) -> ZSubFut {
     let sub = sub.receiver.clone();
-    Box::pin(async move { (id, sub.recv_async().await) })
+    Box::pin(async move { (id, sub.recv_async().await.map_err(|e| e.into())) })
 }
 
 /// The builtin Zenoh Source
@@ -70,7 +71,7 @@ fn wait_zenoh_sub(id: PortId, sub: &Subscriber<Receiver<Sample>>) -> ZSubFut {
 pub(crate) struct ZenohSource<'a> {
     _session: Arc<Session>,
     outputs: HashMap<PortId, OutputRaw>,
-    subscribers: HashMap<PortId, Subscriber<'a, Receiver<Sample>>>,
+    subscribers: HashMap<PortId, FlumeSubscriber<'a>>,
     futs: Arc<Mutex<Vec<ZSubFut>>>,
 }
 
@@ -136,7 +137,7 @@ impl<'a> Source for ZenohSource<'a> {
         mut outputs: Outputs,
     ) -> ZFResult<Self> {
         let mut source_outputs: HashMap<PortId, OutputRaw> = HashMap::new();
-        let mut subscribers: HashMap<PortId, Subscriber<'a, Receiver<Sample>>> = HashMap::new();
+        let mut subscribers: HashMap<PortId, FlumeSubscriber<'a>> = HashMap::new();
 
         match configuration {
             Some(configuration) => {
