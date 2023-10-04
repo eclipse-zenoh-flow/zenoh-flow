@@ -3706,6 +3706,10 @@ dependencies = [
  "async-std",
  "async-trait",
  "prost",
+<<<<<<< HEAD
+=======
+ "rustc_version",
+>>>>>>> 6e67faa (update Cargo.lock)
  "zenoh-flow",
 ]
 
