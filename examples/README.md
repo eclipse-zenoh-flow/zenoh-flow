@@ -16,7 +16,7 @@ Alternatively, we can create a single library of a zenoh-flow node with the foll
 
 ### Configure and run the examples
 
-To configure the examples see the [documentation](https://github.com/eclipse-zenoh/zenoh-flow/wiki/Installation-(v0.4.0)#zenoh-plugin).
+We first have to update all the occurrences of `{{ BASE_DIR }}` in the YAML descriptors to match our system.
 
 #### Launch the flow
 
