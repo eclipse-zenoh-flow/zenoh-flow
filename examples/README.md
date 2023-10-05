@@ -32,7 +32,7 @@ curl -X PUT -d '"Hello World!"' http://localhost:8000/zf/gettig-started/hello
 For the "period-miss-detector" example:
 
 ```shell
-curl -X PUT -d ‘2340' http://localhost:8000/zf/period-miss-detector
+curl -X PUT -d '2340' http://localhost:8000/zf/period-miss-detector
 ```
 #### Show the result:
 
