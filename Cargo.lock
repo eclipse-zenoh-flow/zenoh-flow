@@ -2172,12 +2172,35 @@ dependencies = [
 
 [[package]]
 name = "prost"
+version = "0.11.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b82eaa1d779e9a4bc1c3217db8ffbeabaae1dca241bf70183242128d48681cd"
+dependencies = [
+ "bytes",
+ "prost-derive 0.11.9",
+]
+
+[[package]]
+name = "prost"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4fdd22f3b9c31b53c060df4a0613a1c7f062d4115a2b984dd15b1858f7e340d"
 dependencies = [
  "bytes",
- "prost-derive",
+ "prost-derive 0.12.1",
+]
+
+[[package]]
+name = "prost-derive"
+version = "0.11.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5d2d8d10f3c6ded6da8b05b5fb3b8a5082514344d56c9f871412d29b4e075b4"
+dependencies = [
+ "anyhow",
+ "itertools 0.10.5",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -2187,7 +2210,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "265baba7fabd416cf5078179f7d2cbeca4ce7a9041111900675ea7c4cb8a4c32"
 dependencies = [
  "anyhow",
- "itertools 0.10.5",
+ "itertools 0.11.0",
  "proc-macro2",
  "quote",
  "syn 2.0.37",
@@ -3859,7 +3882,7 @@ dependencies = [
  "paste",
  "petgraph",
  "pin-project-lite",
- "prost",
+ "prost 0.12.1",
  "ramhorns",
  "rustc_version",
  "serde",
@@ -3924,6 +3947,16 @@ dependencies = [
  "serde_derive",
  "syn 2.0.37",
  "syn-serde 0.3.0",
+]
+
+[[package]]
+name = "zenoh-flow-examples"
+version = "0.6.0-dev"
+dependencies = [
+ "async-std",
+ "async-trait",
+ "prost 0.11.9",
+ "zenoh-flow",
 ]
 
 [[package]]
