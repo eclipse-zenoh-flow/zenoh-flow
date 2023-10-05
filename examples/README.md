@@ -26,7 +26,7 @@ We first have to update all the occurrences of `{{ BASE_DIR }}` in the YAML desc
 
 If you have enabled the REST plugin of Zenoh
 ```shell
-curl -X PUT -d '"Hello World!"' http://localhost:8000/zf/gettig-started/hello
+curl -X PUT -d 'world' http://localhost:8000/zf/getting-started/hello
 ```
 
 For the "period-miss-detector" example:
