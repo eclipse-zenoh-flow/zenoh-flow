@@ -1,0 +1,15 @@
+id: greetings-maker
+
+vars:
+  BASE_DIR: "/path/to/zenoh-flow"
+
+# Do not forget to change the extension depending on your operating system!
+# Linux   -> .so
+# Windows -> .dll (and remove the "lib" in front)
+# MacOS   -> .dylib
+uri: "file://{{ BASE_DIR }}/target/debug/examples/libgreetings_maker.dylib"
+# If the compilation is in release:
+# uri: file:///absolute/path/to/target/release/libgreetings_maker.so
+
+inputs: [name]
+outputs: [greeting]

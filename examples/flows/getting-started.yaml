@@ -1,0 +1,49 @@
+flow: getting-started
+
+vars:
+  BASE_DIR: "/path/to/zenoh-flow/examples/examples"
+
+sources:
+  - id: zenoh-sub
+    configuration:
+      key-expressions:
+        out: zf/getting-started/hello
+    descriptor: "builtin://zenoh"
+
+operators:
+  - id: greetings-maker
+    descriptor: "file://{{ BASE_DIR }}/greetings-maker/greetings-maker.yaml"
+
+sinks:
+  - id: file-writer
+    configuration:
+      file: "/tmp/greetings.txt"
+    descriptor: "file://{{ BASE_DIR }}/file-writer/file-writer.yaml"
+
+  - id: zenoh-writer
+    configuration:
+      key-expressions:
+        in: zf/getting-started/greeting
+    descriptor: "builtin://zenoh"
+
+links:
+  - from:
+      node: zenoh-sub
+      output: out
+    to:
+      node: greetings-maker
+      input: name
+
+  - from:
+      node: greetings-maker
+      output: greeting
+    to:
+      node: file-writer
+      input: in
+
+  - from:
+      node: greetings-maker
+      output: greeting
+    to:
+      node: zenoh-writer
+      input: in
