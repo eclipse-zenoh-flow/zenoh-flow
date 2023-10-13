@@ -1,0 +1,10 @@
+name: composite-sink
+
+uri: "{{ SCHEME }}sink-composite.so"
+
+configuration:
+  bar: reverse
+
+inputs:
+  - sink-composite-in-1
+  - sink-composite-in-2

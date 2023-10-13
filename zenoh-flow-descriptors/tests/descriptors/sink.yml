@@ -1,0 +1,5 @@
+name: sink
+
+uri: "{{ SCHEME }}sink.so"
+
+inputs: [sink-in]

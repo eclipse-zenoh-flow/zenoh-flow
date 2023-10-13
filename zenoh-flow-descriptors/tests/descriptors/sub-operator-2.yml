@@ -1,0 +1,10 @@
+name: leaf-operator-2
+
+uri: "{{ SCHEME }}sub-operator-2.so"
+
+inputs: [sub-operator-2-in]
+
+outputs:
+  - sub-operator-2-out-1
+  - sub-operator-2-out-2
+

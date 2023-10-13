@@ -1,0 +1,7 @@
+name: operator
+
+uri: "{{ SCHEME }}operator.so"
+
+inputs: [operator-in]
+
+outputs: [operator-out]

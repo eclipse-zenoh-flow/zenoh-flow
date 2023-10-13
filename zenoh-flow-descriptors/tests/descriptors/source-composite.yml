@@ -1,0 +1,13 @@
+name: composite-source
+
+vars:
+  SCHEME: ""
+
+configuration:
+  bar: re-reverse
+
+uri: "{{ SCHEME }}source-composite.so"
+
+outputs:
+  - source-composite-out-1
+  - source-composite-out-2
