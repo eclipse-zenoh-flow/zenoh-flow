@@ -1,16 +1,22 @@
 # Automated Test 
-This script was created to test automatically a specific zenoh-flow scenario. 
+## What the script does
+In this folder there is a python script to automatically test the launch of a zenoh-flow configuration.
+
+At first the script starts to find the zenoh and zenoh-flow executables and the configuration file paths, this is necessary to build the command to be able to run Zenoh with Zenoh-Flow as plugin.
+Furthermore the test makes sure that the zenoh configuration is able to run zenoh-flow as a plugin.
+
+## How does the test work?
+This test use the getting-started example to validate the zenoh-flow functionality. 
+
+The script test verifies:
+- Zenoh with zenoh-flow plugin is up and running.
+- The example runs correctly.
+- That the number of active Zenoh-Flow nodes is equal to the number of nodes declared into the yaml file.
 
 ## How to run
 To do this you need to run :
 ```bash
-./automated-test.py
+pip install psutil
+pip install PyYAML
+python3 automated-test.py  
 ```
-## what the script does
-The script will check for you:
-- the Zenoh-Flow configuration has been instantiated.
-- the correctness of node connections 
-- data from Source nodes are received by Sink nodes.
-- the values received are in accordance with the data transmitted and also with the changes expected to be applied to that data.
-
-At the end of the script this will show you good tests and failed ones.
