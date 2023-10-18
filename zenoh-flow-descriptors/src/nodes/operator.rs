@@ -12,9 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::sync::Arc;
+
 use crate::{flattened::IFlattenable, FlattenedOperatorDescriptor};
 use serde::{Deserialize, Serialize};
-use zenoh_flow_commons::{Configuration, NodeId, PortId, RuntimeId};
+use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
 
 /// Textual representation of a Zenoh-Flow Operator node.
 ///
@@ -58,8 +60,8 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId, RuntimeId};
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct OperatorDescriptor {
-    pub name: String,
-    pub uri: Option<String>,
+    pub name: Arc<str>,
+    pub uri: Option<Arc<str>>,
     pub inputs: Vec<PortId>,
     pub outputs: Vec<PortId>,
     #[serde(default)]
@@ -75,13 +77,15 @@ impl std::fmt::Display for OperatorDescriptor {
 impl IFlattenable for OperatorDescriptor {
     type Flattened = FlattenedOperatorDescriptor;
 
-    fn flatten(
-        self,
-        id: NodeId,
-        overwritting_configuration: Configuration,
-        runtime: Option<RuntimeId>,
-    ) -> Self::Flattened {
-        FlattenedOperatorDescriptor::new(self, id, overwritting_configuration, runtime)
+    fn flatten(self, id: NodeId, overwritting_configuration: Configuration) -> Self::Flattened {
+        FlattenedOperatorDescriptor {
+            id,
+            name: self.name,
+            inputs: self.inputs,
+            outputs: self.outputs,
+            uri: self.uri,
+            configuration: overwritting_configuration.merge_overwrite(self.configuration),
+        }
     }
 }
 
@@ -101,7 +105,6 @@ mod tests {
             outputs: vec!["operator-1-out".into()],
             uri: Some("file://operator-1.so".into()),
             configuration: Configuration::default(),
-            runtime: None,
         };
 
         let (operator_descriptor, _) = uri::try_load_descriptor::<OperatorDescriptor>(
@@ -112,7 +115,7 @@ mod tests {
 
         assert_eq!(
             expected_operator,
-            operator_descriptor.flatten(id, Configuration::default(), None)
+            operator_descriptor.flatten(id, Configuration::default())
         )
     }
 }

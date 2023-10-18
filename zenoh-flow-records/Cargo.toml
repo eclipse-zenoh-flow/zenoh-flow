@@ -19,14 +19,16 @@ description = "Internal crate for Zenoh-Flow."
 edition = { workspace = true }
 homepage = { workspace = true }
 license = { workspace = true }
-name = "zenoh-flow-commons"
+name = "zenoh-flow-records"
 repository = { workspace = true }
 version = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }
-bytesize = "1.2.0"
-humantime = "2.1"
-ramhorns = "0.14"
 serde = { workspace = true }
+uuid = { workspace = true }
+zenoh-flow-commons = { workspace = true }
+
+[dev-dependencies]
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }

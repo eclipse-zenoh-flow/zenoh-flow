@@ -57,12 +57,10 @@ fn test_flatten_composite_descriptor_non_nested() {
         configuration: Configuration::default(),
     };
 
-    let runtime = Some("zf-plugin-1".into());
     let (flattened_operators, flattened_links, patch) = composite_descriptor
         .flatten_composite(
             "composite".into(),
             Configuration::default(),
-            runtime.clone(),
             Vars::default(),
             &mut HashSet::default(),
         )
@@ -82,7 +80,6 @@ fn test_flatten_composite_descriptor_non_nested() {
             outputs: vec!["operator-1-out".into()],
             uri: Some("file://operator-1.so".into()),
             configuration: Configuration::default(),
-            runtime: runtime.clone(),
         },
         FlattenedOperatorDescriptor {
             id: "composite/my-operator-2".into(),
@@ -91,7 +88,6 @@ fn test_flatten_composite_descriptor_non_nested() {
             outputs: vec!["operator-2-out".into()],
             uri: Some("file://operator-2.so".into()),
             configuration: Configuration::default(),
-            runtime,
         },
     ];
 
@@ -180,7 +176,6 @@ fn test_flatten_composite_descriptor_nested() {
         .flatten_composite(
             "composite".into(),
             Configuration::default(),
-            None,
             Vars::from([("SCHEME", "file://"), ("BASE_DIR", BASE_DIR)]),
             &mut HashSet::default(),
         )
@@ -197,7 +192,6 @@ fn test_flatten_composite_descriptor_nested() {
             outputs: vec!["composite-outer-out".into()],
             uri: Some("file://composite-outer.so".into()),
             configuration: Configuration::default(),
-            runtime: None,
         },
         FlattenedOperatorDescriptor {
             id: "composite/composite-nested/operator-1".into(),
@@ -206,7 +200,6 @@ fn test_flatten_composite_descriptor_nested() {
             outputs: vec!["operator-1-out".into()],
             uri: Some("file://operator-1.so".into()),
             configuration: Configuration::default(),
-            runtime: None,
         },
         FlattenedOperatorDescriptor {
             id: "composite/composite-nested/operator-2".into(),
@@ -215,7 +208,6 @@ fn test_flatten_composite_descriptor_nested() {
             outputs: vec!["operator-2-out".into()],
             uri: Some("file://operator-2.so".into()),
             configuration: Configuration::default(),
-            runtime: None,
         },
         FlattenedOperatorDescriptor {
             id: "composite/composite-outer-i".into(),
@@ -224,7 +216,6 @@ fn test_flatten_composite_descriptor_nested() {
             outputs: vec!["composite-outer-out".into()],
             uri: Some("file://composite-outer.so".into()),
             configuration: Configuration::default(),
-            runtime: None,
         },
     ];
 

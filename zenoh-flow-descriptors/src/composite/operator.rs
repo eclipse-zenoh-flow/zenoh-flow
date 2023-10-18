@@ -152,7 +152,6 @@ impl IFlattenableComposite for CompositeOperatorDescriptor {
         mut self,
         composite_id: NodeId,
         overwriting_configuration: Configuration,
-        runtime: Option<zenoh_flow_commons::RuntimeId>,
         vars: Vars,
         ancestors: &mut HashSet<Arc<str>>,
     ) -> Result<(Vec<Self::Flattened>, Vec<LinkDescriptor>, Patch)> {
@@ -172,7 +171,6 @@ impl IFlattenableComposite for CompositeOperatorDescriptor {
             let (mut operators, mut links, patch) = operator_desc
                 .flatten_maybe_composite::<CompositeOperatorDescriptor>(
                     node_overwriting_configuration,
-                    runtime.clone(),
                     vars.clone(),
                     // If we don't clone the ancestors between successive calls, consecutive composite operators
                     // referring to the same descriptor would be falsely flagged as "infinite recursions".

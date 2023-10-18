@@ -17,7 +17,10 @@ use crate::{
     SinkDescriptor, SourceDescriptor,
 };
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use serde::{Deserialize, Serialize};
 use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, Result, RuntimeId, Vars};
@@ -146,7 +149,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, Result, Runtime
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct DataFlowDescriptor {
-    pub flow: String,
+    pub flow: Arc<str>,
     #[serde(default)]
     pub configuration: Configuration,
     pub operators: Vec<NodeDescriptor>,
@@ -168,7 +171,7 @@ impl DataFlowDescriptor {
             mapping,
         } = self;
 
-        let mapping = mapping.unwrap_or_default();
+        let mut mapping = mapping.unwrap_or_default();
 
         let mut flattened_sources = Vec::with_capacity(sources.len());
         for source_desc in sources {
@@ -177,13 +180,10 @@ impl DataFlowDescriptor {
                 .configuration
                 .clone()
                 .merge_overwrite(flow_configuration.clone());
-            let runtime = mapping.get(&source_desc.id).cloned();
 
-            flattened_sources.push(source_desc.flatten::<SourceDescriptor>(
-                overwriting_configuration,
-                runtime,
-                vars.clone(),
-            )?);
+            flattened_sources.push(
+                source_desc.flatten::<SourceDescriptor>(overwriting_configuration, vars.clone())?,
+            );
         }
 
         let mut flattened_sinks = Vec::with_capacity(sinks.len());
@@ -194,13 +194,9 @@ impl DataFlowDescriptor {
                 .clone()
                 .merge_overwrite(flow_configuration.clone());
 
-            let runtime = mapping.get(&sink_desc.id).cloned();
-
-            flattened_sinks.push(sink_desc.flatten::<SinkDescriptor>(
-                overwriting_configuration,
-                runtime,
-                vars.clone(),
-            )?);
+            flattened_sinks.push(
+                sink_desc.flatten::<SinkDescriptor>(overwriting_configuration, vars.clone())?,
+            );
         }
 
         let mut flattened_operators = Vec::with_capacity(operators.len());
@@ -210,15 +206,26 @@ impl DataFlowDescriptor {
                 .configuration
                 .clone()
                 .merge_overwrite(flow_configuration.clone());
-            let runtime = mapping.get(&operator_desc.id).cloned();
 
+            let operator_id = operator_desc.id.clone();
             let (mut flat_operators, mut flat_links, patch) = operator_desc
                 .flatten_maybe_composite::<CompositeOperatorDescriptor>(
                 overwriting_configuration,
-                runtime,
                 vars.clone(),
                 &mut HashSet::default(),
             )?;
+
+            // If the composite operator (i.e. before flattening) appears in the mapping, we need to:
+            // 1. remove it from the list (it is not, per se, a real operator),
+            // 2. propagate that mapping to all the "flattened" operators.
+            //
+            // NOTE: it does not matter if the operator is not composite, we perform a (useless) removal / re-insert on
+            // the same `NodeId`. It could potentially be avoided but this code is not on the critical path.
+            if let Some(runtime) = mapping.remove(&operator_id) {
+                flat_operators.iter().for_each(|operator| {
+                    mapping.insert(operator.id.clone(), runtime.clone());
+                });
+            }
 
             flattened_operators.append(&mut flat_operators);
             patch.apply(&mut links);
@@ -231,6 +238,7 @@ impl DataFlowDescriptor {
             operators: flattened_operators,
             sinks: flattened_sinks,
             links,
+            mapping,
         })
     }
 }

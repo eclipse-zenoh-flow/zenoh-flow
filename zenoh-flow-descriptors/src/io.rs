@@ -12,10 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::fmt;
-
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use zenoh_flow_commons::{NodeId, PortId};
+use zenoh_flow_records::{InputRecord, OutputRecord};
 
 /// An `InputDescriptor` describes an Input port of a Zenoh-Flow node.
 ///
@@ -41,6 +41,15 @@ impl InputDescriptor {
     }
 }
 
+impl From<InputDescriptor> for InputRecord {
+    fn from(this: InputDescriptor) -> Self {
+        InputRecord {
+            node: this.node,
+            input: this.input,
+        }
+    }
+}
+
 /// An `OutputDescriptor` describes an Output port of a Zenoh-Flow node.
 ///
 /// See [LinkDescriptor][crate::link::LinkDescriptor] for their usage.
@@ -61,6 +70,15 @@ impl OutputDescriptor {
         Self {
             node: node.as_ref().into(),
             output: output.as_ref().into(),
+        }
+    }
+}
+
+impl From<OutputDescriptor> for OutputRecord {
+    fn from(this: OutputDescriptor) -> Self {
+        OutputRecord {
+            node: this.node,
+            output: this.output,
         }
     }
 }

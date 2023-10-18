@@ -12,11 +12,16 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{
-    FlattenedOperatorDescriptor, FlattenedSinkDescriptor, FlattenedSourceDescriptor, LinkDescriptor,
-};
+use std::{collections::HashMap, fmt::Display, mem, sync::Arc};
 
+use crate::{
+    FlattenedOperatorDescriptor, FlattenedSinkDescriptor, FlattenedSourceDescriptor,
+    InputDescriptor, LinkDescriptor, OutputDescriptor,
+};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+use zenoh_flow_commons::{NodeId, PortId, RuntimeContext, RuntimeId, SharedMemoryParameters};
+use zenoh_flow_records::{DataFlowRecord, ZenohReceiver, ZenohSender};
 
 /// TODO@J-Loudet Documentation?
 ///
@@ -37,8 +42,7 @@ use serde::{Deserialize, Serialize};
 ///     uri: file:///home/zenoh-flow/node/libsource.so
 ///     outputs:
 ///       - out-operator
-///     mapping: zenoh-flow-plugin-0
-///     
+///
 /// operators:
 ///   - id: Operator-1
 ///     name: Operator
@@ -50,7 +54,7 @@ use serde::{Deserialize, Serialize};
 ///       - in-source
 ///     outputs:
 ///       - out-sink
-///     
+///
 /// sinks:
 ///   - id: Sink-2
 ///     name: Sink
@@ -68,7 +72,7 @@ use serde::{Deserialize, Serialize};
 ///     to:
 ///       node : Operator-1
 ///       input : in-source
-///       
+///
 ///   - from:
 ///       node : Operator-1
 ///       output : out-sink
@@ -102,7 +106,7 @@ use serde::{Deserialize, Serialize};
 ///       \"mapping\": \"zenoh-flow-plugin-0\"
 ///     }
 ///   ],
-///       
+///
 ///   \"operators\": [
 ///     {
 ///       \"id\": \"Operator-1\",
@@ -120,7 +124,7 @@ use serde::{Deserialize, Serialize};
 ///       ]
 ///     }
 ///   ],
-///   
+///
 ///   \"sinks\": [
 ///     {
 ///       \"id\": \"Sink-2\",
@@ -166,9 +170,151 @@ use serde::{Deserialize, Serialize};
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedDataFlowDescriptor {
-    pub flow: String,
+    pub flow: Arc<str>,
     pub sources: Vec<FlattenedSourceDescriptor>,
     pub operators: Vec<FlattenedOperatorDescriptor>,
     pub sinks: Vec<FlattenedSinkDescriptor>,
     pub links: Vec<LinkDescriptor>,
+    #[serde(default)]
+    pub mapping: HashMap<NodeId, RuntimeId>,
 }
+
+// TODO@J-Loudet
+impl Display for FlattenedDataFlowDescriptor {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+impl FlattenedDataFlowDescriptor {
+    /// Assign the nodes without an explicit mapping to the provided runtime and generate the connections between the
+    /// nodes running on different runtimes.
+    ///
+    /// This method will consume the `FlattenedDataFlowDescriptor` and produce a `DataFlowRecord`.
+    pub fn complete_mapping_and_connect(self, default_runtime: RuntimeContext) -> DataFlowRecord {
+        let mut senders = HashMap::default();
+        let mut receivers = HashMap::default();
+        let mut connector_links = Vec::default();
+
+        let flow_id = Uuid::new_v4();
+
+        let FlattenedDataFlowDescriptor {
+            flow,
+            sources,
+            operators,
+            sinks,
+            mut links,
+            mut mapping,
+        } = self;
+
+        for link in links.iter_mut() {
+            let runtime_from = mapping
+                .entry(link.from.node.clone())
+                .or_insert(default_runtime.id.clone())
+                .clone();
+            let runtime_to = mapping
+                .entry(link.to.node.clone())
+                .or_insert(default_runtime.id.clone())
+                .clone();
+
+            // The nodes will run on the same runtime, no need for connectors.
+            if runtime_from == runtime_to {
+                continue;
+            }
+
+            // Nodes are on different runtimes: we generate a special key expression for communications through Zenoh
+            // (either Shared Memory or standard pub/sub).
+            //
+            // We also need to:
+            // - update the link and replace the "to" part with the sender,
+            // - add another link that goes from the receiver to the "to".
+            let resource: Arc<str> = format!(
+                "{}/{}/{}/{}",
+                &flow, &flow_id, link.from.node, link.from.output
+            )
+            .into();
+
+            let shared_memory_parameters = SharedMemoryParameters::from_configuration(
+                &link.shared_memory,
+                &default_runtime.shared_memory,
+            );
+
+            let sender_id: NodeId =
+                format!("z-sender/{}/{}", link.from.node, link.from.output).into();
+            let sender_input: PortId = format!("{}-input", sender_id).into();
+
+            let receiver_id: NodeId =
+                format!("z-receiver/{}/{}", link.to.node, link.to.input).into();
+            let receiver_output: PortId = format!("{}-output", receiver_id).into();
+
+            // Update the link, replacing "to" with the sender.
+            let to = mem::replace(
+                &mut link.to,
+                InputDescriptor {
+                    node: sender_id.clone(),
+                    input: sender_input.clone(),
+                },
+            );
+
+            // Create a new link, connecting the receiver to the  "to".
+            connector_links.push(LinkDescriptor {
+                from: OutputDescriptor {
+                    node: receiver_id.clone(),
+                    output: receiver_output.clone(),
+                },
+                to,
+                shared_memory: link.shared_memory.clone(),
+            });
+
+            // Create the connector nodes — without forgetting their mapping.
+            let sender = ZenohSender {
+                id: sender_id.clone(),
+                resource: resource.clone(),
+                input: sender_input.clone(),
+                shared_memory: shared_memory_parameters.clone(),
+            };
+            senders.insert(sender_id.clone(), sender);
+            mapping.insert(sender_id, runtime_from);
+
+            let receiver = ZenohReceiver {
+                id: receiver_id.clone(),
+                resource,
+                output: receiver_output,
+                shared_memory: shared_memory_parameters,
+            };
+            receivers.insert(receiver_id.clone(), receiver);
+            mapping.insert(receiver_id, runtime_to);
+        }
+
+        // Add the new links.
+        links.append(&mut connector_links);
+
+        DataFlowRecord {
+            uuid: flow_id,
+            flow,
+            sources: sources
+                .into_iter()
+                .map(|source| (source.id.clone(), source.into()))
+                .collect::<HashMap<_, _>>(),
+            operators: operators
+                .into_iter()
+                .map(|operator| (operator.id.clone(), operator.into()))
+                .collect::<HashMap<_, _>>(),
+            sinks: sinks
+                .into_iter()
+                .map(|sink| (sink.id.clone(), sink.into()))
+                .collect::<HashMap<_, _>>(),
+            receivers,
+            senders,
+            links: links
+                .into_iter()
+                .map(|link| link.into_record(&default_runtime.shared_memory))
+                .collect::<Vec<_>>(),
+            mapping,
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "./tests.rs"]
+mod tests;

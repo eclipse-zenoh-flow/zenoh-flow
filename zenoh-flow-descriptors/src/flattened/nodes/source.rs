@@ -12,12 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::fmt::Display;
-
 use serde::{Deserialize, Serialize};
-use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, RuntimeId};
-
-use crate::SourceDescriptor;
+use std::{fmt::Display, sync::Arc};
+use zenoh_flow_commons::{Configuration, NodeId, PortId};
+use zenoh_flow_records::SourceRecord;
 
 /// Textual representation of a Zenoh-Flow Source node.
 ///
@@ -62,12 +60,11 @@ use crate::SourceDescriptor;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedSourceDescriptor {
     pub id: NodeId,
-    pub name: String,
-    pub uri: Option<String>,
+    pub name: Arc<str>,
+    pub uri: Option<Arc<str>>,
     pub outputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,
-    pub runtime: Option<RuntimeId>,
 }
 
 impl Display for FlattenedSourceDescriptor {
@@ -76,27 +73,14 @@ impl Display for FlattenedSourceDescriptor {
     }
 }
 
-impl FlattenedSourceDescriptor {
-    pub fn new(
-        source: SourceDescriptor,
-        id: NodeId,
-        overwritting_configuration: Configuration,
-        runtime: Option<RuntimeId>,
-    ) -> Self {
-        let SourceDescriptor {
-            name,
-            uri,
-            outputs,
-            configuration,
-        } = source;
-
+impl From<FlattenedSourceDescriptor> for SourceRecord {
+    fn from(value: FlattenedSourceDescriptor) -> Self {
         Self {
-            id,
-            name,
-            uri,
-            outputs,
-            configuration: overwritting_configuration.merge_overwrite(configuration),
-            runtime,
+            id: value.id,
+            name: value.name,
+            outputs: value.outputs,
+            uri: value.uri,
+            configuration: value.configuration,
         }
     }
 }

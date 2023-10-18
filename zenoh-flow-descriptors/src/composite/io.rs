@@ -13,11 +13,10 @@
 //
 
 use super::ISubstituable;
-use crate::deserialize::deserialize_id;
 use crate::{InputDescriptor, OutputDescriptor};
 
 use serde::{Deserialize, Serialize};
-use zenoh_flow_commons::{NodeId, PortId};
+use zenoh_flow_commons::{deserialize_id, NodeId, PortId};
 
 /// TODO@J-Loudet example?
 /// TODO@J-Loudet documentation?

@@ -12,12 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::fmt::Display;
-
-use crate::OperatorDescriptor;
-
 use serde::{Deserialize, Serialize};
-use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, RuntimeId};
+use std::fmt::Display;
+use std::sync::Arc;
+use zenoh_flow_commons::{Configuration, NodeId, PortId};
+use zenoh_flow_records::OperatorRecord;
 
 /// TODO@J-Loudet Documentation?
 ///
@@ -66,13 +65,12 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Runtime
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct FlattenedOperatorDescriptor {
     pub id: NodeId,
-    pub name: String,
+    pub name: Arc<str>,
     pub inputs: Vec<PortId>,
     pub outputs: Vec<PortId>,
-    pub uri: Option<String>,
+    pub uri: Option<Arc<str>>,
     #[serde(default)]
     pub configuration: Configuration,
-    pub runtime: Option<RuntimeId>,
 }
 
 impl Display for FlattenedOperatorDescriptor {
@@ -82,35 +80,6 @@ impl Display for FlattenedOperatorDescriptor {
 }
 
 impl FlattenedOperatorDescriptor {
-    /// TODO@J-Loudet: documentation
-    ///
-    /// In case there are identical keys, *the provided configuration will override the configuration of the Operator*.
-    /// The rationale is that the configuration of the Operator **always** has the lowest priority.
-    pub fn new(
-        operator: OperatorDescriptor,
-        id: NodeId,
-        overwritting_configuration: Configuration,
-        runtime: Option<RuntimeId>,
-    ) -> Self {
-        let OperatorDescriptor {
-            name,
-            uri,
-            inputs,
-            outputs,
-            configuration,
-        } = operator;
-
-        Self {
-            id,
-            name,
-            inputs,
-            outputs,
-            uri,
-            configuration: overwritting_configuration.merge_overwrite(configuration),
-            runtime,
-        }
-    }
-
     /// Update the identifier of the [FlattenedOperatorDescriptor] prepending the id of the
     /// [CompositeOperatorDescriptor] it belongs to.
     ///
@@ -120,5 +89,27 @@ impl FlattenedOperatorDescriptor {
     pub fn composite_id(&mut self, composite_id: &NodeId) -> NodeId {
         self.id = format!("{composite_id}/{}", self.id).into();
         self.id.clone()
+    }
+}
+
+impl From<FlattenedOperatorDescriptor> for OperatorRecord {
+    fn from(value: FlattenedOperatorDescriptor) -> Self {
+        let FlattenedOperatorDescriptor {
+            id,
+            name,
+            inputs,
+            outputs,
+            uri,
+            configuration,
+        } = value;
+
+        Self {
+            id,
+            name,
+            inputs,
+            outputs,
+            uri,
+            configuration,
+        }
     }
 }

@@ -12,12 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use serde::{Deserialize, Serialize};
-use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, RuntimeId};
-
-use crate::SinkDescriptor;
+use zenoh_flow_commons::{Configuration, NodeId, PortId};
+use zenoh_flow_records::SinkRecord;
 
 /// Textual representation of a Zenoh-Flow Sink node.
 ///
@@ -60,12 +59,11 @@ use crate::SinkDescriptor;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedSinkDescriptor {
     pub id: NodeId,
-    pub name: String,
-    pub uri: Option<String>,
+    pub name: Arc<str>,
+    pub uri: Option<Arc<str>>,
     pub inputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,
-    pub runtime: Option<RuntimeId>,
 }
 
 impl Display for FlattenedSinkDescriptor {
@@ -74,27 +72,14 @@ impl Display for FlattenedSinkDescriptor {
     }
 }
 
-impl FlattenedSinkDescriptor {
-    pub fn new(
-        sink: SinkDescriptor,
-        id: NodeId,
-        overwritting_configuration: Configuration,
-        runtime: Option<RuntimeId>,
-    ) -> Self {
-        let SinkDescriptor {
-            name,
-            configuration,
-            uri,
-            inputs,
-        } = sink;
-
+impl From<FlattenedSinkDescriptor> for SinkRecord {
+    fn from(value: FlattenedSinkDescriptor) -> Self {
         Self {
-            id,
-            name,
-            uri,
-            inputs,
-            configuration: overwritting_configuration.merge_overwrite(configuration),
-            runtime,
+            id: value.id,
+            name: value.name,
+            inputs: value.inputs,
+            uri: value.uri,
+            configuration: value.configuration,
         }
     }
 }

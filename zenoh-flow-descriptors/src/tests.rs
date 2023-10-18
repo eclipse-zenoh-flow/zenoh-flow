@@ -12,6 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::collections::HashMap;
+
 use crate::{
     uri::try_load_descriptor, DataFlowDescriptor, FlattenedOperatorDescriptor,
     FlattenedSinkDescriptor, FlattenedSourceDescriptor, InputDescriptor, LinkDescriptor,
@@ -51,7 +53,6 @@ fn test_flatten_descriptor() {
             outputs: vec!["source-out".into()],
             uri: Some("file://source.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
-            runtime: Some("runtime-1".into()),
         },
         FlattenedSourceDescriptor {
             id: "source-2".into(),
@@ -59,7 +60,6 @@ fn test_flatten_descriptor() {
             outputs: vec!["source-out".into()],
             uri: Some("file://source.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
-            runtime: None,
         },
         FlattenedSourceDescriptor {
             id: "source-composite".into(),
@@ -70,7 +70,6 @@ fn test_flatten_descriptor() {
             ],
             uri: Some("file://source-composite.so".into()),
             configuration: json!({ "foo": "global-outer", "bar": "re-reverse" }).into(),
-            runtime: Some("runtime-source".into()),
         },
     ];
 
@@ -95,7 +94,6 @@ fn test_flatten_descriptor() {
             outputs: vec!["operator-out".into()],
             uri: Some("file://operator.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
-            runtime: None,
         },
         FlattenedOperatorDescriptor {
             id: "operator-2".into(),
@@ -104,7 +102,6 @@ fn test_flatten_descriptor() {
             outputs: vec!["operator-out".into()],
             uri: Some("file://operator.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
-            runtime: None,
         },
         /*
          * `sub-operator-1` is declared in the file "operator-composite.yml".
@@ -124,7 +121,6 @@ fn test_flatten_descriptor() {
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" })
                     .into(),
-            runtime: Some("runtime-composite".into()),
         },
         /*
          * Same spirit but this time it’s a composite operator within a composite operator. The
@@ -140,7 +136,6 @@ fn test_flatten_descriptor() {
             uri: Some("file://sub-sub-operator-1.so".into()),
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner", "baz": "leaf" }).into(),
-            runtime: Some("runtime-composite".into()),
         },
         /*
          * Idem as above: operator-composite/sub-operator-composite/sub-sub-operator-2.
@@ -153,7 +148,6 @@ fn test_flatten_descriptor() {
             uri: Some("file://sub-sub-operator-2.so".into()),
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner" }).into(),
-            runtime: Some("runtime-composite".into()),
         },
         /*
          * Similarly, we check that the name is the composition: operator-composite/sub-operator-2.
@@ -166,7 +160,6 @@ fn test_flatten_descriptor() {
             uri: Some("file://sub-operator-2.so".into()),
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" }).into(),
-            runtime: Some("runtime-composite".into()),
         },
     ];
 
@@ -191,7 +184,6 @@ fn test_flatten_descriptor() {
             inputs: vec!["sink-in".into()],
             uri: Some("file://sink.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
-            runtime: None,
         },
         FlattenedSinkDescriptor {
             id: "sink-2".into(),
@@ -199,7 +191,6 @@ fn test_flatten_descriptor() {
             inputs: vec!["sink-in".into()],
             uri: Some("file://sink.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
-            runtime: Some("runtime-2".into()),
         },
         FlattenedSinkDescriptor {
             id: "sink-composite".into(),
@@ -207,7 +198,6 @@ fn test_flatten_descriptor() {
             inputs: vec!["sink-composite-in-1".into(), "sink-composite-in-2".into()],
             uri: Some("file://sink-composite.so".into()),
             configuration: json!({ "foo": "global-outer", "bar": "reverse" }).into(),
-            runtime: Some("runtime-sink".into()),
         },
     ];
 
@@ -306,6 +296,31 @@ fn test_flatten_descriptor() {
         )
     });
     assert_eq!(expected_links.len(), flatten.links.len());
+
+    let expected_mapping = HashMap::from([
+        ("source-1".into(), "runtime-1".into()),
+        ("sink-2".into(), "runtime-2".into()),
+        ("source-composite".into(), "runtime-source".into()),
+        (
+            "operator-composite/sub-operator-1".into(),
+            "runtime-composite".into(),
+        ),
+        (
+            "operator-composite/sub-operator-composite/sub-sub-operator-1".into(),
+            "runtime-composite".into(),
+        ),
+        (
+            "operator-composite/sub-operator-composite/sub-sub-operator-2".into(),
+            "runtime-composite".into(),
+        ),
+        (
+            "operator-composite/sub-operator-2".into(),
+            "runtime-composite".into(),
+        ),
+        ("sink-composite".into(), "runtime-sink".into()),
+    ]);
+
+    assert_eq!(expected_mapping, flatten.mapping);
 }
 
 #[test]

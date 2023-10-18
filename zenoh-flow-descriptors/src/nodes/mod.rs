@@ -20,14 +20,14 @@ pub(crate) mod source;
 pub use source::SourceDescriptor;
 
 use crate::{
-    deserialize::deserialize_id,
     flattened::{IFlattenable, IFlattenableComposite, Patch},
     uri, LinkDescriptor,
 };
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, sync::Arc};
-use zenoh_flow_commons::{Configuration, NodeId, Result, RuntimeId, Vars};
+use zenoh_flow_commons::deserialize_id;
+use zenoh_flow_commons::{Configuration, NodeId, Result, Vars};
 
 /// A generic Zenoh-Flow node.
 ///
@@ -85,27 +85,23 @@ impl NodeDescriptor {
     pub(crate) fn flatten<N: IFlattenable>(
         self,
         overwriting_configuration: Configuration,
-        runtime: Option<RuntimeId>,
         vars: Vars,
     ) -> Result<N::Flattened> {
         let (node_desc, _) = uri::try_load_descriptor::<N>(&self.descriptor, vars)?;
-        Ok(node_desc.flatten(self.id, overwriting_configuration, runtime))
+        Ok(node_desc.flatten(self.id, overwriting_configuration))
     }
 
     /// TODO@J-Loudet Documentation?
     pub(crate) fn flatten_maybe_composite<N: IFlattenableComposite>(
         self,
         overwriting_configuration: Configuration,
-        runtime: Option<RuntimeId>,
         vars: Vars,
         ancestors: &mut HashSet<Arc<str>>,
     ) -> Result<(Vec<N::Flattened>, Vec<LinkDescriptor>, Patch)> {
         // 1st attempt: try to flatten as a regular node.
-        let res_node = self.clone().flatten::<N::Flattenable>(
-            overwriting_configuration.clone(),
-            runtime.clone(),
-            vars.clone(),
-        );
+        let res_node = self
+            .clone()
+            .flatten::<N::Flattenable>(overwriting_configuration.clone(), vars.clone());
 
         if let Ok(node) = res_node {
             return Ok((vec![node], Vec::default(), Patch::default()));
@@ -126,7 +122,6 @@ Possible infinite recursion detected, the following descriptor appears to includ
         let res_composite = composite_desc.clone().flatten_composite(
             self.id,
             overwriting_configuration,
-            runtime,
             merged_vars,
             ancestors,
         );

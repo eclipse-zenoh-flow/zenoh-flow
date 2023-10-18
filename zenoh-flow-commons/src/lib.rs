@@ -12,17 +12,26 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-mod vars;
-pub use vars::Vars;
+mod configuration;
+pub use configuration::Configuration;
+
+mod deserialize;
+pub use deserialize::deserialize_id;
 
 mod identifiers;
 pub use identifiers::{NodeId, PortId, RuntimeId};
 
-mod configuration;
-pub use configuration::Configuration;
-
 mod merge;
 pub use merge::IMergeOverwrite;
+
+mod runtime;
+pub use runtime::RuntimeContext;
+
+mod shared_memory;
+pub use shared_memory::{SharedMemoryConfiguration, SharedMemoryParameters};
+
+mod vars;
+pub use vars::Vars;
 
 /// Zenoh-Flow's result type.
 pub type Result<T> = std::result::Result<T, anyhow::Error>;

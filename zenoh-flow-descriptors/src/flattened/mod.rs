@@ -26,7 +26,7 @@ pub use dataflow::FlattenedDataFlowDescriptor;
 
 use crate::{composite::Substitutions, InputDescriptor, LinkDescriptor, OutputDescriptor};
 use serde::de::DeserializeOwned;
-use zenoh_flow_commons::{Configuration, NodeId, Result, RuntimeId, Vars};
+use zenoh_flow_commons::{Configuration, NodeId, Result, Vars};
 
 pub(crate) trait IFlattenableComposite: DeserializeOwned + Display + Debug + Clone {
     type Flattened: Debug + Display;
@@ -36,7 +36,6 @@ pub(crate) trait IFlattenableComposite: DeserializeOwned + Display + Debug + Clo
         self,
         id: NodeId,
         overwritting_configuration: Configuration,
-        runtime: Option<RuntimeId>,
         vars: Vars,
         ancestors: &mut HashSet<Arc<str>>,
     ) -> Result<(Vec<Self::Flattened>, Vec<LinkDescriptor>, Patch)>;
@@ -45,12 +44,7 @@ pub(crate) trait IFlattenableComposite: DeserializeOwned + Display + Debug + Clo
 pub trait IFlattenable: DeserializeOwned + Display + Debug {
     type Flattened: Debug + Display;
 
-    fn flatten(
-        self,
-        id: NodeId,
-        overwritting_configuration: Configuration,
-        runtime: Option<RuntimeId>,
-    ) -> Self::Flattened;
+    fn flatten(self, id: NodeId, overwritting_configuration: Configuration) -> Self::Flattened;
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]

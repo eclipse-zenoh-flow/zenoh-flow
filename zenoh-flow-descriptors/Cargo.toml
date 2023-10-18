@@ -25,10 +25,10 @@ version = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }
-bytesize = "1.2.0"
-humantime = "2.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 url = "2.2"
-zenoh-flow-commons = { path = "../zenoh-flow-commons" }
+uuid = { workspace = true }
+zenoh-flow-commons = { workspace = true }
+zenoh-flow-records = { workspace = true }

@@ -13,11 +13,11 @@
 //
 
 use crate::composite::{ISubstituable, Substitutions};
-use crate::deserialize::{deserialize_size, deserialize_time};
 use crate::{InputDescriptor, OutputDescriptor};
-use zenoh_flow_commons::NodeId;
+use zenoh_flow_commons::{NodeId, SharedMemoryConfiguration, SharedMemoryParameters};
 
 use serde::{Deserialize, Serialize};
+use zenoh_flow_records::LinkRecord;
 
 /// A `LinkDescriptor` describes a link in Zenoh-Flow: a connection from an Output to an Input.
 ///
@@ -42,12 +42,7 @@ pub struct LinkDescriptor {
     pub from: OutputDescriptor,
     pub to: InputDescriptor,
     #[serde(default)]
-    #[serde(deserialize_with = "deserialize_size")]
-    pub shared_memory_element_size: Option<usize>,
-    pub shared_memory_elements: Option<usize>,
-    #[serde(default)]
-    #[serde(deserialize_with = "deserialize_time")]
-    pub shared_memory_backoff: Option<u64>,
+    pub shared_memory: SharedMemoryConfiguration,
 }
 
 impl std::fmt::Display for LinkDescriptor {
@@ -89,9 +84,18 @@ impl LinkDescriptor {
         Self {
             from,
             to,
-            shared_memory_element_size: None,
-            shared_memory_elements: None,
-            shared_memory_backoff: None,
+            shared_memory: SharedMemoryConfiguration::default(),
+        }
+    }
+
+    pub fn into_record(self, default_shared_memory: &SharedMemoryParameters) -> LinkRecord {
+        LinkRecord {
+            from: self.from.into(),
+            to: self.to.into(),
+            shared_memory: SharedMemoryParameters::from_configuration(
+                &self.shared_memory,
+                default_shared_memory,
+            ),
         }
     }
 }

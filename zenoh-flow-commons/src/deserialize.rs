@@ -17,9 +17,24 @@
 //!
 //! The external crates [bytesize] and [humantime] are leveraged for these purposes.
 
+use crate::NodeId;
 use std::str::FromStr;
 
 use serde::Deserializer;
+
+pub fn deserialize_id<'de, D>(deserializer: D) -> std::result::Result<NodeId, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let id: String = serde::de::Deserialize::deserialize(deserializer)?;
+    if id.contains('/') {
+        return Err(serde::de::Error::custom(format!(
+            "A NodeId cannot contain any '/': {id}"
+        )));
+    }
+
+    Ok(id.into())
+}
 
 pub fn deserialize_size<'de, D>(deserializer: D) -> std::result::Result<Option<usize>, D::Error>
 where

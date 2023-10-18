@@ -36,5 +36,3 @@ mod nodes;
 pub use nodes::{NodeDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 
 mod uri;
-
-mod deserialize;
