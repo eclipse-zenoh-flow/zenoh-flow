@@ -13,10 +13,11 @@ The script test verifies:
 - The example runs correctly.
 - That the number of active Zenoh-Flow nodes is equal to the number of nodes declared into the yaml file.
 
+It's possible to test other Zenoh-Flow configurations by inserting in the first lines of the script the path or the name of the zenoh-flow configuration that you want to run.
+
 ## How to run
 To do this you need to run :
 ```bash
-pip install psutil
-pip install PyYAML
+pip install -r requirements.txt
 python3 automated-test.py  
 ```
