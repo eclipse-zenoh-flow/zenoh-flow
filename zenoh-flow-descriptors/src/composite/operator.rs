@@ -42,17 +42,17 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, Result};
 /// use zenoh_flow_descriptors::CompositeOperatorDescriptor;
 ///
 /// let yaml = "
-/// name: CompositeOperator
+/// description: CompositeOperator
 ///
 /// configuration:
 ///   name: foo
 ///
 /// operators:
 ///   - id: InnerOperator1
-///     descriptor: file:///home/zenoh-flow/nodes/operator1.so
+///     descriptor: file:///home/zenoh-flow/nodes/operator1.yaml
 ///
 ///   - id: InnerOperator2
-///     descriptor: file:///home/zenoh-flow/nodes/operator2.so
+///     descriptor: file:///home/zenoh-flow/nodes/operator2.yaml
 ///
 /// links:
 ///   - from:
@@ -77,7 +77,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, Result};
 ///
 /// let json = "
 /// {
-///   \"name\": \"CompositeOperator\",
+///   \"description\": \"CompositeOperator\",
 ///
 ///   \"configuration\": {
 ///     \"name\": \"foo\"
@@ -86,11 +86,11 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, Result};
 ///   \"operators\": [
 ///     {
 ///       \"id\": \"InnerOperator1\",
-///       \"descriptor\": \"file:///home/zenoh-flow/nodes/operator1.so\"
+///       \"descriptor\": \"file:///home/zenoh-flow/nodes/operator1.yaml\"
 ///     },
 ///     {
 ///       \"id\": \"InnerOperator2\",
-///       \"descriptor\": \"file:///home/zenoh-flow/nodes/operator2.so\"
+///       \"descriptor\": \"file:///home/zenoh-flow/nodes/operator2.yaml\"
 ///     }
 ///   ],
 ///
@@ -130,7 +130,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, Result};
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct CompositeOperatorDescriptor {
-    pub name: NodeId,
+    pub description: Arc<str>,
     pub inputs: Vec<CompositeInputDescriptor>,
     pub outputs: Vec<CompositeOutputDescriptor>,
     pub operators: Vec<NodeDescriptor>,
@@ -141,7 +141,7 @@ pub struct CompositeOperatorDescriptor {
 
 impl std::fmt::Display for CompositeOperatorDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Composite Operator: {}", self.name)
+        write!(f, "Composite Operator: {}", self.description)
     }
 }
 

@@ -26,7 +26,7 @@ use zenoh_flow_records::SourceRecord;
 ///
 /// let source_yaml = "
 ///     id: Source-0
-///     name: Source
+///     description: Source
 ///     configuration:
 ///       foo: bar
 ///       answer: 0
@@ -40,7 +40,7 @@ use zenoh_flow_records::SourceRecord;
 /// let source_json = "
 ///     {
 ///       \"id\": \"Source-0\",
-///       \"name\": \"Source\",
+///       \"description\": \"Source\",
 ///       \"configuration\": {
 ///         \"foo\": \"bar\",
 ///         \"answer\": 0
@@ -60,7 +60,7 @@ use zenoh_flow_records::SourceRecord;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedSourceDescriptor {
     pub id: NodeId,
-    pub name: Arc<str>,
+    pub description: Arc<str>,
     pub uri: Option<Arc<str>>,
     pub outputs: Vec<PortId>,
     #[serde(default)]
@@ -77,7 +77,7 @@ impl From<FlattenedSourceDescriptor> for SourceRecord {
     fn from(value: FlattenedSourceDescriptor) -> Self {
         Self {
             id: value.id,
-            name: value.name,
+            description: value.description,
             outputs: value.outputs,
             uri: value.uri,
             configuration: value.configuration,

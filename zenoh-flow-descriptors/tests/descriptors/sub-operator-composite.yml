@@ -1,4 +1,4 @@
-name: sub-operator-composite
+description: sub-operator-composite
 
 vars:
   SCHEME: ""    # set up by the data flow

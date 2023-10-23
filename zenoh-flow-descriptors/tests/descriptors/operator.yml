@@ -1,4 +1,4 @@
-name: operator
+description: operator
 
 uri: "{{ SCHEME }}operator.so"
 

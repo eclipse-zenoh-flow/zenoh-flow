@@ -1,4 +1,4 @@
-name: composite-source
+description: composite-source
 
 vars:
   SCHEME: ""

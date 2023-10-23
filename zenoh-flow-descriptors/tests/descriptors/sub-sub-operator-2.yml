@@ -1,4 +1,4 @@
-name: sub-leaf-operator-2
+description: sub-leaf-operator-2
 
 uri: "{{ SCHEME }}sub-sub-operator-2.so"
 

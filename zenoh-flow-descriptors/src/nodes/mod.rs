@@ -49,7 +49,7 @@ use zenoh_flow_commons::{Configuration, NodeId, Result};
 /// use zenoh_flow_descriptors::NodeDescriptor;
 ///
 /// let yaml = "
-/// id: NodeDescriptor
+/// id: UniqueID
 /// descriptor: file:///home/zenoh-flow/nodes/libnode.so
 /// ";
 ///
@@ -57,7 +57,7 @@ use zenoh_flow_commons::{Configuration, NodeId, Result};
 ///
 /// let json = "
 /// {
-///   \"id\": \"NodeDescriptor\",
+///   \"id\": \"UniqueID\",
 ///   \"descriptor\": \"file:///home/zenoh-flow/nodes/libnode.so\"
 /// }
 /// ";

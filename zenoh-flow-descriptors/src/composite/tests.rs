@@ -29,7 +29,7 @@ const BASE_DIR: &str = "./tests/descriptors";
 #[test]
 fn test_flatten_composite_descriptor_non_nested() {
     let composite_descriptor = CompositeOperatorDescriptor {
-        name: "composite-test".into(),
+        description: "composite-test".into(),
         inputs: vec![
             CompositeInputDescriptor::new("input-1", "my-operator-1", "operator-1-in-1"),
             CompositeInputDescriptor::new("input-2", "my-operator-1", "operator-1-in-2"),
@@ -76,7 +76,7 @@ fn test_flatten_composite_descriptor_non_nested() {
     let expected_operators = vec![
         FlattenedOperatorDescriptor {
             id: "composite/my-operator-1".into(),
-            name: "operator-1".into(),
+            description: "operator-1".into(),
             inputs: vec!["operator-1-in-1".into(), "operator-1-in-2".into()],
             outputs: vec!["operator-1-out".into()],
             uri: Some("file://operator-1.so".into()),
@@ -84,7 +84,7 @@ fn test_flatten_composite_descriptor_non_nested() {
         },
         FlattenedOperatorDescriptor {
             id: "composite/my-operator-2".into(),
-            name: "operator-2".into(),
+            description: "operator-2".into(),
             inputs: vec!["operator-2-in".into()],
             outputs: vec!["operator-2-out".into()],
             uri: Some("file://operator-2.so".into()),
@@ -132,7 +132,7 @@ fn test_flatten_composite_descriptor_non_nested() {
 #[test]
 fn test_flatten_composite_descriptor_nested() {
     let nested_composite_descriptor = CompositeOperatorDescriptor {
-        name: "nested-composite-test".into(),
+        description: "nested-composite-test".into(),
         inputs: vec![CompositeInputDescriptor::new(
             "composite-input",
             "composite-outer-i",
@@ -188,7 +188,7 @@ fn test_flatten_composite_descriptor_nested() {
     let expected_operators = vec![
         FlattenedOperatorDescriptor {
             id: "composite/composite-outer-o".into(),
-            name: "composite-outer".into(),
+            description: "composite-outer".into(),
             inputs: vec!["composite-outer-in".into()],
             outputs: vec!["composite-outer-out".into()],
             uri: Some("file://composite-outer.so".into()),
@@ -196,7 +196,7 @@ fn test_flatten_composite_descriptor_nested() {
         },
         FlattenedOperatorDescriptor {
             id: "composite/composite-nested/operator-1".into(),
-            name: "operator-1".into(),
+            description: "operator-1".into(),
             inputs: vec!["operator-1-in-1".into(), "operator-1-in-2".into()],
             outputs: vec!["operator-1-out".into()],
             uri: Some("file://operator-1.so".into()),
@@ -204,7 +204,7 @@ fn test_flatten_composite_descriptor_nested() {
         },
         FlattenedOperatorDescriptor {
             id: "composite/composite-nested/operator-2".into(),
-            name: "operator-2".into(),
+            description: "operator-2".into(),
             inputs: vec!["operator-2-in".into()],
             outputs: vec!["operator-2-out".into()],
             uri: Some("file://operator-2.so".into()),
@@ -212,7 +212,7 @@ fn test_flatten_composite_descriptor_nested() {
         },
         FlattenedOperatorDescriptor {
             id: "composite/composite-outer-i".into(),
-            name: "composite-outer".into(),
+            description: "composite-outer".into(),
             inputs: vec!["composite-outer-in".into()],
             outputs: vec!["composite-outer-out".into()],
             uri: Some("file://composite-outer.so".into()),

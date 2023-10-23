@@ -26,7 +26,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
 /// use zenoh_flow_descriptors::SinkDescriptor;
 ///
 /// let sink_yaml = "
-/// name: Sink
+/// description: Sink
 /// configuration:
 ///   answer: 42
 /// uri: file:///home/zenoh-flow/node/libsink.so
@@ -37,7 +37,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
 ///
 /// let sink_json = "
 /// {
-///   \"name\": \"Sink\",
+///   \"description\": \"Sink\",
 ///   \"configuration\": {
 ///     \"answer\": 42
 ///   },
@@ -53,7 +53,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SinkDescriptor {
-    pub name: Arc<str>,
+    pub description: Arc<str>,
     #[serde(default)]
     pub configuration: Configuration,
     pub uri: Option<Arc<str>>,
@@ -63,7 +63,7 @@ pub struct SinkDescriptor {
 // TODO@J-Loudet Improve
 impl std::fmt::Display for SinkDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Sink:\n{}", self.name)
+        write!(f, "Sink:\n{}", self.description)
     }
 }
 
@@ -73,7 +73,7 @@ impl IFlattenable for SinkDescriptor {
     fn flatten(self, id: NodeId, overwritting_configuration: Configuration) -> Self::Flattened {
         FlattenedSinkDescriptor {
             id,
-            name: self.name,
+            description: self.description,
             uri: self.uri,
             inputs: self.inputs,
             configuration: overwritting_configuration.merge_overwrite(self.configuration),

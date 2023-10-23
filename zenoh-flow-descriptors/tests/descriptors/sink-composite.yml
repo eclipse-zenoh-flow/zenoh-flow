@@ -1,4 +1,4 @@
-name: composite-sink
+description: composite-sink
 
 uri: "{{ SCHEME }}sink-composite.so"
 

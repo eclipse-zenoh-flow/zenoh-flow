@@ -26,7 +26,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
 /// use zenoh_flow_descriptors::SourceDescriptor;
 ///
 /// let source_yaml = "
-/// name: Source
+/// description: Source
 /// configuration:
 ///   answer: 42
 /// uri: file:///home/zenoh-flow/node/libsource.so
@@ -37,7 +37,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
 ///
 /// let source_json = "
 /// {
-///   \"name\": \"Source\",
+///   \"description\": \"Source\",
 ///   \"configuration\": {
 ///     \"answer\": 42
 ///   },
@@ -53,7 +53,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SourceDescriptor {
-    pub name: Arc<str>,
+    pub description: Arc<str>,
     pub uri: Option<Arc<str>>,
     pub outputs: Vec<PortId>,
     #[serde(default)]
@@ -63,7 +63,7 @@ pub struct SourceDescriptor {
 /// TODO@J-Loudet Improve display.
 impl std::fmt::Display for SourceDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Source:\n{}", self.name)
+        write!(f, "Source:\n{}", self.description)
     }
 }
 
@@ -71,19 +71,12 @@ impl IFlattenable for SourceDescriptor {
     type Flattened = FlattenedSourceDescriptor;
 
     fn flatten(self, id: NodeId, overwriting_configuration: Configuration) -> Self::Flattened {
-        let SourceDescriptor {
-            name,
-            uri,
-            outputs,
-            configuration,
-        } = self;
-
         FlattenedSourceDescriptor {
             id,
-            name,
-            uri,
-            outputs,
-            configuration: overwriting_configuration.merge_overwrite(configuration),
+            description: self.description,
+            uri: self.uri,
+            outputs: self.outputs,
+            configuration: overwriting_configuration.merge_overwrite(self.configuration),
         }
     }
 }

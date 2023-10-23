@@ -1,4 +1,4 @@
-name: "operator-1"
+description: "operator-1"
 uri: "file://operator-1.so"
 inputs:
   - "operator-1-in-1"

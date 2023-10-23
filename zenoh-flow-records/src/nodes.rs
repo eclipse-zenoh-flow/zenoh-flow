@@ -20,7 +20,7 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SourceRecord {
     pub id: NodeId,
-    pub name: Arc<str>,
+    pub description: Arc<str>,
     pub outputs: Vec<PortId>,
     pub uri: Option<Arc<str>>,
     pub configuration: Configuration,
@@ -30,7 +30,7 @@ pub struct SourceRecord {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct OperatorRecord {
     pub id: NodeId,
-    pub name: Arc<str>,
+    pub description: Arc<str>,
     pub inputs: Vec<PortId>,
     pub outputs: Vec<PortId>,
     pub uri: Option<Arc<str>>,
@@ -41,7 +41,7 @@ pub struct OperatorRecord {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SinkRecord {
     pub id: NodeId,
-    pub name: Arc<str>,
+    pub description: Arc<str>,
     pub inputs: Vec<PortId>,
     pub uri: Option<Arc<str>>,
     pub configuration: Configuration,

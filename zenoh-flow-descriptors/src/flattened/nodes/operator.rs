@@ -27,7 +27,7 @@ use zenoh_flow_records::OperatorRecord;
 ///
 /// let yaml = "
 ///     id: Operator-1
-///     name: Operator
+///     description: Operator
 ///     configuration:
 ///       foo: bar
 ///       answer: 1
@@ -42,7 +42,7 @@ use zenoh_flow_records::OperatorRecord;
 /// let json = "
 ///     {
 ///       \"id\": \"Operator-1\",
-///       \"name\": \"Operator\",
+///       \"description\": \"Operator\",
 ///       \"configuration\": {
 ///         \"foo\": \"bar\",
 ///         \"answer\": 1
@@ -65,7 +65,7 @@ use zenoh_flow_records::OperatorRecord;
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct FlattenedOperatorDescriptor {
     pub id: NodeId,
-    pub name: Arc<str>,
+    pub description: Arc<str>,
     pub inputs: Vec<PortId>,
     pub outputs: Vec<PortId>,
     pub uri: Option<Arc<str>>,
@@ -94,22 +94,13 @@ impl FlattenedOperatorDescriptor {
 
 impl From<FlattenedOperatorDescriptor> for OperatorRecord {
     fn from(value: FlattenedOperatorDescriptor) -> Self {
-        let FlattenedOperatorDescriptor {
-            id,
-            name,
-            inputs,
-            outputs,
-            uri,
-            configuration,
-        } = value;
-
         Self {
-            id,
-            name,
-            inputs,
-            outputs,
-            uri,
-            configuration,
+            id: value.id,
+            description: value.description,
+            inputs: value.inputs,
+            outputs: value.outputs,
+            uri: value.uri,
+            configuration: value.configuration,
         }
     }
 }

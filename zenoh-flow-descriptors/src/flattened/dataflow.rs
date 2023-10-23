@@ -35,7 +35,7 @@ use zenoh_flow_records::{DataFlowRecord, ZenohReceiver, ZenohSender};
 ///
 /// sources:
 ///   - id: Source-0
-///     name: Source
+///     description: Source
 ///     configuration:
 ///       foo: bar
 ///       answer: 0
@@ -45,7 +45,7 @@ use zenoh_flow_records::{DataFlowRecord, ZenohReceiver, ZenohSender};
 ///
 /// operators:
 ///   - id: Operator-1
-///     name: Operator
+///     description: Operator
 ///     configuration:
 ///       foo: bar
 ///       answer: 1
@@ -57,7 +57,7 @@ use zenoh_flow_records::{DataFlowRecord, ZenohReceiver, ZenohSender};
 ///
 /// sinks:
 ///   - id: Sink-2
-///     name: Sink
+///     description: Sink
 ///     configuration:
 ///       foo: bar
 ///       answer: 2
@@ -94,7 +94,7 @@ use zenoh_flow_records::{DataFlowRecord, ZenohReceiver, ZenohSender};
 ///   \"sources\": [
 ///     {
 ///       \"id\": \"Source-0\",
-///       \"name\": \"Source\",
+///       \"description\": \"Source\",
 ///       \"configuration\": {
 ///         \"foo\": \"bar\",
 ///         \"answer\": 0
@@ -110,7 +110,7 @@ use zenoh_flow_records::{DataFlowRecord, ZenohReceiver, ZenohSender};
 ///   \"operators\": [
 ///     {
 ///       \"id\": \"Operator-1\",
-///       \"name\": \"Operator\",
+///       \"description\": \"Operator\",
 ///       \"configuration\": {
 ///         \"foo\": \"bar\",
 ///         \"answer\": 1
@@ -128,7 +128,7 @@ use zenoh_flow_records::{DataFlowRecord, ZenohReceiver, ZenohSender};
 ///   \"sinks\": [
 ///     {
 ///       \"id\": \"Sink-2\",
-///       \"name\": \"Sink\",
+///       \"description\": \"Sink\",
 ///       \"configuration\": {
 ///         \"foo\": \"bar\",
 ///         \"answer\": 2

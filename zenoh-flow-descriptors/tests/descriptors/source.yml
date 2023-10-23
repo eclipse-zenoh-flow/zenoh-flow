@@ -1,4 +1,4 @@
-name: source
+description: source
 
 uri: "{{ SCHEME }}source.so"
 

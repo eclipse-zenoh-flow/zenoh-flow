@@ -49,7 +49,7 @@ fn generate_default_runtime() -> RuntimeContext {
 fn generate_flattened_data_flow_descriptor() -> FlattenedDataFlowDescriptor {
     let source = FlattenedSourceDescriptor {
         id: SOURCE_ID.into(),
-        name: "Source".into(),
+        description: "Source".into(),
         uri: Some("file:///home/zenoh-flow/source.so".into()),
         outputs: vec![SOURCE_OUTPUT.into()],
         configuration: Configuration::default(),
@@ -57,7 +57,7 @@ fn generate_flattened_data_flow_descriptor() -> FlattenedDataFlowDescriptor {
 
     let operator = FlattenedOperatorDescriptor {
         id: OPERATOR_ID.into(),
-        name: "Operator".into(),
+        description: "Operator".into(),
         inputs: vec![OPERATOR_INPUT.into()],
         outputs: vec![OPERATOR_OUTPUT.into()],
         uri: Some("file:///home/zenoh-flow/operator.so".into()),
@@ -66,7 +66,7 @@ fn generate_flattened_data_flow_descriptor() -> FlattenedDataFlowDescriptor {
 
     let sink = FlattenedSinkDescriptor {
         id: SINK_ID.into(),
-        name: "Sink".into(),
+        description: "Sink".into(),
         inputs: vec![SINK_INPUT.into()],
         uri: Some("file:///home/zenoh-flow/sink.so".into()),
         configuration: Configuration::default(),

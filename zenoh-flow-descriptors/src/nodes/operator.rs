@@ -28,7 +28,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
 /// use zenoh_flow_descriptors::OperatorDescriptor;
 ///
 /// let yaml = "
-/// name: Operator
+/// description: Operator
 /// configuration:
 ///   answer: 42
 /// uri: file:///home/zenoh-flow/node/liboperator.so
@@ -41,7 +41,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
 ///
 /// let json = "
 /// {
-///   \"name\": \"Operator\",
+///   \"description\": \"Operator\",
 ///   \"configuration\": {
 ///     \"answer\": 42
 ///   },
@@ -60,7 +60,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct OperatorDescriptor {
-    pub name: Arc<str>,
+    pub description: Arc<str>,
     pub uri: Option<Arc<str>>,
     pub inputs: Vec<PortId>,
     pub outputs: Vec<PortId>,
@@ -70,7 +70,7 @@ pub struct OperatorDescriptor {
 
 impl std::fmt::Display for OperatorDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Operator:\n{}", self.name)
+        write!(f, "Operator:\n{}", self.description)
     }
 }
 
@@ -80,7 +80,7 @@ impl IFlattenable for OperatorDescriptor {
     fn flatten(self, id: NodeId, overwritting_configuration: Configuration) -> Self::Flattened {
         FlattenedOperatorDescriptor {
             id,
-            name: self.name,
+            description: self.description,
             inputs: self.inputs,
             outputs: self.outputs,
             uri: self.uri,
@@ -101,7 +101,7 @@ mod tests {
         let id: NodeId = "my-operator-1".into();
         let expected_operator = FlattenedOperatorDescriptor {
             id: id.clone(),
-            name: "operator-1".into(),
+            description: "operator-1".into(),
             inputs: vec!["operator-1-in-1".into(), "operator-1-in-2".into()],
             outputs: vec!["operator-1-out".into()],
             uri: Some("file://operator-1.so".into()),

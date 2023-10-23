@@ -1,4 +1,4 @@
-name: operator-infinite
+description: operator-infinite
 
 vars:
   SCHEME: ""    # set up by the data flow

@@ -49,21 +49,21 @@ fn test_flatten_descriptor() {
     let expected_sources = vec![
         FlattenedSourceDescriptor {
             id: "source-1".into(),
-            name: "source".into(),
+            description: "source".into(),
             outputs: vec!["source-out".into()],
             uri: Some("file://source.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
         },
         FlattenedSourceDescriptor {
             id: "source-2".into(),
-            name: "source".into(),
+            description: "source".into(),
             outputs: vec!["source-out".into()],
             uri: Some("file://source.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
         },
         FlattenedSourceDescriptor {
             id: "source-composite".into(),
-            name: "composite-source".into(),
+            description: "composite-source".into(),
             outputs: vec![
                 "source-composite-out-1".into(),
                 "source-composite-out-2".into(),
@@ -89,7 +89,7 @@ fn test_flatten_descriptor() {
     let expected_operators = vec![
         FlattenedOperatorDescriptor {
             id: "operator-1".into(),
-            name: "operator".into(),
+            description: "operator".into(),
             inputs: vec!["operator-in".into()],
             outputs: vec!["operator-out".into()],
             uri: Some("file://operator.so".into()),
@@ -97,7 +97,7 @@ fn test_flatten_descriptor() {
         },
         FlattenedOperatorDescriptor {
             id: "operator-2".into(),
-            name: "operator".into(),
+            description: "operator".into(),
             inputs: vec!["operator-in".into()],
             outputs: vec!["operator-out".into()],
             uri: Some("file://operator.so".into()),
@@ -114,7 +114,7 @@ fn test_flatten_descriptor() {
          */
         FlattenedOperatorDescriptor {
             id: "operator-composite/sub-operator-1".into(),
-            name: "leaf-operator-1".into(),
+            description: "leaf-operator-1".into(),
             inputs: vec!["sub-operator-1-in-1".into(), "sub-operator-1-in-2".into()],
             outputs: vec!["sub-operator-1-out".into()],
             uri: Some("file://sub-operator-1.so".into()),
@@ -130,7 +130,7 @@ fn test_flatten_descriptor() {
          */
         FlattenedOperatorDescriptor {
             id: "operator-composite/sub-operator-composite/sub-sub-operator-1".into(),
-            name: "sub-leaf-operator-1".into(),
+            description: "sub-leaf-operator-1".into(),
             inputs: vec!["sub-sub-operator-1-in".into()],
             outputs: vec!["sub-sub-operator-1-out".into()],
             uri: Some("file://sub-sub-operator-1.so".into()),
@@ -142,7 +142,7 @@ fn test_flatten_descriptor() {
          */
         FlattenedOperatorDescriptor {
             id: "operator-composite/sub-operator-composite/sub-sub-operator-2".into(),
-            name: "sub-leaf-operator-2".into(),
+            description: "sub-leaf-operator-2".into(),
             inputs: vec!["sub-sub-operator-2-in".into()],
             outputs: vec!["sub-sub-operator-2-out".into()],
             uri: Some("file://sub-sub-operator-2.so".into()),
@@ -154,7 +154,7 @@ fn test_flatten_descriptor() {
          */
         FlattenedOperatorDescriptor {
             id: "operator-composite/sub-operator-2".into(),
-            name: "leaf-operator-2".into(),
+            description: "leaf-operator-2".into(),
             inputs: vec!["sub-operator-2-in".into()],
             outputs: vec!["sub-operator-2-out-1".into(), "sub-operator-2-out-2".into()],
             uri: Some("file://sub-operator-2.so".into()),
@@ -180,21 +180,21 @@ fn test_flatten_descriptor() {
     let expected_sinks = vec![
         FlattenedSinkDescriptor {
             id: "sink-1".into(),
-            name: "sink".into(),
+            description: "sink".into(),
             inputs: vec!["sink-in".into()],
             uri: Some("file://sink.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
         },
         FlattenedSinkDescriptor {
             id: "sink-2".into(),
-            name: "sink".into(),
+            description: "sink".into(),
             inputs: vec!["sink-in".into()],
             uri: Some("file://sink.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
         },
         FlattenedSinkDescriptor {
             id: "sink-composite".into(),
-            name: "composite-sink".into(),
+            description: "composite-sink".into(),
             inputs: vec!["sink-composite-in-1".into(), "sink-composite-in-2".into()],
             uri: Some("file://sink-composite.so".into()),
             configuration: json!({ "foo": "global-outer", "bar": "reverse" }).into(),

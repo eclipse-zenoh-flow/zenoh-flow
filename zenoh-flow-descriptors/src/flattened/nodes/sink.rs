@@ -27,7 +27,7 @@ use zenoh_flow_records::SinkRecord;
 ///
 /// let sink_yaml = "
 ///     id: Sink-2
-///     name: Sink
+///     description: Sink
 ///     configuration:
 ///       foo: bar
 ///       answer: 2
@@ -40,7 +40,7 @@ use zenoh_flow_records::SinkRecord;
 /// let sink_json = "
 ///     {
 ///       \"id\": \"Sink-2\",
-///       \"name\": \"Sink\",
+///       \"description\": \"Sink\",
 ///       \"configuration\": {
 ///         \"foo\": \"bar\",
 ///         \"answer\": 2
@@ -59,7 +59,7 @@ use zenoh_flow_records::SinkRecord;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedSinkDescriptor {
     pub id: NodeId,
-    pub name: Arc<str>,
+    pub description: Arc<str>,
     pub uri: Option<Arc<str>>,
     pub inputs: Vec<PortId>,
     #[serde(default)]
@@ -76,7 +76,7 @@ impl From<FlattenedSinkDescriptor> for SinkRecord {
     fn from(value: FlattenedSinkDescriptor) -> Self {
         Self {
             id: value.id,
-            name: value.name,
+            description: value.description,
             inputs: value.inputs,
             uri: value.uri,
             configuration: value.configuration,

@@ -1,4 +1,4 @@
-name: sink
+description: sink
 
 uri: "{{ SCHEME }}sink.so"
 
