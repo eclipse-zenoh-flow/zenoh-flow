@@ -19,6 +19,7 @@ pub use sink::SinkDescriptor;
 pub(crate) mod source;
 pub use source::SourceDescriptor;
 
+use crate::vars::Vars;
 use crate::{
     flattened::{IFlattenable, IFlattenableComposite, Patch},
     uri, LinkDescriptor,
@@ -27,7 +28,7 @@ use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, sync::Arc};
 use zenoh_flow_commons::deserialize_id;
-use zenoh_flow_commons::{Configuration, NodeId, Result, Vars};
+use zenoh_flow_commons::{Configuration, NodeId, Result};
 
 /// A generic Zenoh-Flow node.
 ///

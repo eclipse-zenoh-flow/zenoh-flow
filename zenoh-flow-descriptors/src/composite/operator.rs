@@ -17,13 +17,14 @@ use std::sync::Arc;
 
 use crate::composite::Substitutions;
 use crate::flattened::{IFlattenableComposite, Patch};
+use crate::vars::Vars;
 use crate::{
     CompositeInputDescriptor, CompositeOutputDescriptor, FlattenedOperatorDescriptor,
     InputDescriptor, LinkDescriptor, NodeDescriptor, OperatorDescriptor, OutputDescriptor,
 };
 
 use serde::{Deserialize, Serialize};
-use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, Result, Vars};
+use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, Result};
 
 /// A `Composite Operator` Zenoh-Flow node.
 ///

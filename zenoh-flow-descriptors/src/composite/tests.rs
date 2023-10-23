@@ -12,11 +12,12 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use zenoh_flow_commons::{Configuration, Vars};
+use zenoh_flow_commons::Configuration;
 
 use crate::flattened::IFlattenableComposite;
 use std::collections::HashSet;
 
+use crate::vars::Vars;
 use crate::{
     composite::Substitutions, flattened::Patch, CompositeInputDescriptor,
     CompositeOperatorDescriptor, CompositeOutputDescriptor, FlattenedOperatorDescriptor,

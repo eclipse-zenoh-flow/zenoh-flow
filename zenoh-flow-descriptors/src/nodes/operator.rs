@@ -93,7 +93,8 @@ impl IFlattenable for OperatorDescriptor {
 mod tests {
     use super::*;
     use crate::uri;
-    use zenoh_flow_commons::{NodeId, Vars};
+    use crate::vars::Vars;
+    use zenoh_flow_commons::NodeId;
 
     #[test]
     fn test_flatten_operator() {

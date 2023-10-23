@@ -36,3 +36,5 @@ mod nodes;
 pub use nodes::{NodeDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 
 mod uri;
+
+pub(crate) mod vars;

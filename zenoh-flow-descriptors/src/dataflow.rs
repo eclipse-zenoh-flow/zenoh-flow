@@ -12,6 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::vars::Vars;
 use crate::{
     CompositeOperatorDescriptor, FlattenedDataFlowDescriptor, LinkDescriptor, NodeDescriptor,
     SinkDescriptor, SourceDescriptor,
@@ -23,7 +24,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, Result, RuntimeId, Vars};
+use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, Result, RuntimeId};
 
 /// TODO@J-Loudet Documentation?
 ///

@@ -24,9 +24,10 @@ pub use nodes::{FlattenedOperatorDescriptor, FlattenedSinkDescriptor, FlattenedS
 mod dataflow;
 pub use dataflow::FlattenedDataFlowDescriptor;
 
+use crate::vars::Vars;
 use crate::{composite::Substitutions, InputDescriptor, LinkDescriptor, OutputDescriptor};
 use serde::de::DeserializeOwned;
-use zenoh_flow_commons::{Configuration, NodeId, Result, Vars};
+use zenoh_flow_commons::{Configuration, NodeId, Result};
 
 pub(crate) trait IFlattenableComposite: DeserializeOwned + Display + Debug + Clone {
     type Flattened: Debug + Display;

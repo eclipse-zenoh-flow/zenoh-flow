@@ -27,6 +27,5 @@ version = { workspace = true }
 anyhow = { workspace = true }
 bytesize = "1.2.0"
 humantime = "2.1"
-ramhorns = "0.14"
 serde = { workspace = true }
 serde_json = { workspace = true }

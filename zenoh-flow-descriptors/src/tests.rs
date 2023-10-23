@@ -14,13 +14,13 @@
 
 use std::collections::HashMap;
 
+use crate::vars::Vars;
 use crate::{
     uri::try_load_descriptor, DataFlowDescriptor, FlattenedOperatorDescriptor,
     FlattenedSinkDescriptor, FlattenedSourceDescriptor, InputDescriptor, LinkDescriptor,
     OutputDescriptor,
 };
 use serde_json::json;
-use zenoh_flow_commons::Vars;
 
 const BASE_DIR: &str = "./tests/descriptors";
 const SCHEME: &str = "file://";

@@ -12,13 +12,15 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::vars::Vars;
+
 use std::io::Read;
 use std::path::PathBuf;
 
 use anyhow::{bail, Context};
 use serde::Deserialize;
 use url::Url;
-use zenoh_flow_commons::{IMergeOverwrite, Result, Vars};
+use zenoh_flow_commons::{IMergeOverwrite, Result};
 
 pub(crate) fn try_load_descriptor<N>(uri: &str, vars: Vars) -> Result<(N, Vars)>
 where

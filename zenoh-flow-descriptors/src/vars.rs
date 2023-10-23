@@ -12,12 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::merge::IMergeOverwrite;
-use crate::Result;
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::rc::Rc;
+use zenoh_flow_commons::{IMergeOverwrite, Result};
 
 /// `Vars` is an internal structure that we use to expand the "mustache variables" in a descriptor
 /// file.
