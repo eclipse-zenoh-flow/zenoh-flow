@@ -12,12 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::prelude::{Inputs, Outputs};
-use crate::types::{Configuration, Context};
-use crate::Result;
-
+use crate::io::{Inputs, Outputs};
+use crate::Context;
 use async_trait::async_trait;
 use std::any::Any;
+use zenoh_flow_commons::{Configuration, Result};
 
 /// The `SendSyncAny` trait allows Zenoh-Flow to send data between nodes running in the same process
 /// without serializing.
@@ -41,6 +40,21 @@ impl<T: 'static + Send + Sync> SendSyncAny for T {
     }
 }
 
+/// A `Node` is defined by its `iteration` that is repeatedly called by Zenoh-Flow.
+///
+/// This trait takes an immutable reference to `self` so as to not impact performance. To keep a
+/// state and to mutate it, the interior mutability pattern is necessary.
+///
+/// A struct implementing the Node trait typically needs to keep a reference to the `Input` and
+/// `Output` it needs.
+///
+/// For usage examples see: [`Operator`](`Operator`), [`Source`](`Source`) or [`Sink`](`Sink`)
+/// traits.
+#[async_trait]
+pub trait Node: Send + Sync {
+    async fn iteration(&self) -> Result<()>;
+}
+
 /// The `Source` trait represents a Source of data in Zenoh Flow. Sources only possess `Outputs` and
 /// their purpose is to fetch data from the external world.
 ///
@@ -52,8 +66,9 @@ impl<T: 'static + Send + Sync> SendSyncAny for T {
 ///
 /// ## Example
 ///
-/// ```ignore
-/// use zenoh_flow::prelude::*;
+/// ```no_run
+/// use async_trait::async_trait;
+/// use zenoh_flow_nodes::prelude::*;
 ///
 /// // Use our provided macro to expose the symbol that Zenoh-Flow will look for when it will load
 /// // the shared library.
@@ -89,10 +104,8 @@ impl<T: 'static + Send + Sync> SendSyncAny for T {
 ///         //
 ///         // The state is a way for the Source to read information from the external world, i.e.,
 ///         // interacting with I/O devices. We mimick an asynchronous iteraction with a sleep.
-///         async_std::task::sleep(std::time::Duration::from_secs(1)).await;
 ///
-///         // self.output.send(10usize, None).await?;
-///         Ok(())
+///         self.output.send(10usize, None).await
 ///     }
 /// }
 /// ```
@@ -114,77 +127,6 @@ pub trait Source: Node + Send + Sync {
         Self: Sized;
 }
 
-/// The `Sink` trait represents a Sink of data in Zenoh Flow.
-///
-/// Sinks only possess `Inputs`, their objective is to send the result of the computations to the
-/// external world.
-///
-/// This trait takes an immutable reference to `self` so as to not impact performance. To keep a
-/// state and to mutate it, the interior mutability pattern is necessary.
-///
-/// A struct implementing the Sink trait typically needs to keep a reference to the `Input` it
-/// needs.
-///
-/// ## Example
-///
-/// ```ignore
-/// use async_trait::async_trait;
-/// use zenoh_flow::prelude::*;
-///
-/// // Use our provided macro to expose the symbol that Zenoh-Flow will look for when it will load
-/// // the shared library.
-/// #[export_sink]
-/// struct GenericSink {
-///     input: Input<usize>,
-/// }
-///
-/// #[async_trait]
-/// impl Sink for GenericSink {
-///     async fn new(
-///         _context: Context,
-///         _configuration: Option<Configuration>,
-///         mut inputs: Inputs,
-///     ) -> Result<Self> {
-///         let input = inputs
-///             .take("in")
-///             .expect("No input called 'in' found")
-///             .typed(|bytes| todo!("Provide your deserializer here"));
-///
-///         Ok(GenericSink { input })
-///     }
-/// }
-///
-/// #[async_trait]
-/// impl Node for GenericSink {
-///     async fn iteration(&self) -> Result<()> {
-///         let (message, _timestamp) = self.input.recv().await?;
-///         match message {
-///             Message::Data(t) => println!("{}", *t),
-///             Message::Watermark => println!("Watermark"),
-///         }
-///
-///         Ok(())
-///     }
-/// }
-/// ```
-#[async_trait]
-pub trait Sink: Node + Send + Sync {
-    /// For a `Context`, a `Configuration` and a set of `Inputs`, produce a new **Sink**.
-    ///
-    /// Sinks only possess `Inputs`, their objective is to send the result of the computations to the
-    /// external world.
-    ///
-    /// Sinks are **started first** when initiating a data flow. As they are at the end of the chain of
-    /// computations, by starting them first we ensure that no data is lost.
-    async fn new(
-        context: Context,
-        configuration: Option<Configuration>,
-        inputs: Inputs,
-    ) -> Result<Self>
-    where
-        Self: Sized;
-}
-
 /// The `Operator` trait represents an Operator inside Zenoh-Flow.
 ///
 /// Operators are at the heart of a data flow, they carry out computations on the data they receive
@@ -198,9 +140,9 @@ pub trait Sink: Node + Send + Sync {
 ///
 /// ## Example
 ///
-/// ```ignore
+/// ```no_run
 /// use async_trait::async_trait;
-/// use zenoh_flow::prelude::*;
+/// use zenoh_flow_nodes::prelude::*;
 ///
 /// // Use our provided macro to expose the symbol that Zenoh-Flow will look for when it will load
 /// // the shared library.
@@ -262,17 +204,73 @@ pub trait Operator: Node + Send + Sync {
         Self: Sized;
 }
 
-/// A `Node` is defined by its `iteration` that is repeatedly called by Zenoh-Flow.
+/// The `Sink` trait represents a Sink of data in Zenoh Flow.
+///
+/// Sinks only possess `Inputs`, their objective is to send the result of the computations to the
+/// external world.
 ///
 /// This trait takes an immutable reference to `self` so as to not impact performance. To keep a
 /// state and to mutate it, the interior mutability pattern is necessary.
 ///
-/// A struct implementing the Node trait typically needs to keep a reference to the `Input` and
-/// `Output` it needs.
+/// A struct implementing the Sink trait typically needs to keep a reference to the `Input` it
+/// needs.
 ///
-/// For usage examples see: [`Operator`](`Operator`), [`Source`](`Source`) or [`Sink`](`Sink`)
-/// traits.
+/// ## Example
+///
+/// ```no_run
+/// use async_trait::async_trait;
+/// use zenoh_flow_nodes::prelude::*;
+///
+/// // Use our provided macro to expose the symbol that Zenoh-Flow will look for when it will load
+/// // the shared library.
+/// #[export_sink]
+/// struct GenericSink {
+///     input: Input<usize>,
+/// }
+///
+/// #[async_trait]
+/// impl Sink for GenericSink {
+///     async fn new(
+///         _context: Context,
+///         _configuration: Option<Configuration>,
+///         mut inputs: Inputs,
+///     ) -> Result<Self> {
+///         let input = inputs
+///             .take("in")
+///             .expect("No input called 'in' found")
+///             .typed(|bytes| todo!("Provide your deserializer here"));
+///
+///         Ok(GenericSink { input })
+///     }
+/// }
+///
+/// #[async_trait]
+/// impl Node for GenericSink {
+///     async fn iteration(&self) -> Result<()> {
+///         let (message, _timestamp) = self.input.recv().await?;
+///         match message {
+///             Message::Data(t) => println!("{}", *t),
+///             Message::Watermark => println!("Watermark"),
+///         }
+///
+///         Ok(())
+///     }
+/// }
+/// ```
 #[async_trait]
-pub trait Node: Send + Sync {
-    async fn iteration(&self) -> Result<()>;
+pub trait Sink: Node + Send + Sync {
+    /// For a `Context`, a `Configuration` and a set of `Inputs`, produce a new **Sink**.
+    ///
+    /// Sinks only possess `Inputs`, their objective is to send the result of the computations to the
+    /// external world.
+    ///
+    /// Sinks are **started first** when initiating a data flow. As they are at the end of the chain of
+    /// computations, by starting them first we ensure that no data is lost.
+    async fn new(
+        context: Context,
+        configuration: Option<Configuration>,
+        inputs: Inputs,
+    ) -> Result<Self>
+    where
+        Self: Sized;
 }

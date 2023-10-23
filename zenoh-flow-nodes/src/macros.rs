@@ -59,19 +59,19 @@ pub fn export_source(_: TokenStream, input: TokenStream) -> TokenStream {
 
         #[doc(hidden)]
         #[no_mangle]
-        pub static _zf_export_source: zenoh_flow_nodes::NodeDeclaration<
-            zenoh_flow_nodes::SourceFn,
-        > = zenoh_flow_nodes::NodeDeclaration::<
-            zenoh_flow_nodes::SourceFn,
+        pub static _zf_export_source: zenoh_flow::runtime::dataflow::loader::NodeDeclaration<
+        zenoh_flow::runtime::dataflow::node::SourceFn,
+        > = zenoh_flow::runtime::dataflow::loader::NodeDeclaration::<
+        zenoh_flow::runtime::dataflow::node::SourceFn,
         > {
-            rustc_version: zenoh_flow_nodes::RUSTC_VERSION,
-            core_version: zenoh_flow_nodes::CORE_VERSION,
-            constructor: |context: zenoh_flow_nodes::prelude::Context,
-            configuration: Option<zenoh_flow_nodes::prelude::Configuration>,
-            outputs: zenoh_flow_nodes::prelude::Outputs| {
+            rustc_version: zenoh_flow::runtime::dataflow::loader::RUSTC_VERSION,
+            core_version: zenoh_flow::runtime::dataflow::loader::CORE_VERSION,
+            constructor: |context: zenoh_flow::types::Context,
+                          configuration: Option<zenoh_flow::types::Configuration>,
+                          outputs: zenoh_flow::io::Outputs| {
                 std::boxed::Box::pin(async {
                     let node = <#ident>::new(context, configuration, outputs).await?;
-                    Ok(std::sync::Arc::new(node) as std::sync::Arc<dyn zenoh_flow_nodes::prelude::Node>)
+                    Ok(std::sync::Arc::new(node) as std::sync::Arc<dyn zenoh_flow::traits::Node>)
                 })
             },
         };
@@ -122,19 +122,19 @@ pub fn export_sink(_: TokenStream, input: TokenStream) -> TokenStream {
 
         #[doc(hidden)]
         #[no_mangle]
-        pub static _zf_export_sink: zenoh_flow_nodes::NodeDeclaration<
-            zenoh_flow_nodes::SinkFn,
-        > = zenoh_flow_nodes::NodeDeclaration::<
-            zenoh_flow_nodes::SinkFn,
+        pub static _zf_export_sink: zenoh_flow::runtime::dataflow::loader::NodeDeclaration<
+        zenoh_flow::runtime::dataflow::node::SinkFn,
+        > = zenoh_flow::runtime::dataflow::loader::NodeDeclaration::<
+        zenoh_flow::runtime::dataflow::node::SinkFn,
         > {
-            rustc_version: zenoh_flow_nodes::RUSTC_VERSION,
-            core_version: zenoh_flow_nodes::CORE_VERSION,
-            constructor: |context: zenoh_flow_nodes::prelude::Context,
-                          configuration: Option<zenoh_flow_nodes::prelude::Configuration>,
-                          mut inputs: zenoh_flow_nodes::prelude::Inputs| {
+            rustc_version: zenoh_flow::runtime::dataflow::loader::RUSTC_VERSION,
+            core_version: zenoh_flow::runtime::dataflow::loader::CORE_VERSION,
+            constructor: |context: zenoh_flow::types::Context,
+                          configuration: Option<zenoh_flow::types::Configuration>,
+                          mut inputs: zenoh_flow::io::Inputs| {
                 std::boxed::Box::pin(async {
                     let node = <#ident>::new(context, configuration, inputs).await?;
-                    Ok(std::sync::Arc::new(node) as std::sync::Arc<dyn zenoh_flow_nodes::prelude::Node>)
+                    Ok(std::sync::Arc::new(node) as std::sync::Arc<dyn zenoh_flow::traits::Node>)
                 })
             },
         };
@@ -194,20 +194,20 @@ pub fn export_operator(_: TokenStream, input: TokenStream) -> TokenStream {
 
         #[doc(hidden)]
         #[no_mangle]
-        pub static _zf_export_operator: zenoh_flow_nodes::NodeDeclaration<
-        zenoh_flow_nodes::OperatorFn,
-        > = zenoh_flow_nodes::NodeDeclaration::<
-        zenoh_flow_nodes::OperatorFn,
+        pub static _zf_export_operator: zenoh_flow::runtime::dataflow::loader::NodeDeclaration<
+        zenoh_flow::runtime::dataflow::node::OperatorFn,
+        > = zenoh_flow::runtime::dataflow::loader::NodeDeclaration::<
+        zenoh_flow::runtime::dataflow::node::OperatorFn,
         > {
-            rustc_version: zenoh_flow_nodes::RUSTC_VERSION,
-            core_version: zenoh_flow_nodes::CORE_VERSION,
-            constructor: |context: zenoh_flow_nodes::prelude::Context,
-                          configuration: Option<zenoh_flow_nodes::prelude::Configuration>,
-                          mut inputs: zenoh_flow_nodes::prelude::Inputs,
-                          mut outputs: zenoh_flow_nodes::prelude::Outputs| {
+            rustc_version: zenoh_flow::runtime::dataflow::loader::RUSTC_VERSION,
+            core_version: zenoh_flow::runtime::dataflow::loader::CORE_VERSION,
+            constructor: |context: zenoh_flow::types::Context,
+                          configuration: Option<zenoh_flow::types::Configuration>,
+                          mut inputs: zenoh_flow::io::Inputs,
+                          mut outputs: zenoh_flow::io::Outputs| {
                 std::boxed::Box::pin(async {
                     let node = <#ident>::new(context, configuration, inputs, outputs).await?;
-                    Ok(std::sync::Arc::new(node) as std::sync::Arc<dyn zenoh_flow_nodes::prelude::Node>)
+                    Ok(std::sync::Arc::new(node) as std::sync::Arc<dyn zenoh_flow::traits::Node>)
                 })
             },
         };
