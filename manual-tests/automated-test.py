@@ -4,6 +4,7 @@ import os
 import platform
 import shutil
 import time
+import sys
 
 import psutil
 
@@ -138,7 +139,7 @@ elif zenoh_release_flag == "debug":
 
 print(f"Path of zfctl: {zf_conf.zfctl_path}")
 
-p = "zenoh-zf-plugin-01.json".__len__()
+p = len("zenoh-zf-plugin-01.json")
 if zf_conf.zf_plugin_path[-p:] != "zenoh-zf-plugin-01.json":
     print("[Info] Zenoh-Flow as Zenoh plugin")
     if os.path.exists(os.path.join(manual_tests_path, "zenoh-zf-plugin.json")) is False:
@@ -151,7 +152,7 @@ if zf_conf.zf_plugin_path[-p:] != "zenoh-zf-plugin-01.json":
         json_string = json_file.read()
         if json_string.find(dir_zenoh_zf_plugin) == -1:
             start_row = json_string.find('"plugins_search_dirs":[')
-            index = (start_row - 1) + '"plugins_search_dirs": ['.__len__()
+            index = (start_row - 1) + len('"plugins_search_dirs": [')
             add_lib_folder = (
                 json_string[:index]
                 + '"'
@@ -230,24 +231,38 @@ for process in psutil.process_iter():
 print(f"[Info] Test {process_name}  process pid {pid}")
 zf_conf.zenohd_process = pid
 if zf_conf.zenohd_process is not None:
+    if os.path.exists("/tmp/greetings.txt"):
+         os.remove("/tmp/greetings.txt")
     print(f'[Info] Launching Zenoh-Flow example: {zf_command["dataflow_yaml_cmd"]}')
     launch_zf_yaml = os.popen(zf_command["dataflow_yaml_cmd"])
     zf_example_string = launch_zf_yaml.read()
     print(f"[Info] zf_example_string: {zf_example_string}")
-    if zf_example_string.__len__() == 0:
+    if len(zf_example_string) == 0:
         print("[Error] Zenoh-Flow example: FAILED.")
+        sys.exit(-1)
     else:
         zf_conf.uuid_runtimes = zf_example_string
         print(f"[Info] Zenoh-Flow example UUID: {zf_conf.uuid_runtimes}")
 else:
     print("[Error] test zenohd process: FAILED.")
+    sys.exit(-1)
+
+curl_getting_started = "curl -X PUT -H 'content-type:text/plain' -d 'Test' http://localhost:8000/zf/getting-started/hello"
 
 time.sleep(1)
 
 if os.path.exists("/tmp/greetings.txt"):
     txt_res = open("/tmp/greetings.txt", "r")
-    res = txt_res.read().splitlines()
-    previus_index = res.__len__()
+    previous_res = txt_res.read().splitlines()
+    previus_index = len(previous_res)
+    previus_hello = 0
+    current_hello = 0
+
+    for i in range(len(previous_res)):
+            if previous_res[i] == "Hello, Test!":
+                previus_hello +=1
+
+
     curl_getting_started = "curl -X PUT -H 'content-type:text/plain' -d 'Test' http://localhost:8000/zf/getting-started/hello"
     print(
         f"[Info] Launching CURL request to `zf/getting-started/hello`: \n {curl_getting_started}\n"
@@ -256,17 +271,26 @@ if os.path.exists("/tmp/greetings.txt"):
     time.sleep(1)
     txt_res = open("/tmp/greetings.txt", "r")
     res = txt_res.read().splitlines()
-    print("res.__len__()", res.__len__())
-    if res.__len__() > previus_index and previus_index != 1:
-        result = res[previus_index:]
+    if previus_index == 1 and res[0] == "":
+        result = res  
     else:
-        result = res
-
-    for i in range(result.__len__()):
-        if result[i] == "Hello, Test!":
-            print(f"\n[Info] Test Recive: SUCCESS, {result[i]}")
-        else:
-            print("\n[Error] Test Recive:  FAILED.")
+        result = res[previus_index:]
+        
+    if(len(result)) != 0:
+        for i in range(len(result)):
+            if result[i] == "Hello, Test!":
+                current_hello +=1
+                print(f"\n[Info] Test Recive: SUCCESS, {result[i]}")
+            else:
+                print("\n[Error] Test Recive:  FAILED.")
+                sys.exit(-1)
+    else:
+        print("\n[Error] Test Recive:  FAILED.")
+        sys.exit(-1)
+    os.remove("/tmp/greetings.txt")
+    if current_hello<=previus_index or current_hello==0:
+        sys.exit(-1)
+    
 
 print("\n[Info] Killing `zenohd` processes...")
 process_name = "zenohd"
