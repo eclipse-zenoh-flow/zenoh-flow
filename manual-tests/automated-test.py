@@ -113,10 +113,7 @@ zenoh_flow_path = os.path.abspath(os.path.join(manual_tests_path, os.pardir))
 print(f"Path of zenohd: {zf_conf.zenohd_path}")
 print(f"Path of zenoh-Flow path: {zenoh_flow_path}")
 
-if os.path.exists("./../examples/flows/getting-started.yaml"):
-    data_flow_path = os.path.join(
-        zenoh_flow_path, "examples/flows/getting-started.yaml"
-    )
+data_flow_path = os.path.join(zenoh_flow_path, "examples/flows/getting-started.yaml")
 
 print(f"Path of getting-started example: {data_flow_path}")
 
