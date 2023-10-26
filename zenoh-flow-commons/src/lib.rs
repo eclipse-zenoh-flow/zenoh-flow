@@ -30,5 +30,8 @@ pub use runtime::RuntimeContext;
 mod shared_memory;
 pub use shared_memory::{SharedMemoryConfiguration, SharedMemoryParameters};
 
+mod vars;
+pub use vars::Vars;
+
 /// Zenoh-Flow's result type.
 pub type Result<T> = std::result::Result<T, anyhow::Error>;
