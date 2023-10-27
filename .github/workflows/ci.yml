@@ -210,9 +210,8 @@ jobs:
           echo 'runner.workspace === ${{ runner.workspace }}'
           echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
 
-      # - name: git
-      #   run: |
-      #     git checkout 0.7.2-rc
+      - name: git
+        run: git checkout 0.7.2-rc
 
       - name: Build Zenoh
         uses: actions-rs/cargo@v1
