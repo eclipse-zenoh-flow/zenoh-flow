@@ -174,6 +174,7 @@ jobs:
         uses: actions/checkout@master
         with:
           repository: eclipse-zenoh/zenoh
+          ref: b9103c3
       #token: ${{ secrets.GITHUB_TOKEN }}
 
       #uses: actions/checkout@master
@@ -193,19 +194,25 @@ jobs:
       # - name: Clone eclipse-zenoh/zenoh PUBLIC repository
       #   run: git clone git@github.com:eclipse-zenoh/zenoh.git
 
-      - name: Change directory --> from Home directory to docs
-        run: cd docs
+      - name: Show into current dir
+        run: ls
 
-      # - name: dump
-      #   run: |
-      #     echo 'github.workspace === ${{ github.workspace }}'
-      #     echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
-      #     echo 'runner.workspace === ${{ runner.workspace }}'
-      #     echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+      - name: Change directory --> from Home directory to zenoh
+        run: cd zenoh
 
-      - name: git
+      - name: Show into current dir
+        run: ls
+
+      - name: dump
         run: |
-          git checkout 0.7.2-rc
+          echo 'github.workspace === ${{ github.workspace }}'
+          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
+          echo 'runner.workspace === ${{ runner.workspace }}'
+          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+
+      # - name: git
+      #   run: |
+      #     git checkout 0.7.2-rc
 
       - name: Build Zenoh
         uses: actions-rs/cargo@v1
