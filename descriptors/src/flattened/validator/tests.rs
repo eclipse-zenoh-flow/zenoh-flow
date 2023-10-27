@@ -17,6 +17,56 @@ use zenoh_flow_commons::Vars;
 use crate::FlattenedDataFlowDescriptor;
 
 #[test]
+fn test_valid_data_flow() {
+    let yaml_ok = r#"
+name: data flow
+
+sources:
+  - id: source-0
+    description: my source
+    library: file:///home/zenoh-flow/source.so
+    outputs:
+      - out-0
+
+operators:
+  - id: operator-0
+    description: my operator
+    library: file:///home/zenoh-flow/operator.so
+    inputs:
+      - in-0
+    outputs:
+      - out-0
+
+sinks:
+  - id: sink-0
+    description: my sink
+    library: file:///home/zenoh-flow/sink.so
+    inputs:
+      - in-0
+
+links:
+  - from:
+      node: source-0
+      output: out-0
+    to:
+      node: operator-0
+      input: in-0
+  - from:
+      node: operator-0
+      output: out-0
+    to:
+      node: sink-0
+      input: in-0
+"#;
+
+    assert!(FlattenedDataFlowDescriptor::try_flatten(
+        serde_yaml::from_str(yaml_ok).unwrap(),
+        Vars::default(),
+    )
+    .is_ok());
+}
+
+#[test]
 fn test_duplicate_ids() {
     let yaml_duplicate_same_section = r#"
 name: duplicate
