@@ -136,81 +136,10 @@ jobs:
       # - name: Print files  matching "zenohd"
       #   run: echo "${{ steps.pp.outputs.files }}"
 
-      - name: Change directory --> from Zenoh-Flow/Zenoh-Flow to Home directory
-        run: |
-          cd ..
-          cd ..
-
-      # - name: dump
+      # - name: Change directory --> from Zenoh-Flow/Zenoh-Flow to Home directory
       #   run: |
-      #     echo 'github.workspace === ${{ github.workspace }}'
-      #     echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
-      #     echo 'runner.workspace === ${{ runner.workspace }}'
-      #     echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
-
-      # - name: Check out my other private repo
-      #   uses: pixta-dev/repository-mirroring-action@v1
-      #   with:
-      #     source-repo: "git@github.com:eclipse-zenoh/zenoh.git"
-
-      # - name: Checkout
-      #   uses: fregante/setup-git-token@v1
-      #   with:
-      #     token: ${{ secrets.TOKEN }}
-
-      # - name: Clone Repository
-      #   run: git clone https://github.com/eclipse-zenoh/zenoh
-
-      # # This part here is cloning a second repository
-      # # While cloning the repository:
-      # #   - it clones the repo into the given `path`
-      # #   - it checks out the branch defined at `ref`
-      # - name: Clone supercharge docs repository
-      #   uses: actions/checkout@v2
-      #   with:
-      #     repository: supercharge/docs
-      #     path: resources/docs/2.x
-      #     ref: 2.x
-
-      - name: Check out my other private repo
-        uses: actions/checkout@master
-        with:
-          repository: eclipse-zenoh/zenoh
-
-          #ref: b9103c3
-      #token: ${{ secrets.GITHUB_TOKEN }}
-
-      #uses: actions/checkout@master
-      #    path: main
-      #    ref: b9103c3
-      #     token: ${{ secrets.PAT }}
-      #     token: ${{ github.token }}
-
-      # - name: Clone eclipse-zenoh/zenoh PUBLIC repository
-      #   uses: GuillaumeFalourd/clone-github-repo-action@v2.2
-      #   with:
-      #     depth: 1
-      #     branch: 'main'
-      #     owner: 'eclipse-zenoh'
-      #     repository: 'zenoh'
-
-      # - name: Clone eclipse-zenoh/zenoh PUBLIC repository
-      #   run: git clone git@github.com:eclipse-zenoh/zenoh.git
-
-      - name: Show into current dir
-        run: ls
-
-      - name: Pwd
-        run: |
-          pwd            
-          cd zenoh
-          pwd
-
-      # - name: Change directory --> from Home directory to zenoh
-      #   run: cd zenoh
-
-      - name: Show into current dir
-        run: ls
+      #     cd ..
+      #     cd ..
 
       - name: dump
         run: |
@@ -219,19 +148,61 @@ jobs:
           echo 'runner.workspace === ${{ runner.workspace }}'
           echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
 
-      - name: git
-        run: git checkout 0.7.2-rc
+      # #it works
+      # - name: Check out my other private repo
+      #   uses: actions/checkout@master
+      #   with:
+      #     repository: eclipse-zenoh/zenoh
 
-      - name: Build Zenoh
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose --all-targets
+      #but this is better
+      - name: Clone Repository
+        run: git clone -b '0.7.2-rc' https://github.com/eclipse-zenoh/zenoh.git ./../../zenoh
+
+      #uses: actions/checkout@master
+      #    path: main
+      #    ref: b9103c3
+      #     token: ${{ secrets.PAT }}
+      #     token: ${{ github.token }}
+
+      - name: Pwd
+        run: pwd
+
+      # - name: Change directory --> from Home directory to zenoh
+      #   run: cd zenoh
+
+      - name: dump
+        run: |
+          echo 'github.workspace === ${{ github.workspace }}'
+          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
+          echo 'runner.workspace === ${{ runner.workspace }}'
+          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+
+      # - name: git
+      #   run: git checkout 0.7.2-rc
 
       - name: Change directory --> from Zenoh-Flow to Home directory
         run: |
           cd ..
           cd ..
+
+      - name: Change directory --> from Zenoh-Flow to Home directory
+        run: cd zenoh
+
+      # - name: Build Zenoh
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: build
+      #     args: --verbose --all-targets
+
+      - name: Build Zenoh
+        run: cargo build --verbose --all-targets
+
+      - name: Change directory --> from Zenoh-Flow to Home directory
+        run: |
+          cd ..
+
+      - name: Pwd
+        run: pwd
 
       - name: Change directory --> from Home directory to Zenoh
         run: cd zenoh-flow
