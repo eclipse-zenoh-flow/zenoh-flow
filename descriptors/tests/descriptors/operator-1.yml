@@ -1,0 +1,7 @@
+description: "operator-1"
+library: "file://operator-1.so"
+inputs:
+  - "operator-1-in-1"
+  - "operator-1-in-2"
+outputs:
+  - "operator-1-out"

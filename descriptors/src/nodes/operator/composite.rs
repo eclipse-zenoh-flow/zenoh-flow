@@ -95,9 +95,9 @@ impl From<CompositeInputDescriptor> for InputDescriptor {
 /// # Examples
 ///
 /// ```
-/// use zenoh_flow_descriptors::CompositeOperatorDescriptor;
+/// use descriptors::CompositeOperatorDescriptor;
 ///
-/// let yaml = "
+/// let yaml = r#"
 /// description: CompositeOperator
 ///
 /// configuration:
@@ -127,58 +127,58 @@ impl From<CompositeInputDescriptor> for InputDescriptor {
 ///   - id: CompositeOperator-out
 ///     node: InnerOperator2
 ///     output: out-1
-/// ";
+/// "#;
 ///
 /// let composite_operator_yaml = serde_yaml::from_str::<CompositeOperatorDescriptor>(&yaml).unwrap();
 ///
-/// let json = "
+/// let json = r#"
 /// {
-///   \"description\": \"CompositeOperator\",
+///   "description": "CompositeOperator",
 ///
-///   \"configuration\": {
-///     \"name\": \"foo\"
+///   "configuration": {
+///     "name": "foo"
 ///   },
 ///
-///   \"operators\": [
+///   "operators": [
 ///     {
-///       \"id\": \"InnerOperator1\",
-///       \"descriptor\": \"file:///home/zenoh-flow/nodes/operator1.yaml\"
+///       "id": "InnerOperator1",
+///       "descriptor": "file:///home/zenoh-flow/nodes/operator1.yaml"
 ///     },
 ///     {
-///       \"id\": \"InnerOperator2\",
-///       \"descriptor\": \"file:///home/zenoh-flow/nodes/operator2.yaml\"
+///       "id": "InnerOperator2",
+///       "descriptor": "file:///home/zenoh-flow/nodes/operator2.yaml"
 ///     }
 ///   ],
 ///
-///   \"links\": [
+///   "links": [
 ///     {
-///       \"from\": {
-///         \"node\": \"InnerOperator1\",
-///         \"output\": \"out-2\"
+///       "from": {
+///         "node": "InnerOperator1",
+///         "output": "out-2"
 ///       },
-///       \"to\": {
-///         \"node\": \"InnerOperator2\",
-///         \"input\": \"in-1\"
+///       "to": {
+///         "node": "InnerOperator2",
+///         "input": "in-1"
 ///       }
 ///     }
 ///   ],
 ///
-///   \"inputs\": [
+///   "inputs": [
 ///     {
-///       \"id\": \"CompositeOperator-in\",
-///       \"node\": \"InnerOperator1\",
-///       \"input\": \"in-1\"
+///       "id": "CompositeOperator-in",
+///       "node": "InnerOperator1",
+///       "input": "in-1"
 ///     }
 ///   ],
 ///
-///   \"outputs\": [
+///   "outputs": [
 ///     {
-///       \"id\": \"CompositeOperator-out\",
-///       \"node\": \"InnerOperator2\",
-///       \"output\": \"out-1\"
+///       "id": "CompositeOperator-out",
+///       "node": "InnerOperator2",
+///       "output": "out-1"
 ///     }
 ///   ]
-/// }";
+/// }"#;
 ///
 /// let composite_operator_json = serde_json::from_str::<CompositeOperatorDescriptor>(&json).unwrap();
 /// assert_eq!(composite_operator_yaml, composite_operator_json);

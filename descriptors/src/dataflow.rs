@@ -22,9 +22,9 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 /// # Example
 ///
 /// ```
-/// use zenoh_flow_descriptors::DataFlowDescriptor;
+/// use descriptors::DataFlowDescriptor;
 ///
-/// let yaml = "
+/// let yaml = r#"
 /// name: DataFlow
 ///
 /// configuration:
@@ -65,76 +65,76 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 ///
 /// mapping:
 ///   Source-0: zenoh-flow-plugin-0
-/// ";
+/// "#;
 ///
 /// let data_flow_yaml = serde_yaml::from_str::<DataFlowDescriptor>(yaml).unwrap();
 ///
-/// let json = "
+/// let json = r#"
 /// {
-///   \"name\": \"DataFlow\",
+///   "name": "DataFlow",
 ///
-///   \"configuration\": {
-///     \"foo\": \"bar\"
+///   "configuration": {
+///     "foo": "bar"
 ///   },
 ///
-///   \"sources\": [
+///   "sources": [
 ///     {
-///       \"id\": \"Source-0\",
-///       \"descriptor\": \"file:///home/zenoh-flow/nodes/source.yaml\",
-///       \"configuration\": {
-///         \"answer\": 0
+///       "id": "Source-0",
+///       "descriptor": "file:///home/zenoh-flow/nodes/source.yaml",
+///       "configuration": {
+///         "answer": 0
 ///       }
 ///     }
 ///   ],
 ///
-///   \"operators\": [
+///   "operators": [
 ///     {
-///       \"id\": \"Operator-1\",
-///       \"descriptor\": \"file:///home/zenoh-flow/nodes/operator.yaml\",
-///       \"configuration\": {
-///         \"answer\": 1
+///       "id": "Operator-1",
+///       "descriptor": "file:///home/zenoh-flow/nodes/operator.yaml",
+///       "configuration": {
+///         "answer": 1
 ///       }
 ///     }
 ///   ],
 ///
-///   \"sinks\": [
+///   "sinks": [
 ///     {
-///       \"id\": \"Sink-2\",
-///       \"descriptor\": \"file:///home/zenoh-flow/nodes/sink.yaml\",
-///       \"configuration\": {
-///         \"answer\": 2
+///       "id": "Sink-2",
+///       "descriptor": "file:///home/zenoh-flow/nodes/sink.yaml",
+///       "configuration": {
+///         "answer": 2
 ///       }
 ///     }
 ///   ],
 ///
-///   \"links\": [
+///   "links": [
 ///     {
-///       \"from\": {
-///         \"node\": \"Source-0\",
-///         \"output\": \"out-operator\"
+///       "from": {
+///         "node": "Source-0",
+///         "output": "out-operator"
 ///       },
-///       \"to\": {
-///         \"node\": \"Operator-1\",
-///         \"input\": \"in-source\"
+///       "to": {
+///         "node": "Operator-1",
+///         "input": "in-source"
 ///       }
 ///     },
 ///     {
-///       \"from\": {
-///         \"node\": \"Operator-1\",
-///         \"output\": \"out-sink\"
+///       "from": {
+///         "node": "Operator-1",
+///         "output": "out-sink"
 ///       },
-///       \"to\": {
-///         \"node\": \"Sink-2\",
-///         \"input\": \"in-operator\"
+///       "to": {
+///         "node": "Sink-2",
+///         "input": "in-operator"
 ///       }
 ///     }
 ///   ],
 ///
-///   \"mapping\": {
-///     \"Source-0\": \"zenoh-flow-plugin-0\"
+///   "mapping": {
+///     "Source-0": "zenoh-flow-plugin-0"
 ///   }
 /// }
-/// ";
+/// "#;
 ///
 /// let data_flow_json = serde_json::from_str::<DataFlowDescriptor>(json).unwrap();
 /// assert_eq!(data_flow_yaml, data_flow_json);

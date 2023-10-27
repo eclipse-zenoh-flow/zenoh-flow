@@ -86,8 +86,6 @@ use super::RemoteNodeDescriptor;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SinkDescriptor {
     pub id: NodeId,
-    #[serde(default)]
-    pub configuration: Configuration,
     #[serde(flatten)]
     pub(crate) variant: SinkVariants,
 }

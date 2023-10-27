@@ -16,13 +16,16 @@ use crate::{
     DataFlowDescriptor, FlattenedOperatorDescriptor, FlattenedSinkDescriptor,
     FlattenedSourceDescriptor, LinkDescriptor,
 };
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
     sync::Arc,
 };
-use zenoh_flow_commons::{NodeId, Result, RuntimeId, Vars};
+use zenoh_flow_commons::{Configuration, NodeId, Result, RuntimeId, Vars};
+
+use super::validator::Validator;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct FlattenedDataFlowDescriptor {
@@ -45,12 +48,22 @@ impl FlattenedDataFlowDescriptor {
     pub fn try_flatten(mut data_flow: DataFlowDescriptor, vars: Vars) -> Result<Self> {
         let mut flattened_operators = Vec::with_capacity(data_flow.operators.len());
         for operator_desc in data_flow.operators {
+            let operator_id = operator_desc.id.clone();
             let (mut flat_ops, mut flat_links, patch) = FlattenedOperatorDescriptor::try_flatten(
                 operator_desc,
                 data_flow.configuration.clone(),
+                Configuration::default(),
                 vars.clone(),
                 &mut HashSet::default(),
             )?;
+
+            if let Some((_, runtime)) = data_flow.mapping.remove_entry(&operator_id) {
+                flat_ops.iter().for_each(|flat_op| {
+                    data_flow
+                        .mapping
+                        .insert(flat_op.id.clone(), runtime.clone());
+                })
+            }
 
             flattened_operators.append(&mut flat_ops);
             patch.apply(&mut data_flow.links);
@@ -81,13 +94,22 @@ impl FlattenedDataFlowDescriptor {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        Ok(Self {
+        let flattened_data_flow = Self {
             name: data_flow.name,
             sources,
             operators: flattened_operators,
             sinks,
             links: data_flow.links,
             mapping: data_flow.mapping,
-        })
+        };
+
+        Validator::validate(&flattened_data_flow)
+            .context("The provided data flow does not appear to be valid")?;
+
+        Ok(flattened_data_flow)
     }
 }
+
+#[cfg(test)]
+#[path = "./tests.rs"]
+mod tests;

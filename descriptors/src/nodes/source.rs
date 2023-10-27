@@ -86,8 +86,6 @@ use super::RemoteNodeDescriptor;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SourceDescriptor {
     pub id: NodeId,
-    #[serde(default)]
-    pub configuration: Configuration,
     #[serde(flatten)]
     pub(crate) variant: SourceVariants,
 }

@@ -22,6 +22,8 @@ pub(crate) mod uri;
 pub(crate) mod dataflow;
 pub use dataflow::FlattenedDataFlowDescriptor;
 
+pub(crate) mod validator;
+
 use crate::nodes::operator::composite::{CompositeInputDescriptor, CompositeOutputDescriptor};
 use crate::{InputDescriptor, LinkDescriptor, OutputDescriptor};
 use std::collections::HashMap;
@@ -118,11 +120,6 @@ impl<T: Hash + PartialEq + Eq, const N: usize> From<[(T, T); N]> for Substitutio
 }
 
 impl<T: Hash + PartialEq + Eq + Display> Substitutions<T> {
-    // pub fn new_with(key: T, value: T) -> Self {
-    //     Self(HashMap::from([(key, value)]))
-    // }
-
-    // TODO: instead of a slice, provide an iterator?
     pub fn apply(&self, substituables: &mut [impl ISubstituable<T>]) {
         substituables
             .iter_mut()

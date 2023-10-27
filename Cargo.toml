@@ -19,6 +19,7 @@ members = [
   "zenoh-flow-daemon",
   "zenoh-flow-derive",
   "zenoh-flow-descriptors",
+  "descriptors",
   "zenoh-flow-nodes",
   "zenoh-flow-plugin",
   "zenoh-flow-records",

@@ -78,8 +78,6 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct OperatorDescriptor {
     pub id: NodeId,
-    #[serde(default)]
-    pub configuration: Configuration,
     #[serde(flatten)]
     pub(crate) variant: OperatorVariants,
 }

@@ -56,6 +56,7 @@ impl Display for FlattenedOperatorDescriptor {
 impl FlattenedOperatorDescriptor {
     pub fn try_flatten(
         operator_descriptor: OperatorDescriptor,
+        mut outer_configuration: Configuration,
         mut overwritting_configuration: Configuration,
         overwritting_vars: Vars,
         ancestors: &mut HashSet<Arc<str>>,
@@ -72,6 +73,12 @@ Possible infinite recursion detected, the following descriptor appears to includ
                     );
                 }
 
+                // We only have access here to the inner configuration of a remote operator. As the configuration
+                // declared here as higher priority than the outer_configuration, we merge here.
+                outer_configuration = remote_desc
+                    .configuration
+                    .merge_overwrite(outer_configuration);
+
                 let (descriptor, _) = uri::try_load_descriptor::<LocalOperatorVariants>(
                     &remote_desc.descriptor,
                     overwritting_vars.clone(),
@@ -81,28 +88,9 @@ Possible infinite recursion detected, the following descriptor appears to includ
                     &remote_desc.descriptor
                 ))?;
 
-                // CAVEAT: the inner configuration of the outmost operator has the highest priority. We know we are in
-                // that situation if the operator has no ancestor.
-                if ancestors.is_empty() {
-                    overwritting_configuration = remote_desc
-                        .configuration
-                        .merge_overwrite(overwritting_configuration);
-                }
-
                 descriptor
             }
-            OperatorVariants::Custom(custom_desc) => {
-                // CAVEAT: the inner configuration of the outmost operator has the highest priority. We know we are in
-                // that situation if the operator has no ancestor.
-                if ancestors.is_empty() {
-                    overwritting_configuration = custom_desc
-                        .configuration
-                        .clone()
-                        .merge_overwrite(overwritting_configuration);
-                }
-
-                LocalOperatorVariants::Custom(custom_desc)
-            }
+            OperatorVariants::Custom(custom_desc) => LocalOperatorVariants::Custom(custom_desc),
         };
 
         match descriptor {
@@ -113,8 +101,13 @@ Possible infinite recursion detected, the following descriptor appears to includ
                     library: custom_desc.library,
                     inputs: custom_desc.inputs,
                     outputs: custom_desc.outputs,
-                    configuration: overwritting_configuration
-                        .merge_overwrite(custom_desc.configuration),
+                    // An inline operator's configuration has higher priority than the outer configuration. In turn, the
+                    // overwritting configuration has the highest priority.
+                    configuration: overwritting_configuration.merge_overwrite(
+                        custom_desc
+                            .configuration
+                            .merge_overwrite(outer_configuration),
+                    ),
                 }],
                 vec![],
                 Patch::default(),
@@ -122,12 +115,13 @@ Possible infinite recursion detected, the following descriptor appears to includ
             LocalOperatorVariants::Composite(mut composite_desc) => {
                 let mut flattened_operators = vec![];
 
-                overwritting_configuration = overwritting_configuration
-                    .merge_overwrite(composite_desc.configuration.clone());
+                overwritting_configuration =
+                    overwritting_configuration.merge_overwrite(outer_configuration);
 
                 for operator_desc in composite_desc.operators {
                     let (mut flat_ops, mut links, patch) = Self::try_flatten(
                         operator_desc,
+                        composite_desc.configuration.clone(),
                         overwritting_configuration.clone(),
                         overwritting_vars.clone(),
                         ancestors,
