@@ -83,7 +83,7 @@ pub trait Node: Send + Sync {
 /// impl Source for MySource {
 ///     async fn new(
 ///         _context: Context,
-///         _configuration: Option<Configuration>,
+///         _configuration: Configuration,
 ///         mut outputs: Outputs,
 ///     ) -> Result<Self> {
 ///         let output = outputs
@@ -118,11 +118,7 @@ pub trait Source: Node + Send + Sync {
     /// Sources are **started last** when initiating a data flow. This is to prevent data loss: if a
     /// Source is started before its downstream nodes then the data it would send before said
     /// downstream nodes are up would be lost.
-    async fn new(
-        context: Context,
-        configuration: Option<Configuration>,
-        outputs: Outputs,
-    ) -> Result<Self>
+    async fn new(context: Context, configuration: Configuration, outputs: Outputs) -> Result<Self>
     where
         Self: Sized;
 }
@@ -156,7 +152,7 @@ pub trait Source: Node + Send + Sync {
 /// impl Operator for NoOp {
 ///     async fn new(
 ///         _context: Context,
-///         _configuration: Option<Configuration>,
+///         _configuration: Configuration,
 ///         mut inputs: Inputs,
 ///         mut outputs: Outputs,
 ///     ) -> Result<Self> {
@@ -196,7 +192,7 @@ pub trait Operator: Node + Send + Sync {
     /// data are produced.
     async fn new(
         context: Context,
-        configuration: Option<Configuration>,
+        configuration: Configuration,
         inputs: Inputs,
         outputs: Outputs,
     ) -> Result<Self>
@@ -232,7 +228,7 @@ pub trait Operator: Node + Send + Sync {
 /// impl Sink for GenericSink {
 ///     async fn new(
 ///         _context: Context,
-///         _configuration: Option<Configuration>,
+///         _configuration: Configuration,
 ///         mut inputs: Inputs,
 ///     ) -> Result<Self> {
 ///         let input = inputs
@@ -266,11 +262,7 @@ pub trait Sink: Node + Send + Sync {
     ///
     /// Sinks are **started first** when initiating a data flow. As they are at the end of the chain of
     /// computations, by starting them first we ensure that no data is lost.
-    async fn new(
-        context: Context,
-        configuration: Option<Configuration>,
-        inputs: Inputs,
-    ) -> Result<Self>
+    async fn new(context: Context, configuration: Configuration, inputs: Inputs) -> Result<Self>
     where
         Self: Sized;
 }

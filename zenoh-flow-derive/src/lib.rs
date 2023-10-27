@@ -33,7 +33,7 @@ use syn::{parse_macro_input, DeriveInput};
 /// impl Source for MySource{
 ///   async fn new(
 ///       context: Context,
-///       configuration: Option<Configuration>,
+///       configuration: Configuration,
 ///       outputs: Outputs,
 ///   ) -> Result<Self> {
 ///         todo!()
@@ -67,7 +67,7 @@ pub fn export_source(_: TokenStream, input: TokenStream) -> TokenStream {
             rustc_version: zenoh_flow_nodes::RUSTC_VERSION,
             core_version: zenoh_flow_nodes::CORE_VERSION,
             constructor: |context: zenoh_flow_nodes::prelude::Context,
-            configuration: Option<zenoh_flow_nodes::prelude::Configuration>,
+            configuration: zenoh_flow_nodes::prelude::Configuration,
             outputs: zenoh_flow_nodes::prelude::Outputs| {
                 std::boxed::Box::pin(async {
                     let node = <#ident>::new(context, configuration, outputs).await?;
@@ -96,7 +96,7 @@ pub fn export_source(_: TokenStream, input: TokenStream) -> TokenStream {
 /// impl Sink for MySink {
 ///   async fn new(
 ///       context: Context,
-///       configuration: Option<Configuration>,
+///       configuration: Configuration,
 ///       inputs: Inputs,
 ///   ) -> Result<Self> {
 ///         todo!()
@@ -130,7 +130,7 @@ pub fn export_sink(_: TokenStream, input: TokenStream) -> TokenStream {
             rustc_version: zenoh_flow_nodes::RUSTC_VERSION,
             core_version: zenoh_flow_nodes::CORE_VERSION,
             constructor: |context: zenoh_flow_nodes::prelude::Context,
-                          configuration: Option<zenoh_flow_nodes::prelude::Configuration>,
+                          configuration: zenoh_flow_nodes::prelude::Configuration,
                           mut inputs: zenoh_flow_nodes::prelude::Inputs| {
                 std::boxed::Box::pin(async {
                     let node = <#ident>::new(context, configuration, inputs).await?;
@@ -165,7 +165,7 @@ pub fn export_sink(_: TokenStream, input: TokenStream) -> TokenStream {
 /// impl Operator for MyOperator {
 ///     fn new(
 ///         context: Context,
-///         configuration: Option<Configuration>,
+///         configuration: Configuration,
 ///         inputs: Inputs,
 ///         outputs: Outputs,
 /// ) -> Result<Self>
@@ -202,7 +202,7 @@ pub fn export_operator(_: TokenStream, input: TokenStream) -> TokenStream {
             rustc_version: zenoh_flow_nodes::RUSTC_VERSION,
             core_version: zenoh_flow_nodes::CORE_VERSION,
             constructor: |context: zenoh_flow_nodes::prelude::Context,
-                          configuration: Option<zenoh_flow_nodes::prelude::Configuration>,
+                          configuration: zenoh_flow_nodes::prelude::Configuration,
                           mut inputs: zenoh_flow_nodes::prelude::Inputs,
                           mut outputs: zenoh_flow_nodes::prelude::Outputs| {
                 std::boxed::Box::pin(async {
