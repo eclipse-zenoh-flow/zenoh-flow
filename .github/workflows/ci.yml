@@ -72,11 +72,17 @@ jobs:
       - name: Install latest Rust toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Build
+      - name: Build zenoh-flow-plugin
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --verbose --all-targets
+          args: --release -p zenoh-flow-plugin -j1
+
+      - name: Build zfctl
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p zfctl -j1
 
       - name: Run tests
         uses: actions-rs/cargo@v1
@@ -99,8 +105,126 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
+      - name: dump
+        run: |
+          echo 'github.workspace === ${{ github.workspace }}'
+          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
+          echo 'runner.workspace === ${{ runner.workspace }}'
+          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+
+      - name: Find files matching "zfctl.json"
+        uses: jeertmans/filesfinder@latest
+        id: ff # Any id, to be used later to reference to files output
+        with:
+          # Only argument, a single string, to be passed as arguments to ff.
+          # See `ff --help` for more help.
+          # Default: "*"
+          args: "zfctl.json"
+
+      - name: Print files  matching "zfctl.json"
+        run: echo "${{ steps.ff.outputs.files }}"
+
+      - name: Find files matching "zenohd"
+        uses: jeertmans/filesfinder@latest
+        id: pp # Any id, to be used later to reference to files output
+        with:
+          # Only argument, a single string, to be passed as arguments to ff.
+          # See `ff --help` for more help.
+          # Default: "*"
+          args: "zenohd"
+
+      - name: Print files  matching "zenohd"
+        run: echo "${{ steps.pp.outputs.files }}"
+
+      - name: Change directory --> from Zenoh-Flow to Home directory
+        run: cd ..
+
+      # - name: dump
+      #   run: |
+      #     echo 'github.workspace === ${{ github.workspace }}'
+      #     echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
+      #     echo 'runner.workspace === ${{ runner.workspace }}'
+      #     echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+
+      # - name: Check out my other private repo
+      #   uses: pixta-dev/repository-mirroring-action@v1
+      #   with:
+      #     source-repo: "git@github.com:eclipse-zenoh/zenoh.git"
+
+      # - name: Checkout
+      #   uses: fregante/setup-git-token@v1
+      #   with:
+      #     token: ${{ secrets.TOKEN }}
+
+      # - name: Clone Repository
+      #   run: git clone https://github.com/eclipse-zenoh/zenoh
+
+      # # This part here is cloning a second repository
+      # # While cloning the repository:
+      # #   - it clones the repo into the given `path`
+      # #   - it checks out the branch defined at `ref`
+      # - name: Clone supercharge docs repository
+      #   uses: actions/checkout@v2
+      #   with:
+      #     repository: supercharge/docs
+      #     path: resources/docs/2.x
+      #     ref: 2.x
+
+      - name: Check out my other private repo
+        uses: actions/checkout@master
+        with:
+          repository: eclipse-zenoh/zenoh
+      #token: ${{ secrets.GITHUB_TOKEN }}
+
+      #uses: actions/checkout@master
+      #    path: main
+      #    ref: b9103c3
+      #     token: ${{ secrets.PAT }}
+      #     token: ${{ github.token }}
+
+      # - name: Clone eclipse-zenoh/zenoh PUBLIC repository
+      #   uses: GuillaumeFalourd/clone-github-repo-action@v2.2
+      #   with:
+      #     depth: 1
+      #     branch: 'main'
+      #     owner: 'eclipse-zenoh'
+      #     repository: 'zenoh'
+
+      # - name: Clone eclipse-zenoh/zenoh PUBLIC repository
+      #   run: git clone git@github.com:eclipse-zenoh/zenoh.git
+
+      - name: Change directory --> from Home directory to docs
+        run: cd docs
+
+      # - name: dump
+      #   run: |
+      #     echo 'github.workspace === ${{ github.workspace }}'
+      #     echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
+      #     echo 'runner.workspace === ${{ runner.workspace }}'
+      #     echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+
+      - name: git
+        run: |
+          git checkout 0.7.2-rc
+
+      - name: Build Zenoh
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose --all-targets
+
+      - name: Change directory --> from Zenoh-Flow to Home directory
+        run: cd ..
+
+      - name: Change directory --> from Home directory to Zenoh
+        run: cd zenoh-flow
+
+      - name: dump
+        run: |
+          echo 'github.workspace === ${{ github.workspace }}'
+          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
+          echo 'runner.workspace === ${{ runner.workspace }}'
+          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
 
       - name: Install dependencies
         run: |
@@ -109,4 +233,4 @@ jobs:
 
       - name: Run Python automated-test.py script
         run: |
-          output=$(python3 manual-tests/automated-test.py)
+          output=$(python3 manual-tests/automated-test.py --build release --zenohd zenoh/target/debug/zenohd --zfctl zenoh-flow/release/debug/zfctl)
