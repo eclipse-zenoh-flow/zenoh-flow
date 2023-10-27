@@ -1,4 +1,4 @@
-flow: test
+name: test
 
 vars:
   SCHEME: file://

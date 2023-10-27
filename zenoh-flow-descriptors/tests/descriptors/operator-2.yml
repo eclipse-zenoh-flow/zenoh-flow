@@ -1,6 +1,6 @@
 description: operator-2
 
-uri: file://operator-2.so
+library: file://operator-2.so
 
 inputs: [operator-2-in]
 

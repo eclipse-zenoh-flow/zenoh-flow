@@ -1,5 +1,5 @@
 description: source
 
-uri: "{{ SCHEME }}source.so"
+library: "{{ SCHEME }}source.so"
 
 outputs: [source-out]

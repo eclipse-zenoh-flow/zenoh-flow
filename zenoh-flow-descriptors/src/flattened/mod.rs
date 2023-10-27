@@ -12,40 +12,119 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-mod nodes;
-use std::{
-    collections::HashSet,
-    fmt::{Debug, Display},
-    sync::Arc,
-};
+pub(crate) mod nodes;
+pub use nodes::operator::FlattenedOperatorDescriptor;
+pub use nodes::sink::FlattenedSinkDescriptor;
+pub use nodes::source::FlattenedSourceDescriptor;
 
-pub use nodes::{FlattenedOperatorDescriptor, FlattenedSinkDescriptor, FlattenedSourceDescriptor};
+pub(crate) mod uri;
 
-mod dataflow;
+pub(crate) mod dataflow;
 pub use dataflow::FlattenedDataFlowDescriptor;
 
-use crate::vars::Vars;
-use crate::{composite::Substitutions, InputDescriptor, LinkDescriptor, OutputDescriptor};
-use serde::de::DeserializeOwned;
-use zenoh_flow_commons::{Configuration, NodeId, Result};
+pub(crate) mod validator;
 
-pub(crate) trait IFlattenableComposite: DeserializeOwned + Display + Debug + Clone {
-    type Flattened: Debug + Display;
-    type Flattenable: IFlattenable<Flattened = Self::Flattened>;
+use crate::nodes::operator::composite::{CompositeInputDescriptor, CompositeOutputDescriptor};
+use crate::{InputDescriptor, LinkDescriptor, OutputDescriptor};
+use std::collections::HashMap;
+use std::fmt::Display;
+use std::hash::Hash;
+use std::ops::{Deref, DerefMut};
+use zenoh_flow_commons::NodeId;
 
-    fn flatten_composite(
-        self,
-        id: NodeId,
-        overwritting_configuration: Configuration,
-        vars: Vars,
-        ancestors: &mut HashSet<Arc<str>>,
-    ) -> Result<(Vec<Self::Flattened>, Vec<LinkDescriptor>, Patch)>;
+/// TODO@J-Loudet documentation?
+pub trait ISubstituable<T: Hash + PartialEq + Eq> {
+    fn substitute(&mut self, subs: &Substitutions<T>);
 }
 
-pub trait IFlattenable: DeserializeOwned + Display + Debug {
-    type Flattened: Debug + Display;
+impl ISubstituable<NodeId> for LinkDescriptor {
+    fn substitute(&mut self, subs: &Substitutions<NodeId>) {
+        if let Some(new_id) = subs.get(&self.from.node) {
+            self.from.node = new_id.clone();
+        }
 
-    fn flatten(self, id: NodeId, overwritting_configuration: Configuration) -> Self::Flattened;
+        if let Some(new_id) = subs.get(&self.to.node) {
+            self.to.node = new_id.clone();
+        }
+    }
+}
+
+impl ISubstituable<OutputDescriptor> for LinkDescriptor {
+    fn substitute(&mut self, subs: &Substitutions<OutputDescriptor>) {
+        if let Some(new_output) = subs.get(&self.from) {
+            self.from = new_output.clone();
+        }
+    }
+}
+
+impl ISubstituable<InputDescriptor> for LinkDescriptor {
+    fn substitute(&mut self, subs: &Substitutions<InputDescriptor>) {
+        if let Some(new_input) = subs.get(&self.to) {
+            self.to = new_input.clone();
+        }
+    }
+}
+
+impl ISubstituable<NodeId> for CompositeOutputDescriptor {
+    fn substitute(&mut self, subs: &Substitutions<NodeId>) {
+        if let Some(new_id) = subs.get(&self.node) {
+            self.node = new_id.clone();
+        }
+    }
+}
+
+impl ISubstituable<NodeId> for CompositeInputDescriptor {
+    fn substitute(&mut self, subs: &Substitutions<NodeId>) {
+        if let Some(new_id) = subs.get(&self.node) {
+            self.node = new_id.clone();
+        }
+    }
+}
+
+/// `Substitutions` is an insert only structure that keeps track of all the substitutions to perform.
+///
+/// It is leveraged in Zenoh-Flow during the flattening of data flows.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Substitutions<T: Hash + PartialEq + Eq>(HashMap<T, T>);
+
+impl<T: Hash + PartialEq + Eq> Default for Substitutions<T> {
+    fn default() -> Self {
+        Self(HashMap::new())
+    }
+}
+
+impl<T: Hash + PartialEq + Eq> Deref for Substitutions<T> {
+    type Target = HashMap<T, T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T: Hash + PartialEq + Eq> DerefMut for Substitutions<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T: Hash + PartialEq + Eq> From<HashMap<T, T>> for Substitutions<T> {
+    fn from(value: HashMap<T, T>) -> Self {
+        Self(value)
+    }
+}
+
+impl<T: Hash + PartialEq + Eq, const N: usize> From<[(T, T); N]> for Substitutions<T> {
+    fn from(value: [(T, T); N]) -> Self {
+        Self(HashMap::from(value))
+    }
+}
+
+impl<T: Hash + PartialEq + Eq + Display> Substitutions<T> {
+    pub fn apply(&self, substituables: &mut [impl ISubstituable<T>]) {
+        substituables
+            .iter_mut()
+            .for_each(|substituable| substituable.substitute(self))
+    }
 }
 
 #[derive(Default, Debug, PartialEq, Eq)]

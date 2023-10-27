@@ -1,5 +1,5 @@
 description: "operator-1"
-uri: "file://operator-1.so"
+library: "file://operator-1.so"
 inputs:
   - "operator-1-in-1"
   - "operator-1-in-2"

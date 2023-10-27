@@ -1,6 +1,6 @@
 description: operator
 
-uri: "{{ SCHEME }}operator.so"
+library: "{{ SCHEME }}operator.so"
 
 inputs: [operator-in]
 

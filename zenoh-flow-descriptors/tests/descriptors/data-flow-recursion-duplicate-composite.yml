@@ -1,4 +1,4 @@
-flow: test-recursion-ok
+name: test-recursion-ok
 
 vars:
   SCHEME: file://

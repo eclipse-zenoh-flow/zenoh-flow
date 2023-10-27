@@ -12,58 +12,39 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::{fmt::Display, sync::Arc};
-
+use crate::{
+    flattened::uri,
+    nodes::sink::{CustomSinkDescriptor, SinkVariants},
+    SinkDescriptor, ZenohSinkDescriptor,
+};
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
-use zenoh_flow_commons::{Configuration, NodeId, PortId};
-use zenoh_flow_records::SinkRecord;
+use std::{collections::HashMap, fmt::Display, sync::Arc};
+use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, Vars};
+use zenoh_keyexpr::OwnedKeyExpr;
 
-/// Textual representation of a Zenoh-Flow Sink node.
-///
-/// # Example
-///
-/// ```
-/// use zenoh_flow_descriptors::FlattenedSinkDescriptor;
-///
-/// let sink_yaml = "
-///     id: Sink-2
-///     description: Sink
-///     configuration:
-///       foo: bar
-///       answer: 2
-///     uri: file:///home/zenoh-flow/node/libsink.so
-///     inputs:
-///       - in-operator
-/// ";
-/// let sink_yaml = serde_yaml::from_str::<FlattenedSinkDescriptor>(&sink_yaml).unwrap();
-///
-/// let sink_json = "
-///     {
-///       \"id\": \"Sink-2\",
-///       \"description\": \"Sink\",
-///       \"configuration\": {
-///         \"foo\": \"bar\",
-///         \"answer\": 2
-///       },
-///       \"uri\": \"file:///home/zenoh-flow/node/libsink.so\",
-///       \"inputs\": [
-///         \"in-operator\"
-///       ]
-///     }
-/// ";
-///
-/// let sink_json = serde_json::from_str::<FlattenedSinkDescriptor>(&sink_json).unwrap();
-///
-/// assert_eq!(sink_yaml, sink_json);
-/// ```
+/// TODO@J-Loudet
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedSinkDescriptor {
     pub id: NodeId,
     pub description: Arc<str>,
-    pub uri: Option<Arc<str>>,
+    pub library: SinkLibrary,
     pub inputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SinkLibrary {
+    Uri(Arc<str>),
+    Zenoh(HashMap<PortId, OwnedKeyExpr>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+enum LocalSinkVariants {
+    Custom(CustomSinkDescriptor),
+    Zenoh(ZenohSinkDescriptor),
 }
 
 impl Display for FlattenedSinkDescriptor {
@@ -72,14 +53,55 @@ impl Display for FlattenedSinkDescriptor {
     }
 }
 
-impl From<FlattenedSinkDescriptor> for SinkRecord {
-    fn from(value: FlattenedSinkDescriptor) -> Self {
-        Self {
-            id: value.id,
-            description: value.description,
-            inputs: value.inputs,
-            uri: value.uri,
-            configuration: value.configuration,
+impl FlattenedSinkDescriptor {
+    pub fn try_flatten(
+        sink_desc: SinkDescriptor,
+        overwritting_vars: Vars,
+        mut overwritting_configuration: Configuration,
+    ) -> Result<Self> {
+        let descriptor = match sink_desc.variant {
+            SinkVariants::Remote(remote_desc) => {
+                let (descriptor, _) = uri::try_load_descriptor::<LocalSinkVariants>(
+                    &remote_desc.descriptor,
+                    overwritting_vars,
+                )
+                .context(format!(
+                    "[{}] Failed to load sink descriptor from < {} >",
+                    sink_desc.id, &remote_desc.descriptor
+                ))?;
+
+                overwritting_configuration = remote_desc
+                    .configuration
+                    .merge_overwrite(overwritting_configuration);
+
+                descriptor
+            }
+            SinkVariants::Zenoh(zenoh_desc) => LocalSinkVariants::Zenoh(zenoh_desc),
+            SinkVariants::Custom(custom_desc) => {
+                overwritting_configuration = custom_desc
+                    .clone()
+                    .configuration
+                    .merge_overwrite(overwritting_configuration);
+                LocalSinkVariants::Custom(custom_desc)
+            }
+        };
+
+        match descriptor {
+            LocalSinkVariants::Custom(custom_sink) => Ok(Self {
+                id: sink_desc.id,
+                description: custom_sink.description,
+                library: SinkLibrary::Uri(custom_sink.library),
+                inputs: custom_sink.inputs,
+                configuration: overwritting_configuration
+                    .merge_overwrite(custom_sink.configuration),
+            }),
+            LocalSinkVariants::Zenoh(zenoh_desc) => Ok(Self {
+                id: sink_desc.id,
+                description: zenoh_desc.description,
+                inputs: zenoh_desc.publishers.keys().cloned().collect(),
+                library: SinkLibrary::Zenoh(zenoh_desc.publishers),
+                configuration: Configuration::default(),
+            }),
         }
     }
 }

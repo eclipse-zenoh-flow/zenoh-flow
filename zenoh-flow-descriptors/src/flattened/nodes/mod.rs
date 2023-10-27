@@ -12,11 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-mod operator;
-pub use operator::FlattenedOperatorDescriptor;
-
-mod source;
-pub use source::FlattenedSourceDescriptor;
-
-mod sink;
-pub use sink::FlattenedSinkDescriptor;
+pub(crate) mod operator;
+pub(crate) mod sink;
+pub(crate) mod source;

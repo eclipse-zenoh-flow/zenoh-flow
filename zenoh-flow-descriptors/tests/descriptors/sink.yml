@@ -1,5 +1,5 @@
 description: sink
 
-uri: "{{ SCHEME }}sink.so"
+library: "{{ SCHEME }}sink.so"
 
 inputs: [sink-in]

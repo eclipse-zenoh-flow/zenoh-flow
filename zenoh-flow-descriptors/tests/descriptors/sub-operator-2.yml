@@ -1,6 +1,6 @@
 description: leaf-operator-2
 
-uri: "{{ SCHEME }}sub-operator-2.so"
+library: "{{ SCHEME }}sub-operator-2.so"
 
 inputs: [sub-operator-2-in]
 

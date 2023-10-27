@@ -13,224 +13,340 @@
 //
 
 use crate::{
-    FlattenedDataFlowDescriptor, FlattenedOperatorDescriptor, FlattenedSinkDescriptor,
-    FlattenedSourceDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor,
+    flattened::{
+        nodes::{sink::SinkLibrary, source::SourceLibrary},
+        uri::try_load_descriptor,
+    },
+    DataFlowDescriptor, FlattenedDataFlowDescriptor, FlattenedOperatorDescriptor,
+    FlattenedSinkDescriptor, FlattenedSourceDescriptor, InputDescriptor, LinkDescriptor,
+    OutputDescriptor,
 };
+use serde_json::json;
 use std::collections::HashMap;
-use zenoh_flow_commons::{
-    Configuration, NodeId, PortId, RuntimeContext, RuntimeId, SharedMemoryConfiguration,
-    SharedMemoryParameters,
-};
-use zenoh_flow_records::{InputRecord, LinkRecord, OutputRecord};
+use zenoh_flow_commons::Vars;
 
-const SOURCE_ID: &str = "source-0";
-const SOURCE_OUTPUT: &str = "out-operator-1";
+const BASE_DIR: &str = "./tests/descriptors";
+const SCHEME: &str = "file://";
 
-const OPERATOR_ID: &str = "operator-1";
-const OPERATOR_INPUT: &str = "in-source-0";
-const OPERATOR_OUTPUT: &str = "out-sink-2";
+// This test is trying to be thorough when it comes to a data flow descriptor. In particular, we
+// want to make sure of the following:
+//
+// - the fact that the configuration is propagated --- correctly,
+// - the naming of the composite operators,
+// - the naming of the ports,
+// - the links.
+//
+// See the comments around the "expected" structures for more information.
+#[test]
+fn test_flatten_descriptor() {
+    // env variable CARGO_MANIFEST_DIR puts us in zenoh-flow/zenoh-flow-descriptors
+    let uri = format!("file://{}/data-flow.yml", BASE_DIR);
 
-const SINK_ID: &str = "sink-2";
-const SINK_INPUT: &str = "in-operator-1";
+    let (descriptor, vars) = try_load_descriptor::<DataFlowDescriptor>(&uri, Vars::default())
+        .expect("Failed to load DataFlowDescriptor");
 
-const RUNTIME_ID: &str = "default-runtime";
+    let flatten = FlattenedDataFlowDescriptor::try_flatten(descriptor, vars).unwrap();
 
-fn generate_default_runtime() -> RuntimeContext {
-    RuntimeContext {
-        id: RUNTIME_ID.into(),
-        shared_memory: SharedMemoryParameters {
-            number_elements: 10,
-            element_size: 10_000,
-            backoff: 500,
+    let expected_sources = vec![
+        FlattenedSourceDescriptor {
+            id: "source-1".into(),
+            description: "source".into(),
+            outputs: vec!["source-out".into()],
+            library: SourceLibrary::Uri("file://source.so".into()),
+            configuration: json!({ "foo": "global-outer" }).into(),
         },
-    }
-}
-
-fn generate_flattened_data_flow_descriptor() -> FlattenedDataFlowDescriptor {
-    let source = FlattenedSourceDescriptor {
-        id: SOURCE_ID.into(),
-        description: "Source".into(),
-        uri: Some("file:///home/zenoh-flow/source.so".into()),
-        outputs: vec![SOURCE_OUTPUT.into()],
-        configuration: Configuration::default(),
-    };
-
-    let operator = FlattenedOperatorDescriptor {
-        id: OPERATOR_ID.into(),
-        description: "Operator".into(),
-        inputs: vec![OPERATOR_INPUT.into()],
-        outputs: vec![OPERATOR_OUTPUT.into()],
-        uri: Some("file:///home/zenoh-flow/operator.so".into()),
-        configuration: Configuration::default(),
-    };
-
-    let sink = FlattenedSinkDescriptor {
-        id: SINK_ID.into(),
-        description: "Sink".into(),
-        inputs: vec![SINK_INPUT.into()],
-        uri: Some("file:///home/zenoh-flow/sink.so".into()),
-        configuration: Configuration::default(),
-    };
-
-    let links = vec![
-        LinkDescriptor {
-            from: OutputDescriptor {
-                node: SOURCE_ID.into(),
-                output: SOURCE_OUTPUT.into(),
-            },
-            to: InputDescriptor {
-                node: OPERATOR_ID.into(),
-                input: OPERATOR_INPUT.into(),
-            },
-            shared_memory: SharedMemoryConfiguration::default(),
+        FlattenedSourceDescriptor {
+            id: "source-2".into(),
+            description: "source".into(),
+            outputs: vec!["source-out".into()],
+            library: SourceLibrary::Uri("file://source.so".into()),
+            configuration: json!({ "foo": "global-outer" }).into(),
         },
-        LinkDescriptor {
-            from: OutputDescriptor {
-                node: OPERATOR_ID.into(),
-                output: OPERATOR_OUTPUT.into(),
-            },
-            to: InputDescriptor {
-                node: SINK_ID.into(),
-                input: SINK_INPUT.into(),
-            },
-            shared_memory: SharedMemoryConfiguration::default(),
+        FlattenedSourceDescriptor {
+            id: "source-composite".into(),
+            description: "composite-source".into(),
+            outputs: vec![
+                "source-composite-out-1".into(),
+                "source-composite-out-2".into(),
+            ],
+            library: SourceLibrary::Uri("file://source-composite.so".into()),
+            configuration: json!({ "foo": "global-outer", "bar": "re-reverse" }).into(),
         },
     ];
 
-    FlattenedDataFlowDescriptor {
-        flow: "test-flow".into(),
-        sources: vec![source],
-        operators: vec![operator],
-        sinks: vec![sink],
-        links,
-        mapping: HashMap::default(),
-    }
-}
+    expected_sources.iter().for_each(|expected_source| {
+        assert!(
+            flatten.sources.contains(expected_source),
+            "Source missing or incorrect: \n\n (expected) {:?} \n\n {:?}",
+            expected_source,
+            flatten
+                .sources
+                .iter()
+                .find(|source| source.id == expected_source.id)
+        )
+    });
+    assert_eq!(expected_sources.len(), flatten.sources.len());
 
-#[test]
-fn test_complete_mapping_and_connect_no_runtime() {
-    let default_runtime = generate_default_runtime();
-    let flattened_descriptor = generate_flattened_data_flow_descriptor();
+    let expected_operators = vec![
+        FlattenedOperatorDescriptor {
+            id: "operator-1".into(),
+            description: "operator".into(),
+            inputs: vec!["operator-in".into()],
+            outputs: vec!["operator-out".into()],
+            library: "file://operator.so".into(),
+            configuration: json!({ "foo": "global-outer" }).into(),
+        },
+        FlattenedOperatorDescriptor {
+            id: "operator-2".into(),
+            description: "operator".into(),
+            inputs: vec!["operator-in".into()],
+            outputs: vec!["operator-out".into()],
+            library: "file://operator.so".into(),
+            configuration: json!({ "foo": "global-outer" }).into(),
+        },
+        /*
+         * `sub-operator-1` is declared in the file "operator-composite.yml".
+         *
+         * Here we are checking that its name, after flattening, is the concatenation of the id of
+         * the (composite) operator in "data-flow.yml" and the id of the actual operator in
+         * "operator-composite.yml": operator-composite/sub-operator-1
+         *
+         * The names of the ports are left intact.
+         */
+        FlattenedOperatorDescriptor {
+            id: "operator-composite/sub-operator-1".into(),
+            description: "leaf-operator-1".into(),
+            inputs: vec!["sub-operator-1-in-1".into(), "sub-operator-1-in-2".into()],
+            outputs: vec!["sub-operator-1-out".into()],
+            library: "file://sub-operator-1.so".into(),
+            configuration:
+                json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" })
+                    .into(),
+        },
+        /*
+         * Same spirit but this time it’s a composite operator within a composite operator. The
+         * resulting name should be the concatenation of both:
+         *
+         * operator-composite/sub-operator-composite/sub-sub-operator-1
+         */
+        FlattenedOperatorDescriptor {
+            id: "operator-composite/sub-operator-composite/sub-sub-operator-1".into(),
+            description: "sub-leaf-operator-1".into(),
+            inputs: vec!["sub-sub-operator-1-in".into()],
+            outputs: vec!["sub-sub-operator-1-out".into()],
+            library: "file://sub-sub-operator-1.so".into(),
+            configuration:
+                json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner", "baz": "leaf" }).into(),
+        },
+        /*
+         * Idem as above: operator-composite/sub-operator-composite/sub-sub-operator-2.
+         */
+        FlattenedOperatorDescriptor {
+            id: "operator-composite/sub-operator-composite/sub-sub-operator-2".into(),
+            description: "sub-leaf-operator-2".into(),
+            inputs: vec!["sub-sub-operator-2-in".into()],
+            outputs: vec!["sub-sub-operator-2-out".into()],
+            library: "file://sub-sub-operator-2.so".into(),
+            configuration:
+                json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner" }).into(),
+        },
+        /*
+         * Similarly, we check that the name is the composition: operator-composite/sub-operator-2.
+         */
+        FlattenedOperatorDescriptor {
+            id: "operator-composite/sub-operator-2".into(),
+            description: "leaf-operator-2".into(),
+            inputs: vec!["sub-operator-2-in".into()],
+            outputs: vec!["sub-operator-2-out-1".into(), "sub-operator-2-out-2".into()],
+            library: "file://sub-operator-2.so".into(),
+            configuration:
+                json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" }).into(),
+        },
+    ];
 
-    let data_flow_record = flattened_descriptor.complete_mapping_and_connect(default_runtime);
-    assert!(data_flow_record.receivers.is_empty());
-    assert!(data_flow_record.senders.is_empty());
+    expected_operators.iter().for_each(|expected_operator| {
+        assert!(
+            flatten.operators.contains(expected_operator),
+            "Operator missing or incorrect: \n\n (expected) {:?} \n\n (found) {:?} \n\n(operators): {:?}\n\n",
+            expected_operator,
+            flatten
+                .operators
+                .iter()
+                .find(|operator| operator.id == expected_operator.id),
+            flatten.operators
+        )
+    });
+    assert_eq!(expected_operators.len(), flatten.operators.len());
 
-    let expected_mapping = HashMap::from([
-        (SOURCE_ID.into(), RUNTIME_ID.into()),
-        (OPERATOR_ID.into(), RUNTIME_ID.into()),
-        (SINK_ID.into(), RUNTIME_ID.into()),
-    ]);
-    assert_eq!(expected_mapping, data_flow_record.mapping);
-}
+    let expected_sinks = vec![
+        FlattenedSinkDescriptor {
+            id: "sink-1".into(),
+            description: "sink".into(),
+            inputs: vec!["sink-in".into()],
+            library: SinkLibrary::Uri("file://sink.so".into()),
+            configuration: json!({ "foo": "global-outer" }).into(),
+        },
+        FlattenedSinkDescriptor {
+            id: "sink-2".into(),
+            description: "sink".into(),
+            inputs: vec!["sink-in".into()],
+            library: SinkLibrary::Uri("file://sink.so".into()),
+            configuration: json!({ "foo": "global-outer" }).into(),
+        },
+        FlattenedSinkDescriptor {
+            id: "sink-composite".into(),
+            description: "composite-sink".into(),
+            inputs: vec!["sink-composite-in-1".into(), "sink-composite-in-2".into()],
+            library: SinkLibrary::Uri("file://sink-composite.so".into()),
+            configuration: json!({ "foo": "global-outer", "bar": "reverse" }).into(),
+        },
+    ];
 
-#[test]
-fn test_complete_mapping_and_connect_all_different_runtime() {
-    let default_runtime = generate_default_runtime();
-    let mut flattened_descriptor = generate_flattened_data_flow_descriptor();
-
-    let source_runtime: RuntimeId = "source-runtime".into();
-    let sink_runtime: RuntimeId = "sink-runtime".into();
-
-    // We only indicate a runtime for the Source and the Sink. The Operator will be on the "default-runtime".
-    flattened_descriptor.mapping = HashMap::from([
-        (SOURCE_ID.into(), source_runtime.clone()),
-        (SINK_ID.into(), sink_runtime.clone()),
-    ]);
-
-    let data_flow_record =
-        flattened_descriptor.complete_mapping_and_connect(default_runtime.clone());
-    // 2 = sender(source-runtime) + sender(default-runtime)
-    assert_eq!(data_flow_record.senders.len(), 2);
-    // 2 = receiver(default-runtime) + receiver(sink-runtime)
-    assert_eq!(data_flow_record.receivers.len(), 2);
-
-    // 4 = source(source-runtime) -> sender(source-runtime)
-    //     + receiver(default-runtime) -> operator(default-runtime)
-    //     + operator(default-runtime) -> sender(default-runtime)
-    //     + receiver(sink-runtime) -> sink(sink-runtime)
-    let source_operator_sender_id: NodeId =
-        format!("z-sender/{}/{}", SOURCE_ID, SOURCE_OUTPUT).into();
-    let source_operator_sender_input: PortId =
-        format!("z-sender/{}/{}-input", SOURCE_ID, SOURCE_OUTPUT).into();
-    let source_operator_receiver_id: NodeId =
-        format!("z-receiver/{}/{}", OPERATOR_ID, OPERATOR_INPUT).into();
-    let source_operator_receiver_output: PortId =
-        format!("z-receiver/{}/{}-output", OPERATOR_ID, OPERATOR_INPUT).into();
-
-    let operator_sink_sender_id: NodeId =
-        format!("z-sender/{}/{}", OPERATOR_ID, OPERATOR_OUTPUT).into();
-    let operator_sink_sender_input: PortId =
-        format!("z-sender/{}/{}-input", OPERATOR_ID, OPERATOR_OUTPUT).into();
-    let operator_sink_receiver_id: NodeId = format!("z-receiver/{}/{}", SINK_ID, SINK_INPUT).into();
-    let operator_sink_receiver_output: PortId =
-        format!("z-receiver/{}/{}-output", SINK_ID, SINK_INPUT).into();
+    expected_sinks.iter().for_each(|expected_sink| {
+        assert!(
+            flatten.sinks.contains(expected_sink),
+            "Sink missing or incorrect: \n\n (expected) {:?} \n\n {:?}",
+            expected_sink,
+            flatten.sinks
+        )
+    });
+    assert_eq!(expected_sinks.len(), flatten.sinks.len());
 
     let expected_links = vec![
-        LinkRecord {
-            from: OutputRecord {
-                node: SOURCE_ID.into(),
-                output: SOURCE_OUTPUT.into(),
-            },
-            to: InputRecord {
-                node: source_operator_sender_id.clone(),
-                input: source_operator_sender_input,
-            },
-            shared_memory: default_runtime.shared_memory.clone(),
-        },
-        LinkRecord {
-            from: OutputRecord {
-                node: source_operator_receiver_id.clone(),
-                output: source_operator_receiver_output,
-            },
-            to: InputRecord {
-                node: OPERATOR_ID.into(),
-                input: OPERATOR_INPUT.into(),
-            },
-            shared_memory: default_runtime.shared_memory.clone(),
-        },
-        LinkRecord {
-            from: OutputRecord {
-                node: OPERATOR_ID.into(),
-                output: OPERATOR_OUTPUT.into(),
-            },
-            to: InputRecord {
-                node: operator_sink_sender_id,
-                input: operator_sink_sender_input,
-            },
-            shared_memory: default_runtime.shared_memory.clone(),
-        },
-        LinkRecord {
-            from: OutputRecord {
-                node: operator_sink_receiver_id,
-                output: operator_sink_receiver_output,
-            },
-            to: InputRecord {
-                node: SINK_ID.into(),
-                input: SINK_INPUT.into(),
-            },
-            shared_memory: default_runtime.shared_memory,
-        },
+        // source 1 -> operator 1 -> sink 1
+        LinkDescriptor::new(
+            OutputDescriptor::new("source-1", "source-out"),
+            InputDescriptor::new("operator-1", "operator-in"),
+        ),
+        LinkDescriptor::new(
+            OutputDescriptor::new("operator-1", "operator-out"),
+            InputDescriptor::new("sink-1", "sink-in"),
+        ),
+        // source 2 -> operator 2 -> sink 2
+        LinkDescriptor::new(
+            OutputDescriptor::new("source-2", "source-out"),
+            InputDescriptor::new("operator-2", "operator-in"),
+        ),
+        LinkDescriptor::new(
+            OutputDescriptor::new("operator-2", "operator-out"),
+            InputDescriptor::new("sink-2", "sink-in"),
+        ),
+        // source-composite -> operator-composite-sub-1
+        /*
+         * The name of the port at the "junction" between the container & the composite is the one
+         * declared in the **container**.
+         *
+         * Hence, the name of the input ports of "sub-operator-1" (operator-composite.yml) are
+         * replaced by what is declared in "data-flow.yml".
+         */
+        LinkDescriptor::new(
+            OutputDescriptor::new("source-composite", "source-composite-out-1"),
+            InputDescriptor::new("operator-composite/sub-operator-1", "sub-operator-1-in-1"),
+        ),
+        LinkDescriptor::new(
+            OutputDescriptor::new("source-composite", "source-composite-out-2"),
+            InputDescriptor::new("operator-composite/sub-operator-1", "sub-operator-1-in-2"),
+        ),
+        // operator-composite-sub-2 -> sink-composite
+        LinkDescriptor::new(
+            OutputDescriptor::new("operator-composite/sub-operator-2", "sub-operator-2-out-1"),
+            InputDescriptor::new("sink-composite", "sink-composite-in-1"),
+        ),
+        LinkDescriptor::new(
+            OutputDescriptor::new("operator-composite/sub-operator-2", "sub-operator-2-out-2"),
+            InputDescriptor::new("sink-composite", "sink-composite-in-2"),
+        ),
+        // operator-composite-sub-operator-1 ->
+        // operator-composite-sub-operator-composite-sub-sub-operator-1
+        LinkDescriptor::new(
+            OutputDescriptor::new("operator-composite/sub-operator-1", "sub-operator-1-out"),
+            InputDescriptor::new(
+                "operator-composite/sub-operator-composite/sub-sub-operator-1",
+                "sub-sub-operator-1-in",
+            ),
+        ),
+        // operator-composite-sub-operator-composite-sub-sub-operator-2 ->
+        // operator-composite-sub-operator-2
+        LinkDescriptor::new(
+            OutputDescriptor::new(
+                "operator-composite/sub-operator-composite/sub-sub-operator-2",
+                "sub-sub-operator-2-out",
+            ),
+            InputDescriptor::new("operator-composite/sub-operator-2", "sub-operator-2-in"),
+        ),
+        // operator-composite-sub-operator-composite-sub-sub-operator-1 ->
+        // operator-composite-sub-operator-composite-sub-sub-operator-2
+        LinkDescriptor::new(
+            OutputDescriptor::new(
+                "operator-composite/sub-operator-composite/sub-sub-operator-1",
+                "sub-sub-operator-1-out",
+            ),
+            InputDescriptor::new(
+                "operator-composite/sub-operator-composite/sub-sub-operator-2",
+                "sub-sub-operator-2-in",
+            ),
+        ),
     ];
-    assert_eq!(expected_links.len(), data_flow_record.links.len());
-    expected_links
-        .iter()
-        .for_each(|expected_link| assert!(data_flow_record.links.contains(expected_link)));
+
+    expected_links.iter().for_each(|expected_link| {
+        assert!(
+            flatten.links.contains(expected_link),
+            "Link missing or incorrect: \n\n (expected) {:?} \n\n {:?}",
+            expected_link,
+            flatten.links
+        )
+    });
+    assert_eq!(expected_links.len(), flatten.links.len());
 
     let expected_mapping = HashMap::from([
-        (SOURCE_ID.into(), source_runtime.clone()),
-        (source_operator_sender_id, source_runtime),
-        (source_operator_receiver_id, default_runtime.id.clone()),
-        (OPERATOR_ID.into(), default_runtime.id.clone()),
+        ("source-1".into(), "runtime-1".into()),
+        ("sink-2".into(), "runtime-2".into()),
+        ("source-composite".into(), "runtime-source".into()),
         (
-            format!("z-sender/{}/{}", OPERATOR_ID, OPERATOR_OUTPUT).into(),
-            default_runtime.id,
+            "operator-composite/sub-operator-1".into(),
+            "runtime-composite".into(),
         ),
         (
-            format!("z-receiver/{}/{}", SINK_ID, SINK_INPUT).into(),
-            sink_runtime.clone(),
+            "operator-composite/sub-operator-composite/sub-sub-operator-1".into(),
+            "runtime-composite".into(),
         ),
-        (SINK_ID.into(), sink_runtime),
+        (
+            "operator-composite/sub-operator-composite/sub-sub-operator-2".into(),
+            "runtime-composite".into(),
+        ),
+        (
+            "operator-composite/sub-operator-2".into(),
+            "runtime-composite".into(),
+        ),
+        ("sink-composite".into(), "runtime-sink".into()),
     ]);
-    assert_eq!(expected_mapping, data_flow_record.mapping);
+
+    assert_eq!(expected_mapping, flatten.mapping);
+}
+
+#[test]
+fn test_detect_recursion() {
+    let path = format!("{}{}/data-flow-recursion.yml", SCHEME, BASE_DIR,);
+
+    let (descriptor, vars) = try_load_descriptor::<DataFlowDescriptor>(
+        &path,
+        Vars::from([("BASE_DIR", BASE_DIR), ("SCHEME", SCHEME)]),
+    )
+    .expect("Failed to parse descriptor");
+    assert!(FlattenedDataFlowDescriptor::try_flatten(descriptor, vars).is_err());
+}
+
+#[test]
+fn test_duplicate_composite_at_same_level_not_detected_as_recursion() {
+    let path = format!(
+        "{}{}/data-flow-recursion-duplicate-composite.yml",
+        SCHEME, BASE_DIR,
+    );
+
+    let (descriptor, vars) = try_load_descriptor::<DataFlowDescriptor>(
+        &path,
+        Vars::from([("BASE_DIR", BASE_DIR), ("SCHEME", SCHEME)]),
+    )
+    .expect("Failed to parse descriptor");
+    assert!(FlattenedDataFlowDescriptor::try_flatten(descriptor, vars).is_ok());
 }

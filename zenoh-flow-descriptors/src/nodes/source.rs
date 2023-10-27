@@ -12,71 +12,97 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::sync::Arc;
-
-use crate::{flattened::IFlattenable, FlattenedSourceDescriptor};
+use crate::ZenohSourceDescriptor;
 use serde::{Deserialize, Serialize};
-use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
+use std::sync::Arc;
+use zenoh_flow_commons::{Configuration, NodeId, PortId};
 
-/// Textual representation of a Zenoh-Flow Source node.
+use super::RemoteNodeDescriptor;
+
+/// A `SourceDescriptor` uniquely identifies a Source.
 ///
-/// # Example
+/// Zenoh-Flow supports several ways of declaring a Source:
+/// - by importing a "remote" descriptor,
+/// - with an inline declaration of a [`CustomSourceDescriptor`],
+/// - with an inline declaration of a Zenoh built-in.
+///
+/// # Caveat: `NodeId`
+///
+/// Zenoh-Flow nodes cannot contain the "slash" character '/'. Including such character in the id will result in a hard
+/// error when parsing.
+///
+/// # Examples
+/// ## Remote descriptor
 ///
 /// ```
-/// use zenoh_flow_descriptors::SourceDescriptor;
+/// use descriptors::SourceDescriptor;
 ///
-/// let source_yaml = "
-/// description: Source
+/// let source_desc_uri = r#"
+/// id: my-source-0
+/// descriptor: file:///home/zenoh-flow/my-source.yaml
+/// configuration:
+///   answer: 0
+/// "#;
+///
+/// assert!(serde_yaml::from_str::<SourceDescriptor>(source_desc_uri).is_ok());
+/// ```
+///
+/// ## Inline declaration
+/// ### Custom source
+///
+/// ```
+/// use descriptors::SourceDescriptor;
+///
+/// let source_desc_custom = r#"
+/// id: my-source-0
+/// description: This is my Source
+/// library: file:///home/zenoh-flow/libmy_source.so
+/// outputs:
+///   - out-0
+///   - out-1
 /// configuration:
 ///   answer: 42
-/// uri: file:///home/zenoh-flow/node/libsource.so
-/// outputs:
-///   - out-operator
-/// ";
-/// let source_yaml = serde_yaml::from_str::<SourceDescriptor>(&source_yaml).unwrap();
+/// "#;
 ///
-/// let source_json = "
-/// {
-///   \"description\": \"Source\",
-///   \"configuration\": {
-///     \"answer\": 42
-///   },
-///   \"uri\": \"file:///home/zenoh-flow/node/libsource.so\",
-///   \"outputs\": [
-///     \"out-operator\"
-///   ]
-/// }";
-///
-/// let source_json = serde_json::from_str::<SourceDescriptor>(&source_json).unwrap();
-///
-/// assert_eq!(source_yaml, source_json);
+/// assert!(serde_yaml::from_str::<SourceDescriptor>(source_desc_custom).is_ok());
 /// ```
+///
+/// ### Zenoh built-in Source
+///
+/// ```
+/// use descriptors::SourceDescriptor;
+///
+/// let source_desc_zenoh = r#"
+/// id: my-source-0
+/// description: My zenoh source
+/// zenoh-subscribers:
+///   - key/expr/0
+///   - key/expr/1
+/// "#;
+///
+/// assert!(serde_yaml::from_str::<SourceDescriptor>(source_desc_zenoh).is_ok());
+/// ```
+///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SourceDescriptor {
+    pub id: NodeId,
+    #[serde(flatten)]
+    pub(crate) variant: SourceVariants,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(untagged)]
+pub(crate) enum SourceVariants {
+    Zenoh(ZenohSourceDescriptor),
+    Remote(RemoteNodeDescriptor),
+    Custom(CustomSourceDescriptor),
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CustomSourceDescriptor {
     pub description: Arc<str>,
-    pub uri: Option<Arc<str>>,
+    pub library: Arc<str>,
     pub outputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,
-}
-
-/// TODO@J-Loudet Improve display.
-impl std::fmt::Display for SourceDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Source:\n{}", self.description)
-    }
-}
-
-impl IFlattenable for SourceDescriptor {
-    type Flattened = FlattenedSourceDescriptor;
-
-    fn flatten(self, id: NodeId, overwriting_configuration: Configuration) -> Self::Flattened {
-        FlattenedSourceDescriptor {
-            id,
-            description: self.description,
-            uri: self.uri,
-            outputs: self.outputs,
-            configuration: overwriting_configuration.merge_overwrite(self.configuration),
-        }
-    }
 }

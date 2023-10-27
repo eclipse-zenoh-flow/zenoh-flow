@@ -12,165 +12,24 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::{collections::HashMap, fmt::Display, mem, sync::Arc};
-
 use crate::{
-    FlattenedOperatorDescriptor, FlattenedSinkDescriptor, FlattenedSourceDescriptor,
-    InputDescriptor, LinkDescriptor, OutputDescriptor,
+    DataFlowDescriptor, FlattenedOperatorDescriptor, FlattenedSinkDescriptor,
+    FlattenedSourceDescriptor, LinkDescriptor,
 };
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use zenoh_flow_commons::{NodeId, PortId, RuntimeContext, RuntimeId, SharedMemoryParameters};
-use zenoh_flow_records::{DataFlowRecord, ZenohReceiver, ZenohSender};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+    sync::Arc,
+};
+use zenoh_flow_commons::{Configuration, NodeId, Result, RuntimeId, Vars};
 
-/// TODO@J-Loudet Documentation?
-///
-/// # Examples
-///
-/// ```
-/// use zenoh_flow_descriptors::FlattenedDataFlowDescriptor;
-///
-/// let yaml = "
-/// flow: DataFlow
-///
-/// sources:
-///   - id: Source-0
-///     description: Source
-///     configuration:
-///       foo: bar
-///       answer: 0
-///     uri: file:///home/zenoh-flow/node/libsource.so
-///     outputs:
-///       - out-operator
-///
-/// operators:
-///   - id: Operator-1
-///     description: Operator
-///     configuration:
-///       foo: bar
-///       answer: 1
-///     uri: file:///home/zenoh-flow/node/liboperator.so
-///     inputs:
-///       - in-source
-///     outputs:
-///       - out-sink
-///
-/// sinks:
-///   - id: Sink-2
-///     description: Sink
-///     configuration:
-///       foo: bar
-///       answer: 2
-///     uri: file:///home/zenoh-flow/node/libsink.so
-///     inputs:
-///       - in-operator
-///
-/// links:
-///   - from:
-///       node: Source-0
-///       output : out-operator
-///     to:
-///       node : Operator-1
-///       input : in-source
-///
-///   - from:
-///       node : Operator-1
-///       output : out-sink
-///     to:
-///       node : Sink-2
-///       input : in-operator
-/// ";
-///
-/// let data_flow_yaml = serde_yaml::from_str::<FlattenedDataFlowDescriptor>(yaml).unwrap();
-///
-/// let json = "
-/// {
-///   \"flow\": \"DataFlow\",
-///
-///   \"configuration\": {
-///     \"foo\": \"bar\"
-///   },
-///
-///   \"sources\": [
-///     {
-///       \"id\": \"Source-0\",
-///       \"description\": \"Source\",
-///       \"configuration\": {
-///         \"foo\": \"bar\",
-///         \"answer\": 0
-///       },
-///       \"uri\": \"file:///home/zenoh-flow/node/libsource.so\",
-///       \"outputs\": [
-///         \"out-operator\"
-///       ],
-///       \"mapping\": \"zenoh-flow-plugin-0\"
-///     }
-///   ],
-///
-///   \"operators\": [
-///     {
-///       \"id\": \"Operator-1\",
-///       \"description\": \"Operator\",
-///       \"configuration\": {
-///         \"foo\": \"bar\",
-///         \"answer\": 1
-///       },
-///       \"uri\": \"file:///home/zenoh-flow/node/liboperator.so\",
-///       \"inputs\": [
-///         \"in-source\"
-///       ],
-///       \"outputs\": [
-///         \"out-sink\"
-///       ]
-///     }
-///   ],
-///
-///   \"sinks\": [
-///     {
-///       \"id\": \"Sink-2\",
-///       \"description\": \"Sink\",
-///       \"configuration\": {
-///         \"foo\": \"bar\",
-///         \"answer\": 2
-///       },
-///       \"uri\": \"file:///home/zenoh-flow/node/libsink.so\",
-///       \"inputs\": [
-///         \"in-operator\"
-///       ]
-///     }
-///   ],
-///
-///   \"links\": [
-///     {
-///       \"from\": {
-///         \"node\": \"Source-0\",
-///         \"output\": \"out-operator\"
-///       },
-///       \"to\": {
-///         \"node\": \"Operator-1\",
-///         \"input\": \"in-source\"
-///       }
-///     },
-///     {
-///       \"from\": {
-///         \"node\": \"Operator-1\",
-///         \"output\": \"out-sink\"
-///       },
-///       \"to\": {
-///         \"node\": \"Sink-2\",
-///         \"input\": \"in-operator\"
-///       }
-///     }
-///   ]
-/// }
-/// ";
-///
-/// let data_flow_json = serde_json::from_str::<FlattenedDataFlowDescriptor>(json).unwrap();
-/// assert_eq!(data_flow_yaml, data_flow_json);
-/// ```
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+use super::validator::Validator;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct FlattenedDataFlowDescriptor {
-    pub flow: Arc<str>,
+    pub name: Arc<str>,
     pub sources: Vec<FlattenedSourceDescriptor>,
     pub operators: Vec<FlattenedOperatorDescriptor>,
     pub sinks: Vec<FlattenedSinkDescriptor>,
@@ -179,7 +38,6 @@ pub struct FlattenedDataFlowDescriptor {
     pub mapping: HashMap<NodeId, RuntimeId>,
 }
 
-// TODO@J-Loudet
 impl Display for FlattenedDataFlowDescriptor {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
@@ -187,131 +45,68 @@ impl Display for FlattenedDataFlowDescriptor {
 }
 
 impl FlattenedDataFlowDescriptor {
-    /// Assign the nodes without an explicit mapping to the provided runtime and generate the connections between the
-    /// nodes running on different runtimes.
-    ///
-    /// This method will consume the `FlattenedDataFlowDescriptor` and produce a `DataFlowRecord`.
-    pub fn complete_mapping_and_connect(self, default_runtime: RuntimeContext) -> DataFlowRecord {
-        let mut senders = HashMap::default();
-        let mut receivers = HashMap::default();
-        let mut connector_links = Vec::default();
+    pub fn try_flatten(mut data_flow: DataFlowDescriptor, vars: Vars) -> Result<Self> {
+        let mut flattened_operators = Vec::with_capacity(data_flow.operators.len());
+        for operator_desc in data_flow.operators {
+            let operator_id = operator_desc.id.clone();
+            let (mut flat_ops, mut flat_links, patch) = FlattenedOperatorDescriptor::try_flatten(
+                operator_desc,
+                data_flow.configuration.clone(),
+                Configuration::default(),
+                vars.clone(),
+                &mut HashSet::default(),
+            )?;
 
-        let flow_id = Uuid::new_v4();
-
-        let FlattenedDataFlowDescriptor {
-            flow,
-            sources,
-            operators,
-            sinks,
-            mut links,
-            mut mapping,
-        } = self;
-
-        for link in links.iter_mut() {
-            let runtime_from = mapping
-                .entry(link.from.node.clone())
-                .or_insert(default_runtime.id.clone())
-                .clone();
-            let runtime_to = mapping
-                .entry(link.to.node.clone())
-                .or_insert(default_runtime.id.clone())
-                .clone();
-
-            // The nodes will run on the same runtime, no need for connectors.
-            if runtime_from == runtime_to {
-                continue;
+            if let Some((_, runtime)) = data_flow.mapping.remove_entry(&operator_id) {
+                flat_ops.iter().for_each(|flat_op| {
+                    data_flow
+                        .mapping
+                        .insert(flat_op.id.clone(), runtime.clone());
+                })
             }
 
-            // Nodes are on different runtimes: we generate a special key expression for communications through Zenoh
-            // (either Shared Memory or standard pub/sub).
-            //
-            // We also need to:
-            // - update the link and replace the "to" part with the sender,
-            // - add another link that goes from the receiver to the "to".
-            let resource: Arc<str> = format!(
-                "{}/{}/{}/{}",
-                &flow, &flow_id, link.from.node, link.from.output
-            )
-            .into();
-
-            let shared_memory_parameters = SharedMemoryParameters::from_configuration(
-                &link.shared_memory,
-                &default_runtime.shared_memory,
-            );
-
-            let sender_id: NodeId =
-                format!("z-sender/{}/{}", link.from.node, link.from.output).into();
-            let sender_input: PortId = format!("{}-input", sender_id).into();
-
-            let receiver_id: NodeId =
-                format!("z-receiver/{}/{}", link.to.node, link.to.input).into();
-            let receiver_output: PortId = format!("{}-output", receiver_id).into();
-
-            // Update the link, replacing "to" with the sender.
-            let to = mem::replace(
-                &mut link.to,
-                InputDescriptor {
-                    node: sender_id.clone(),
-                    input: sender_input.clone(),
-                },
-            );
-
-            // Create a new link, connecting the receiver to the  "to".
-            connector_links.push(LinkDescriptor {
-                from: OutputDescriptor {
-                    node: receiver_id.clone(),
-                    output: receiver_output.clone(),
-                },
-                to,
-                shared_memory: link.shared_memory.clone(),
-            });
-
-            // Create the connector nodes — without forgetting their mapping.
-            let sender = ZenohSender {
-                id: sender_id.clone(),
-                resource: resource.clone(),
-                input: sender_input.clone(),
-                shared_memory: shared_memory_parameters.clone(),
-            };
-            senders.insert(sender_id.clone(), sender);
-            mapping.insert(sender_id, runtime_from);
-
-            let receiver = ZenohReceiver {
-                id: receiver_id.clone(),
-                resource,
-                output: receiver_output,
-                shared_memory: shared_memory_parameters,
-            };
-            receivers.insert(receiver_id.clone(), receiver);
-            mapping.insert(receiver_id, runtime_to);
+            flattened_operators.append(&mut flat_ops);
+            patch.apply(&mut data_flow.links);
+            data_flow.links.append(&mut flat_links);
         }
 
-        // Add the new links.
-        links.append(&mut connector_links);
+        let sources = data_flow
+            .sources
+            .into_iter()
+            .map(|source_desc| {
+                FlattenedSourceDescriptor::try_flatten(
+                    source_desc,
+                    vars.clone(),
+                    data_flow.configuration.clone(),
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
 
-        DataFlowRecord {
-            uuid: flow_id,
-            flow,
-            sources: sources
-                .into_iter()
-                .map(|source| (source.id.clone(), source.into()))
-                .collect::<HashMap<_, _>>(),
-            operators: operators
-                .into_iter()
-                .map(|operator| (operator.id.clone(), operator.into()))
-                .collect::<HashMap<_, _>>(),
-            sinks: sinks
-                .into_iter()
-                .map(|sink| (sink.id.clone(), sink.into()))
-                .collect::<HashMap<_, _>>(),
-            receivers,
-            senders,
-            links: links
-                .into_iter()
-                .map(|link| link.into_record(&default_runtime.shared_memory))
-                .collect::<Vec<_>>(),
-            mapping,
-        }
+        let sinks = data_flow
+            .sinks
+            .into_iter()
+            .map(|sink_desc| {
+                FlattenedSinkDescriptor::try_flatten(
+                    sink_desc,
+                    vars.clone(),
+                    data_flow.configuration.clone(),
+                )
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        let flattened_data_flow = Self {
+            name: data_flow.name,
+            sources,
+            operators: flattened_operators,
+            sinks,
+            links: data_flow.links,
+            mapping: data_flow.mapping,
+        };
+
+        Validator::validate(&flattened_data_flow)
+            .context("The provided data flow does not appear to be valid")?;
+
+        Ok(flattened_data_flow)
     }
 }
 

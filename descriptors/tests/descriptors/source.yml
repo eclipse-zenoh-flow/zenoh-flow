@@ -1,5 +1,0 @@
-description: source
-
-library: "{{ SCHEME }}source.so"
-
-outputs: [source-out]

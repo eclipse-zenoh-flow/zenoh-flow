@@ -1,6 +1,6 @@
 description: composite-sink
 
-uri: "{{ SCHEME }}sink-composite.so"
+library: "{{ SCHEME }}sink-composite.so"
 
 configuration:
   bar: reverse

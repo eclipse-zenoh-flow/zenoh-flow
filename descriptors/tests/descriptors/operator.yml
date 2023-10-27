@@ -1,7 +1,0 @@
-description: operator
-
-library: "{{ SCHEME }}operator.so"
-
-inputs: [operator-in]
-
-outputs: [operator-out]

@@ -12,29 +12,18 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-mod composite;
-pub use composite::{
-    CompositeInputDescriptor, CompositeOperatorDescriptor, CompositeOutputDescriptor,
-};
+pub(crate) mod dataflow;
+pub(crate) mod flattened;
+pub(crate) mod io;
+pub(crate) mod nodes;
 
-mod dataflow;
 pub use dataflow::DataFlowDescriptor;
-
-mod flattened;
 pub use flattened::{
     FlattenedDataFlowDescriptor, FlattenedOperatorDescriptor, FlattenedSinkDescriptor,
-    FlattenedSourceDescriptor, IFlattenable,
+    FlattenedSourceDescriptor,
 };
-
-mod io;
-pub use io::{InputDescriptor, OutputDescriptor};
-
-mod link;
-pub use link::LinkDescriptor;
-
-mod nodes;
-pub use nodes::{NodeDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor};
-
-mod uri;
-
-pub(crate) mod vars;
+pub use io::{InputDescriptor, LinkDescriptor, OutputDescriptor};
+pub use nodes::builtin::zenoh::{ZenohSinkDescriptor, ZenohSourceDescriptor};
+pub use nodes::operator::{composite::CompositeOperatorDescriptor, OperatorDescriptor};
+pub use nodes::sink::SinkDescriptor;
+pub use nodes::source::SourceDescriptor;

@@ -15,7 +15,6 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use zenoh_flow_commons::{NodeId, PortId};
-use zenoh_flow_records::{InputRecord, OutputRecord};
 
 /// An `InputDescriptor` describes an Input port of a Zenoh-Flow node.
 ///
@@ -37,15 +36,6 @@ impl InputDescriptor {
         Self {
             node: node.as_ref().into(),
             input: input.as_ref().into(),
-        }
-    }
-}
-
-impl From<InputDescriptor> for InputRecord {
-    fn from(this: InputDescriptor) -> Self {
-        InputRecord {
-            node: this.node,
-            input: this.input,
         }
     }
 }
@@ -74,11 +64,38 @@ impl OutputDescriptor {
     }
 }
 
-impl From<OutputDescriptor> for OutputRecord {
-    fn from(this: OutputDescriptor) -> Self {
-        OutputRecord {
-            node: this.node,
-            output: this.output,
-        }
+/// A `LinkDescriptor` describes a link in Zenoh-Flow: a connection from an Output to an Input.
+///
+/// A link is composed of:
+/// - an [OutputDescriptor],
+/// - an [InputDescriptor],
+/// - (optional) Zenoh shared-memory parameters.
+///
+/// # Example
+///
+/// The textual representation, in YAML, of a link is as following:
+/// ```yaml
+/// from:
+///   node : Counter
+///   output : Counter
+/// to:
+///   node : SumOperator
+///   input : Number
+/// ```
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct LinkDescriptor {
+    pub from: OutputDescriptor,
+    pub to: InputDescriptor,
+}
+
+impl std::fmt::Display for LinkDescriptor {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{} => {}", self.from, self.to)
+    }
+}
+
+impl LinkDescriptor {
+    pub fn new(from: OutputDescriptor, to: InputDescriptor) -> Self {
+        Self { from, to }
     }
 }

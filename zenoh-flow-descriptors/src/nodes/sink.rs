@@ -12,71 +12,97 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::sync::Arc;
-
-use crate::{flattened::IFlattenable, FlattenedSinkDescriptor};
+use crate::ZenohSinkDescriptor;
 use serde::{Deserialize, Serialize};
-use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId};
+use std::sync::Arc;
+use zenoh_flow_commons::{Configuration, NodeId, PortId};
 
-/// Textual representation of a Zenoh-Flow Sink node.
+use super::RemoteNodeDescriptor;
+
+/// A `SinkDescriptor` uniquely identifies a Sink.
 ///
-/// # Example
+/// Zenoh-Flow supports several ways of declaring a Sink:
+/// - by importing a "remote" descriptor,
+/// - with an inline declaration of a [`CustomSinkDescriptor`],
+/// - with an inline declaration of a Zenoh built-in, listing on which key expressions to publish.
+///
+/// # Caveat: `NodeId`
+///
+/// Zenoh-Flow nodes cannot contain the "slash" character '/'. Including such character in the id will result in a hard
+/// error when parsing.
+///
+/// # Examples
+/// ## Remote descriptor
 ///
 /// ```
-/// use zenoh_flow_descriptors::SinkDescriptor;
+/// use descriptors::SinkDescriptor;
 ///
-/// let sink_yaml = "
-/// description: Sink
+/// let sink_desc_uri = r#"
+/// id: my-sink-0
+/// descriptor: file:///home/zenoh-flow/my-sink.yaml
+/// configuration:
+///   answer: 0
+/// "#;
+///
+/// assert!(serde_yaml::from_str::<SinkDescriptor>(sink_desc_uri).is_ok());
+/// ```
+///
+/// ## Inline declaration
+/// ### Custom sink
+///
+/// ```
+/// use descriptors::SinkDescriptor;
+///
+/// let sink_desc_custom = r#"
+/// id: my-sink-0
+/// description: This is my Sink
+/// library: file:///home/zenoh-flow/libmy_sink.so
+/// inputs:
+///   - out-0
+///   - out-1
 /// configuration:
 ///   answer: 42
-/// uri: file:///home/zenoh-flow/node/libsink.so
-/// inputs:
-///   - in-operator
-/// ";
-/// let sink_yaml = serde_yaml::from_str::<SinkDescriptor>(sink_yaml).unwrap();
+/// "#;
 ///
-/// let sink_json = "
-/// {
-///   \"description\": \"Sink\",
-///   \"configuration\": {
-///     \"answer\": 42
-///   },
-///   \"uri\": \"file:///home/zenoh-flow/node/libsink.so\",
-///   \"inputs\": [
-///     \"in-operator\"
-///   ]
-/// }";
-///
-/// let sink_json = serde_json::from_str::<SinkDescriptor>(sink_json).unwrap();
-///
-/// assert_eq!(sink_yaml, sink_json);
+/// assert!(serde_yaml::from_str::<SinkDescriptor>(sink_desc_custom).is_ok());
 /// ```
+///
+/// ### Zenoh built-in Sink
+///
+/// ```
+/// use descriptors::SinkDescriptor;
+///
+/// let sink_desc_zenoh = r#"
+/// id: my-sink-0
+/// description: My zenoh sink
+/// zenoh-publishers:
+///   - key/expr/0
+///   - key/expr/1
+/// "#;
+///
+/// assert!(serde_yaml::from_str::<SinkDescriptor>(sink_desc_zenoh).is_ok());
+/// ```
+///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SinkDescriptor {
+    pub id: NodeId,
+    #[serde(flatten)]
+    pub(crate) variant: SinkVariants,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(untagged)]
+pub(crate) enum SinkVariants {
+    Zenoh(ZenohSinkDescriptor),
+    Remote(RemoteNodeDescriptor),
+    Custom(CustomSinkDescriptor),
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CustomSinkDescriptor {
     pub description: Arc<str>,
+    pub library: Arc<str>,
+    pub inputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,
-    pub uri: Option<Arc<str>>,
-    pub inputs: Vec<PortId>,
-}
-
-// TODO@J-Loudet Improve
-impl std::fmt::Display for SinkDescriptor {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Sink:\n{}", self.description)
-    }
-}
-
-impl IFlattenable for SinkDescriptor {
-    type Flattened = FlattenedSinkDescriptor;
-
-    fn flatten(self, id: NodeId, overwritting_configuration: Configuration) -> Self::Flattened {
-        FlattenedSinkDescriptor {
-            id,
-            description: self.description,
-            uri: self.uri,
-            inputs: self.inputs,
-            configuration: overwritting_configuration.merge_overwrite(self.configuration),
-        }
-    }
 }

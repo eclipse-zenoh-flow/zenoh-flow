@@ -6,7 +6,7 @@ vars:
 configuration:
   bar: re-reverse
 
-uri: "{{ SCHEME }}source-composite.so"
+library: "{{ SCHEME }}source-composite.so"
 
 outputs:
   - source-composite-out-1

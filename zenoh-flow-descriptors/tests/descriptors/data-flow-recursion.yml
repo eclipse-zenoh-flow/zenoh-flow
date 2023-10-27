@@ -1,4 +1,4 @@
-flow: test-recursion
+name: test-recursion
 
 vars:
   BASE_DIR: file://./src/tests
