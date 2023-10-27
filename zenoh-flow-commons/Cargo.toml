@@ -27,5 +27,6 @@ version = { workspace = true }
 anyhow = { workspace = true }
 bytesize = "1.2.0"
 humantime = "2.1"
+uuid = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

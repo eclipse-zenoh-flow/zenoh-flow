@@ -17,6 +17,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 /// A `NodeId` identifies a Node in a data flow.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone, Hash)]
@@ -105,5 +106,20 @@ impl From<String> for RuntimeId {
 impl From<&str> for RuntimeId {
     fn from(value: &str) -> Self {
         Self(value.into())
+    }
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
+pub struct RecordId(Arc<Uuid>);
+
+impl Display for RecordId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.0)
+    }
+}
+
+impl From<Uuid> for RecordId {
+    fn from(value: Uuid) -> Self {
+        Self(Arc::new(value))
     }
 }
