@@ -174,7 +174,8 @@ jobs:
         uses: actions/checkout@master
         with:
           repository: eclipse-zenoh/zenoh
-          ref: b9103c3
+
+          #ref: b9103c3
       #token: ${{ secrets.GITHUB_TOKEN }}
 
       #uses: actions/checkout@master
