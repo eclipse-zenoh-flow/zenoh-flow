@@ -112,32 +112,34 @@ jobs:
           echo 'runner.workspace === ${{ runner.workspace }}'
           echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
 
-      - name: Find files matching "zfctl.json"
-        uses: jeertmans/filesfinder@latest
-        id: ff # Any id, to be used later to reference to files output
-        with:
-          # Only argument, a single string, to be passed as arguments to ff.
-          # See `ff --help` for more help.
-          # Default: "*"
-          args: "zfctl.json"
+      # - name: Find files matching "zfctl.json"
+      #   uses: jeertmans/filesfinder@latest
+      #   id: ff # Any id, to be used later to reference to files output
+      #   with:
+      #     # Only argument, a single string, to be passed as arguments to ff.
+      #     # See `ff --help` for more help.
+      #     # Default: "*"
+      #     args: "zfctl.json"
 
-      - name: Print files  matching "zfctl.json"
-        run: echo "${{ steps.ff.outputs.files }}"
+      # - name: Print files  matching "zfctl.json"
+      #   run: echo "${{ steps.ff.outputs.files }}"
 
-      - name: Find files matching "zenohd"
-        uses: jeertmans/filesfinder@latest
-        id: pp # Any id, to be used later to reference to files output
-        with:
-          # Only argument, a single string, to be passed as arguments to ff.
-          # See `ff --help` for more help.
-          # Default: "*"
-          args: "zenohd"
+      # - name: Find files matching "zenohd"
+      #   uses: jeertmans/filesfinder@latest
+      #   id: pp # Any id, to be used later to reference to files output
+      #   with:
+      #     # Only argument, a single string, to be passed as arguments to ff.
+      #     # See `ff --help` for more help.
+      #     # Default: "*"
+      #     args: "zenohd"
 
-      - name: Print files  matching "zenohd"
-        run: echo "${{ steps.pp.outputs.files }}"
+      # - name: Print files  matching "zenohd"
+      #   run: echo "${{ steps.pp.outputs.files }}"
 
-      - name: Change directory --> from Zenoh-Flow to Home directory
-        run: cd ..
+      - name: Change directory --> from Zenoh-Flow/Zenoh-Flow to Home directory
+        run: |
+          cd ..
+          cd ..
 
       # - name: dump
       #   run: |
@@ -198,8 +200,14 @@ jobs:
       - name: Show into current dir
         run: ls
 
-      - name: Change directory --> from Home directory to zenoh
-        run: cd zenoh
+      - name: Pwd
+        run: |
+          pwd            
+          cd zenoh
+          pwd
+
+      # - name: Change directory --> from Home directory to zenoh
+      #   run: cd zenoh
 
       - name: Show into current dir
         run: ls
@@ -221,7 +229,9 @@ jobs:
           args: --verbose --all-targets
 
       - name: Change directory --> from Zenoh-Flow to Home directory
-        run: cd ..
+        run: |
+          cd ..
+          cd ..
 
       - name: Change directory --> from Home directory to Zenoh
         run: cd zenoh-flow
