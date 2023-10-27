@@ -22,7 +22,7 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 /// # Example
 ///
 /// ```
-/// use descriptors::DataFlowDescriptor;
+/// use zenoh_flow_descriptors::DataFlowDescriptor;
 ///
 /// let yaml = r#"
 /// name: DataFlow

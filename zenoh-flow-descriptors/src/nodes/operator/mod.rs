@@ -43,7 +43,7 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 /// ## Remote descriptor
 ///
 /// ```
-/// use descriptors::OperatorDescriptor;
+/// use zenoh_flow_descriptors::OperatorDescriptor;
 ///
 /// let operator_desc_uri = r#"
 /// id: my-operator-1
@@ -58,7 +58,7 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 /// ## Inline declaration: custom operator
 ///
 /// ```
-/// use descriptors::OperatorDescriptor;
+/// use zenoh_flow_descriptors::OperatorDescriptor;
 ///
 /// let operator_desc_custom = r#"
 /// id: my-operator-1

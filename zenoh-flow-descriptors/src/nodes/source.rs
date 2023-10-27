@@ -35,7 +35,7 @@ use super::RemoteNodeDescriptor;
 /// ## Remote descriptor
 ///
 /// ```
-/// use descriptors::SourceDescriptor;
+/// use zenoh_flow_descriptors::SourceDescriptor;
 ///
 /// let source_desc_uri = r#"
 /// id: my-source-0
@@ -51,7 +51,7 @@ use super::RemoteNodeDescriptor;
 /// ### Custom source
 ///
 /// ```
-/// use descriptors::SourceDescriptor;
+/// use zenoh_flow_descriptors::SourceDescriptor;
 ///
 /// let source_desc_custom = r#"
 /// id: my-source-0
@@ -70,7 +70,7 @@ use super::RemoteNodeDescriptor;
 /// ### Zenoh built-in Source
 ///
 /// ```
-/// use descriptors::SourceDescriptor;
+/// use zenoh_flow_descriptors::SourceDescriptor;
 ///
 /// let source_desc_zenoh = r#"
 /// id: my-source-0

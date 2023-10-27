@@ -95,7 +95,7 @@ impl From<CompositeInputDescriptor> for InputDescriptor {
 /// # Examples
 ///
 /// ```
-/// use descriptors::CompositeOperatorDescriptor;
+/// use zenoh_flow_descriptors::CompositeOperatorDescriptor;
 ///
 /// let yaml = r#"
 /// description: CompositeOperator

@@ -34,7 +34,7 @@ use zenoh_keyexpr::OwnedKeyExpr;
 /// # Examples
 ///
 /// ```
-/// use descriptors::ZenohSourceDescriptor;
+/// use zenoh_flow_descriptors::ZenohSourceDescriptor;
 ///
 /// let yaml_description = r#"
 /// description: My zenoh source
@@ -80,7 +80,7 @@ pub struct ZenohSourceDescriptor {
 /// # Examples
 ///
 /// ```
-/// use descriptors::ZenohSinkDescriptor;
+/// use zenoh_flow_descriptors::ZenohSinkDescriptor;
 ///
 /// let yaml_description = r#"
 /// description: My zenoh sink

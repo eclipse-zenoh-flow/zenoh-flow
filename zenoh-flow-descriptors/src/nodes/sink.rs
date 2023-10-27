@@ -35,7 +35,7 @@ use super::RemoteNodeDescriptor;
 /// ## Remote descriptor
 ///
 /// ```
-/// use descriptors::SinkDescriptor;
+/// use zenoh_flow_descriptors::SinkDescriptor;
 ///
 /// let sink_desc_uri = r#"
 /// id: my-sink-0
@@ -51,7 +51,7 @@ use super::RemoteNodeDescriptor;
 /// ### Custom sink
 ///
 /// ```
-/// use descriptors::SinkDescriptor;
+/// use zenoh_flow_descriptors::SinkDescriptor;
 ///
 /// let sink_desc_custom = r#"
 /// id: my-sink-0
@@ -70,7 +70,7 @@ use super::RemoteNodeDescriptor;
 /// ### Zenoh built-in Sink
 ///
 /// ```
-/// use descriptors::SinkDescriptor;
+/// use zenoh_flow_descriptors::SinkDescriptor;
 ///
 /// let sink_desc_zenoh = r#"
 /// id: my-sink-0
