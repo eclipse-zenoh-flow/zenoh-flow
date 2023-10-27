@@ -100,17 +100,15 @@ jobs:
         env:
           ASYNC_STD_THREAD_COUNT: 4
 
-      - name: Install Python package
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
-
       - name: dump
         run: |
           echo 'github.workspace === ${{ github.workspace }}'
           echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
           echo 'runner.workspace === ${{ runner.workspace }}'
           echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+
+      - name: Pwd
+        run: pwd
 
       # - name: Find files matching "zfctl.json"
       #   uses: jeertmans/filesfinder@latest
@@ -141,12 +139,6 @@ jobs:
       #     cd ..
       #     cd ..
 
-      - name: dump
-        run: |
-          echo 'github.workspace === ${{ github.workspace }}'
-          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
-          echo 'runner.workspace === ${{ runner.workspace }}'
-          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
 
       # #it works
       # - name: Check out my other private repo
@@ -170,12 +162,6 @@ jobs:
       # - name: Change directory --> from Home directory to zenoh
       #   run: cd zenoh
 
-      - name: dump
-        run: |
-          echo 'github.workspace === ${{ github.workspace }}'
-          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
-          echo 'runner.workspace === ${{ runner.workspace }}'
-          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
 
       # - name: git
       #   run: git checkout 0.7.2-rc
@@ -184,9 +170,15 @@ jobs:
         run: |
           cd ..
           cd ..
+      
+      - name: Pwd
+        run: pwd
 
       - name: Change directory --> from Zenoh-Flow to Home directory
         run: cd zenoh
+
+      - name: Pwd
+        run: pwd
 
       # - name: Build Zenoh
       #   uses: actions-rs/cargo@v1
@@ -207,12 +199,10 @@ jobs:
       - name: Change directory --> from Home directory to Zenoh
         run: cd zenoh-flow
 
-      - name: dump
-        run: |
-          echo 'github.workspace === ${{ github.workspace }}'
-          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
-          echo 'runner.workspace === ${{ runner.workspace }}'
-          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+      - name: Install Python package
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
 
       - name: Install dependencies
         run: |
