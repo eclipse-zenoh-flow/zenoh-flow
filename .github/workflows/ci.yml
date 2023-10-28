@@ -139,7 +139,6 @@ jobs:
       #     cd ..
       #     cd ..
 
-
       # #it works
       # - name: Check out my other private repo
       #   uses: actions/checkout@master
@@ -162,23 +161,22 @@ jobs:
       # - name: Change directory --> from Home directory to zenoh
       #   run: cd zenoh
 
-
       # - name: git
       #   run: git checkout 0.7.2-rc
 
-      - name: Change directory --> from Zenoh-Flow to Home directory
-        run: |
-          cd ..
-          cd ..
-      
-      - name: Pwd
-        run: pwd
+      # - name: Change directory --> from Zenoh-Flow to Home directory
+      #   run: |
+      #     cd ..
+      #     cd ..
 
-      - name: Change directory --> from Zenoh-Flow to Home directory
-        run: cd zenoh
+      # - name: Pwd
+      #   run: pwd
 
-      - name: Pwd
-        run: pwd
+      # - name: Change directory --> from Zenoh-Flow to Home directory
+      #   run: cd zenoh
+
+      # - name: Pwd
+      #   run: pwd
 
       # - name: Build Zenoh
       #   uses: actions-rs/cargo@v1
@@ -187,17 +185,25 @@ jobs:
       #     args: --verbose --all-targets
 
       - name: Build Zenoh
+        working-directory: ./../../zenoh
         run: cargo build --verbose --all-targets
 
-      - name: Change directory --> from Zenoh-Flow to Home directory
+      - name: dump
         run: |
-          cd ..
+          echo 'github.workspace === ${{ github.workspace }}'
+          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
+          echo 'runner.workspace === ${{ runner.workspace }}'
+          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+
+      # - name: Change directory --> from Zenoh-Flow to Home directory
+      #   run: |
+      #     cd ..
 
       - name: Pwd
         run: pwd
 
-      - name: Change directory --> from Home directory to Zenoh
-        run: cd zenoh-flow
+      # - name: Change directory --> from Home directory to Zenoh
+      #   run: cd zenoh-flow
 
       - name: Install Python package
         uses: actions/setup-python@v4
