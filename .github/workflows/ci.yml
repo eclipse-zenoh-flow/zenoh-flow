@@ -236,15 +236,25 @@ jobs:
       #   with:
       #     command: build
       #     args: --verbose --all-targets
-      - if: matrix.os == 'macOS-latest'
-        name: Free Disk Space (macOS)
-        run: |
-          top -l 1 -s 0 | grep PhysMem 
-          sysctl -a | awk '/hw./' && '/mem/'
-          top -l 1 -s 0 | grep PhysMem
 
-      - if: matrix.os == 'ubuntu-latest'
-        name: Free Disk Space (Ubuntu)
+
+      #       - if: matrix.os == 'macOS-latest'
+      #   name: Free Disk Space (macOS)
+      #   run: |
+      #     top -l 1 -s 0 | grep PhysMem 
+      #     sysctl -a | awk '/hw./' && '/mem/'
+      #     top -l 1 -s 0 | grep PhysMem
+
+      # - if: matrix.os == 'ubuntu-latest'
+      #   name: Free Disk Space (Ubuntu)
+      #   uses: jlumbroso/free-disk-space@main
+      #   with:
+      #     # this might remove tools that are actually needed,
+      #     # if set to "true" but frees about 6 GB
+      #     tool-cache: true
+
+      
+      - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           # this might remove tools that are actually needed,
