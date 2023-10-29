@@ -69,20 +69,47 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: dump
+        run: |
+          echo 'github.workspace === ${{ github.workspace }}'
+          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
+          echo 'runner.workspace === ${{ runner.workspace }}'
+          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+          echo 'zfctl === ${{ runner.workspace }}/release/debug/zfctl'
+        env:
+          zfctl_path: ${{ runner.workspace }}/release/debug/zfctl'
+
+      - name: Change dir
+        shell: bash
+        run: |
+          cd ..
+          pwd
+
+      - name: Change dir
+        shell: bash
+        run: |
+          cd ..
+          pwd
+
+      - name: dump
+        run: |
+          echo 'github.workspace === ${{ github.workspace }}'
+          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
+          echo 'runner.workspace === ${{ runner.workspace }}'
+          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+          echo "env.zfctl_path === ${{ env.zfctl_path }}"
+          echo "zfctl_path === $zfctl_path "
+          echo "env.ARTIFACT === ${{ env.ARTIFACT }}"
+          echo 'zenohd === ${{ runner.workspace }}/target/debug/zenohd'
+
       - name: Install latest Rust toolchain
         uses: actions-rs/toolchain@v1
 
-      - name: Build zenoh-flow-plugin
+      - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release -p zenoh-flow-plugin -j1
-
-      - name: Build zfctl
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release -p zfctl -j1
+          args: --release --verbose --all-targets
 
       - name: Run tests
         uses: actions-rs/cargo@v1
@@ -100,15 +127,38 @@ jobs:
         env:
           ASYNC_STD_THREAD_COUNT: 4
 
-      - name: dump
-        run: |
-          echo 'github.workspace === ${{ github.workspace }}'
-          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
-          echo 'runner.workspace === ${{ runner.workspace }}'
-          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+      # - uses: actions/checkout@v2
 
-      - name: Pwd
-        run: pwd
+      # - name: Install latest Rust toolchain
+      #   uses: actions-rs/toolchain@v1
+
+      # - name: Build zenoh-flow-plugin
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: build
+      #     args: --release -p zenoh-flow-plugin -j1
+
+      # - name: Build zfctl
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: build
+      #     args: --release -p zfctl -j1
+
+      # - name: Run tests
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     args: --release --verbose
+      #   env:
+      #     ASYNC_STD_THREAD_COUNT: 4
+
+      # - name: Run doctests
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     args: --doc
+      #   env:
+      #     ASYNC_STD_THREAD_COUNT: 4
 
       # - name: Find files matching "zfctl.json"
       #   uses: jeertmans/filesfinder@latest
@@ -155,9 +205,6 @@ jobs:
       #     token: ${{ secrets.PAT }}
       #     token: ${{ github.token }}
 
-      - name: Pwd
-        run: pwd
-
       # - name: Change directory --> from Home directory to zenoh
       #   run: cd zenoh
 
@@ -192,24 +239,7 @@ jobs:
 
       - name: Build Zenoh
         working-directory: ./../../zenoh
-        run: cargo build --verbose --all-targets
-
-      - name: dump
-        run: |
-          echo 'github.workspace === ${{ github.workspace }}'
-          echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
-          echo 'runner.workspace === ${{ runner.workspace }}'
-          echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
-
-      # - name: Change directory --> from Zenoh-Flow to Home directory
-      #   run: |
-      #     cd ..
-
-      - name: Pwd
-        run: pwd
-
-      # - name: Change directory --> from Home directory to Zenoh
-      #   run: cd zenoh-flow
+        run: cargo build --all-targets
 
       - name: Install Python package
         uses: actions/setup-python@v4
