@@ -66,6 +66,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macOS-latest]
 
+    env:
+      zfctl_path: ${{ runner.workspace }}/release/debug/zfctl'
+      zenohd_path: /target/debug/zenohd
+
     steps:
       - uses: actions/checkout@v2
 
@@ -76,8 +80,6 @@ jobs:
           echo 'runner.workspace === ${{ runner.workspace }}'
           echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
           echo 'zfctl === ${{ runner.workspace }}/release/debug/zfctl'
-        env:
-          zfctl_path: ${{ runner.workspace }}/release/debug/zfctl'
 
       - name: Change dir
         shell: bash
@@ -92,15 +94,19 @@ jobs:
           pwd
 
       - name: dump
+        working-directory: ./../../zenoh
         run: |
+          pwd
           echo 'github.workspace === ${{ github.workspace }}'
           echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
           echo 'runner.workspace === ${{ runner.workspace }}'
           echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
-          echo "env.zfctl_path === ${{ env.zfctl_path }}"
-          echo "zfctl_path === $zfctl_path "
-          echo "env.ARTIFACT === ${{ env.ARTIFACT }}"
+          echo "zfctl_path === $zfctl_path"
+          echo 'env.zfctl_path === ${{ env.zfctl_path }}'
           echo 'zenohd === ${{ runner.workspace }}/target/debug/zenohd'
+          echo "zenohd_path=${{ runner.workspace }}/target/debug/zenohd" >> $GITHUB_ENV
+          echo "zenohd_path === $zenohd_path"
+          echo 'env.zenohd_path === ${{ env.zenohd_path }}'
 
       - name: Install latest Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -230,7 +236,14 @@ jobs:
       #   with:
       #     command: build
       #     args: --verbose --all-targets
-      - name: Free Disk Space (Ubuntu)
+      - if: matrix.os == 'macOS-latest'
+        run: |
+          top -l 1 -s 0 | grep PhysMem 
+          sysctl -a | awk '/hw./' && '/mem/'
+          top -l 1 -s 0 | grep PhysMem
+
+      - if: matrix.os == 'ubuntu-latest'
+        name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
         with:
           # this might remove tools that are actually needed,
