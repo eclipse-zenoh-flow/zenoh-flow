@@ -237,6 +237,7 @@ jobs:
       #     command: build
       #     args: --verbose --all-targets
       - if: matrix.os == 'macOS-latest'
+        name: Free Disk Space (macOS)
         run: |
           top -l 1 -s 0 | grep PhysMem 
           sysctl -a | awk '/hw./' && '/mem/'
