@@ -132,7 +132,10 @@ jobs:
 
       - name: Print current working dir
         run: |
+          cd target
           ls -la $PWD
+          ls -la $GITHUB_WORKSPACE
+          cd release
           ls -la $GITHUB_WORKSPACE
 
       # - name: Free Disk Space (Ubuntu)
@@ -158,7 +161,7 @@ jobs:
           echo '{{ runner.workspace }}/zenoh/target/debug/zenohd === ${{ runner.workspace }}/zenoh/target/debug/zenohd'
           echo '{{ runner.workspace }}/release/debug/zfctl === ${{ runner.workspace }}/release/debug/zfctl'
           echo "ZENOHD_PATH=${{ runner.workspace }}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
-          echo "ZFCTL_PATH=${{ runner.workspace }}/release/debug/zfctl" >> $GITHUB_ENV
+          echo "ZFCTL_PATH=$GITHUB_WORKSPACE/zfctl" >> $GITHUB_ENV
           echo ${{env.ZENOHD_PATH}}
           echo ${{env.ZFCTL_PATH}}
 
@@ -177,4 +180,4 @@ jobs:
 
       - name: Run Python automated-test.py script
         run: |
-          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{ runner.workspace }}/release/debug/zfctl)
+          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl $GITHUB_WORKSPACE/zfctl)
