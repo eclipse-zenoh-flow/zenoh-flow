@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macOS-latest]
+        os: [ubuntu-latest, macos-latest-large]
     steps:
       - uses: actions/checkout@v2
 
@@ -101,102 +101,31 @@ jobs:
         env:
           ASYNC_STD_THREAD_COUNT: 4
 
-      # - uses: actions/checkout@v2
-
-      # - name: Install latest Rust toolchain
-      #   uses: actions-rs/toolchain@v1
-
-      # - name: Build zenoh-flow-plugin
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: build
-      #     args: --release -p zenoh-flow-plugin -j1
-
-      # - name: Build zfctl
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: build
-      #     args: --release -p zfctl -j1
-
-      # - name: Run tests
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: test
-      #     args: --release --verbose
-      #   env:
-      #     ASYNC_STD_THREAD_COUNT: 4
-
-      # - name: Run doctests
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: test
-      #     args: --doc
-      #   env:
-      #     ASYNC_STD_THREAD_COUNT: 4
-
-      # - name: Find files matching "zfctl.json"
-      #   uses: jeertmans/filesfinder@latest
-      #   id: ff # Any id, to be used later to reference to files output
-      #   with:
-      #     # Only argument, a single string, to be passed as arguments to ff.
-      #     # See `ff --help` for more help.
-      #     # Default: "*"
-      #     args: "zfctl.json"
-
-      # - name: Print files  matching "zfctl.json"
-      #   run: echo "${{ steps.ff.outputs.files }}"
-
-      # - name: Find files matching "zenohd"
-      #   uses: jeertmans/filesfinder@latest
-      #   id: pp # Any id, to be used later to reference to files output
-      #   with:
-      #     # Only argument, a single string, to be passed as arguments to ff.
-      #     # See `ff --help` for more help.
-      #     # Default: "*"
-      #     args: "zenohd"
-
-      # - name: Print files  matching "zenohd"
-      #   run: echo "${{ steps.pp.outputs.files }}"
-
-      # - name: Change directory --> from Zenoh-Flow/Zenoh-Flow to Home directory
-      #   run: |
-      #     cd ..
-      #     cd ..
-
-      # #it works
       # - name: Check out my other private repo
       #   uses: actions/checkout@master
       #   with:
       #     repository: eclipse-zenoh/zenoh
 
-      #but this is better
+      - name: Create TEMP_DIR
+        run: |
+          echo "TEMP_DIR=$(mktemp -d)" >> $GITHUB_ENV
+          echo "${{ env.TEMP_DIR}} >> ${{ env.TEMP_DIR}}"
+
+      - name: pwd
+        shell: bash
+        run: |
+          pwd
+          echo 'PWD === $PWD'
+
       - name: Clone Repository
         run: git clone -b '0.7.2-rc' https://github.com/eclipse-zenoh/zenoh.git ./../../zenoh
 
-      #uses: actions/checkout@master
-      #    path: main
-      #    ref: b9103c3
-      #     token: ${{ secrets.PAT }}
-      #     token: ${{ github.token }}
-
-      # - name: Change directory --> from Home directory to zenoh
-      #   run: cd zenoh
-
-      # - name: git
-      #   run: git checkout 0.7.2-rc
-
-      # - name: Build Zenoh
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: build
-      #     args: --verbose --all-targets
-
-      - if: matrix.os == 'macOS-latest'
-        name: Free Disk Space (macOS)
-        run: |
-          top -l 1 -s 0 | grep PhysMem
-          sysctl -a | awk '/hw./' && '/mem/'
-          top -l 1 -s 0 | grep PhysMem
+      # - if: matrix.os == 'macOS-latest'
+      #   name: Free Disk Space (macOS)
+      #   run: |
+      #     top -l 1 -s 0 | grep PhysMem
+      #     sysctl -a | awk '/hw./' && '/mem/'
+      #     top -l 1 -s 0 | grep PhysMem
 
       - if: matrix.os == 'ubuntu-latest'
         name: Free Disk Space (Ubuntu)
@@ -214,20 +143,19 @@ jobs:
       #     tool-cache: true
 
       - name: Change directory --> from Zenoh-Flow to Home directory
+        shell: bash
         run: |
           cd ..
-          cd ..
-          pwd
-
-      - name: Change directory --> from Zenoh-Flow to Home directory
-        run: |
-          cd zenoh
           pwd
 
       - name: dump
+        shell: bash
         run: |
-          pwd
-          echo 'zenohd === $PWD/target/debug/zenohd'
+          echo "{path}" >> $GITHUB_PATH
+          echo "$PATH"
+
+      - name: Set path
+        run: echo "ZENOHD_PATH=$(echo $PWD/zenoh/target/debug/zenohd )" >> $GITHUB_ENV
 
       - name: Build Zenoh
         run: cargo build --all-targets
