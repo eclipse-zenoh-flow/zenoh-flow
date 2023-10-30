@@ -83,7 +83,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --verbose --all-targets
+          args: --release --verbose --all-targets --target ${{ matrix.target }}
 
       - name: Run tests
         uses: actions-rs/cargo@v1
@@ -113,7 +113,12 @@ jobs:
 
       #./../../zenoh
       - name: Clone Repository
-        run: git clone -b '0.7.2-rc' https://github.com/eclipse-zenoh/zenoh.git
+        run: git clone -b '0.7.2-rc' https://github.com/eclipse-zenoh/zenoh.git ${{ env.TEMP_DIR}}/zenoh
+
+      - name: Build Zenoh
+        run: |
+          cd ${{ env.TEMP_DIR}}/zenoh
+          cargo build --all-targets
 
       # - if: matrix.os == 'macOS-latest'
       #   name: Free Disk Space (macOS)
@@ -160,13 +165,10 @@ jobs:
         run: |
           echo '{{ runner.workspace }}/zenoh/target/debug/zenohd === ${{ runner.workspace }}/zenoh/target/debug/zenohd'
           echo '{{ runner.workspace }}/release/debug/zfctl === ${{ runner.workspace }}/release/debug/zfctl'
-          echo "ZENOHD_PATH=${{ runner.workspace }}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
-          echo "ZFCTL_PATH=$GITHUB_WORKSPACE/zfctl" >> $GITHUB_ENV
+          echo "ZENOHD_PATH=${{ env.TEMP_DIR}}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
+          echo "ZFCTL_PATH= ${{ github.workspace }}/target/release/debug/zfctl" >> $GITHUB_ENV
           echo ${{env.ZENOHD_PATH}}
           echo ${{env.ZFCTL_PATH}}
-
-      - name: Build Zenoh
-        run: cargo build --all-targets
 
       - name: Install Python package
         uses: actions/setup-python@v4
@@ -180,4 +182,4 @@ jobs:
 
       - name: Run Python automated-test.py script
         run: |
-          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl $GITHUB_WORKSPACE/zfctl)
+          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl  ${{ github.workspace }}/target/release/debug/zfctl)
