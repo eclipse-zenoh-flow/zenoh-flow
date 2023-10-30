@@ -32,5 +32,4 @@ tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
 zenoh-flow-commons = { workspace = true }
-zenoh-flow-records = { workspace = true }
 zenoh-keyexpr = { workspace = true }
