@@ -27,9 +27,6 @@ jobs:
   checks:
     name: Run checks on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    env:
-      zfctl_path: ${{ runner.workspace }}/release/debug/zfctl'
-      zenohd_path: /target/debug/zenohd
     strategy:
       fail-fast: false
       matrix:
@@ -78,7 +75,6 @@ jobs:
           echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
           echo 'runner.workspace === ${{ runner.workspace }}'
           echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
-          echo 'zfctl === ${{ runner.workspace }}/release/debug/zfctl'
 
       - name: Change dir
         shell: bash
@@ -100,12 +96,7 @@ jobs:
           echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
           echo 'runner.workspace === ${{ runner.workspace }}'
           echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
-          echo "zfctl_path === $zfctl_path"
-          echo 'env.zfctl_path === ${{ env.zfctl_path }}'
           echo 'zenohd === ${{ runner.workspace }}/target/debug/zenohd'
-          echo "zenohd_path=${{ runner.workspace }}/target/debug/zenohd" >> $GITHUB_ENV
-          echo "zenohd_path === $zenohd_path"
-          echo 'env.zenohd_path === ${{ env.zenohd_path }}'
 
       - name: Install latest Rust toolchain
         uses: actions-rs/toolchain@v1
