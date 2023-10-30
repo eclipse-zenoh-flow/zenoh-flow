@@ -13,32 +13,29 @@
 //
 
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, sync::Arc};
-use zenoh_flow_commons::{NodeId, PortId, SharedMemoryParameters};
+use std::fmt::Display;
+use zenoh_flow_commons::NodeId;
+use zenoh_keyexpr::OwnedKeyExpr;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct ZenohSender {
+pub struct SenderRecord {
     pub id: NodeId,
-    pub resource: Arc<str>,
-    pub input: PortId,
-    pub shared_memory: SharedMemoryParameters,
+    pub resource: OwnedKeyExpr,
 }
 
-impl Display for ZenohSender {
+impl Display for SenderRecord {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct ZenohReceiver {
+pub struct ReceiverRecord {
     pub id: NodeId,
-    pub resource: Arc<str>,
-    pub output: PortId,
-    pub shared_memory: SharedMemoryParameters,
+    pub resource: OwnedKeyExpr,
 }
 
-impl Display for ZenohReceiver {
+impl Display for ReceiverRecord {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
     }

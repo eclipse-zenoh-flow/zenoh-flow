@@ -28,6 +28,8 @@ anyhow = { workspace = true }
 serde = { workspace = true }
 uuid = { workspace = true }
 zenoh-flow-commons = { workspace = true }
+zenoh-flow-descriptors = { workspace = true }
+zenoh-keyexpr = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }

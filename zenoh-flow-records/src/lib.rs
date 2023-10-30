@@ -16,13 +16,4 @@ mod dataflow;
 pub use dataflow::DataFlowRecord;
 
 mod connectors;
-pub use connectors::{ZenohReceiver, ZenohSender};
-
-mod io;
-pub use io::{InputRecord, OutputRecord};
-
-mod links;
-pub use links::LinkRecord;
-
-mod nodes;
-pub use nodes::{OperatorRecord, SinkRecord, SourceRecord};
+pub use connectors::{ReceiverRecord, SenderRecord};
