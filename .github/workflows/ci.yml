@@ -83,8 +83,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --verbose --all-targets --target ${{ matrix.target }}
-
+          args: --release --verbose --all-targets
       - name: Run tests
         uses: actions-rs/cargo@v1
         with:
