@@ -15,14 +15,13 @@
 use crate::{InputDescriptor, LinkDescriptor, OperatorDescriptor, OutputDescriptor};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use zenoh_flow_commons::{deserialize_id, Configuration, NodeId, PortId};
+use zenoh_flow_commons::{Configuration, NodeId, PortId};
 
 /// TODO@J-Loudet example?
 /// TODO@J-Loudet documentation?
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CompositeOutputDescriptor {
     pub id: PortId,
-    #[serde(deserialize_with = "deserialize_id")]
     pub node: NodeId,
     pub output: PortId,
 }
@@ -58,7 +57,6 @@ impl From<CompositeOutputDescriptor> for OutputDescriptor {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct CompositeInputDescriptor {
     pub id: PortId,
-    #[serde(deserialize_with = "deserialize_id")]
     pub node: NodeId,
     pub input: PortId,
 }

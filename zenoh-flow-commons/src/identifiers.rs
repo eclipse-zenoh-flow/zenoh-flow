@@ -12,6 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::deserialize::deserialize_id;
 use std::fmt::Display;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -21,7 +22,7 @@ use uuid::Uuid;
 
 /// A `NodeId` identifies a Node in a data flow.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone, Hash)]
-pub struct NodeId(Arc<str>);
+pub struct NodeId(#[serde(deserialize_with = "deserialize_id")] Arc<str>);
 
 impl Deref for NodeId {
     type Target = Arc<str>;
@@ -51,7 +52,7 @@ impl From<&str> for NodeId {
 
 /// A `PortId` identifies an `Input` or an `Output` of a Node.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
-pub struct PortId(Arc<str>);
+pub struct PortId(#[serde(deserialize_with = "deserialize_id")] Arc<str>);
 
 impl Deref for PortId {
     type Target = Arc<str>;

@@ -17,21 +17,39 @@
 //!
 //! The external crates [bytesize] and [humantime] are leveraged for these purposes.
 
-use crate::NodeId;
-use std::str::FromStr;
-
 use serde::Deserializer;
+use std::{str::FromStr, sync::Arc};
+use zenoh_keyexpr::OwnedKeyExpr;
 
-pub fn deserialize_id<'de, D>(deserializer: D) -> std::result::Result<NodeId, D::Error>
+pub fn deserialize_id<'de, D>(deserializer: D) -> std::result::Result<Arc<str>, D::Error>
 where
     D: Deserializer<'de>,
 {
     let id: String = serde::de::Deserialize::deserialize(deserializer)?;
-    if id.contains('/') {
+    if id.contains(['*', '#', '$', '?']) {
         return Err(serde::de::Error::custom(format!(
-            "A NodeId cannot contain any '/': {id}"
+            r#"
+Identifiers (for nodes or ports) in Zenoh-Flow must *not* contain any of the characters: '*', '#', '$', '?'.
+The identifier < {} > does not satisfy that condition.
+
+These characters have a special meaning in Zenoh and they could negatively impact Zenoh-Flow's behavior.
+"#,
+            id
         )));
     }
+
+    OwnedKeyExpr::autocanonize(id.clone()).map_err(|e| {
+        serde::de::Error::custom(format!(
+            r#"
+Identifiers (for nodes or ports) in Zenoh-Flow *must* be valid key-expressions in their canonical form.
+The identifier < {} > does not satisfy that condition.
+
+Caused by:
+{:?}
+"#,
+            id, e
+        ))
+    })?;
 
     Ok(id.into())
 }
@@ -70,5 +88,55 @@ where
             // log::warn!("failed to deserialize time: {:?}", e);
             Ok(None)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde::Deserialize;
+
+    use crate::NodeId;
+
+    #[derive(Deserialize, Debug)]
+    pub struct TestStruct {
+        pub id: NodeId,
+    }
+
+    #[test]
+    fn test_deserialize_id() {
+        let json_str = r#"
+{
+  "id": "my//chunk"
+}
+"#;
+        assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
+
+        let json_str = r#"
+{
+  "id": "my/*/chunk"
+}
+"#;
+        assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
+
+        let json_str = r###"
+{
+  "id": "#chunk"
+}
+"###;
+        assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
+
+        let json_str = r###"
+{
+  "id": "?chunk"
+}
+"###;
+        assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
+
+        let json_str = r###"
+{
+  "id": "$chunk"
+}
+"###;
+        assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
     }
 }

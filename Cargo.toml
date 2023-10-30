@@ -65,6 +65,7 @@ zenoh-ext = { version = "0.7.2-rc" }
 zenoh-flow-commons = { path = "./zenoh-flow-commons" }
 zenoh-flow-descriptors = { path = "./zenoh-flow-descriptors" }
 zenoh-flow-records = { path = "./zenoh-flow-records" }
+zenoh-keyexpr = { version = "0.7.2-rc" }
 zenoh-plugin-trait = { version = "0.7.2-rc", default-features = false }
 zenoh-sync = { version = "0.7.2-rc" }
 zenoh-util = { version = "0.7.2-rc" }

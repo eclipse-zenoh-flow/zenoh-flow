@@ -33,4 +33,4 @@ url = { workspace = true }
 uuid = { workspace = true }
 zenoh-flow-commons = { workspace = true }
 zenoh-flow-records = { workspace = true }
-zenoh-keyexpr = "0.7.2-rc"
+zenoh-keyexpr = { workspace = true }
