@@ -109,8 +109,7 @@ zf_conf.zf_plugin_path = args.plugin
 print("[Info] Looking for paths...")
 manual_tests_path = os.getcwd()
 zenoh_flow_path = os.path.abspath(os.path.join(manual_tests_path, os.pardir))
-print(f"current dir : {manual_tests_path}")
-print(f"zenoh_flow_path: {zenoh_flow_path}")
+
 print(f"Path of zenohd: {zf_conf.zenohd_path}")
 print(f"Path of zenoh-Flow path: {zenoh_flow_path}")
 
@@ -120,7 +119,6 @@ print(f"Path of getting-started example: {data_flow_path}")
 
 dir_zenoh_zf_plugin = zenoh_flow_path + "/zenoh-flow-plugin/etc/"
 zenoh_zf_plugin_path = zenoh_flow_path + "/zenoh-flow-plugin/etc/zenoh-zf-plugin.json"
-print(f"dir_zenoh_zf_plugin: {dir_zenoh_zf_plugin}")
 print(f"Path of plugin library: {zenoh_zf_plugin_path}")
 
 lib_name = ""
