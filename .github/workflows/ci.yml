@@ -78,6 +78,8 @@ jobs:
 
       - name: Install latest Rust toolchain
         uses: actions-rs/toolchain@v1
+        # with:
+        #   toolchain: 1.70.0
 
       - name: Build
         uses: actions-rs/cargo@v1
@@ -114,10 +116,25 @@ jobs:
       - name: Clone Repository
         run: git clone -b '0.7.2-rc' https://github.com/eclipse-zenoh/zenoh.git ${{ env.TEMP_DIR}}/zenoh
 
-      - name: Build Zenoh
+      - name: Rust Version
+        run: rustc --version
+
+      - name: Rust toolchain
         run: |
-          cd ${{ env.TEMP_DIR}}/zenoh
-          cargo build --all-targets
+          rustup toolchain install 1.7.0
+          rustc --version
+
+      # - name: Build Zenoh
+      #   run: |
+      #     cd ${{ env.TEMP_DIR}}/zenoh
+      #     cargo build --all-targets
+
+      - name: Build Zenoh
+        uses: actions-rs/cargo@v1
+        with:
+          path: ${{ env.TEMP_DIR}}/zenoh
+          command: build
+          args: --release --verbose --all-targets
 
       # - if: matrix.os == 'macOS-latest'
       #   name: Free Disk Space (macOS)
