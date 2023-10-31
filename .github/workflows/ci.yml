@@ -124,17 +124,10 @@ jobs:
           rustup toolchain install 1.7.0
           rustc --version
 
-      # - name: Build Zenoh
-      #   run: |
-      #     cd ${{ env.TEMP_DIR}}/zenoh
-      #     cargo build --all-targets
-
       - name: Build Zenoh
-        uses: actions-rs/cargo@v1
-        with:
-          path: ${{ env.TEMP_DIR}}/zenoh
-          command: build
-          args: --release --verbose --all-targets
+        run: |
+          cd ${{ env.TEMP_DIR}}/zenoh
+          cargo build --all-targets
 
       # - if: matrix.os == 'macOS-latest'
       #   name: Free Disk Space (macOS)
