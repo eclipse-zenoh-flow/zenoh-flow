@@ -163,9 +163,9 @@ jobs:
       - name: Set path
         run: |
           echo '{{ runner.workspace }}/zenoh/target/debug/zenohd === ${{ runner.workspace }}/zenoh/target/debug/zenohd'
-          echo '{{ runner.workspace }}/release/debug/zfctl === ${{ runner.workspace }}/release/debug/zfctl'
+          echo '{{ runner.workspace }}/release/debug/zfctl === ${{ runner.workspace }}/release/zfctl'
           echo "ZENOHD_PATH=${{ env.TEMP_DIR}}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
-          echo "ZFCTL_PATH= ${{ github.workspace }}/target/release/debug/zfctl" >> $GITHUB_ENV
+          echo "ZFCTL_PATH= ${{ github.workspace }}/target/release/zfctl" >> $GITHUB_ENV
           echo ${{env.ZENOHD_PATH}}
           echo ${{env.ZFCTL_PATH}}
 
@@ -181,4 +181,4 @@ jobs:
 
       - name: Run Python automated-test.py script
         run: |
-          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl  ${{ github.workspace }}/target/release/debug/zfctl)
+          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}})
