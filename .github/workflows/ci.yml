@@ -129,6 +129,7 @@ jobs:
           cd ${{ env.TEMP_DIR}}/zenoh
           cargo build --all-targets
 
+
       # - if: matrix.os == 'macOS-latest'
       #   name: Free Disk Space (macOS)
       #   run: |
@@ -151,6 +152,13 @@ jobs:
           ls -la $GITHUB_WORKSPACE
           cd release
           ls -la $GITHUB_WORKSPACE
+          cd zenoh-flow-plugin/etc/
+          ls -la $PWD
+      
+      - name: Print into Zenoh
+        run: |
+          cd ${{ env.TEMP_DIR}}/zenoh
+          ls -la $PWD
 
       # - name: Free Disk Space (Ubuntu)
       #   uses: jlumbroso/free-disk-space@main
@@ -176,8 +184,10 @@ jobs:
           echo '{{ runner.workspace }}/release/debug/zfctl === ${{ runner.workspace }}/release/zfctl'
           echo "ZENOHD_PATH=${{ env.TEMP_DIR}}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
           echo "ZFCTL_PATH= ${{ github.workspace }}/target/release/zfctl" >> $GITHUB_ENV
+          echo "ZF_PLUGIN_PATH= ${{ github.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
           echo ${{env.ZENOHD_PATH}}
           echo ${{env.ZFCTL_PATH}}
+          echo ${{env.ZF_PLUGIN_PATH}}
 
       - name: Install Python package
         uses: actions/setup-python@v4
@@ -191,4 +201,4 @@ jobs:
 
       - name: Run Python automated-test.py script
         run: |
-          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}})
+          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} )

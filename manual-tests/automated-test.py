@@ -141,11 +141,13 @@ if zf_conf.zf_plugin_path[-p:] != "zenoh-zf-plugin-01.json":
     print("[Info] Zenoh-Flow as Zenoh plugin")
     if os.path.exists(os.path.join(manual_tests_path, "zenoh-zf-plugin.json")) is False:
         print(zenoh_zf_plugin_path)
-        shutil.copy(zenoh_zf_plugin_path, manual_tests_path)
+        #shutil.copy(zenoh_zf_plugin_path, manual_tests_path)
+        shutil.copy(zf_conf.zf_plugin_path, manual_tests_path)
     add_lib_folder = ""
 
-    zf_conf.zf_plugin_path = os.path.join(manual_tests_path, "zenoh-zf-plugin.json")
-    with open(zenoh_zf_plugin_path) as json_file:
+    #zf_conf.zf_plugin_path = os.path.join(manual_tests_path, "zenoh-zf-plugin.json")
+    #with open(zenoh_zf_plugin_path) as json_file:
+    with open(zf_conf.zf_plugin_path) as json_file:
         json_string = json_file.read()
         if json_string.find(dir_zenoh_zf_plugin) == -1:
             start_row = json_string.find('"plugins_search_dirs":[')
