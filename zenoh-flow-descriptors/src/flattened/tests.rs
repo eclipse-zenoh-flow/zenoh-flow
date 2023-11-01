@@ -22,8 +22,9 @@ use crate::{
     OutputDescriptor,
 };
 use serde_json::json;
-use std::collections::HashMap;
-use zenoh_flow_commons::Vars;
+use std::{collections::HashMap, str::FromStr};
+use uuid::Uuid;
+use zenoh_flow_commons::{RuntimeId, Vars};
 
 const BASE_DIR: &str = "./tests/descriptors";
 const SCHEME: &str = "file://";
@@ -298,27 +299,45 @@ fn test_flatten_descriptor() {
     });
     assert_eq!(expected_links.len(), flatten.links.len());
 
+    let runtime_1: RuntimeId = Uuid::from_str("10628aa2-66ca-4fda-8d5c-d7de63764bcc")
+        .unwrap()
+        .into();
+    let runtime_2: RuntimeId = Uuid::from_str("5f7a170d-cfaf-4f7a-971e-6c3e63c50e1e")
+        .unwrap()
+        .into();
+    let runtime_source_composite: RuntimeId =
+        Uuid::from_str("e051658a-0cd6-4cef-8b08-0d0f17d3cc5d")
+            .unwrap()
+            .into();
+    let runtime_operator_composite: RuntimeId =
+        Uuid::from_str("6a16a7ba-ec2d-4bb8-b303-7683e5477900")
+            .unwrap()
+            .into();
+    let runtime_sink_composite: RuntimeId = Uuid::from_str("25270228-9cb1-4e6e-988c-00769622359f")
+        .unwrap()
+        .into();
+
     let expected_mapping = HashMap::from([
-        ("source-1".into(), "runtime-1".into()),
-        ("sink-2".into(), "runtime-2".into()),
-        ("source-composite".into(), "runtime-source".into()),
+        ("source-1".into(), runtime_1),
+        ("sink-2".into(), runtime_2),
+        ("source-composite".into(), runtime_source_composite),
         (
             "operator-composite/sub-operator-1".into(),
-            "runtime-composite".into(),
+            runtime_operator_composite.clone(),
         ),
         (
             "operator-composite/sub-operator-composite/sub-sub-operator-1".into(),
-            "runtime-composite".into(),
+            runtime_operator_composite.clone(),
         ),
         (
             "operator-composite/sub-operator-composite/sub-sub-operator-2".into(),
-            "runtime-composite".into(),
+            runtime_operator_composite.clone(),
         ),
         (
             "operator-composite/sub-operator-2".into(),
-            "runtime-composite".into(),
+            runtime_operator_composite,
         ),
-        ("sink-composite".into(), "runtime-sink".into()),
+        ("sink-composite".into(), runtime_sink_composite),
     ]);
 
     assert_eq!(expected_mapping, flatten.mapping);

@@ -64,7 +64,7 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 ///       input : in-operator
 ///
 /// mapping:
-///   Source-0: zenoh-flow-plugin-0
+///   Source-0: 10628aa2-66ca-4fda-8d5c-d7de63764bcc
 /// "#;
 ///
 /// let data_flow_yaml = serde_yaml::from_str::<DataFlowDescriptor>(yaml).unwrap();
@@ -131,7 +131,7 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 ///   ],
 ///
 ///   "mapping": {
-///     "Source-0": "zenoh-flow-plugin-0"
+///     "Source-0": "10628aa2-66ca-4fda-8d5c-d7de63764bcc"
 ///   }
 /// }
 /// "#;

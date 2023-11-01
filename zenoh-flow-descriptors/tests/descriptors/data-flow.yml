@@ -99,8 +99,8 @@ links:
 
 
 mapping:
-  source-1: runtime-1
-  sink-2: runtime-2
-  source-composite: runtime-source
-  operator-composite: runtime-composite
-  sink-composite: runtime-sink
+  source-1: 10628aa2-66ca-4fda-8d5c-d7de63764bcc
+  sink-2: 5f7a170d-cfaf-4f7a-971e-6c3e63c50e1e
+  source-composite: e051658a-0cd6-4cef-8b08-0d0f17d3cc5d
+  operator-composite: 6a16a7ba-ec2d-4bb8-b303-7683e5477900
+  sink-composite: 25270228-9cb1-4e6e-988c-00769622359f

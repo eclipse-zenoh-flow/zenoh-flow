@@ -14,7 +14,8 @@
 
 use std::collections::HashMap;
 
-use zenoh_flow_commons::{NodeId, Vars};
+use uuid::Uuid;
+use zenoh_flow_commons::{NodeId, RuntimeId, Vars};
 use zenoh_flow_descriptors::{
     DataFlowDescriptor, FlattenedDataFlowDescriptor, InputDescriptor, LinkDescriptor,
     OutputDescriptor,
@@ -76,13 +77,14 @@ fn test_success_no_runtime() {
     )
     .unwrap();
 
-    let record = DataFlowRecord::try_new(flat_desc, &"default".into()).unwrap();
+    let default_runtime: RuntimeId = Uuid::new_v4().into();
+    let record = DataFlowRecord::try_new(flat_desc, &default_runtime).unwrap();
 
     assert_eq!(
         HashMap::from([
-            ("source-0".into(), "default".into()),
-            ("operator-1".into(), "default".into()),
-            ("sink-2".into(), "default".into())
+            ("source-0".into(), default_runtime.clone()),
+            ("operator-1".into(), default_runtime.clone()),
+            ("sink-2".into(), default_runtime)
         ]),
         record.mapping
     );
@@ -94,16 +96,17 @@ fn test_success_no_runtime() {
 
 #[test]
 fn test_success_same_runtime() {
+    let runtime: RuntimeId = Uuid::new_v4().into();
     let desc = format!(
         r#"
 {}
 
 mapping:
-  source-0: thing
-  operator-1: thing
-  sink-2: thing
+  source-0: {1}
+  operator-1: {1}
+  sink-2: {1}
 "#,
-        BASE_FLOW
+        BASE_FLOW, runtime,
     );
 
     let flat_desc = FlattenedDataFlowDescriptor::try_flatten(
@@ -112,13 +115,13 @@ mapping:
     )
     .unwrap();
 
-    let record = DataFlowRecord::try_new(flat_desc, &"default".into()).unwrap();
+    let record = DataFlowRecord::try_new(flat_desc, &Uuid::new_v4().into()).unwrap();
 
     assert_eq!(
         HashMap::from([
-            ("source-0".into(), "thing".into()),
-            ("operator-1".into(), "thing".into()),
-            ("sink-2".into(), "thing".into())
+            ("source-0".into(), runtime.clone()),
+            ("operator-1".into(), runtime.clone()),
+            ("sink-2".into(), runtime)
         ]),
         record.mapping
     );
@@ -130,15 +133,19 @@ mapping:
 
 #[test]
 fn test_success_different_runtime() {
+    let runtime_thing: RuntimeId = Uuid::new_v4().into();
+    let runtime_edge: RuntimeId = Uuid::new_v4().into();
+    let default_runtime: RuntimeId = Uuid::new_v4().into();
+
     let desc = format!(
         r#"
 {}
 
 mapping:
-  source-0: thing
-  operator-1: edge
+  source-0: {}
+  operator-1: {}
 "#,
-        BASE_FLOW
+        BASE_FLOW, runtime_thing, runtime_edge
     );
 
     let flat_desc = FlattenedDataFlowDescriptor::try_flatten(
@@ -147,13 +154,13 @@ mapping:
     )
     .unwrap();
 
-    let record = DataFlowRecord::try_new(flat_desc, &"default".into()).unwrap();
+    let record = DataFlowRecord::try_new(flat_desc, &default_runtime).unwrap();
 
     assert_eq!(
         HashMap::from([
-            ("source-0".into(), "thing".into()),
-            ("operator-1".into(), "edge".into()),
-            ("sink-2".into(), "default".into())
+            ("source-0".into(), runtime_thing),
+            ("operator-1".into(), runtime_edge),
+            ("sink-2".into(), default_runtime)
         ]),
         record.mapping
     );

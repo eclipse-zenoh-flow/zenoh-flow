@@ -80,17 +80,8 @@ impl From<&str> for PortId {
     }
 }
 
-/// A `PortId` identifies an `Input` or an `Output` of a Node.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
-pub struct RuntimeId(Arc<str>);
-
-impl Deref for RuntimeId {
-    type Target = Arc<str>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+pub struct RuntimeId(Arc<Uuid>);
 
 impl Display for RuntimeId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -98,15 +89,17 @@ impl Display for RuntimeId {
     }
 }
 
-impl From<String> for RuntimeId {
-    fn from(value: String) -> Self {
-        Self(value.into())
+impl Deref for RuntimeId {
+    type Target = Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl From<&str> for RuntimeId {
-    fn from(value: &str) -> Self {
-        Self(value.into())
+impl From<Uuid> for RuntimeId {
+    fn from(value: Uuid) -> Self {
+        Self(Arc::new(value))
     }
 }
 

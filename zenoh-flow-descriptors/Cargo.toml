@@ -11,6 +11,7 @@
 # Contributors:
 #   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 #
+
 [package]
 authors = { workspace = true }
 categories = { workspace = true }
@@ -30,6 +31,8 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
-uuid = { workspace = true }
 zenoh-flow-commons = { workspace = true }
 zenoh-keyexpr = { workspace = true }
+
+[dev-dependencies]
+uuid = { workspace = true }
