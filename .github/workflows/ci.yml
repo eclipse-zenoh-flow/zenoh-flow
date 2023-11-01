@@ -129,7 +129,6 @@ jobs:
           cd ${{ env.TEMP_DIR}}/zenoh
           cargo build --all-targets
 
-
       # - if: matrix.os == 'macOS-latest'
       #   name: Free Disk Space (macOS)
       #   run: |
@@ -150,11 +149,7 @@ jobs:
           cd target
           ls -la $PWD
           ls -la $GITHUB_WORKSPACE
-          cd release
-          ls -la $GITHUB_WORKSPACE
-          cd zenoh-flow-plugin/etc/
-          ls -la $PWD
-      
+
       - name: Print into Zenoh
         run: |
           cd ${{ env.TEMP_DIR}}/zenoh
