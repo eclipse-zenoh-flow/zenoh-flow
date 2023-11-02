@@ -127,7 +127,7 @@ jobs:
       - name: Build Zenoh
         run: |
           cd ${{ env.TEMP_DIR}}/zenoh
-          cargo build --all-targets
+          cargo build --features shared-memory --all-targets
 
       # - if: matrix.os == 'macOS-latest'
       #   name: Free Disk Space (macOS)
@@ -175,11 +175,9 @@ jobs:
 
       - name: Set path
         run: |
-          echo '{{ runner.workspace }}/zenoh/target/debug/zenohd === ${{ runner.workspace }}/zenoh/target/debug/zenohd'
-          echo '{{ runner.workspace }}/release/debug/zfctl === ${{ runner.workspace }}/release/zfctl'
           echo "ZENOHD_PATH=${{ env.TEMP_DIR}}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
-          echo "ZFCTL_PATH= ${{ github.workspace }}/target/release/zfctl" >> $GITHUB_ENV
-          echo "ZF_PLUGIN_PATH= ${{ github.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
+          echo "ZFCTL_PATH= ${{ runner.workspace }}/target/release/zfctl" >> $GITHUB_ENV
+          echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
           echo ${{env.ZENOHD_PATH}}
           echo ${{env.ZFCTL_PATH}}
           echo ${{env.ZF_PLUGIN_PATH}}

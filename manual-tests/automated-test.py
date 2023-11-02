@@ -3,8 +3,8 @@ import fnmatch
 import os
 import platform
 import shutil
-import time
 import sys
+import time
 
 import psutil
 
@@ -20,6 +20,7 @@ class ZF_conf:
         self.zf_deamon_yaml = None
         self.zenoh_flow_daemon = None
         self.uuid_runtimes = None
+        self.libzenoh_plugin = None
         self.libzenoh_plugin = None
 
 
@@ -120,42 +121,48 @@ print(f"Path of getting-started example: {data_flow_path}")
 dir_zenoh_zf_plugin = zenoh_flow_path + "/zenoh-flow-plugin/etc/"
 zenoh_zf_plugin_path = zenoh_flow_path + "/zenoh-flow-plugin/etc/zenoh-zf-plugin.json"
 print(f"Path of plugin library: {zenoh_zf_plugin_path}")
-
-lib_name = ""
-if platform.system() == "Windows":
-    lib_name = "libzenoh_plugin_zenoh_flow.dll"
-elif platform.system() == "Linux":
-    lib_name = "libzenoh_plugin_zenoh_flow.so"
-elif platform.system() == "Darwin":
-    lib_name = "libzenoh_plugin_zenoh_flow.dylib"
-
-if zenoh_release_flag == "release":
-    libzenoh_plugin_path = os.path.join(zenoh_flow_path, "target/release/")
-elif zenoh_release_flag == "debug":
-    libzenoh_plugin_path = os.path.join(zenoh_flow_path, "target/debug/")
-
 print(f"Path of zfctl: {zf_conf.zfctl_path}")
 
 p = len("zenoh-zf-plugin-01.json")
 if zf_conf.zf_plugin_path[-p:] != "zenoh-zf-plugin-01.json":
+    lib_name = ""
+    if platform.system() == "Windows":
+        lib_name = "libzenoh_plugin_zenoh_flow.dll"
+    elif platform.system() == "Linux":
+        lib_name = "libzenoh_plugin_zenoh_flow.so"
+    elif platform.system() == "Darwin":
+        lib_name = "libzenoh_plugin_zenoh_flow.dylib"
+
+    libzenoh_plugin_path = ""
+    if zenoh_release_flag == "release":
+        zf_conf.libzenoh_plugin = os.path.join(zenoh_flow_path, "target/release/")
+    elif zenoh_release_flag == "debug":
+        zf_conf.libzenoh_plugin = os.path.join(zenoh_flow_path, "target/debug/")
+
+    print(f"[Info] {lib_name} path: ", zf_conf.libzenoh_plugin)
+
     print("[Info] Zenoh-Flow as Zenoh plugin")
     if os.path.exists(os.path.join(manual_tests_path, "zenoh-zf-plugin.json")) is False:
         print(zenoh_zf_plugin_path)
-        #shutil.copy(zenoh_zf_plugin_path, manual_tests_path)
+        print(manual_tests_path)
         shutil.copy(zf_conf.zf_plugin_path, manual_tests_path)
     add_lib_folder = ""
 
-    #zf_conf.zf_plugin_path = os.path.join(manual_tests_path, "zenoh-zf-plugin.json")
-    #with open(zenoh_zf_plugin_path) as json_file:
+    # reassign the value of the "zf_conf.zf_plugin_path" variable with
+    # the path of the new file "zenoh-zf-plugin.json" created into manual-test folder
+    zf_conf.zf_plugin_path = os.path.join(manual_tests_path, "zenoh-zf-plugin.json")
+    print(
+        f"[Info] Create new zenoh-zf-plugin.json and update the path\n[Info] New path: {zf_conf.zf_plugin_path}"
+    )
     with open(zf_conf.zf_plugin_path) as json_file:
         json_string = json_file.read()
-        if json_string.find(dir_zenoh_zf_plugin) == -1:
+        if json_string.find(zf_conf.libzenoh_plugin) == -1:
             start_row = json_string.find('"plugins_search_dirs":[')
             index = (start_row - 1) + len('"plugins_search_dirs": [')
             add_lib_folder = (
                 json_string[:index]
                 + '"'
-                + dir_zenoh_zf_plugin
+                + zf_conf.libzenoh_plugin
                 + '",'
                 + json_string[index:]
             )
@@ -227,11 +234,17 @@ for process in psutil.process_iter():
         pid = process.pid
         break
 
+if zf_conf.zenohd_process != "none":
+    print("[info] Launching list runtimes command:  ", zf_command["runtimes_cmd"])
+    launch_runtimes = os.popen(zf_command["runtimes_cmd"])
+    runtimes_string = launch_runtimes.read()
+
+
 print(f"[Info] Test {process_name}  process pid {pid}")
 zf_conf.zenohd_process = pid
 if zf_conf.zenohd_process is not None:
     if os.path.exists("/tmp/greetings.txt"):
-         os.remove("/tmp/greetings.txt")
+        os.remove("/tmp/greetings.txt")
     print(f'[Info] Launching Zenoh-Flow example: {zf_command["dataflow_yaml_cmd"]}')
     launch_zf_yaml = os.popen(zf_command["dataflow_yaml_cmd"])
     zf_example_string = launch_zf_yaml.read()
@@ -258,9 +271,8 @@ if os.path.exists("/tmp/greetings.txt"):
     current_hello = 0
 
     for i in range(len(previous_res)):
-            if previous_res[i] == "Hello, Test!":
-                previus_hello +=1
-
+        if previous_res[i] == "Hello, Test!":
+            previus_hello += 1
 
     curl_getting_started = "curl -X PUT -H 'content-type:text/plain' -d 'Test' http://localhost:8000/zf/getting-started/hello"
     print(
@@ -271,14 +283,14 @@ if os.path.exists("/tmp/greetings.txt"):
     txt_res = open("/tmp/greetings.txt", "r")
     res = txt_res.read().splitlines()
     if previus_index == 1 and res[0] == "":
-        result = res  
+        result = res
     else:
         result = res[previus_index:]
-        
-    if(len(result)) != 0:
+
+    if (len(result)) != 0:
         for i in range(len(result)):
             if result[i] == "Hello, Test!":
-                current_hello +=1
+                current_hello += 1
                 print(f"\n[Info] Test Recive: SUCCESS, {result[i]}")
             else:
                 print("\n[Error] Test Recive:  FAILED.")
@@ -287,9 +299,9 @@ if os.path.exists("/tmp/greetings.txt"):
         print("\n[Error] Test Recive:  FAILED.")
         sys.exit(-1)
     os.remove("/tmp/greetings.txt")
-    if current_hello<=previus_index or current_hello==0:
+    if current_hello <= previus_index or current_hello == 0:
         sys.exit(-1)
-    
+
 
 print("\n[Info] Killing `zenohd` processes...")
 process_name = "zenohd"
