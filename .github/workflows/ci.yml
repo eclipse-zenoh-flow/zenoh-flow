@@ -204,7 +204,7 @@ jobs:
 
       - name: Print into Zenoh-Flow-Plugin
         run: |
-          cd ${{ runner.workspace }}/zenoh-flow-plugin/etc/
+          cd ${{ runner.workspace }}/zenoh-flow-plugin
           ls -la $PWD
 
       - name: Install Python package
