@@ -124,10 +124,29 @@ jobs:
           rustup toolchain install 1.7.0
           rustc --version
 
+      - if: matrix.os == 'ubuntu-latest'
+        name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+
+      - name: Update Rust version
+        uses: DamianReeves/write-file-action@master
+        with:
+          path: ${{env.TEMP_DIR}}/zenoh/rust-toolchain
+          contents: |
+            1.70.0
+          write-mode: overwrite
+
       - name: Build Zenoh
         run: |
           cd ${{ env.TEMP_DIR}}/zenoh
           cargo build --features shared-memory --all-targets
+
+      # export PATH="$HOME/.cargo/bin:$PATH"
+      # rustup override set 1.70.0
 
       # - if: matrix.os == 'macOS-latest'
       #   name: Free Disk Space (macOS)
@@ -182,6 +201,11 @@ jobs:
           echo ${{env.ZFCTL_PATH}}
           echo ${{env.ZF_PLUGIN_PATH}}
 
+      - name: Print into Zenoh-Flow-Plugin
+        run: |
+          cd /zenoh-flow-plugin/etc/
+          ls -la $PWD
+
       - name: Install Python package
         uses: actions/setup-python@v4
         with:
@@ -194,4 +218,6 @@ jobs:
 
       - name: Run Python automated-test.py script
         run: |
+          pwd
+          ls -la $PWD
           output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} )
