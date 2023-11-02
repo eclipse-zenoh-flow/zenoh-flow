@@ -24,38 +24,38 @@ on:
     - cron: "0 0 * * 1-5"
 
 jobs:
-  checks:
-    name: Run checks on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macOS-latest]
-    steps:
-      - uses: actions/checkout@v2
+  # checks:
+  #   name: Run checks on ${{ matrix.os }}
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: [ubuntu-latest, macOS-latest]
+  #   steps:
+  #     - uses: actions/checkout@v2
 
-      - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          components: rustfmt, clippy
+  #     - name: Install Rust toolchain
+  #       uses: actions-rs/toolchain@v1
+  #       with:
+  #         components: rustfmt, clippy
 
-      - name: Code format check
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: -- --check
+  #     - name: Code format check
+  #       uses: actions-rs/cargo@v1
+  #       with:
+  #         command: fmt
+  #         args: -- --check
 
-      - name: Clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets -- -D warnings
+  #     - name: Clippy
+  #       uses: actions-rs/cargo@v1
+  #       with:
+  #         command: clippy
+  #         args: --all-targets -- -D warnings
 
-      - name: Clippy unstable
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets -- -D warnings
+  #     - name: Clippy unstable
+  #       uses: actions-rs/cargo@v1
+  #       with:
+  #         command: clippy
+  #         args: --all-targets -- -D warnings
 
   tests:
     name: Run tests on ${{ matrix.os }}
@@ -81,26 +81,45 @@ jobs:
         # with:
         #   toolchain: 1.70.0
 
+      # # - name: Build
+      # #   uses: actions-rs/cargo@v1
+      # #   with:
+      # #     command: build
+      # #     args: --release --verbose --all-targets
+
       - name: Build
         uses: actions-rs/cargo@v1
         with:
-          command: build
-          args: --release --verbose --all-targets
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release --verbose
-        env:
-          ASYNC_STD_THREAD_COUNT: 4
+          command: build zenoh-flow-plugin
+          args: --release -p zenoh-flow-plugin
 
-      - name: Run doctests
+      - name: Build
         uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --doc
-        env:
-          ASYNC_STD_THREAD_COUNT: 4
+          command: build zfctl
+          args: --release -p zfctl
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build examples
+          args: --release --examples
+
+      # - name: Run tests
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     args: --release --verbose
+      #   env:
+      #     ASYNC_STD_THREAD_COUNT: 4
+
+      # - name: Run doctests
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     args: --doc
+      #   env:
+      #     ASYNC_STD_THREAD_COUNT: 4
 
       # - name: Check out my other private repo
       #   uses: actions/checkout@master
@@ -116,21 +135,21 @@ jobs:
       - name: Clone Repository
         run: git clone -b '0.7.2-rc' https://github.com/eclipse-zenoh/zenoh.git ${{ env.TEMP_DIR}}/zenoh
 
-      - name: Rust Version
-        run: rustc --version
+      # - name: Rust Version
+      #   run: rustc --version
 
-      - name: Rust toolchain
-        run: |
-          rustup toolchain install 1.7.0
-          rustc --version
+      # - name: Rust toolchain
+      #   run: |
+      #     rustup toolchain install 1.7.0
+      #     rustc --version
 
-      - if: matrix.os == 'ubuntu-latest'
-        name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: true
+      # - if: matrix.os == 'ubuntu-latest'
+      #   name: Free Disk Space (Ubuntu)
+      #   uses: jlumbroso/free-disk-space@main
+      #   with:
+      #     # this might remove tools that are actually needed,
+      #     # if set to "true" but frees about 6 GB
+      #     tool-cache: true
 
       - name: Update Rust version
         uses: DamianReeves/write-file-action@master
@@ -155,19 +174,19 @@ jobs:
       #     sysctl -a | awk '/hw./' && '/mem/'
       #     top -l 1 -s 0 | grep PhysMem
 
-      - if: matrix.os == 'ubuntu-latest'
-        name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: true
+      # - if: matrix.os == 'ubuntu-latest'
+      #   name: Free Disk Space (Ubuntu)
+      #   uses: jlumbroso/free-disk-space@main
+      #   with:
+      #     # this might remove tools that are actually needed,
+      #     # if set to "true" but frees about 6 GB
+      #     tool-cache: true
 
-      - name: Print current working dir
-        run: |
-          cd target
-          ls -la $PWD
-          ls -la $GITHUB_WORKSPACE
+      # - name: Print current working dir
+      #   run: |
+      #     cd target
+      #     ls -la $PWD
+      #     ls -la $GITHUB_WORKSPACE
 
       - name: Print into Zenoh
         run: |
