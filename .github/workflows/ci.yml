@@ -189,10 +189,9 @@ jobs:
 
       - name: Print current working dir
         run: |
+          cd ${{ runner.workspace }}
           ls -la $PWD
           ls -la $GITHUB_WORKSPACE
-        with:
-          path: ${{ runner.workspace }}
 
       - name: Set path
         run: |
@@ -205,10 +204,8 @@ jobs:
 
       - name: Print into Zenoh-Flow-Plugin
         run: |
-          cd /zenoh-flow-plugin/etc/
+          cd ${{ runner.workspace }}/zenoh-flow-plugin/etc/
           ls -la $PWD
-        with:
-          path: ${{ runner.workspace }}
 
       - name: Install Python package
         uses: actions/setup-python@v4
@@ -222,8 +219,7 @@ jobs:
 
       - name: Run Python automated-test.py script
         run: |
+          cd ${{ runner.workspace }}/manual-tests
           pwd
           ls -la $PWD
           output=$(python3 automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} )
-        with:
-          path: ${{ runner.workspace }}/manual-tests
