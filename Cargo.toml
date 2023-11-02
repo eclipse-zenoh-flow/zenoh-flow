@@ -20,7 +20,6 @@ members = [
   "zenoh-flow-derive",
   "zenoh-flow-descriptors",
   "zenoh-flow-nodes",
-  "zenoh-flow-runtime",
   "zenoh-flow-plugin",
   "zenoh-flow-records",
   "zfctl",
