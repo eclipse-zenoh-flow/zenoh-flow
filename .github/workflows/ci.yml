@@ -204,8 +204,8 @@ jobs:
           echo ${{env.ZF_PLUGIN_PATH}}
 
       - name: Print into Zenoh-Flow-Plugin
+        working-directory: ${{ runner.workspace }}/zenoh-flow-plugin
         run: |
-          cd ${{ runner.workspace }}/zenoh-flow-plugin
           ls -la $PWD
 
       - name: Install Python package
@@ -219,8 +219,10 @@ jobs:
           pip install -r manual-tests/requirements.txt
 
       - name: Run Python automated-test.py script
+        working-directory: ${{ runner.workspace }}
         run: |
-          cd ${{ runner.workspace }}/manual-tests
           pwd
           ls -la $PWD
           output=$(python3 automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} )
+
+#cd ${{ runner.workspace }}/manual-tests
