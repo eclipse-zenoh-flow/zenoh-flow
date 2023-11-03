@@ -75,6 +75,7 @@ jobs:
           echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
           echo 'runner.workspace === ${{ runner.workspace }}'
           echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
+          echo "github.repository === ${{ github.repository }}
 
       - name: Install latest Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -194,11 +195,45 @@ jobs:
           ls -la $PWD
           ls -la $GITHUB_WORKSPACE
 
+      # Your action in .github/workflows
+      - name: Checkout repository
+        uses:
+          actions/checkout@v3
+          # Repository name with owner. For example, actions/checkout
+          # Default: ${{ github.repository }}
+
+      - name: Find files matching "*.json"
+        uses: jeertmans/filesfinder@latest
+        id: ff # Any id, to be used later to reference to files output
+        with:
+          # Only argument, a single string, to be passed as arguments to ff.
+          # See `ff --help` for more help.
+          # Default: "*"
+          args: -r "zenoh-zf-plugin.json"
+      - name: Print files
+        run: echo "${{ steps.ff.outputs.files }}"
+
+      - if: matrix.os == 'macOS-latest'
+        name: install wget  (Ubuntu)
+        run: |
+          brew install wget
+
+      - if: matrix.os == 'ubuntu-latest'
+        name: install wget (Ubuntu)
+        run: |
+          apt install wget
+
+      - name: Get zenoh-zf-plugin.json
+        run: |
+          wget https://github.com/eclipse-zenoh/zenoh-flow/blob/master/zenoh-flow-plugin/etc/zenoh-zf-plugin.json
+          ls -la $PWD
+          echo "ZF_PLUGIN_PATH= $PWD/zenoh-zf-plugin.json" >> $GITHUB_ENV
+
+      #echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
       - name: Set path
         run: |
           echo "ZENOHD_PATH=${{ env.TEMP_DIR}}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
           echo "ZFCTL_PATH= ${{ runner.workspace }}/target/release/zfctl" >> $GITHUB_ENV
-          echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
           echo ${{env.ZENOHD_PATH}}
           echo ${{env.ZFCTL_PATH}}
           echo ${{env.ZF_PLUGIN_PATH}}
