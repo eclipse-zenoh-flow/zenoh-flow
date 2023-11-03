@@ -81,29 +81,11 @@ jobs:
         # with:
         #   toolchain: 1.70.0
 
-      # # - name: Build
-      # #   uses: actions-rs/cargo@v1
-      # #   with:
-      # #     command: build
-      # #     args: --release --verbose --all-targets
-
       - name: Build
         uses: actions-rs/cargo@v1
         with:
-          command: build zenoh-flow-plugin
-          args: --release -p zenoh-flow-plugin
-
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build zfctl
-          args: --release -p zfctl
-
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build examples
-          args: --release --examples
+          command: build
+          args: --release --verbose --all-targets
 
       # - name: Run tests
       #   uses: actions-rs/cargo@v1
