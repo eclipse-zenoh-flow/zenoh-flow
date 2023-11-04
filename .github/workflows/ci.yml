@@ -149,12 +149,12 @@ jobs:
       # export PATH="$HOME/.cargo/bin:$PATH"
       # rustup override set 1.70.0
 
-      - if: matrix.os == 'macOS-latest'
-        name: Free Disk Space (macOS)
-        run: |
-          top -l 1 -s 0 | grep PhysMem
-          sysctl -a | awk '/hw./' && '/mem/'
-          top -l 1 -s 0 | grep PhysMem
+      # - if: matrix.os == 'macOS-latest'
+      #   name: Free Disk Space (macOS)
+      #   run: |
+      #     top -l 1 -s 0 | grep PhysMem
+      #     sysctl -a | awk '/hw./' && '/mem/'
+      #     top -l 1 -s 0 | grep PhysMem
 
       - if: matrix.os == 'ubuntu-latest'
         name: Free Disk Space (Ubuntu)
@@ -201,16 +201,16 @@ jobs:
           # Repository name with owner. For example, actions/checkout
           # Default: ${{ github.repository }}
 
-      - name: Find files matching "*.json"
-        uses: jeertmans/filesfinder@latest
-        id: ff # Any id, to be used later to reference to files output
-        with:
-          # Only argument, a single string, to be passed as arguments to ff.
-          # See `ff --help` for more help.
-          # Default: "*"
-          args: -r "zenoh-zf-plugin.json"
-      - name: Print files
-        run: echo "${{ steps.ff.outputs.files }}"
+      # - name: Find files matching "*.json"
+      #   uses: jeertmans/filesfinder@latest
+      #   id: ff # Any id, to be used later to reference to files output
+      #   with:
+      #     # Only argument, a single string, to be passed as arguments to ff.
+      #     # See `ff --help` for more help.
+      #     # Default: "*"
+      #     args: -r "zenoh-zf-plugin.json"
+      # - name: Print files
+      #   run: echo "${{ steps.ff.outputs.files }}"
 
       - if: matrix.os == 'macOS-latest'
         name: install wget  (Ubuntu)
@@ -224,9 +224,10 @@ jobs:
 
       - name: Get zenoh-zf-plugin.json
         run: |
+          cd ${{ runner.workspace }}
           wget https://github.com/eclipse-zenoh/zenoh-flow/blob/master/zenoh-flow-plugin/etc/zenoh-zf-plugin.json
           ls -la $PWD
-          echo "ZF_PLUGIN_PATH= $PWD/zenoh-zf-plugin.json" >> $GITHUB_ENV
+          echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-zf-plugin.json" >> $GITHUB_ENV
 
       #echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
       - name: Set path
@@ -239,10 +240,8 @@ jobs:
 
       - name: Print into Zenoh-Flow-Plugin
         run: |
-          pwd
           cd ${{ runner.workspace }}
-          pwd
-          cd ${{ runner.workspace }}/zenoh-flow-plugin
+          ls -la $PWD
 
       - name: Install Python package
         uses: actions/setup-python@v4
