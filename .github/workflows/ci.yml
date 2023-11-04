@@ -75,7 +75,6 @@ jobs:
           echo "GITHUB_WORKSPACE === $GITHUB_WORKSPACE"
           echo 'runner.workspace === ${{ runner.workspace }}'
           echo "RUNNER_WORKSPACE === $RUNNER_WORKSPACE"
-          echo "github.repository === ${{ github.repository }}
 
       - name: Install latest Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -150,20 +149,20 @@ jobs:
       # export PATH="$HOME/.cargo/bin:$PATH"
       # rustup override set 1.70.0
 
-      # - if: matrix.os == 'macOS-latest'
-      #   name: Free Disk Space (macOS)
-      #   run: |
-      #     top -l 1 -s 0 | grep PhysMem
-      #     sysctl -a | awk '/hw./' && '/mem/'
-      #     top -l 1 -s 0 | grep PhysMem
+      - if: matrix.os == 'macOS-latest'
+        name: Free Disk Space (macOS)
+        run: |
+          top -l 1 -s 0 | grep PhysMem
+          sysctl -a | awk '/hw./' && '/mem/'
+          top -l 1 -s 0 | grep PhysMem
 
-      # - if: matrix.os == 'ubuntu-latest'
-      #   name: Free Disk Space (Ubuntu)
-      #   uses: jlumbroso/free-disk-space@main
-      #   with:
-      #     # this might remove tools that are actually needed,
-      #     # if set to "true" but frees about 6 GB
-      #     tool-cache: true
+      - if: matrix.os == 'ubuntu-latest'
+        name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       # - name: Print current working dir
       #   run: |
@@ -198,7 +197,7 @@ jobs:
       # Your action in .github/workflows
       - name: Checkout repository
         uses:
-          actions/checkout@v3
+          actions/checkout@v2
           # Repository name with owner. For example, actions/checkout
           # Default: ${{ github.repository }}
 
