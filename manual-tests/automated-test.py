@@ -99,6 +99,14 @@ parser.add_argument(
     default=os.path.expanduser("~") + "/.config/zenoh-flow/zenoh-zf-plugin-01.json",
     help=f"Specifies a different path for Zenoh-Flow plugin file (default={os.path.expanduser('~')}/.config/zenoh-flow/zenoh-zf-plugin-01.json)",
 )
+parser.add_argument(
+    "-l",
+    "--lib",
+    nargs="?",
+    type=str,
+    default=None,
+    help="Specifies a different path for libzenoh_plugin (default=None)",
+)
 args = parser.parse_args()
 home_path = os.path.expanduser("~")
 zenoh_release_flag = args.build
@@ -106,6 +114,7 @@ zenoh_release_flag = args.build
 zf_conf.zenohd_path = args.zenohd
 zf_conf.zfctl_path = args.zfctl
 zf_conf.zf_plugin_path = args.plugin
+zf_conf.libzenoh_plugin = args.lib
 
 print("[Info] Looking for paths...")
 manual_tests_path = os.getcwd()
@@ -133,10 +142,9 @@ if zf_conf.zf_plugin_path[-p:] != "zenoh-zf-plugin-01.json":
     elif platform.system() == "Darwin":
         lib_name = "libzenoh_plugin_zenoh_flow.dylib"
 
-    libzenoh_plugin_path = ""
-    if zenoh_release_flag == "release":
+    if zenoh_release_flag == "release" and zf_conf.libzenoh_plugin is None:
         zf_conf.libzenoh_plugin = os.path.join(zenoh_flow_path, "target/release/")
-    elif zenoh_release_flag == "debug":
+    elif zenoh_release_flag == "debug" and zf_conf.libzenoh_plugin is None:
         zf_conf.libzenoh_plugin = os.path.join(zenoh_flow_path, "target/debug/")
 
     print(f"[Info] {lib_name} path: ", zf_conf.libzenoh_plugin)
