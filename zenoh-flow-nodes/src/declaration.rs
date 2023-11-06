@@ -25,11 +25,11 @@ use crate::{
 /// Constant used to check if a node is compatible with the currently running Zenoh Flow daemon.
 /// As nodes are dynamically loaded, this is to prevent (possibly cryptic) runtime error due to
 /// incompatible API.
-pub static CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const CORE_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Constant used to check if a node was compiled with the same version of the Rust compiler than
 /// the currently running Zenoh Flow daemon.
 /// As Rust is not ABI stable, this is to prevent (possibly cryptic) runtime errors.
-pub static RUSTC_VERSION: &str = env!("RUSTC_VERSION");
+pub const RUSTC_VERSION: &str = env!("RUSTC_VERSION");
 
 /// Declaration expected in the library that will be loaded.
 pub struct NodeDeclaration<C> {
@@ -41,14 +41,14 @@ pub struct NodeDeclaration<C> {
 /// `SourceFn` is the only signature we accept to construct a [`Source`](`crate::prelude::Source`).
 pub type SourceFn = fn(
     Context,
-    Option<Configuration>,
+    Configuration,
     Outputs,
 ) -> Pin<Box<dyn Future<Output = Result<Arc<dyn Node>>> + Send>>;
 
 /// `OperatorFn` is the only signature we accept to construct an [`Operator`](`crate::prelude::Operator`).
 pub type OperatorFn = fn(
     Context,
-    Option<Configuration>,
+    Configuration,
     Inputs,
     Outputs,
 ) -> Pin<Box<dyn Future<Output = Result<Arc<dyn Node>>> + Send>>;
@@ -56,6 +56,6 @@ pub type OperatorFn = fn(
 /// `SinkFn` is the only signature we accept to construct a [`Sink`](`crate::prelude::Sink`).
 pub type SinkFn = fn(
     Context,
-    Option<Configuration>,
+    Configuration,
     Inputs,
 ) -> Pin<Box<dyn Future<Output = Result<Arc<dyn Node>>> + Send>>;
