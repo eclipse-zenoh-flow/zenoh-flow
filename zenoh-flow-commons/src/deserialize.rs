@@ -26,13 +26,16 @@ where
     D: Deserializer<'de>,
 {
     let id: String = serde::de::Deserialize::deserialize(deserializer)?;
-    if id.contains(['*', '#', '$', '?']) {
+    if id.contains(['*', '#', '$', '?', '>']) {
         return Err(serde::de::Error::custom(format!(
             r#"
-Identifiers (for nodes or ports) in Zenoh-Flow must *not* contain any of the characters: '*', '#', '$', '?'.
+Identifiers (for nodes or ports) in Zenoh-Flow must *not* contain any of the characters: '*', '#', '$', '?', '\'.
 The identifier < {} > does not satisfy that condition.
 
-These characters have a special meaning in Zenoh and they could negatively impact Zenoh-Flow's behavior.
+These characters, except for '>', have a special meaning in Zenoh and they could negatively impact Zenoh-Flow's
+behavior.
+The character '\' is used as a "separator" when flattening a composite operator. Allowing it could also negatively
+impact Zenoh-Flow's behavior.
 "#,
             id
         )));
@@ -113,7 +116,7 @@ mod tests {
 
         let json_str = r#"
 {
-  "id": "my/*/chunk"
+  "id": "my*chunk"
 }
 "#;
         assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
@@ -138,5 +141,19 @@ mod tests {
 }
 "###;
         assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
+
+        let json_str = r###"
+{
+  "id": "my>chunk"
+}
+"###;
+        assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
+
+        let json_str = r###"
+{
+  "id": "my/chunk/is/alright"
+}
+"###;
+        assert!(serde_json::from_str::<TestStruct>(json_str).is_ok());
     }
 }

@@ -142,7 +142,7 @@ Possible infinite recursion detected, the following descriptor appears to includ
                     .map(|flat_op| {
                         let old_id = flat_op.id.clone();
                         let composite_id: NodeId =
-                            format!("{}/{}", &operator_descriptor.id, &old_id).into();
+                            format!("{}>{}", &operator_descriptor.id, &old_id).into();
                         flat_op.id = composite_id.clone();
                         (old_id, composite_id)
                     })

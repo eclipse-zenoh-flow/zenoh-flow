@@ -138,7 +138,7 @@ fn test_flatten_descriptor() {
          * The names of the ports are left intact.
          */
         FlattenedOperatorDescriptor {
-            id: "operator-composite/sub-operator-1".into(),
+            id: "operator-composite>sub-operator-1".into(),
             description: "leaf-operator-1".into(),
             inputs: vec!["sub-operator-1-in-1".into(), "sub-operator-1-in-2".into()],
             outputs: vec!["sub-operator-1-out".into()],
@@ -155,7 +155,7 @@ fn test_flatten_descriptor() {
          * operator-composite/sub-operator-composite/sub-sub-operator-1
          */
         FlattenedOperatorDescriptor {
-            id: "operator-composite/sub-operator-composite/sub-sub-operator-1".into(),
+            id: "operator-composite>sub-operator-composite>sub-sub-operator-1".into(),
             description: "sub-leaf-operator-1".into(),
             inputs: vec!["sub-sub-operator-1-in".into()],
             outputs: vec!["sub-sub-operator-1-out".into()],
@@ -168,7 +168,7 @@ fn test_flatten_descriptor() {
          * Idem as above: operator-composite/sub-operator-composite/sub-sub-operator-2.
          */
         FlattenedOperatorDescriptor {
-            id: "operator-composite/sub-operator-composite/sub-sub-operator-2".into(),
+            id: "operator-composite>sub-operator-composite>sub-sub-operator-2".into(),
             description: "sub-leaf-operator-2".into(),
             inputs: vec!["sub-sub-operator-2-in".into()],
             outputs: vec!["sub-sub-operator-2-out".into()],
@@ -181,14 +181,14 @@ fn test_flatten_descriptor() {
          * Similarly, we check that the name is the composition: operator-composite/sub-operator-2.
          */
         FlattenedOperatorDescriptor {
-            id: "operator-composite/sub-operator-2".into(),
+            id: "operator-composite>sub-operator-2".into(),
             description: "leaf-operator-2".into(),
             inputs: vec!["sub-operator-2-in".into()],
             outputs: vec!["sub-operator-2-out-1".into(), "sub-operator-2-out-2".into()],
             library: "file://sub-operator-2.so".into(),
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" }).into(),
-            runtime: Some(runtime_operator_composite.clone()),
+            runtime: Some(runtime_operator_composite),
         },
     ];
 
@@ -272,27 +272,27 @@ fn test_flatten_descriptor() {
          */
         LinkDescriptor::new(
             OutputDescriptor::new("source-composite", "source-composite-out-1"),
-            InputDescriptor::new("operator-composite/sub-operator-1", "sub-operator-1-in-1"),
+            InputDescriptor::new("operator-composite>sub-operator-1", "sub-operator-1-in-1"),
         ),
         LinkDescriptor::new(
             OutputDescriptor::new("source-composite", "source-composite-out-2"),
-            InputDescriptor::new("operator-composite/sub-operator-1", "sub-operator-1-in-2"),
+            InputDescriptor::new("operator-composite>sub-operator-1", "sub-operator-1-in-2"),
         ),
         // operator-composite-sub-2 -> sink-composite
         LinkDescriptor::new(
-            OutputDescriptor::new("operator-composite/sub-operator-2", "sub-operator-2-out-1"),
+            OutputDescriptor::new("operator-composite>sub-operator-2", "sub-operator-2-out-1"),
             InputDescriptor::new("sink-composite", "sink-composite-in-1"),
         ),
         LinkDescriptor::new(
-            OutputDescriptor::new("operator-composite/sub-operator-2", "sub-operator-2-out-2"),
+            OutputDescriptor::new("operator-composite>sub-operator-2", "sub-operator-2-out-2"),
             InputDescriptor::new("sink-composite", "sink-composite-in-2"),
         ),
         // operator-composite-sub-operator-1 ->
         // operator-composite-sub-operator-composite-sub-sub-operator-1
         LinkDescriptor::new(
-            OutputDescriptor::new("operator-composite/sub-operator-1", "sub-operator-1-out"),
+            OutputDescriptor::new("operator-composite>sub-operator-1", "sub-operator-1-out"),
             InputDescriptor::new(
-                "operator-composite/sub-operator-composite/sub-sub-operator-1",
+                "operator-composite>sub-operator-composite>sub-sub-operator-1",
                 "sub-sub-operator-1-in",
             ),
         ),
@@ -300,20 +300,20 @@ fn test_flatten_descriptor() {
         // operator-composite-sub-operator-2
         LinkDescriptor::new(
             OutputDescriptor::new(
-                "operator-composite/sub-operator-composite/sub-sub-operator-2",
+                "operator-composite>sub-operator-composite>sub-sub-operator-2",
                 "sub-sub-operator-2-out",
             ),
-            InputDescriptor::new("operator-composite/sub-operator-2", "sub-operator-2-in"),
+            InputDescriptor::new("operator-composite>sub-operator-2", "sub-operator-2-in"),
         ),
         // operator-composite-sub-operator-composite-sub-sub-operator-1 ->
         // operator-composite-sub-operator-composite-sub-sub-operator-2
         LinkDescriptor::new(
             OutputDescriptor::new(
-                "operator-composite/sub-operator-composite/sub-sub-operator-1",
+                "operator-composite>sub-operator-composite>sub-sub-operator-1",
                 "sub-sub-operator-1-out",
             ),
             InputDescriptor::new(
-                "operator-composite/sub-operator-composite/sub-sub-operator-2",
+                "operator-composite>sub-operator-composite>sub-sub-operator-2",
                 "sub-sub-operator-2-in",
             ),
         ),
