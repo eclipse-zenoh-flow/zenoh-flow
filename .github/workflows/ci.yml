@@ -194,12 +194,12 @@ jobs:
           echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
           echo ${{env.ZF_PLUGIN_PATH}}
 
-      # Your action in .github/workflows
+      # Your action in .github/workflows questo checkout che fa un "Removing previously created refs, to avoid conflicts" potrebbe portare a non avere più le cartelle disponibili
       # - name: Checkout repository
       #   uses:
       #     actions/checkout@v2
-          # Repository name with owner. For example, actions/checkout
-          # Default: ${{ github.repository }}
+      # Repository name with owner. For example, actions/checkout
+      # Default: ${{ github.repository }}
 
       # - name: Find files matching "*.json"
       #   uses: jeertmans/filesfinder@latest
