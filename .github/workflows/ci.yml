@@ -250,7 +250,6 @@ jobs:
       - name: ls github.workspace
         run: |
           cd ${{ github.workspace }}
-          cd /target/release/
           ls -la $PWD
 
       - name: Install Python package
