@@ -193,6 +193,8 @@ jobs:
           cd ${{ runner.workspace }}
           ls -la $PWD
           ls -la $GITHUB_WORKSPACE
+          echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
+          echo ${{env.ZF_PLUGIN_PATH}}
 
       # Your action in .github/workflows
       - name: Checkout repository
@@ -212,22 +214,22 @@ jobs:
       # - name: Print files
       #   run: echo "${{ steps.ff.outputs.files }}"
 
-      - if: matrix.os == 'macOS-latest'
-        name: install wget  (Ubuntu)
-        run: |
-          brew install wget
+      # - if: matrix.os == 'macOS-latest'
+      #   name: install wget  (Ubuntu)
+      #   run: |
+      #     brew install wget
 
-      - if: matrix.os == 'ubuntu-latest'
-        name: install wget (Ubuntu)
-        run: |
-          apt install wget
+      # - if: matrix.os == 'ubuntu-latest'
+      #   name: install wget (Ubuntu)
+      #   run: |
+      #     apt install wget
 
-      - name: Get zenoh-zf-plugin.json
-        run: |
-          cd ${{ runner.workspace }}
-          wget https://github.com/eclipse-zenoh/zenoh-flow/blob/master/zenoh-flow-plugin/etc/zenoh-zf-plugin.json
-          ls -la $PWD
-          echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-zf-plugin.json" >> $GITHUB_ENV
+      # - name: Get zenoh-zf-plugin.json
+      #   run: |
+      #     cd ${{ runner.workspace }}
+      #     wget https://github.com/eclipse-zenoh/zenoh-flow/blob/master/zenoh-flow-plugin/etc/zenoh-zf-plugin.json
+      #     ls -la $PWD
+      #     echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-zf-plugin.json" >> $GITHUB_ENV
 
       #echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
       - name: Set path
@@ -255,9 +257,7 @@ jobs:
 
       - name: Run Python automated-test.py script
         run: |
-          pwd
           cd ${{ runner.workspace }}/manual-tests
-          pwd
           output=$(python3 automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} )
 
 #
