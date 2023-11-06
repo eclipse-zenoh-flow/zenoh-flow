@@ -257,6 +257,8 @@ jobs:
 
       - name: Run Python automated-test.py script
         run: |
-          output=$(python3 ${{env.PY_TEST_PATH}} --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} )
+          cd ${{ runner.workspace }}
+          chmod u+x manual-tests/automated-test.py
+          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} )
 
 #
