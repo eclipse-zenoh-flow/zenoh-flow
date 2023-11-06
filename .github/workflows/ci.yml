@@ -232,24 +232,26 @@ jobs:
       #echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
       - name: Set path
         run: |
-          echo "ZENOHD_PATH=${{ env.TEMP_DIR}}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
-          echo "ZFCTL_PATH= ${{ github.workspace }}/target/release/zfctl" >> $GITHUB_ENV
-          echo "PY_TEST_PATH= ${{ github.workspace }}/manual-tests/automated-test.py" >> $GITHUB_ENV
+          echo "ZENOHD_PATH = ${{ env.TEMP_DIR}}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
+          echo "ZFCTL_PATH = ${{ github.workspace }}/target/release/zfctl" >> $GITHUB_ENV
+          echo "PY_TEST_PATH = ${{ github.workspace }}/manual-tests/automated-test.py" >> $GITHUB_ENV
+          echo "LIB_ZF_PLUGIN_PATH = ${{ github.workspace }}/target/release/" >> $GITHUB_ENV
           echo ${{env.ZENOHD_PATH}}
           echo ${{env.ZFCTL_PATH}}
           echo ${{env.PY_TEST_PATH}}
+          echo ${{env.LIB_ZF_PLUGIN_PATH}}
           echo ${{env.ZF_PLUGIN_PATH}}
 
-      - name: ls runner.workspace 
+      - name: ls runner.workspace
         run: |
           cd ${{ runner.workspace }}
-          ls -la $PWD 
-
-      - name: ls github.workspace 
-        run: |
-          cd ${{ github.workspace }}
           ls -la $PWD
 
+      - name: ls github.workspace
+        run: |
+          cd ${{ github.workspace }}
+          cd /target/release/
+          ls -la $PWD
 
       - name: Install Python package
         uses: actions/setup-python@v4
@@ -265,6 +267,6 @@ jobs:
         run: |
           cd ${{ github.workspace }}
           chmod u+x manual-tests/automated-test.py
-          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} )
+          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} --lib ${{env.LIB_ZF_PLUGIN_PATH}} )
 
 #
