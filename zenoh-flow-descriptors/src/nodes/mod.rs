@@ -19,11 +19,13 @@ pub(crate) mod source;
 
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use zenoh_flow_commons::Configuration;
+use zenoh_flow_commons::{Configuration, RuntimeId};
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct RemoteNodeDescriptor {
     pub descriptor: Arc<str>,
     #[serde(default)]
     pub configuration: Configuration,
+    #[serde(default)]
+    pub runtime: Option<RuntimeId>,
 }

@@ -20,7 +20,7 @@ use crate::{
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, sync::Arc};
-use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, Vars};
+use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, RuntimeId, Vars};
 use zenoh_keyexpr::OwnedKeyExpr;
 
 /// TODO@J-Loudet
@@ -32,6 +32,8 @@ pub struct FlattenedSinkDescriptor {
     pub inputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,
+    #[serde(default)]
+    pub runtime: Option<RuntimeId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -94,6 +96,7 @@ impl FlattenedSinkDescriptor {
                 inputs: custom_sink.inputs,
                 configuration: overwritting_configuration
                     .merge_overwrite(custom_sink.configuration),
+                runtime: sink_desc.runtime,
             }),
             LocalSinkVariants::Zenoh(zenoh_desc) => Ok(Self {
                 id: sink_desc.id,
@@ -101,6 +104,7 @@ impl FlattenedSinkDescriptor {
                 inputs: zenoh_desc.publishers.keys().cloned().collect(),
                 library: SinkLibrary::Zenoh(zenoh_desc.publishers),
                 configuration: Configuration::default(),
+                runtime: sink_desc.runtime,
             }),
         }
     }

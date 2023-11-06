@@ -19,7 +19,7 @@ use std::{
     fmt::Display,
     sync::Arc,
 };
-use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, Vars};
+use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, RuntimeId, Vars};
 
 use crate::{
     flattened::{uri, Patch, Substitutions},
@@ -38,6 +38,8 @@ pub struct FlattenedOperatorDescriptor {
     pub outputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,
+    #[serde(default)]
+    pub runtime: Option<RuntimeId>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
@@ -101,6 +103,7 @@ Possible infinite recursion detected, the following descriptor appears to includ
                     library: custom_desc.library,
                     inputs: custom_desc.inputs,
                     outputs: custom_desc.outputs,
+                    runtime: operator_descriptor.runtime,
                     // An inline operator's configuration has higher priority than the outer configuration. In turn, the
                     // overwritting configuration has the highest priority.
                     configuration: overwritting_configuration.merge_overwrite(

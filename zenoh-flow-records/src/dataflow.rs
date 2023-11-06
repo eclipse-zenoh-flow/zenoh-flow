@@ -12,14 +12,16 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::connectors::{ReceiverRecord, SenderRecord};
+use crate::{
+    connectors::{ReceiverRecord, SenderRecord},
+    OperatorRecord, SinkRecord, SourceRecord,
+};
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use zenoh_flow_commons::{NodeId, RecordId, Result, RuntimeId};
 use zenoh_flow_descriptors::{
-    FlattenedDataFlowDescriptor, FlattenedOperatorDescriptor, FlattenedSinkDescriptor,
-    FlattenedSourceDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor,
+    FlattenedDataFlowDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor,
 };
 use zenoh_keyexpr::OwnedKeyExpr;
 
@@ -31,13 +33,12 @@ const RECEIVER_SUFFIX: &str = "__zenoh_flow_receiver";
 pub struct DataFlowRecord {
     pub(crate) record_id: RecordId,
     pub(crate) name: Arc<str>,
-    pub sources: HashMap<NodeId, FlattenedSourceDescriptor>,
-    pub operators: HashMap<NodeId, FlattenedOperatorDescriptor>,
-    pub sinks: HashMap<NodeId, FlattenedSinkDescriptor>,
+    pub sources: HashMap<NodeId, SourceRecord>,
+    pub operators: HashMap<NodeId, OperatorRecord>,
+    pub sinks: HashMap<NodeId, SinkRecord>,
     pub senders: HashMap<NodeId, SenderRecord>,
     pub receivers: HashMap<NodeId, ReceiverRecord>,
     pub links: Vec<LinkDescriptor>,
-    pub mapping: HashMap<NodeId, RuntimeId>,
 }
 
 impl DataFlowRecord {
@@ -45,9 +46,9 @@ impl DataFlowRecord {
     ///
     /// # Errors
     ///
-    /// The creation of the should, in theory, not fail. The only failure point is during the creation of the
-    /// connectors: the [`SenderRecord`] and [`ReceiverRecord`] that are automatically generated when two nodes that
-    /// need to communicate are located on different runtimes.
+    /// The creation of the `DataFlowRecord` should, in theory, not fail. The only failure point is during the creation
+    /// of the connectors: the [`SenderRecord`] and [`ReceiverRecord`] that are automatically generated when two nodes
+    /// that need to communicate are located on different runtimes.
     ///
     /// To generate these connectors, a Zenoh key expression is computed. Computing this expression can result in an
     /// error if the [`NodeId`] or [`PortId`] are not valid chunks. This should not happen as, when deserializing from a
@@ -62,7 +63,6 @@ impl DataFlowRecord {
             operators,
             sinks,
             mut links,
-            mut mapping,
         } = data_flow;
 
         let record_id = uuid::Uuid::new_v4().into();
@@ -71,6 +71,40 @@ impl DataFlowRecord {
         let mut additional_links = Vec::default();
         let mut receivers = HashMap::default();
         let mut senders = HashMap::default();
+
+        // To determine which nodes should be connected, collect all the mappings in a dedicated structure while
+        // converting the flattened descriptors into record.
+        let mut mapping = HashMap::with_capacity(sources.len() + operators.len() + sinks.len());
+
+        let sources = sources
+            .into_iter()
+            .map(|source| {
+                let record = SourceRecord::new(source, default_runtime.clone());
+                mapping.insert(record.id.clone(), record.runtime.clone());
+
+                (record.id.clone(), record)
+            })
+            .collect::<HashMap<NodeId, SourceRecord>>();
+
+        let operators = operators
+            .into_iter()
+            .map(|operator| {
+                let record = OperatorRecord::new(operator, default_runtime.clone());
+                mapping.insert(record.id.clone(), record.runtime.clone());
+
+                (record.id.clone(), record)
+            })
+            .collect::<HashMap<_, _>>();
+
+        let sinks = sinks
+            .into_iter()
+            .map(|sink| {
+                let record = SinkRecord::new(sink, default_runtime.clone());
+                mapping.insert(record.id.clone(), record.runtime.clone());
+
+                (record.id.clone(), record)
+            })
+            .collect::<HashMap<_, _>>();
 
         for link in links.iter_mut() {
             let runtime_from = mapping
@@ -130,6 +164,7 @@ Caused by:
                     SenderRecord {
                         id: sender_id,
                         resource: key_expression.clone(),
+                        runtime: runtime_from.clone(),
                     },
                 );
 
@@ -138,6 +173,7 @@ Caused by:
                     ReceiverRecord {
                         id: receiver_id,
                         resource: key_expression,
+                        runtime: runtime_to.clone(),
                     },
                 );
             }
@@ -147,22 +183,12 @@ Caused by:
         Ok(Self {
             record_id,
             name,
-            sources: sources
-                .into_iter()
-                .map(|source| (source.id.clone(), source))
-                .collect::<HashMap<_, _>>(),
-            operators: operators
-                .into_iter()
-                .map(|operator| (operator.id.clone(), operator))
-                .collect::<HashMap<_, _>>(),
-            sinks: sinks
-                .into_iter()
-                .map(|sink| (sink.id.clone(), sink))
-                .collect::<HashMap<_, _>>(),
+            sources,
+            operators,
+            sinks,
             senders,
             receivers,
             links,
-            mapping,
         })
     }
 

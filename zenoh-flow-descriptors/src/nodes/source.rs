@@ -12,12 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use super::RemoteNodeDescriptor;
 use crate::ZenohSourceDescriptor;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use zenoh_flow_commons::{Configuration, NodeId, PortId};
-
-use super::RemoteNodeDescriptor;
+use zenoh_flow_commons::{Configuration, NodeId, PortId, RuntimeId};
 
 /// A `SourceDescriptor` uniquely identifies a Source.
 ///
@@ -86,6 +85,8 @@ use super::RemoteNodeDescriptor;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SourceDescriptor {
     pub id: NodeId,
+    #[serde(default)]
+    pub runtime: Option<RuntimeId>,
     #[serde(flatten)]
     pub(crate) variant: SourceVariants,
 }

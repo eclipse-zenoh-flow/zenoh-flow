@@ -14,13 +14,14 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use zenoh_flow_commons::NodeId;
+use zenoh_flow_commons::{NodeId, RuntimeId};
 use zenoh_keyexpr::OwnedKeyExpr;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct SenderRecord {
     pub id: NodeId,
     pub resource: OwnedKeyExpr,
+    pub(crate) runtime: RuntimeId,
 }
 
 impl Display for SenderRecord {
@@ -29,14 +30,27 @@ impl Display for SenderRecord {
     }
 }
 
+impl SenderRecord {
+    pub fn runtime(&self) -> &RuntimeId {
+        &self.runtime
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ReceiverRecord {
     pub id: NodeId,
     pub resource: OwnedKeyExpr,
+    pub(crate) runtime: RuntimeId,
 }
 
 impl Display for ReceiverRecord {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
+    }
+}
+
+impl ReceiverRecord {
+    pub fn runtime(&self) -> &RuntimeId {
+        &self.runtime
     }
 }

@@ -18,12 +18,8 @@ use crate::{
 };
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Display,
-    sync::Arc,
-};
-use zenoh_flow_commons::{Configuration, NodeId, Result, RuntimeId, Vars};
+use std::{collections::HashSet, fmt::Display, sync::Arc};
+use zenoh_flow_commons::{Configuration, Result, Vars};
 
 use super::validator::Validator;
 
@@ -34,8 +30,6 @@ pub struct FlattenedDataFlowDescriptor {
     pub operators: Vec<FlattenedOperatorDescriptor>,
     pub sinks: Vec<FlattenedSinkDescriptor>,
     pub links: Vec<LinkDescriptor>,
-    #[serde(default)]
-    pub mapping: HashMap<NodeId, RuntimeId>,
 }
 
 impl Display for FlattenedDataFlowDescriptor {
@@ -48,7 +42,7 @@ impl FlattenedDataFlowDescriptor {
     pub fn try_flatten(mut data_flow: DataFlowDescriptor, vars: Vars) -> Result<Self> {
         let mut flattened_operators = Vec::with_capacity(data_flow.operators.len());
         for operator_desc in data_flow.operators {
-            let operator_id = operator_desc.id.clone();
+            let operator_runtime = operator_desc.runtime.clone();
             let (mut flat_ops, mut flat_links, patch) = FlattenedOperatorDescriptor::try_flatten(
                 operator_desc,
                 data_flow.configuration.clone(),
@@ -57,13 +51,9 @@ impl FlattenedDataFlowDescriptor {
                 &mut HashSet::default(),
             )?;
 
-            if let Some((_, runtime)) = data_flow.mapping.remove_entry(&operator_id) {
-                flat_ops.iter().for_each(|flat_op| {
-                    data_flow
-                        .mapping
-                        .insert(flat_op.id.clone(), runtime.clone());
-                })
-            }
+            flat_ops
+                .iter_mut()
+                .for_each(|flat_op| flat_op.runtime = operator_runtime.clone());
 
             flattened_operators.append(&mut flat_ops);
             patch.apply(&mut data_flow.links);
@@ -100,7 +90,6 @@ impl FlattenedDataFlowDescriptor {
             operators: flattened_operators,
             sinks,
             links: data_flow.links,
-            mapping: data_flow.mapping,
         };
 
         Validator::validate(&flattened_data_flow)

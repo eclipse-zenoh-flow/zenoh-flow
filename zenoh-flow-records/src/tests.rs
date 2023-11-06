@@ -12,8 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::collections::HashMap;
-
+use crate::{
+    dataflow::{RECEIVER_SUFFIX, SENDER_SUFFIX},
+    DataFlowRecord, ReceiverRecord, SenderRecord,
+};
 use uuid::Uuid;
 use zenoh_flow_commons::{NodeId, RuntimeId, Vars};
 use zenoh_flow_descriptors::{
@@ -22,12 +24,9 @@ use zenoh_flow_descriptors::{
 };
 use zenoh_keyexpr::OwnedKeyExpr;
 
-use crate::{
-    dataflow::{RECEIVER_SUFFIX, SENDER_SUFFIX},
-    DataFlowRecord, ReceiverRecord, SenderRecord,
-};
-
-const BASE_FLOW: &str = r#"
+#[test]
+fn test_success_no_runtime() {
+    let flow: &str = r#"
 name: base test flow
 
 sources:
@@ -69,25 +68,14 @@ links:
      input: in-2
 "#;
 
-#[test]
-fn test_success_no_runtime() {
     let flat_desc = FlattenedDataFlowDescriptor::try_flatten(
-        serde_yaml::from_str::<DataFlowDescriptor>(BASE_FLOW).unwrap(),
+        serde_yaml::from_str::<DataFlowDescriptor>(flow).unwrap(),
         Vars::default(),
     )
     .unwrap();
 
     let default_runtime: RuntimeId = Uuid::new_v4().into();
     let record = DataFlowRecord::try_new(flat_desc, &default_runtime).unwrap();
-
-    assert_eq!(
-        HashMap::from([
-            ("source-0".into(), default_runtime.clone()),
-            ("operator-1".into(), default_runtime.clone()),
-            ("sink-2".into(), default_runtime)
-        ]),
-        record.mapping
-    );
 
     assert!(record.receivers.is_empty());
     assert!(record.senders.is_empty());
@@ -97,34 +85,61 @@ fn test_success_no_runtime() {
 #[test]
 fn test_success_same_runtime() {
     let runtime: RuntimeId = Uuid::new_v4().into();
-    let desc = format!(
+    let flow = format!(
         r#"
-{}
+name: base test flow
 
-mapping:
-  source-0: {1}
-  operator-1: {1}
-  sink-2: {1}
+sources:
+  - id: source-0
+    description: test source
+    library: file:///home/zenoh-flow/libsource.so
+    outputs:
+      - out-0
+    runtime: {0}
+
+operators:
+  - id: operator-1
+    description: test operator
+    library: file:///home/zenoh-flow/liboperator.so
+    inputs:
+      - in-1
+    outputs:
+      - out-1
+    runtime: {0}
+
+sinks:
+  - id: sink-2
+    description: test sink
+    library: file:///home/zenoh-flow/libsink.so
+    inputs:
+      - in-2
+    runtime: {0}
+
+links:
+  - from:
+     node: source-0
+     output: out-0
+    to:
+     node: operator-1
+     input: in-1
+
+  - from:
+     node: operator-1
+     output: out-1
+    to:
+     node: sink-2
+     input: in-2
 "#,
-        BASE_FLOW, runtime,
+        runtime
     );
 
     let flat_desc = FlattenedDataFlowDescriptor::try_flatten(
-        serde_yaml::from_str::<DataFlowDescriptor>(&desc).unwrap(),
+        serde_yaml::from_str::<DataFlowDescriptor>(&flow).unwrap(),
         Vars::default(),
     )
     .unwrap();
 
     let record = DataFlowRecord::try_new(flat_desc, &Uuid::new_v4().into()).unwrap();
-
-    assert_eq!(
-        HashMap::from([
-            ("source-0".into(), runtime.clone()),
-            ("operator-1".into(), runtime.clone()),
-            ("sink-2".into(), runtime)
-        ]),
-        record.mapping
-    );
 
     assert!(record.receivers.is_empty());
     assert!(record.senders.is_empty());
@@ -139,13 +154,49 @@ fn test_success_different_runtime() {
 
     let desc = format!(
         r#"
-{}
+name: base test flow
 
-mapping:
-  source-0: {}
-  operator-1: {}
+sources:
+  - id: source-0
+    description: test source
+    library: file:///home/zenoh-flow/libsource.so
+    outputs:
+      - out-0
+    runtime: {}
+
+operators:
+  - id: operator-1
+    description: test operator
+    library: file:///home/zenoh-flow/liboperator.so
+    inputs:
+      - in-1
+    outputs:
+      - out-1
+    runtime: {}
+
+sinks:
+  - id: sink-2
+    description: test sink
+    library: file:///home/zenoh-flow/libsink.so
+    inputs:
+      - in-2
+
+links:
+  - from:
+     node: source-0
+     output: out-0
+    to:
+     node: operator-1
+     input: in-1
+
+  - from:
+     node: operator-1
+     output: out-1
+    to:
+     node: sink-2
+     input: in-2
 "#,
-        BASE_FLOW, runtime_thing, runtime_edge
+        runtime_thing, runtime_edge
     );
 
     let flat_desc = FlattenedDataFlowDescriptor::try_flatten(
@@ -155,15 +206,6 @@ mapping:
     .unwrap();
 
     let record = DataFlowRecord::try_new(flat_desc, &default_runtime).unwrap();
-
-    assert_eq!(
-        HashMap::from([
-            ("source-0".into(), runtime_thing),
-            ("operator-1".into(), runtime_edge),
-            ("sink-2".into(), default_runtime)
-        ]),
-        record.mapping
-    );
     assert_eq!(2, record.receivers.len());
     assert_eq!(2, record.senders.len());
     assert_eq!(4, record.links.len());
@@ -177,6 +219,7 @@ mapping:
         Some(&SenderRecord {
             id: sender_thing_edge.clone(),
             resource: key_expr_thing_edge.clone(),
+            runtime: runtime_thing,
         }),
         record.senders.get(&sender_thing_edge)
     );
@@ -184,6 +227,7 @@ mapping:
         Some(&ReceiverRecord {
             id: receiver_thing_edge.clone(),
             resource: key_expr_thing_edge.clone(),
+            runtime: runtime_edge.clone(),
         }),
         record.receivers.get(&receiver_thing_edge)
     );
@@ -196,6 +240,7 @@ mapping:
         Some(&SenderRecord {
             id: sender_edge_default.clone(),
             resource: key_expr_edge_default.clone(),
+            runtime: runtime_edge,
         }),
         record.senders.get(&sender_edge_default)
     );
@@ -203,6 +248,7 @@ mapping:
         Some(&ReceiverRecord {
             id: receiver_edge_default.clone(),
             resource: key_expr_edge_default.clone(),
+            runtime: default_runtime,
         }),
         record.receivers.get(&receiver_edge_default)
     );

@@ -22,7 +22,7 @@ use crate::{
     OutputDescriptor,
 };
 use serde_json::json;
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 use uuid::Uuid;
 use zenoh_flow_commons::{RuntimeId, Vars};
 
@@ -40,6 +40,24 @@ const SCHEME: &str = "file://";
 // See the comments around the "expected" structures for more information.
 #[test]
 fn test_flatten_descriptor() {
+    let runtime_1: RuntimeId = Uuid::from_str("10628aa2-66ca-4fda-8d5c-d7de63764bcc")
+        .unwrap()
+        .into();
+    let runtime_2: RuntimeId = Uuid::from_str("5f7a170d-cfaf-4f7a-971e-6c3e63c50e1e")
+        .unwrap()
+        .into();
+    let runtime_source_composite: RuntimeId =
+        Uuid::from_str("e051658a-0cd6-4cef-8b08-0d0f17d3cc5d")
+            .unwrap()
+            .into();
+    let runtime_operator_composite: RuntimeId =
+        Uuid::from_str("6a16a7ba-ec2d-4bb8-b303-7683e5477900")
+            .unwrap()
+            .into();
+    let runtime_sink_composite: RuntimeId = Uuid::from_str("25270228-9cb1-4e6e-988c-00769622359f")
+        .unwrap()
+        .into();
+
     // env variable CARGO_MANIFEST_DIR puts us in zenoh-flow/zenoh-flow-descriptors
     let uri = format!("file://{}/data-flow.yml", BASE_DIR);
 
@@ -55,6 +73,7 @@ fn test_flatten_descriptor() {
             outputs: vec!["source-out".into()],
             library: SourceLibrary::Uri("file://source.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
+            runtime: Some(runtime_1),
         },
         FlattenedSourceDescriptor {
             id: "source-2".into(),
@@ -62,6 +81,7 @@ fn test_flatten_descriptor() {
             outputs: vec!["source-out".into()],
             library: SourceLibrary::Uri("file://source.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
+            runtime: None,
         },
         FlattenedSourceDescriptor {
             id: "source-composite".into(),
@@ -72,6 +92,7 @@ fn test_flatten_descriptor() {
             ],
             library: SourceLibrary::Uri("file://source-composite.so".into()),
             configuration: json!({ "foo": "global-outer", "bar": "re-reverse" }).into(),
+            runtime: Some(runtime_source_composite),
         },
     ];
 
@@ -96,6 +117,7 @@ fn test_flatten_descriptor() {
             outputs: vec!["operator-out".into()],
             library: "file://operator.so".into(),
             configuration: json!({ "foo": "global-outer" }).into(),
+            runtime: None,
         },
         FlattenedOperatorDescriptor {
             id: "operator-2".into(),
@@ -104,6 +126,7 @@ fn test_flatten_descriptor() {
             outputs: vec!["operator-out".into()],
             library: "file://operator.so".into(),
             configuration: json!({ "foo": "global-outer" }).into(),
+            runtime: None,
         },
         /*
          * `sub-operator-1` is declared in the file "operator-composite.yml".
@@ -123,6 +146,7 @@ fn test_flatten_descriptor() {
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" })
                     .into(),
+            runtime: Some(runtime_operator_composite.clone()),
         },
         /*
          * Same spirit but this time it’s a composite operator within a composite operator. The
@@ -138,6 +162,7 @@ fn test_flatten_descriptor() {
             library: "file://sub-sub-operator-1.so".into(),
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner", "baz": "leaf" }).into(),
+            runtime: Some(runtime_operator_composite.clone()),
         },
         /*
          * Idem as above: operator-composite/sub-operator-composite/sub-sub-operator-2.
@@ -150,6 +175,7 @@ fn test_flatten_descriptor() {
             library: "file://sub-sub-operator-2.so".into(),
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner" }).into(),
+            runtime: Some(runtime_operator_composite.clone()),
         },
         /*
          * Similarly, we check that the name is the composition: operator-composite/sub-operator-2.
@@ -162,6 +188,7 @@ fn test_flatten_descriptor() {
             library: "file://sub-operator-2.so".into(),
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" }).into(),
+            runtime: Some(runtime_operator_composite.clone()),
         },
     ];
 
@@ -186,6 +213,7 @@ fn test_flatten_descriptor() {
             inputs: vec!["sink-in".into()],
             library: SinkLibrary::Uri("file://sink.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
+            runtime: None,
         },
         FlattenedSinkDescriptor {
             id: "sink-2".into(),
@@ -193,6 +221,7 @@ fn test_flatten_descriptor() {
             inputs: vec!["sink-in".into()],
             library: SinkLibrary::Uri("file://sink.so".into()),
             configuration: json!({ "foo": "global-outer" }).into(),
+            runtime: Some(runtime_2),
         },
         FlattenedSinkDescriptor {
             id: "sink-composite".into(),
@@ -200,6 +229,7 @@ fn test_flatten_descriptor() {
             inputs: vec!["sink-composite-in-1".into(), "sink-composite-in-2".into()],
             library: SinkLibrary::Uri("file://sink-composite.so".into()),
             configuration: json!({ "foo": "global-outer", "bar": "reverse" }).into(),
+            runtime: Some(runtime_sink_composite),
         },
     ];
 
@@ -298,49 +328,6 @@ fn test_flatten_descriptor() {
         )
     });
     assert_eq!(expected_links.len(), flatten.links.len());
-
-    let runtime_1: RuntimeId = Uuid::from_str("10628aa2-66ca-4fda-8d5c-d7de63764bcc")
-        .unwrap()
-        .into();
-    let runtime_2: RuntimeId = Uuid::from_str("5f7a170d-cfaf-4f7a-971e-6c3e63c50e1e")
-        .unwrap()
-        .into();
-    let runtime_source_composite: RuntimeId =
-        Uuid::from_str("e051658a-0cd6-4cef-8b08-0d0f17d3cc5d")
-            .unwrap()
-            .into();
-    let runtime_operator_composite: RuntimeId =
-        Uuid::from_str("6a16a7ba-ec2d-4bb8-b303-7683e5477900")
-            .unwrap()
-            .into();
-    let runtime_sink_composite: RuntimeId = Uuid::from_str("25270228-9cb1-4e6e-988c-00769622359f")
-        .unwrap()
-        .into();
-
-    let expected_mapping = HashMap::from([
-        ("source-1".into(), runtime_1),
-        ("sink-2".into(), runtime_2),
-        ("source-composite".into(), runtime_source_composite),
-        (
-            "operator-composite/sub-operator-1".into(),
-            runtime_operator_composite.clone(),
-        ),
-        (
-            "operator-composite/sub-operator-composite/sub-sub-operator-1".into(),
-            runtime_operator_composite.clone(),
-        ),
-        (
-            "operator-composite/sub-operator-composite/sub-sub-operator-2".into(),
-            runtime_operator_composite.clone(),
-        ),
-        (
-            "operator-composite/sub-operator-2".into(),
-            runtime_operator_composite,
-        ),
-        ("sink-composite".into(), runtime_sink_composite),
-    ]);
-
-    assert_eq!(expected_mapping, flatten.mapping);
 }
 
 #[test]

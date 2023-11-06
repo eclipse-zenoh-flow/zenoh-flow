@@ -14,8 +14,8 @@
 
 use crate::{LinkDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
-use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
+use std::sync::Arc;
+use zenoh_flow_commons::Configuration;
 
 /// TODO@J-Loudet Documentation?
 ///
@@ -62,9 +62,6 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 ///     to:
 ///       node : Sink-2
 ///       input : in-operator
-///
-/// mapping:
-///   Source-0: 10628aa2-66ca-4fda-8d5c-d7de63764bcc
 /// "#;
 ///
 /// let data_flow_yaml = serde_yaml::from_str::<DataFlowDescriptor>(yaml).unwrap();
@@ -128,11 +125,7 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 ///         "input": "in-operator"
 ///       }
 ///     }
-///   ],
-///
-///   "mapping": {
-///     "Source-0": "10628aa2-66ca-4fda-8d5c-d7de63764bcc"
-///   }
+///   ]
 /// }
 /// "#;
 ///
@@ -148,6 +141,4 @@ pub struct DataFlowDescriptor {
     pub sources: Vec<SourceDescriptor>,
     pub sinks: Vec<SinkDescriptor>,
     pub links: Vec<LinkDescriptor>,
-    #[serde(default)]
-    pub mapping: HashMap<NodeId, RuntimeId>,
 }

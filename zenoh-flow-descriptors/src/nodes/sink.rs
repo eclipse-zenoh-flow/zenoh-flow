@@ -15,7 +15,7 @@
 use crate::ZenohSinkDescriptor;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use zenoh_flow_commons::{Configuration, NodeId, PortId};
+use zenoh_flow_commons::{Configuration, NodeId, PortId, RuntimeId};
 
 use super::RemoteNodeDescriptor;
 
@@ -86,6 +86,8 @@ use super::RemoteNodeDescriptor;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SinkDescriptor {
     pub id: NodeId,
+    #[serde(default)]
+    pub runtime: Option<RuntimeId>,
     #[serde(flatten)]
     pub(crate) variant: SinkVariants,
 }

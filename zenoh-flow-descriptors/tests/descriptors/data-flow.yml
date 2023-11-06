@@ -10,12 +10,14 @@ configuration:
 sources:
   - id: source-1
     descriptor: "{{ SCHEME }}{{ BASE_DIR }}/source.yml"
+    runtime: 10628aa2-66ca-4fda-8d5c-d7de63764bcc
 
   - id: source-2
     descriptor: "{{ SCHEME }}{{    BASE_DIR }}/source.yml"
 
   - id: source-composite
     descriptor: "{{ SCHEME }}{{ BASE_DIR   }}/source-composite.yml"
+    runtime: e051658a-0cd6-4cef-8b08-0d0f17d3cc5d
 
 
 operators:
@@ -29,6 +31,7 @@ operators:
     descriptor: "{{ SCHEME }}{{BASE_DIR}}/operator-composite.yml"
     configuration:
       quux: "global-inner"
+    runtime: 6a16a7ba-ec2d-4bb8-b303-7683e5477900
 
 
 sinks:
@@ -37,9 +40,11 @@ sinks:
 
   - id: sink-2
     descriptor: "{{ SCHEME }}{{ BASE_DIR }}/sink.yml"
+    runtime: 5f7a170d-cfaf-4f7a-971e-6c3e63c50e1e
 
   - id: sink-composite
     descriptor: "{{ SCHEME }}{{ BASE_DIR }}/sink-composite.yml"
+    runtime: 25270228-9cb1-4e6e-988c-00769622359f
 
 
 links:
@@ -96,11 +101,3 @@ links:
     to:
       node: sink-composite
       input: sink-composite-in-2
-
-
-mapping:
-  source-1: 10628aa2-66ca-4fda-8d5c-d7de63764bcc
-  sink-2: 5f7a170d-cfaf-4f7a-971e-6c3e63c50e1e
-  source-composite: e051658a-0cd6-4cef-8b08-0d0f17d3cc5d
-  operator-composite: 6a16a7ba-ec2d-4bb8-b303-7683e5477900
-  sink-composite: 25270228-9cb1-4e6e-988c-00769622359f
