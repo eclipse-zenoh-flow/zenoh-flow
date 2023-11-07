@@ -232,10 +232,10 @@ jobs:
       #echo "ZF_PLUGIN_PATH= ${{ runner.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
       - name: Set path
         run: |
-          echo "ZENOHD_PATH = ${{ env.TEMP_DIR}}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
-          echo "ZFCTL_PATH = ${{ github.workspace }}/target/release/zfctl" >> $GITHUB_ENV
-          echo "PY_TEST_PATH = ${{ github.workspace }}/manual-tests/automated-test.py" >> $GITHUB_ENV
-          echo "LIB_ZF_PLUGIN_PATH = ${{ github.workspace }}/target/release/" >> $GITHUB_ENV
+          echo "ZENOHD_PATH= ${{ env.TEMP_DIR}}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
+          echo "ZFCTL_PATH= ${{ github.workspace }}/target/release/zfctl" >> $GITHUB_ENV
+          echo "PY_TEST_PATH= ${{ github.workspace }}/manual-tests/automated-test.py" >> $GITHUB_ENV
+          echo "LIB_ZF_PLUGIN_PATH= ${{ github.workspace }}/target/release/" >> $GITHUB_ENV
           echo ${{env.ZENOHD_PATH}}
           echo ${{env.ZFCTL_PATH}}
           echo ${{env.PY_TEST_PATH}}
