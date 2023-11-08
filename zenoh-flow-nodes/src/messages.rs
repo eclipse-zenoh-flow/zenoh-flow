@@ -83,7 +83,7 @@ impl Payload {
     ///
     /// The provided `buffer` is reused and cleared between calls, so once its capacity stabilizes
     /// no more allocation is performed.
-    pub(crate) fn try_as_bytes_into(&self, buffer: &mut Vec<u8>) -> Result<()> {
+    pub fn try_as_bytes_into(&self, buffer: &mut Vec<u8>) -> Result<()> {
         buffer.clear(); // remove previous data but keep the allocated capacity
 
         match self {
