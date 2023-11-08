@@ -17,46 +17,19 @@ use std::fmt::Display;
 use crate::deserialize::{deserialize_size, deserialize_time};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SharedMemoryConfiguration {
-    pub(crate) number_elements: Option<usize>,
+    /// Size, converted in bytes, of the shared memory buffer.
     #[serde(deserialize_with = "deserialize_size")]
-    pub(crate) element_size: Option<usize>,
+    pub size: usize,
+    /// Duration, converted in nanoseconds, to wait before retrying the last operation.
     #[serde(deserialize_with = "deserialize_time")]
-    pub(crate) backoff: Option<u64>,
+    pub backoff: u64,
 }
 
 // TODO@J-Loudet
 impl Display for SharedMemoryConfiguration {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct SharedMemoryParameters {
-    pub number_elements: usize,
-    // Size, in bytes, of a single element.
-    pub element_size: usize,
-    // Duration, in nanoseconds, to wait before retrying the last operation.
-    pub backoff: u64,
-}
-
-// TODO@J-Loudet
-impl Display for SharedMemoryParameters {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
-    }
-}
-
-impl SharedMemoryParameters {
-    pub fn from_configuration(configuration: &SharedMemoryConfiguration, default: &Self) -> Self {
-        Self {
-            number_elements: configuration
-                .number_elements
-                .unwrap_or(default.number_elements),
-            element_size: configuration.element_size.unwrap_or(default.element_size),
-            backoff: configuration.backoff.unwrap_or(default.backoff),
-        }
     }
 }

@@ -12,11 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{RuntimeId, SharedMemoryParameters};
+use crate::{RuntimeId, SharedMemoryConfiguration};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RuntimeContext {
     pub id: RuntimeId,
-    pub shared_memory: SharedMemoryParameters,
+    pub shared_memory: SharedMemoryConfiguration,
 }

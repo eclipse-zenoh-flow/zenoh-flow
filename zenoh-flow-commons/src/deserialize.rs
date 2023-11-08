@@ -57,41 +57,42 @@ Caused by:
     Ok(id.into())
 }
 
-pub fn deserialize_size<'de, D>(deserializer: D) -> std::result::Result<Option<usize>, D::Error>
+pub fn deserialize_size<'de, D>(deserializer: D) -> std::result::Result<usize, D::Error>
 where
     D: Deserializer<'de>,
 {
-    match serde::de::Deserialize::deserialize(deserializer) {
-        Ok(buf) => Ok(Some(
-            bytesize::ByteSize::from_str(buf)
-                .map_err(|_| {
-                    serde::de::Error::custom(format!("Unable to parse value as bytes {buf}"))
-                })?
-                .as_u64() as usize,
-        )),
-        Err(_) => {
-            // log::warn!("failed to deserialize size: {:?}", e);
-            Ok(None)
-        }
-    }
+    let size_str: String = serde::de::Deserialize::deserialize(deserializer)?;
+    let size_u64 = bytesize::ByteSize::from_str(&size_str)
+        .map_err(|e| {
+            serde::de::Error::custom(format!(
+                "Unable to parse value as bytes {size_str}:\n{:?}",
+                e
+            ))
+        })?
+        .as_u64();
+
+    usize::try_from(size_u64).map_err(|e| serde::de::Error::custom(format!(
+        "Unable to convert < {} > into a `usize`. Maybe check the architecture of the target device?\n{:?}",
+        size_u64, e
+    )))
 }
 
-pub fn deserialize_time<'de, D>(deserializer: D) -> std::result::Result<Option<u64>, D::Error>
+pub fn deserialize_time<'de, D>(deserializer: D) -> std::result::Result<u64, D::Error>
 where
     D: Deserializer<'de>,
 {
-    match serde::de::Deserialize::deserialize(deserializer) {
-        Ok::<&str, _>(buf) => {
-            let ht = (buf)
-                .parse::<humantime::Duration>()
-                .map_err(serde::de::Error::custom)?;
-            Ok(Some(ht.as_nanos() as u64))
-        }
-        Err(_) => {
-            // log::warn!("failed to deserialize time: {:?}", e);
-            Ok(None)
-        }
-    }
+    let buf: &str = serde::de::Deserialize::deserialize(deserializer)?;
+    let time_u128 = buf
+        .parse::<humantime::Duration>()
+        .map_err(serde::de::Error::custom)?
+        .as_nanos();
+
+    u64::try_from(time_u128).map_err(|e| {
+        serde::de::Error::custom(format!(
+            "Unable to convert < {} > into a `u64`. Maybe lower the value?\n{:?}",
+            time_u128, e
+        ))
+    })
 }
 
 #[cfg(test)]

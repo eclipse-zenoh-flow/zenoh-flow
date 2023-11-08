@@ -263,6 +263,7 @@ links:
             node: sender_thing_edge,
             input: key_expr_thing_edge.to_string().into(),
         },
+        shared_memory: None,
     };
     assert!(record.links.contains(&link_thing));
 
@@ -275,6 +276,7 @@ links:
             node: "operator-1".into(),
             input: "in-1".into(),
         },
+        shared_memory: None,
     };
     assert!(record.links.contains(&link_egde_1));
 
@@ -287,6 +289,7 @@ links:
             node: sender_edge_default,
             input: key_expr_edge_default.to_string().into(),
         },
+        shared_memory: None,
     };
     assert!(record.links.contains(&link_edge_2));
 
@@ -299,6 +302,7 @@ links:
             node: "sink-2".into(),
             input: "in-2".into(),
         },
+        shared_memory: None,
     };
     assert!(record.links.contains(&link_default));
 }

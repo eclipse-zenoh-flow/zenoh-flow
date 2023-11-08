@@ -157,6 +157,7 @@ Caused by:
                 additional_links.push(LinkDescriptor {
                     from: output,
                     to: input,
+                    shared_memory: link.shared_memory,
                 });
 
                 senders.insert(

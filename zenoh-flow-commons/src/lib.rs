@@ -28,7 +28,7 @@ mod runtime;
 pub use runtime::RuntimeContext;
 
 mod shared_memory;
-pub use shared_memory::{SharedMemoryConfiguration, SharedMemoryParameters};
+pub use shared_memory::SharedMemoryConfiguration;
 
 mod vars;
 pub use vars::Vars;
