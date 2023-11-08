@@ -13,7 +13,7 @@
 //
 
 mod inputs;
-pub use inputs::{Input, Inputs};
+pub use inputs::{Input, InputRaw, Inputs};
 
 mod outputs;
-pub use outputs::{Output, Outputs};
+pub use outputs::{Output, OutputRaw, Outputs};

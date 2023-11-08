@@ -20,7 +20,7 @@ pub(crate) mod messages;
 pub(crate) mod traits;
 
 pub mod prelude {
-    pub use crate::io::{Input, Inputs, Output, Outputs};
+    pub use crate::io::{Input, InputRaw, Inputs, Output, OutputRaw, Outputs};
     pub use crate::messages::{Data, DataMessage, LinkMessage, Message};
     pub use crate::traits::{Node, Operator, SendSyncAny, Sink, Source};
     pub use crate::Context;
