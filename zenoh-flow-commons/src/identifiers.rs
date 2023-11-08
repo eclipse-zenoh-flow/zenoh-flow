@@ -117,3 +117,11 @@ impl From<Uuid> for RecordId {
         Self(Arc::new(value))
     }
 }
+
+impl Deref for RecordId {
+    type Target = Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
