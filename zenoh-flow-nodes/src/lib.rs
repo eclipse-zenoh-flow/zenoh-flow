@@ -29,12 +29,34 @@ pub mod prelude {
 }
 
 use std::sync::Arc;
-use uuid::Uuid;
-use zenoh_flow_commons::RuntimeId;
+use zenoh_flow_commons::{RecordId, RuntimeId};
 
 /// TODO@J-Loudet
+#[derive(Clone, Debug)]
 pub struct Context {
-    pub flow_name: Arc<str>,
-    pub flow_uuid: Uuid,
-    pub runtime_id: RuntimeId,
+    pub(crate) flow_name: Arc<str>,
+    pub(crate) record_id: RecordId,
+    pub(crate) runtime_id: RuntimeId,
+}
+
+impl Context {
+    pub fn new(flow_name: Arc<str>, record_id: RecordId, runtime_id: RuntimeId) -> Self {
+        Self {
+            flow_name,
+            record_id,
+            runtime_id,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        self.flow_name.as_ref()
+    }
+
+    pub fn record(&self) -> &RecordId {
+        &self.record_id
+    }
+
+    pub fn runtime(&self) -> &RuntimeId {
+        &self.runtime_id
+    }
 }
