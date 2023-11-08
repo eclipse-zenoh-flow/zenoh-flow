@@ -261,7 +261,7 @@ pub trait Sink: Node + Send + Sync {
     /// external world.
     ///
     /// Sinks are **started first** when initiating a data flow. As they are at the end of the chain of
-    /// computations, by starting them first we ensure that no data is lost.
+    /// computations. By starting them first we ensure that no data is lost.
     async fn new(context: Context, configuration: Configuration, inputs: Inputs) -> Result<Self>
     where
         Self: Sized;

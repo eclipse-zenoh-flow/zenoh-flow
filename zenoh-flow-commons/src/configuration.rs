@@ -12,11 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::{ops::Deref, sync::Arc};
-
-use serde::{Deserialize, Serialize};
-
 use crate::merge::IMergeOverwrite;
+use serde::{Deserialize, Serialize};
+use std::{ops::Deref, sync::Arc};
 
 /// A `Configuration` is a recursive key-value structure that allows modifying the behavior of a
 /// node without altering its implementation.
