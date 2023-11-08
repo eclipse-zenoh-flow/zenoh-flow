@@ -81,11 +81,16 @@ jobs:
         # with:
         #   toolchain: 1.70.0
 
+      - name: Create Zenoh-Flow artifact TEMP_DIR
+        run: |
+          echo "ZF_RELEASE_TEMP_DIR=$(mktemp -d)" >> $GITHUB_ENV
+          echo "${{ env.ZF_RELEASE_TEMP_DIR}} >> ${{ env.ZF_RELEASE_TEMP_DIR}}"
+
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --verbose --all-targets
+          args: --release --verbose --all-targets --target-dir ZF_RELEASE_TEMP_DIR
 
       # - name: Run tests
       #   uses: actions-rs/cargo@v1
@@ -108,7 +113,7 @@ jobs:
       #   with:
       #     repository: eclipse-zenoh/zenoh
 
-      - name: Create TEMP_DIR
+      - name: Create Zenoh TEMP_DIR
         run: |
           echo "TEMP_DIR=$(mktemp -d)" >> $GITHUB_ENV
           echo "${{ env.TEMP_DIR}} >> ${{ env.TEMP_DIR}}"
@@ -266,6 +271,6 @@ jobs:
         run: |
           cd ${{ github.workspace }}
           chmod u+x manual-tests/automated-test.py
-          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} --lib ${{env.LIB_ZF_PLUGIN_PATH}} )
+          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} --lib ${{env.ZF_RELEASE_TEMP_DIR}} )
 
 #
