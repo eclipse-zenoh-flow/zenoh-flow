@@ -18,7 +18,10 @@ use crate::{
 };
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use zenoh_flow_commons::{NodeId, RecordId, Result, RuntimeId};
 use zenoh_flow_descriptors::{
     FlattenedDataFlowDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor,
@@ -207,6 +210,43 @@ Caused by:
     /// Returns the name of the data flow from which this [`DataFlowRecord`] was generated.
     pub fn name(&self) -> &Arc<str> {
         &self.name
+    }
+
+    /// Returns the list of nodes that are set to run on the specified runtime.
+    pub fn get_nodes_for_runtime(&self, runtime: &RuntimeId) -> HashSet<&NodeId> {
+        let mut nodes: HashSet<&NodeId> = HashSet::default();
+        nodes.extend(
+            self.sources
+                .values()
+                .filter(|source| source.runtime() == runtime)
+                .map(|op| &op.id),
+        );
+        nodes.extend(
+            self.operators
+                .values()
+                .filter(|operator| operator.runtime() == runtime)
+                .map(|op| &op.id),
+        );
+        nodes.extend(
+            self.sinks
+                .values()
+                .filter(|sink| sink.runtime() == runtime)
+                .map(|sink| &sink.id),
+        );
+        nodes.extend(
+            self.senders
+                .values()
+                .filter(|sender| sender.runtime() == runtime)
+                .map(|sender| &sender.id),
+        );
+        nodes.extend(
+            self.receivers
+                .values()
+                .filter(|receiver| receiver.runtime() == runtime)
+                .map(|receiver| &receiver.id),
+        );
+
+        nodes
     }
 }
 

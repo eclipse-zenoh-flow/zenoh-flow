@@ -22,6 +22,7 @@ members = [
   "zenoh-flow-nodes",
   "zenoh-flow-plugin",
   "zenoh-flow-records",
+  "zenoh-flow-runtime",
   "zfctl",
   "examples",
 ]
@@ -57,12 +58,13 @@ tracing = { version = "0.1", features = ["log"] }
 uhlc = "0.6"
 url = "2.2"
 uuid = { version = "1.1", features = ["serde", "v4"] }
-zenoh = { version = "0.7.2-rc" }
+zenoh = { version = "0.7.2-rc", features = ["shared-memory"] }
 zenoh-collections = { version = "0.7.2-rc" }
 zenoh-core = { version = "0.7.2-rc" }
 zenoh-ext = { version = "0.7.2-rc" }
 zenoh-flow-commons = { path = "./zenoh-flow-commons" }
 zenoh-flow-descriptors = { path = "./zenoh-flow-descriptors" }
+zenoh-flow-nodes = { path = "./zenoh-flow-nodes" }
 zenoh-flow-records = { path = "./zenoh-flow-records" }
 zenoh-keyexpr = { version = "0.7.2-rc" }
 zenoh-plugin-trait = { version = "0.7.2-rc", default-features = false }
