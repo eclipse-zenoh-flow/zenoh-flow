@@ -19,9 +19,8 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result,
 use zenoh_keyexpr::OwnedKeyExpr;
 
 use crate::{
-    flattened::uri,
     nodes::source::{CustomSourceDescriptor, SourceVariants},
-    SourceDescriptor, ZenohSourceDescriptor,
+    uri, SourceDescriptor, ZenohSourceDescriptor,
 };
 
 /// TODO@J-Loudet

@@ -22,11 +22,11 @@ use std::{
 use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, RuntimeId, Vars};
 
 use crate::{
-    flattened::{uri, Patch, Substitutions},
+    flattened::{Patch, Substitutions},
     nodes::operator::{
         composite::CompositeOperatorDescriptor, CustomOperatorDescriptor, OperatorVariants,
     },
-    InputDescriptor, LinkDescriptor, OperatorDescriptor, OutputDescriptor,
+    uri, InputDescriptor, LinkDescriptor, OperatorDescriptor, OutputDescriptor,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]

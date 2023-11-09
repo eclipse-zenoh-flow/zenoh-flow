@@ -16,6 +16,7 @@ pub(crate) mod dataflow;
 pub(crate) mod flattened;
 pub(crate) mod io;
 pub(crate) mod nodes;
+pub(crate) mod uri;
 
 pub use dataflow::DataFlowDescriptor;
 pub use flattened::dataflow::FlattenedDataFlowDescriptor;
@@ -28,3 +29,5 @@ pub use nodes::builtin::zenoh::{ZenohSinkDescriptor, ZenohSourceDescriptor};
 pub use nodes::operator::{composite::CompositeOperatorDescriptor, OperatorDescriptor};
 pub use nodes::sink::SinkDescriptor;
 pub use nodes::source::SourceDescriptor;
+
+pub use uri::try_load_from_file;

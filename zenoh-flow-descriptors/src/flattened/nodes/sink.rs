@@ -13,9 +13,8 @@
 //
 
 use crate::{
-    flattened::uri,
     nodes::sink::{CustomSinkDescriptor, SinkVariants},
-    SinkDescriptor, ZenohSinkDescriptor,
+    uri, SinkDescriptor, ZenohSinkDescriptor,
 };
 use anyhow::Context;
 use serde::{Deserialize, Serialize};

@@ -13,10 +13,8 @@
 //
 
 use crate::{
-    flattened::{
-        nodes::{sink::SinkLibrary, source::SourceLibrary},
-        uri::try_load_descriptor,
-    },
+    flattened::nodes::{sink::SinkLibrary, source::SourceLibrary},
+    uri::try_load_descriptor,
     DataFlowDescriptor, FlattenedDataFlowDescriptor, FlattenedOperatorDescriptor,
     FlattenedSinkDescriptor, FlattenedSourceDescriptor, InputDescriptor, LinkDescriptor,
     OutputDescriptor,

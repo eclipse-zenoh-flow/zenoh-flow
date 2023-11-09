@@ -17,8 +17,6 @@ pub use nodes::operator::FlattenedOperatorDescriptor;
 pub use nodes::sink::FlattenedSinkDescriptor;
 pub use nodes::source::FlattenedSourceDescriptor;
 
-pub(crate) mod uri;
-
 pub(crate) mod dataflow;
 pub use dataflow::FlattenedDataFlowDescriptor;
 

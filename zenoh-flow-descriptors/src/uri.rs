@@ -12,8 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::io::Read;
 use std::path::PathBuf;
+use std::{ffi::OsStr, io::Read};
 
 use anyhow::{bail, Context};
 use serde::Deserialize;
@@ -27,7 +27,7 @@ where
     let url = Url::parse(uri).context(format!("Failed to parse uri:\n{}", uri))?;
 
     match url.scheme() {
-        "file" => try_load_descriptor_from_file::<N>(url.path(), vars).context(format!(
+        "file" => try_load_from_file::<N>(url.path(), vars).context(format!(
             "Failed to load descriptor from file:\n{}",
             url.path()
         )),
@@ -69,7 +69,7 @@ Currently supported file extensions are:
     }
 }
 
-pub(crate) fn try_load_descriptor_from_file<N>(path: &str, vars: Vars) -> Result<(N, Vars)>
+pub fn try_load_from_file<N>(path: impl AsRef<OsStr>, vars: Vars) -> Result<(N, Vars)>
 where
     N: for<'a> Deserialize<'a>,
 {
@@ -82,13 +82,15 @@ where
         // the paths with this environment variable we obtain a correct absolute path.
         path_buf.push(env!("CARGO_MANIFEST_DIR"));
         path_buf.push(
-            path.strip_prefix('/')
+            path.as_ref()
+                .to_string_lossy()
+                .strip_prefix('/')
                 .expect("Failed to remove leading '/'"),
         );
     }
 
     #[cfg(not(test))]
-    path_buf.push(path);
+    path_buf.push(path.as_ref());
 
     let path = std::fs::canonicalize(&path_buf).context(format!(
         "Failed to canonicalize path (did you put an absolute path?):\n{}",
