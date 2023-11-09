@@ -12,29 +12,16 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::path::PathBuf;
-
+use super::NodeSymbol;
 use anyhow::bail;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc};
 use zenoh_flow_commons::Result;
 
-use super::NodeSymbol;
+// Convenient shortcut.
+type Extensions = HashMap<Arc<str>, ExtensibleImplementation>;
 
-/// Extensible support for different implementations
-/// This represents the configuration for an extension.
-///
-///
-/// Example:
-///
-/// ```yaml
-/// name: python
-/// file_extension: py
-/// source_lib: ./target/release/libpy_source.so
-/// sink_lib: ./target/release/libpy_sink.so
-/// operator_lib: ./target/release/libpy_op.so
-/// config_lib_key: python-script
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct ExtensibleImplementation {
     pub(crate) name: String,
     pub(crate) file_extension: String,
@@ -44,11 +31,27 @@ pub struct ExtensibleImplementation {
     pub(crate) config_lib_key: String,
 }
 
+fn deserialize_extensions<'de, D>(deserializer: D) -> std::result::Result<Extensions, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let extensions: Vec<ExtensibleImplementation> =
+        serde::de::Deserialize::deserialize(deserializer)?;
+
+    Ok(extensions
+        .into_iter()
+        .map(|extension| (extension.file_extension.clone().into(), extension))
+        .collect::<Extensions>())
+}
+
 /// Loader configuration files, it includes the extensions.
 ///
-/// Example:
+/// # Example
 ///
-/// ```yaml
+/// ```
+/// use zenoh_flow_runtime::LoaderConfig;
+///
+/// let yaml_extensions = r#"
 /// extensions:
 ///   - name: python
 ///     file_extension: py
@@ -56,82 +59,62 @@ pub struct ExtensibleImplementation {
 ///     sink_lib: ./target/release/libpy_sink.so
 ///     operator_lib: ./target/release/libpy_op.so
 ///     config_lib_key: python-script
+/// "#;
+///
+/// assert!(serde_yaml::from_str::<LoaderConfig>(yaml_extensions).is_ok());
 /// ```
 ///
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LoaderConfig {
-    // NOTE This has to be a vector as we are reading it from a file.
-    extensions: Vec<ExtensibleImplementation>,
+    #[serde(deserialize_with = "deserialize_extensions")]
+    extensions: Extensions,
+}
+
+impl Deref for LoaderConfig {
+    type Target = Extensions;
+
+    fn deref(&self) -> &Self::Target {
+        &self.extensions
+    }
 }
 
 impl LoaderConfig {
     /// Creates an empty `LoaderConfig`.
     pub fn new() -> Self {
-        Self { extensions: vec![] }
+        Self {
+            extensions: HashMap::default(),
+        }
     }
 
     /// Adds the given extension.
     ///
     /// # Errors
+    ///
     /// It returns an error variant if the extension is already present.
     pub fn try_add_extension(&mut self, ext: ExtensibleImplementation) -> Result<()> {
-        if self
-            .extensions
-            .iter()
-            .any(|e| e.file_extension == ext.file_extension)
-        {
+        if self.contains_key(ext.file_extension.as_str()) {
             bail!(
                 "Extension < {} > already has an associated configuration",
                 ext.file_extension
             )
         }
-        self.extensions.push(ext);
+
+        self.extensions
+            .insert(ext.file_extension.clone().into(), ext);
+
         Ok(())
     }
 
-    /// Removes the given extension.
-    pub fn remove_extension(&mut self, name: &str) -> Option<ExtensibleImplementation> {
-        if let Some(index) = self.extensions.iter().position(|e| e.name == name) {
-            let ext = self.extensions.remove(index);
-            return Some(ext);
-        }
-        None
-    }
-
-    /// Gets the extension that matches the given `file_extension`.
-    pub fn get_extension_by_file_extension(
-        &self,
-        file_extension: &str,
-    ) -> Option<&ExtensibleImplementation> {
-        self.extensions
-            .iter()
-            .find(|e| e.file_extension == file_extension)
-    }
-
+    /// TODO@J-Loudet
     pub(crate) fn get_library_path(
         &self,
         file_extension: &str,
         symbol: &NodeSymbol,
     ) -> Option<&PathBuf> {
-        self.get_extension_by_file_extension(file_extension)
-            .map(|extension| match symbol {
-                NodeSymbol::Source => &extension.source_lib,
-                NodeSymbol::Operator => &extension.operator_lib,
-                NodeSymbol::Sink => &extension.sink_lib,
-            })
-    }
-
-    /// Gets the extension that matches the given `name`.
-    pub fn get_extension_by_name(&self, name: &str) -> Option<&ExtensibleImplementation> {
-        if let Some(ext) = self.extensions.iter().find(|e| e.name == name) {
-            return Some(ext);
-        }
-        None
-    }
-}
-
-impl Default for LoaderConfig {
-    fn default() -> Self {
-        Self::new()
+        self.get(file_extension).map(|extension| match symbol {
+            NodeSymbol::Source => &extension.source_lib,
+            NodeSymbol::Operator => &extension.operator_lib,
+            NodeSymbol::Sink => &extension.sink_lib,
+        })
     }
 }

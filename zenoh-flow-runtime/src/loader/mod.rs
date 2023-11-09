@@ -14,8 +14,8 @@
 
 mod configuration;
 // mod uri;
+pub use configuration::LoaderConfig;
 
-use self::configuration::LoaderConfig;
 use anyhow::{anyhow, bail, Context};
 use libloading::Library;
 use std::{collections::HashMap, path::PathBuf, str::FromStr, sync::Arc};

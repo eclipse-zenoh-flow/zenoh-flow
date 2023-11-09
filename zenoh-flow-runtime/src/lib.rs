@@ -15,6 +15,7 @@
 mod instance;
 
 mod loader;
+pub use loader::{Loader, LoaderConfig};
 
 mod shared_memory;
 
