@@ -17,7 +17,7 @@ use std::fmt::Display;
 use crate::deserialize::{deserialize_size, deserialize_time};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SharedMemoryConfiguration {
     /// Size, converted in bytes, of the shared memory buffer.
     #[serde(deserialize_with = "deserialize_size")]
