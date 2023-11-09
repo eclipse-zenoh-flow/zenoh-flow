@@ -12,4 +12,5 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+#[cfg(feature = "zenoh")]
 pub(crate) mod zenoh;

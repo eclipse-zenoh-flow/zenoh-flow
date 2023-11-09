@@ -13,6 +13,8 @@
 //
 
 pub(crate) mod builtin;
+
+#[cfg(feature = "zenoh")]
 pub(crate) mod connectors;
 
 use async_std::task::JoinHandle;
@@ -48,7 +50,7 @@ impl Runner {
     pub(crate) fn start(&mut self) {
         if self.is_running() {
             tracing::warn!(
-                "[{}] Called `start` while node is ALREADY running. Returning.",
+                "[{}] Called `start` while node is already running. Returning.",
                 self.id
             );
             return;

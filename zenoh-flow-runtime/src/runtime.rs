@@ -14,20 +14,23 @@
 
 use std::{collections::HashMap, sync::Arc};
 
+#[cfg(feature = "zenoh")]
+use crate::runners::builtin::zenoh::{sink::ZenohSink, source::ZenohSource};
+#[cfg(feature = "zenoh")]
+use crate::runners::connectors::{ZenohConnectorReceiver, ZenohConnectorSender};
 use crate::{
     instance::DataFlowInstance,
     loader::{Loader, NodeSymbol},
-    runners::{
-        builtin::zenoh::{sink::ZenohSink, source::ZenohSource},
-        connectors::{ZenohConnectorReceiver, ZenohConnectorSender},
-        Runner,
-    },
+    runners::Runner,
 };
 use anyhow::{bail, Context as errContext};
 use uhlc::HLC;
 use uuid::Uuid;
+#[cfg(feature = "zenoh")]
 use zenoh::Session;
-use zenoh_flow_commons::{NodeId, RecordId, Result, RuntimeId, SharedMemoryConfiguration};
+#[cfg(feature = "shared-memory")]
+use zenoh_flow_commons::SharedMemoryConfiguration;
+use zenoh_flow_commons::{NodeId, RecordId, Result, RuntimeId};
 use zenoh_flow_descriptors::{SinkLibrary, SourceLibrary};
 use zenoh_flow_nodes::{
     prelude::{Inputs, Outputs},
@@ -39,8 +42,10 @@ pub(crate) type Channels = HashMap<NodeId, (Inputs, Outputs)>;
 
 pub struct Runtime {
     pub(crate) hlc: Arc<HLC>,
+    #[cfg(feature = "zenoh")]
     pub(crate) session: Arc<Session>,
     pub(crate) runtime_id: RuntimeId,
+    #[cfg(feature = "shared-memory")]
     pub(crate) shared_memory: SharedMemoryConfiguration,
     pub(crate) loader: Loader,
     pub(crate) flows: HashMap<RecordId, DataFlowInstance>,
@@ -51,14 +56,16 @@ impl Runtime {
     pub fn new(
         loader: Loader,
         hlc: Arc<HLC>,
-        session: Arc<Session>,
-        shared_memory: SharedMemoryConfiguration,
+        #[cfg(feature = "zenoh")] session: Arc<Session>,
+        #[cfg(feature = "shared-memory")] shared_memory: SharedMemoryConfiguration,
     ) -> Self {
         Self {
             runtime_id: Uuid::new_v4().into(),
+            #[cfg(feature = "zenoh")]
             session,
             hlc,
             loader,
+            #[cfg(feature = "shared-memory")]
             shared_memory,
             flows: HashMap::default(),
         }
@@ -87,8 +94,12 @@ impl Runtime {
             self.try_load_sinks(&data_flow, &mut channels, context.clone())
                 .await?,
         );
-        runners.extend(self.try_load_receivers(&data_flow, &mut channels).await?);
-        runners.extend(self.try_load_senders(&data_flow, &mut channels)?);
+
+        #[cfg(feature = "zenoh")]
+        {
+            runners.extend(self.try_load_receivers(&data_flow, &mut channels).await?);
+            runners.extend(self.try_load_senders(&data_flow, &mut channels)?);
+        }
 
         Ok(())
     }
@@ -110,20 +121,40 @@ impl Runtime {
         let mut channels = HashMap::default();
         for link in &record.links {
             if !nodes_runtime.contains(&link.from.node) || !nodes_runtime.contains(&link.to.node) {
-                if nodes_runtime.contains(&link.from.node) || nodes_runtime.contains(&link.to.node)
+                #[cfg(feature = "zenoh")]
+                {
+                    // NOTE: If any of the two nodes run on this runtime then we have an issue, we did not process
+                    // correctly the data flow and forgot to add a connector.
+                    if nodes_runtime.contains(&link.from.node)
+                        || nodes_runtime.contains(&link.to.node)
+                    {
+                        bail!(
+                            r#"
+Zenoh-Flow encountered a fatal internal error: a link is connecting two nodes that are on *different* runtime.
+
+The problematic link is:
+{}
+"#,
+                            link
+                        );
+                    }
+
+                    continue;
+                }
+
+                #[cfg(not(feature = "zenoh"))]
                 {
                     bail!(
                         r#"
-Zenoh-Flow encountered a fatal internal error: a link is connecting two nodes that are on *different* runtime.
+The Zenoh-Flow runtime was not compiled with the feature "zenoh" enabled, it is thus impossible to have nodes running on
+different runtime. Maybe enable the "zenoh" feature?
 
-Link:
+The problematic link is:
 {}
 "#,
                         link
-                    );
+                    )
                 }
-
-                continue;
             }
 
             let (tx, rx) = flume::unbounded();
@@ -215,6 +246,16 @@ The channels for the Outputs of Source < {} > were not created.
 
                     Runner::new(source.id.clone(), source_node)
                 }
+                #[cfg(not(feature = "zenoh"))]
+                SourceLibrary::Zenoh(_) => {
+                    bail!(
+                        r#"
+The Zenoh-Flow runtime was compiled without the feature "zenoh" but includes a built-in Zenoh Source.
+Maybe change the features in the Cargo.toml?
+"#
+                    )
+                }
+                #[cfg(feature = "zenoh")]
                 SourceLibrary::Zenoh(key_exprs) => {
                     let dyn_source =
                         ZenohSource::try_new(&source.id, self.session.clone(), key_exprs, outputs)
@@ -261,11 +302,22 @@ The channels for the Inputs of Sink < {} > were not created.
 
                     Runner::new(sink.id.clone(), sink_node)
                 }
+                #[cfg(not(feature = "zenoh"))]
+                SinkLibrary::Zenoh(_) => {
+                    bail!(
+                        r#"
+The Zenoh-Flow runtime was compiled without the feature "zenoh" but includes a built-in Zenoh Sink.
+Maybe change the features in the Cargo.toml?
+"#
+                    )
+                }
+                #[cfg(feature = "zenoh")]
                 SinkLibrary::Zenoh(key_exprs) => {
                     let zenoh_sink = ZenohSink::try_new(
                         sink_id.clone(),
                         self.session.clone(),
                         key_exprs,
+                        #[cfg(feature = "shared-memory")]
                         &self.shared_memory,
                         inputs,
                     )
@@ -282,6 +334,7 @@ The channels for the Inputs of Sink < {} > were not created.
     }
 
     /// TODO@J-Loudet
+    #[cfg(feature = "zenoh")]
     async fn try_load_receivers(
         &mut self,
         record: &DataFlowRecord,
@@ -316,6 +369,7 @@ The channels for the Outputs of Connector Receiver < {} > were not created.
     }
 
     /// TODO@J-Loudet
+    #[cfg(feature = "zenoh")]
     fn try_load_senders(
         &mut self,
         record: &DataFlowRecord,
@@ -338,6 +392,7 @@ The channels for the Inputs of Connector Sender < {} > were not created.
 
             let runner = ZenohConnectorSender::try_new(
                 self.session.clone(),
+                #[cfg(feature = "shared-memory")]
                 &self.shared_memory,
                 sender.clone(),
                 inputs,

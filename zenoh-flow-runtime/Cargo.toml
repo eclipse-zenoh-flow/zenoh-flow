@@ -37,8 +37,16 @@ tracing = { workspace = true }
 uhlc = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
-zenoh = { workspace = true }
+zenoh = { workspace = true, optional = true }
 zenoh-flow-commons = { workspace = true }
 zenoh-flow-descriptors = { workspace = true }
 zenoh-flow-nodes = { workspace = true }
 zenoh-flow-records = { workspace = true }
+
+[features]
+default = ["zenoh"]
+zenoh = ["dep:zenoh"]
+shared-memory = ["zenoh"]
+
+[dev-dependencies]
+serde_yaml = { workspace = true }

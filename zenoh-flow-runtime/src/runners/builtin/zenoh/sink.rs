@@ -12,13 +12,16 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+#[cfg(feature = "shared-memory")]
 use crate::shared_memory::SharedMemory;
 use anyhow::{anyhow, Context};
 use async_std::sync::Mutex;
 use futures::{future::select_all, Future};
 use std::{collections::HashMap, pin::Pin, sync::Arc};
 use zenoh::{prelude::r#async::*, publication::Publisher};
-use zenoh_flow_commons::{NodeId, PortId, Result, SharedMemoryConfiguration};
+#[cfg(feature = "shared-memory")]
+use zenoh_flow_commons::SharedMemoryConfiguration;
+use zenoh_flow_commons::{NodeId, PortId, Result};
 use zenoh_flow_nodes::prelude::{InputRaw, Inputs, LinkMessage, Node};
 
 /// Internal type of pending futures for the ZenohSink
@@ -54,6 +57,7 @@ pub(crate) struct ZenohSink<'a> {
 struct State {
     pub(crate) futs: Vec<ZFInputFut>,
     pub(crate) payload_buffer: Vec<u8>,
+    #[cfg(feature = "shared-memory")]
     pub(crate) shm: SharedMemory,
 }
 
@@ -70,7 +74,7 @@ impl<'a> ZenohSink<'a> {
         id: NodeId,
         session: Arc<Session>,
         key_exprs: &HashMap<PortId, OwnedKeyExpr>,
-        shm_configuration: &SharedMemoryConfiguration,
+        #[cfg(feature = "shared-memory")] shm_configuration: &SharedMemoryConfiguration,
         mut inputs: Inputs,
     ) -> Result<ZenohSink<'a>> {
         let mut raw_inputs = HashMap::with_capacity(key_exprs.len());
@@ -119,6 +123,7 @@ Caused by:
             .map(|(id, input)| wait_flow_input(id.clone(), input))
             .collect();
 
+        #[cfg(feature = "shared-memory")]
         let shm = SharedMemory::new(&id, session.clone(), shm_configuration);
 
         Ok(Self {
@@ -127,6 +132,7 @@ Caused by:
             publishers,
             key_exprs: key_exprs.clone(),
             state: Arc::new(Mutex::new(State {
+                #[cfg(feature = "shared-memory")]
                 shm,
                 futs,
                 payload_buffer: Vec::new(),
@@ -161,28 +167,41 @@ impl<'a> Node for ZenohSink<'a> {
                 // - not enough memory is allocated on the shared memory manager (data is bigger than the allocated
                 //   memory),
                 // - the memory is full (is there a slow subscriber? some congestion on the network?).
-                if let Err(e) = state
-                    .shm
-                    .try_send_payload(key_expr, data, &mut payload_buffer)
-                    .await
+                #[cfg(feature = "shared-memory")]
                 {
-                    tracing::warn!(
-                        r#"
+                    if let Err(e) = state
+                        .shm
+                        .try_send_payload(key_expr, data, &mut payload_buffer)
+                        .await
+                    {
+                        tracing::warn!(
+                            r#"
 [built-in zenoh sink: {}][port: {}] Failed to send the data via Zenoh's shared memory.
 
 Caused by:
 {:?}
 "#,
-                        self.id,
-                        key_expr,
-                        e
-                    );
-                    tracing::warn!(
+                            self.id,
+                            key_expr,
+                            e
+                        );
+                        tracing::warn!(
                         "[built-in zenoh sink: {}][port: {}] Attempting to send via a non-shared memory channel.",
                         self.id,
                         key_expr
                     );
 
+                        publisher
+                            .put(payload_buffer)
+                            .res()
+                            .await
+                            .map_err(|e| anyhow!("{:?}", e))?
+                    }
+                }
+
+                #[cfg(not(feature = "shared-memory"))]
+                {
+                    data.try_as_bytes_into(&mut payload_buffer)?;
                     publisher
                         .put(payload_buffer)
                         .res()

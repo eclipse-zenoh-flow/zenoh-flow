@@ -16,11 +16,14 @@ use anyhow::{anyhow, bail};
 use async_std::sync::Mutex;
 use std::sync::Arc;
 use zenoh::{prelude::r#async::*, subscriber::FlumeSubscriber};
-use zenoh_flow_commons::{NodeId, Result, SharedMemoryConfiguration};
+use zenoh_flow_commons::{NodeId, Result};
 use zenoh_flow_nodes::prelude::{InputRaw, Inputs, LinkMessage, Node, OutputRaw, Outputs};
 use zenoh_flow_records::{ReceiverRecord, SenderRecord};
 
+#[cfg(feature = "shared-memory")]
 use crate::shared_memory::SharedMemory;
+#[cfg(feature = "shared-memory")]
+use zenoh_flow_commons::SharedMemoryConfiguration;
 
 pub(crate) struct ZenohConnectorSender {
     id: NodeId,
@@ -33,13 +36,14 @@ pub(crate) struct ZenohConnectorSender {
 struct State {
     pub(crate) payload_buffer: Vec<u8>,
     pub(crate) message_buffer: Vec<u8>,
+    #[cfg(feature = "shared-memory")]
     pub(crate) shm: SharedMemory,
 }
 
 impl ZenohConnectorSender {
     pub(crate) fn try_new(
         session: Arc<Session>,
-        shm_config: &SharedMemoryConfiguration,
+        #[cfg(feature = "shared-memory")] shm_config: &SharedMemoryConfiguration,
         record: SenderRecord,
         mut inputs: Inputs,
     ) -> Result<Self> {
@@ -55,6 +59,7 @@ impl ZenohConnectorSender {
             state: Arc::new(Mutex::new(State {
                 payload_buffer: Vec::new(),
                 message_buffer: Vec::new(),
+                #[cfg(feature = "shared-memory")]
                 shm: SharedMemory::new(&record.id, session.clone(), shm_config),
             })),
             id: record.id,
@@ -73,32 +78,58 @@ impl Node for ZenohConnectorSender {
                 let mut message_buffer = std::mem::take(&mut state.message_buffer);
                 let mut payload_buffer = std::mem::take(&mut state.payload_buffer);
 
-                if let Err(e) = state
-                    .shm
-                    .try_send_message(
-                        &self.key_expr,
-                        message,
-                        &mut message_buffer,
-                        &mut payload_buffer,
-                    )
-                    .await
+                #[cfg(feature = "shared-memory")]
                 {
-                    tracing::warn!(
-                        r#"
+                    if let Err(e) = state
+                        .shm
+                        .try_send_message(
+                            &self.key_expr,
+                            message,
+                            &mut message_buffer,
+                            &mut payload_buffer,
+                        )
+                        .await
+                    {
+                        tracing::warn!(
+                            r#"
 [connector sender (zenoh): {}][key expr: {}] Failed to send the message via Zenoh's shared memory.
 
 Caused by:
 {:?}
 "#,
-                        self.id,
-                        self.key_expr,
-                        e
-                    );
-                    tracing::warn!(
+                            self.id,
+                            self.key_expr,
+                            e
+                        );
+                        tracing::warn!(
                         "[connector sender (zenoh): {}][key expr: {}] Attempting to send via a non-shared memory channel.",
                         self.id,
                         self.key_expr
                     );
+
+                        self.session
+                            .put(&self.key_expr, message_buffer)
+                            .res()
+                            .await
+                            .map_err(|e| {
+                                anyhow!(
+                                    r#"
+[connector sender (zenoh): {}][key expr: {}] Failed to send the message via a Zenoh publication.
+
+Caused by:
+{:?}
+"#,
+                                    self.id,
+                                    self.key_expr,
+                                    e
+                                )
+                            })?;
+                    }
+                }
+
+                #[cfg(not(feature = "shared-memory"))]
+                {
+                    message.serialize_bincode_into(&mut message_buffer, &mut payload_buffer)?;
 
                     self.session
                         .put(&self.key_expr, message_buffer)
