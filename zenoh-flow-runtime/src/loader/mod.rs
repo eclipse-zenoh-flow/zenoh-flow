@@ -13,7 +13,6 @@
 //
 
 mod configuration;
-// mod uri;
 pub use configuration::LoaderConfig;
 
 use anyhow::{anyhow, bail, Context};
