@@ -52,6 +52,10 @@ pub struct Runtime {
 }
 
 impl Runtime {
+    pub fn id(&self) -> &RuntimeId {
+        &self.runtime_id
+    }
+
     /// TODO@J-Loudet
     pub fn new(
         loader: Loader,
