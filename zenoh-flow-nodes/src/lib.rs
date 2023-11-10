@@ -24,6 +24,7 @@ pub mod prelude {
     pub use crate::messages::{Data, DataMessage, LinkMessage, Message};
     pub use crate::traits::{Node, Operator, SendSyncAny, Sink, Source};
     pub use crate::Context;
+    pub use anyhow::{anyhow, bail};
     pub use zenoh_flow_commons::{Configuration, Result};
     pub use zenoh_flow_derive::{export_operator, export_sink, export_source};
 }
