@@ -13,7 +13,7 @@
 //
 
 use prost::Message as pMessage;
-use zenoh_flow::{anyhow, prelude::*};
+use zenoh_flow_nodes::prelude::*;
 
 #[export_operator]
 pub struct GreetingsMaker {
@@ -25,7 +25,7 @@ pub struct GreetingsMaker {
 impl Operator for GreetingsMaker {
     async fn new(
         _context: Context,
-        _configuration: Option<Configuration>,
+        _configuration: Configuration,
         mut inputs: Inputs,
         mut outputs: Outputs,
     ) -> Result<Self> {

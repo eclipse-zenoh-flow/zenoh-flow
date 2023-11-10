@@ -14,7 +14,7 @@
 
 use async_std::{fs::File, io::WriteExt, sync::Mutex};
 use prost::Message as pMessage;
-use zenoh_flow::{anyhow, prelude::*};
+use zenoh_flow_nodes::prelude::*;
 
 #[export_sink]
 pub struct FileWriter {
@@ -31,11 +31,8 @@ impl Node for FileWriter {
             let mut file = self.file.lock().await;
             file.write_all(greeting.as_bytes())
                 .await
-                .map_err(|e| zferror!(ErrorKind::IOError, "{:?}", e))?;
-            return file
-                .flush()
-                .await
-                .map_err(|e| zferror!(ErrorKind::IOError, "{:?}", e).into());
+                .map_err(|e| anyhow!("{:?}", e))?;
+            return file.flush().await.map_err(|e| anyhow!("{:?}", e));
         }
 
         Ok(())
@@ -46,14 +43,15 @@ impl Node for FileWriter {
 impl Sink for FileWriter {
     async fn new(
         _context: Context,
-        configuration: Option<Configuration>,
+        configuration: Configuration,
         mut inputs: Inputs,
     ) -> Result<Self> {
-        let file_path = match &configuration {
-            Some(conf) => conf["file"]
+        let file_path = if let Some(value) = configuration.get("file") {
+            value
                 .as_str()
-                .ok_or_else(|| zferror!(ErrorKind::ConfigurationError))?,
-            None => "/tmp/greetings.txt",
+                .unwrap_or_else(|| panic!("Unable to interpret < {} > as a string", value))
+        } else {
+            "/tmp/greetings.txt"
         };
 
         Ok(FileWriter {
