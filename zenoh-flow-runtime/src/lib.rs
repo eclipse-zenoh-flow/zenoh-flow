@@ -24,3 +24,11 @@ mod runners;
 
 mod runtime;
 pub use runtime::Runtime;
+
+#[cfg(feature = "zenoh")]
+pub mod zenoh {
+    pub use zenoh::config::{client, empty, peer};
+    pub use zenoh::open;
+    pub use zenoh::prelude::r#async::AsyncResolve;
+    pub use zenoh::prelude::{Config, Session};
+}
