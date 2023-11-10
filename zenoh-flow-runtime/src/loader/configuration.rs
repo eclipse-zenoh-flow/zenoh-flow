@@ -80,7 +80,7 @@ impl Deref for LoaderConfig {
 
 impl LoaderConfig {
     /// Creates an empty `LoaderConfig`.
-    pub fn new() -> Self {
+    pub fn empty() -> Self {
         Self {
             extensions: HashMap::default(),
         }
