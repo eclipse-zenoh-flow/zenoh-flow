@@ -23,6 +23,7 @@ members = [
   "zenoh-flow-plugin",
   "zenoh-flow-records",
   "zenoh-flow-runtime",
+  "zenoh-flow-standalone-runtime",
   "zfctl",
   "examples",
 ]
@@ -40,10 +41,10 @@ version = "0.6.0-dev"
 
 [workspace.dependencies]
 anyhow = "1"
-async-std = "1.12"
+async-std = { version = "1.12", features = ["attributes"] }
 async-trait = "0.1.50"
 base64 = "0.21"
-clap = "4.0"
+clap = { version = "4.0", features = ["derive"] }
 env_logger = "0.10"
 flume = "0.11"
 futures = "0.3.15"
@@ -66,6 +67,7 @@ zenoh-flow-commons = { path = "./zenoh-flow-commons" }
 zenoh-flow-descriptors = { path = "./zenoh-flow-descriptors" }
 zenoh-flow-nodes = { path = "./zenoh-flow-nodes" }
 zenoh-flow-records = { path = "./zenoh-flow-records" }
+zenoh-flow-runtime = { path = "./zenoh-flow-runtime", default-features = false }
 zenoh-keyexpr = { version = "0.7.2-rc" }
 zenoh-plugin-trait = { version = "0.7.2-rc", default-features = false }
 zenoh-sync = { version = "0.7.2-rc" }
