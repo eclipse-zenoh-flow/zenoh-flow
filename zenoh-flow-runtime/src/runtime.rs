@@ -105,6 +105,14 @@ impl Runtime {
             runners.extend(self.try_load_senders(&data_flow, &mut channels)?);
         }
 
+        self.flows.insert(
+            data_flow.id().clone(),
+            DataFlowInstance {
+                record: data_flow,
+                runners,
+            },
+        );
+
         Ok(())
     }
 
