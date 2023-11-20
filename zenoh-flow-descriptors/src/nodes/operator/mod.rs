@@ -17,6 +17,7 @@ pub(crate) mod composite;
 use super::RemoteNodeDescriptor;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use url::Url;
 use zenoh_flow_commons::{Configuration, NodeId, PortId, RuntimeId};
 
 /// A `OperatorDescriptor` uniquely identifies a Operator.
@@ -94,7 +95,7 @@ pub(crate) enum OperatorVariants {
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CustomOperatorDescriptor {
     pub description: Arc<str>,
-    pub library: Arc<str>,
+    pub library: Url,
     pub inputs: Vec<PortId>,
     pub outputs: Vec<PortId>,
     #[serde(default)]

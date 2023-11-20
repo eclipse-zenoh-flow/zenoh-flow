@@ -16,6 +16,7 @@ use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, sync::Arc};
 use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, RuntimeId, Vars};
+use url::Url;
 use zenoh_keyexpr::OwnedKeyExpr;
 
 use crate::{
@@ -28,7 +29,8 @@ use crate::{
 pub struct FlattenedSourceDescriptor {
     pub id: NodeId,
     pub description: Arc<str>,
-    pub library: SourceLibrary,
+    #[serde(flatten)]
+    pub source: SourceVariant,
     pub outputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,
@@ -37,8 +39,9 @@ pub struct FlattenedSourceDescriptor {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum SourceLibrary {
-    Uri(Arc<str>),
+#[serde(rename_all = "lowercase")]
+pub enum SourceVariant {
+    Library(Url),
     Zenoh(HashMap<PortId, OwnedKeyExpr>),
 }
 
@@ -92,7 +95,7 @@ impl FlattenedSourceDescriptor {
             LocalSourceVariants::Custom(custom_source) => Ok(Self {
                 id: source_desc.id,
                 description: custom_source.description,
-                library: SourceLibrary::Uri(custom_source.library),
+                source: SourceVariant::Library(custom_source.library),
                 outputs: custom_source.outputs,
                 configuration: overwritting_configuration
                     .merge_overwrite(custom_source.configuration),
@@ -102,7 +105,7 @@ impl FlattenedSourceDescriptor {
                 id: source_desc.id,
                 description: zenoh_desc.description,
                 outputs: zenoh_desc.subscribers.keys().cloned().collect(),
-                library: SourceLibrary::Zenoh(zenoh_desc.subscribers),
+                source: SourceVariant::Zenoh(zenoh_desc.subscribers),
                 configuration: Configuration::default(),
                 runtime: source_desc.runtime,
             }),

@@ -19,7 +19,8 @@ use std::{
     fmt::Display,
     sync::Arc,
 };
-use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, RuntimeId, Vars};
+use url::Url;
+use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, Vars};
 
 use crate::{
     flattened::{Patch, Substitutions},
@@ -33,7 +34,8 @@ use crate::{
 pub struct FlattenedOperatorDescriptor {
     pub id: NodeId,
     pub description: Arc<str>,
-    pub library: Arc<str>,
+    #[serde(alias = "Library")]
+    pub library: Url,
     pub inputs: Vec<PortId>,
     pub outputs: Vec<PortId>,
     #[serde(default)]
@@ -188,5 +190,46 @@ Possible infinite recursion detected, the following descriptor appears to includ
                 ))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serialize_no_configuration() {
+        let yaml_str = r#"
+id: operator-2
+description: operator-2
+library: file:///home/zenoh-flow/nodes/liboperator_0.so
+inputs:
+  - in-0
+outputs:
+  - out-0
+"#;
+
+        let flat_operator: FlattenedOperatorDescriptor =
+            serde_yaml::from_str(yaml_str).expect("Failed to deserialise");
+        assert!(serde_yaml::to_string(&flat_operator).is_ok());
+    }
+
+    #[test]
+    fn test_serialize_full() {
+        let yaml_str = r#"
+id: "operator-0"
+description: "operator-0"
+library: file:///home/zenoh-flow/nodes/liboperator_0.so
+inputs:
+  - in-0
+outputs:
+  - out-0
+configuration:
+  answer: 42
+"#;
+
+        let flat_operator: FlattenedOperatorDescriptor =
+            serde_yaml::from_str(yaml_str).expect("Failed to deserialise");
+        assert!(serde_yaml::to_string(&flat_operator).is_ok());
     }
 }

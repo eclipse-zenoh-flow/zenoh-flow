@@ -17,6 +17,7 @@ use crate::ZenohSourceDescriptor;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use zenoh_flow_commons::{Configuration, NodeId, PortId, RuntimeId};
+use url::Url;
 
 /// A `SourceDescriptor` uniquely identifies a Source.
 ///
@@ -102,7 +103,7 @@ pub(crate) enum SourceVariants {
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CustomSourceDescriptor {
     pub description: Arc<str>,
-    pub library: Arc<str>,
+    pub library: Url,
     pub outputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,

@@ -17,7 +17,7 @@ pub use configuration::LoaderConfig;
 
 use anyhow::{anyhow, bail, Context};
 use libloading::Library;
-use std::{collections::HashMap, path::PathBuf, str::FromStr, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, str::FromStr};
 use url::Url;
 use zenoh_flow_commons::Result;
 use zenoh_flow_nodes::{NodeDeclaration, CORE_VERSION, RUSTC_VERSION};
@@ -58,7 +58,7 @@ impl NodeSymbol {
 /// - `RTLD_LOCAL` keep all the symbols local.
 pub struct Loader {
     pub(crate) config: LoaderConfig,
-    pub(crate) libraries: HashMap<Arc<str>, Library>,
+    pub(crate) libraries: HashMap<Url, Library>,
 }
 
 impl Loader {
@@ -72,14 +72,12 @@ impl Loader {
 
     pub(crate) fn try_load_constructor<C>(
         &mut self,
-        uri: &Arc<str>,
+        url: &Url,
         node_symbol: &NodeSymbol,
     ) -> Result<C> {
-        if let Some(library) = self.libraries.get(uri) {
+        if let Some(library) = self.libraries.get(url) {
             return self.try_get_constructor(library, node_symbol);
         }
-
-        let url = Url::parse(uri).context(format!("Failed to parse uri:\n{}", uri))?;
 
         let library = match url.scheme() {
             "file" => self
@@ -88,12 +86,12 @@ impl Loader {
             _ => bail!(
                 "Unsupported scheme < {} > while trying to load node:\n{}",
                 url.scheme(),
-                uri
+                url
             ),
         };
 
         let constructor = self.try_get_constructor::<C>(&library, node_symbol);
-        self.libraries.insert(uri.clone(), library);
+        self.libraries.insert(url.clone(), library);
 
         constructor
     }

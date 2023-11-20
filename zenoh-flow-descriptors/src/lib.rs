@@ -21,8 +21,8 @@ pub(crate) mod uri;
 pub use dataflow::DataFlowDescriptor;
 pub use flattened::dataflow::FlattenedDataFlowDescriptor;
 pub use flattened::nodes::operator::FlattenedOperatorDescriptor;
-pub use flattened::nodes::sink::{FlattenedSinkDescriptor, SinkLibrary};
-pub use flattened::nodes::source::{FlattenedSourceDescriptor, SourceLibrary};
+pub use flattened::nodes::sink::{FlattenedSinkDescriptor, SinkVariant};
+pub use flattened::nodes::source::{FlattenedSourceDescriptor, SourceVariant};
 
 pub use io::{InputDescriptor, LinkDescriptor, OutputDescriptor};
 pub use nodes::builtin::zenoh::{ZenohSinkDescriptor, ZenohSourceDescriptor};

@@ -31,7 +31,7 @@ use zenoh::Session;
 #[cfg(feature = "shared-memory")]
 use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{NodeId, RecordId, Result, RuntimeId};
-use zenoh_flow_descriptors::{SinkLibrary, SourceLibrary};
+use zenoh_flow_descriptors::{SinkVariant, SourceVariant};
 use zenoh_flow_nodes::{
     prelude::{Inputs, Outputs},
     Context, OperatorFn, SinkFn, SourceFn,
@@ -247,8 +247,8 @@ The channels for the Outputs of Source < {} > were not created.
                 &source_id
             ))?;
 
-            let runner = match &source.library {
-                SourceLibrary::Uri(uri) => {
+            let runner = match &source.source {
+                SourceVariant::Library(uri) => {
                     let constructor = self
                         .loader
                         .try_load_constructor::<SourceFn>(uri, &NodeSymbol::Source)?;
@@ -259,7 +259,7 @@ The channels for the Outputs of Source < {} > were not created.
                     Runner::new(source.id.clone(), source_node)
                 }
                 #[cfg(not(feature = "zenoh"))]
-                SourceLibrary::Zenoh(_) => {
+                SourceVariant::Zenoh(_) => {
                     bail!(
                         r#"
 The Zenoh-Flow runtime was compiled without the feature "zenoh" but includes a built-in Zenoh Source.
@@ -268,7 +268,7 @@ Maybe change the features in the Cargo.toml?
                     )
                 }
                 #[cfg(feature = "zenoh")]
-                SourceLibrary::Zenoh(key_exprs) => {
+                SourceVariant::Zenoh(key_exprs) => {
                     let dyn_source =
                         ZenohSource::try_new(&source.id, self.session.clone(), key_exprs, outputs)
                             .await?;
@@ -304,8 +304,8 @@ The channels for the Inputs of Sink < {} > were not created.
                 &sink_id
             ))?;
 
-            let runner = match &sink.library {
-                SinkLibrary::Uri(uri) => {
+            let runner = match &sink.sink {
+                SinkVariant::Library(uri) => {
                     let constructor = self
                         .loader
                         .try_load_constructor::<SinkFn>(uri, &NodeSymbol::Sink)?;
@@ -315,7 +315,7 @@ The channels for the Inputs of Sink < {} > were not created.
                     Runner::new(sink.id.clone(), sink_node)
                 }
                 #[cfg(not(feature = "zenoh"))]
-                SinkLibrary::Zenoh(_) => {
+                SinkVariant::Zenoh(_) => {
                     bail!(
                         r#"
 The Zenoh-Flow runtime was compiled without the feature "zenoh" but includes a built-in Zenoh Sink.
@@ -324,7 +324,7 @@ Maybe change the features in the Cargo.toml?
                     )
                 }
                 #[cfg(feature = "zenoh")]
-                SinkLibrary::Zenoh(key_exprs) => {
+                SinkVariant::Zenoh(key_exprs) => {
                     let zenoh_sink = ZenohSink::try_new(
                         sink_id.clone(),
                         self.session.clone(),

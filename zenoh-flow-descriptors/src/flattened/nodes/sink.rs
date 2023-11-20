@@ -20,6 +20,7 @@ use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, sync::Arc};
 use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, RuntimeId, Vars};
+use url::Url;
 use zenoh_keyexpr::OwnedKeyExpr;
 
 /// TODO@J-Loudet
@@ -27,7 +28,8 @@ use zenoh_keyexpr::OwnedKeyExpr;
 pub struct FlattenedSinkDescriptor {
     pub id: NodeId,
     pub description: Arc<str>,
-    pub library: SinkLibrary,
+    #[serde(flatten)]
+    pub sink: SinkVariant,
     pub inputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,
@@ -36,8 +38,9 @@ pub struct FlattenedSinkDescriptor {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum SinkLibrary {
-    Uri(Arc<str>),
+#[serde(rename_all = "lowercase")]
+pub enum SinkVariant {
+    Library(Url),
     Zenoh(HashMap<PortId, OwnedKeyExpr>),
 }
 
@@ -91,7 +94,7 @@ impl FlattenedSinkDescriptor {
             LocalSinkVariants::Custom(custom_sink) => Ok(Self {
                 id: sink_desc.id,
                 description: custom_sink.description,
-                library: SinkLibrary::Uri(custom_sink.library),
+                sink: SinkVariant::Library(custom_sink.library),
                 inputs: custom_sink.inputs,
                 configuration: overwritting_configuration
                     .merge_overwrite(custom_sink.configuration),
@@ -101,7 +104,7 @@ impl FlattenedSinkDescriptor {
                 id: sink_desc.id,
                 description: zenoh_desc.description,
                 inputs: zenoh_desc.publishers.keys().cloned().collect(),
-                library: SinkLibrary::Zenoh(zenoh_desc.publishers),
+                sink: SinkVariant::Zenoh(zenoh_desc.publishers),
                 configuration: Configuration::default(),
                 runtime: sink_desc.runtime,
             }),

@@ -13,14 +13,14 @@
 //
 
 use crate::{
-    flattened::nodes::{sink::SinkLibrary, source::SourceLibrary},
+    flattened::nodes::{sink::SinkVariant, source::SourceVariant},
     uri::try_load_descriptor,
     DataFlowDescriptor, FlattenedDataFlowDescriptor, FlattenedOperatorDescriptor,
     FlattenedSinkDescriptor, FlattenedSourceDescriptor, InputDescriptor, LinkDescriptor,
     OutputDescriptor,
 };
 use serde_json::json;
-use std::str::FromStr;
+use url::Url;
 use uuid::Uuid;
 use zenoh_flow_commons::{RuntimeId, Vars};
 
@@ -69,7 +69,7 @@ fn test_flatten_descriptor() {
             id: "source-1".into(),
             description: "source".into(),
             outputs: vec!["source-out".into()],
-            library: SourceLibrary::Uri("file://source.so".into()),
+            source: SourceVariant::Library(Url::parse("file://source.so").unwrap()),
             configuration: json!({ "foo": "global-outer" }).into(),
             runtime: Some(runtime_1),
         },
@@ -77,7 +77,7 @@ fn test_flatten_descriptor() {
             id: "source-2".into(),
             description: "source".into(),
             outputs: vec!["source-out".into()],
-            library: SourceLibrary::Uri("file://source.so".into()),
+            source: SourceVariant::Library(Url::parse("file://source.so").unwrap()),
             configuration: json!({ "foo": "global-outer" }).into(),
             runtime: None,
         },
@@ -88,7 +88,7 @@ fn test_flatten_descriptor() {
                 "source-composite-out-1".into(),
                 "source-composite-out-2".into(),
             ],
-            library: SourceLibrary::Uri("file://source-composite.so".into()),
+            source: SourceVariant::Library(Url::parse("file://source-composite.so").unwrap()),
             configuration: json!({ "foo": "global-outer", "bar": "re-reverse" }).into(),
             runtime: Some(runtime_source_composite),
         },
@@ -113,7 +113,7 @@ fn test_flatten_descriptor() {
             description: "operator".into(),
             inputs: vec!["operator-in".into()],
             outputs: vec!["operator-out".into()],
-            library: "file://operator.so".into(),
+            library: Url::parse("file://operator.so").unwrap(),
             configuration: json!({ "foo": "global-outer" }).into(),
             runtime: None,
         },
@@ -122,7 +122,7 @@ fn test_flatten_descriptor() {
             description: "operator".into(),
             inputs: vec!["operator-in".into()],
             outputs: vec!["operator-out".into()],
-            library: "file://operator.so".into(),
+            library: Url::parse("file://operator.so").unwrap(),
             configuration: json!({ "foo": "global-outer" }).into(),
             runtime: None,
         },
@@ -140,7 +140,7 @@ fn test_flatten_descriptor() {
             description: "leaf-operator-1".into(),
             inputs: vec!["sub-operator-1-in-1".into(), "sub-operator-1-in-2".into()],
             outputs: vec!["sub-operator-1-out".into()],
-            library: "file://sub-operator-1.so".into(),
+            library: Url::parse("file://sub-operator-1.so").unwrap(),
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" })
                     .into(),
@@ -157,7 +157,7 @@ fn test_flatten_descriptor() {
             description: "sub-leaf-operator-1".into(),
             inputs: vec!["sub-sub-operator-1-in".into()],
             outputs: vec!["sub-sub-operator-1-out".into()],
-            library: "file://sub-sub-operator-1.so".into(),
+            library: Url::parse("file://sub-sub-operator-1.so").unwrap(),
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner", "baz": "leaf" }).into(),
             runtime: Some(runtime_operator_composite.clone()),
@@ -170,7 +170,7 @@ fn test_flatten_descriptor() {
             description: "sub-leaf-operator-2".into(),
             inputs: vec!["sub-sub-operator-2-in".into()],
             outputs: vec!["sub-sub-operator-2-out".into()],
-            library: "file://sub-sub-operator-2.so".into(),
+            library: Url::parse("file://sub-sub-operator-2.so").unwrap(),
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer", "buzz": "composite-inner" }).into(),
             runtime: Some(runtime_operator_composite.clone()),
@@ -183,7 +183,7 @@ fn test_flatten_descriptor() {
             description: "leaf-operator-2".into(),
             inputs: vec!["sub-operator-2-in".into()],
             outputs: vec!["sub-operator-2-out-1".into(), "sub-operator-2-out-2".into()],
-            library: "file://sub-operator-2.so".into(),
+            library: Url::parse("file://sub-operator-2.so").unwrap(),
             configuration:
                 json!({ "foo": "global-outer", "quux": "global-inner", "bar": "composite-outer" }).into(),
             runtime: Some(runtime_operator_composite),
@@ -209,7 +209,7 @@ fn test_flatten_descriptor() {
             id: "sink-1".into(),
             description: "sink".into(),
             inputs: vec!["sink-in".into()],
-            library: SinkLibrary::Uri("file://sink.so".into()),
+            sink: SinkVariant::Library(Url::parse("file://sink.so").unwrap()),
             configuration: json!({ "foo": "global-outer" }).into(),
             runtime: None,
         },
@@ -217,7 +217,7 @@ fn test_flatten_descriptor() {
             id: "sink-2".into(),
             description: "sink".into(),
             inputs: vec!["sink-in".into()],
-            library: SinkLibrary::Uri("file://sink.so".into()),
+            sink: SinkVariant::Library(Url::parse("file://sink.so").unwrap()),
             configuration: json!({ "foo": "global-outer" }).into(),
             runtime: Some(runtime_2),
         },
@@ -225,7 +225,7 @@ fn test_flatten_descriptor() {
             id: "sink-composite".into(),
             description: "composite-sink".into(),
             inputs: vec!["sink-composite-in-1".into(), "sink-composite-in-2".into()],
-            library: SinkLibrary::Uri("file://sink-composite.so".into()),
+            sink: SinkVariant::Library(Url::parse("file://sink-composite.so").unwrap()),
             configuration: json!({ "foo": "global-outer", "bar": "reverse" }).into(),
             runtime: Some(runtime_sink_composite),
         },

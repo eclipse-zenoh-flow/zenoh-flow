@@ -12,12 +12,12 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use super::RemoteNodeDescriptor;
 use crate::ZenohSinkDescriptor;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use zenoh_flow_commons::{Configuration, NodeId, PortId, RuntimeId};
-
-use super::RemoteNodeDescriptor;
+use url::Url;
 
 /// A `SinkDescriptor` uniquely identifies a Sink.
 ///
@@ -103,7 +103,7 @@ pub(crate) enum SinkVariants {
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CustomSinkDescriptor {
     pub description: Arc<str>,
-    pub library: Arc<str>,
+    pub library: Url,
     pub inputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,

@@ -57,7 +57,7 @@ serde_json = "1.0"
 serde_yaml = "0.9"
 tracing = { version = "0.1", features = ["log"] }
 uhlc = "0.6"
-url = "2.2"
+url = { version = "2.2", features = ["serde"] }
 uuid = { version = "1.1", features = ["serde", "v4"] }
 zenoh = { version = "0.7.2-rc", features = ["shared-memory"] }
 zenoh-collections = { version = "0.7.2-rc" }
