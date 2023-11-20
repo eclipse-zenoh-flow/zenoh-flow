@@ -95,7 +95,6 @@ sources:
     library: file:///home/zenoh-flow/libsource.so
     outputs:
       - out-0
-    runtime: {0}
 
 operators:
   - id: operator-1
@@ -105,7 +104,6 @@ operators:
       - in-1
     outputs:
       - out-1
-    runtime: {0}
 
 sinks:
   - id: sink-2
@@ -113,7 +111,6 @@ sinks:
     library: file:///home/zenoh-flow/libsink.so
     inputs:
       - in-2
-    runtime: {0}
 
 links:
   - from:
@@ -129,6 +126,12 @@ links:
     to:
      node: sink-2
      input: in-2
+
+mapping:
+  {0}:
+    - source-0
+    - operator-1
+    - sink-2
 "#,
         runtime
     );
@@ -162,7 +165,6 @@ sources:
     library: file:///home/zenoh-flow/libsource.so
     outputs:
       - out-0
-    runtime: {}
 
 operators:
   - id: operator-1
@@ -172,7 +174,6 @@ operators:
       - in-1
     outputs:
       - out-1
-    runtime: {}
 
 sinks:
   - id: sink-2
@@ -195,6 +196,12 @@ links:
     to:
      node: sink-2
      input: in-2
+
+mapping:
+  {0}:
+    - source-0
+  {1}:
+    - operator-1
 "#,
         runtime_thing, runtime_edge
     );

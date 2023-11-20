@@ -14,8 +14,11 @@
 
 use crate::{LinkDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use zenoh_flow_commons::Configuration;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
+use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 
 /// TODO@J-Loudet Documentation?
 ///
@@ -141,4 +144,6 @@ pub struct DataFlowDescriptor {
     pub sources: Vec<SourceDescriptor>,
     pub sinks: Vec<SinkDescriptor>,
     pub links: Vec<LinkDescriptor>,
+    #[serde(default)]
+    pub mapping: HashMap<RuntimeId, HashSet<NodeId>>,
 }

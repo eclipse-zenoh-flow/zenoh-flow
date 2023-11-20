@@ -128,7 +128,12 @@ impl Runtime {
     /// The only scenario in which this method fails is if we did not correctly processed the data flow descriptor and
     /// ended up having a link with nodes on two different runtime.
     fn create_channels(&self, record: &DataFlowRecord) -> Result<Channels> {
-        let nodes_runtime = record.get_nodes_for_runtime(&self.runtime_id);
+        let nodes_runtime = match record.mapping.get(&self.runtime_id) {
+            Some(nodes) => nodes,
+            // NOTE: There is a possibility that the runtime that is orchestrating the deployment of the data flow will
+            // not have to run any node. In which case, `record.mapping.get` will return nothing.
+            None => return Ok(HashMap::default()),
+        };
 
         let mut channels = HashMap::default();
         for link in &record.links {
@@ -192,11 +197,15 @@ The problematic link is:
         context: Context,
     ) -> Result<HashMap<NodeId, Runner>> {
         let mut runners = HashMap::default();
+        let assigned_nodes = match record.mapping.get(&self.runtime_id) {
+            Some(nodes) => nodes,
+            None => return Ok(HashMap::default()),
+        };
 
         for (operator_id, operator) in record
             .operators
             .iter()
-            .filter(|(_, operator)| operator.runtime() == &self.runtime_id)
+            .filter(|(_, operator)| assigned_nodes.contains(&operator.id))
         {
             let (inputs, outputs) = channels.remove(operator_id).context(format!(
                 r#"
@@ -233,11 +242,15 @@ The channels for the Inputs and Outputs of Operator < {} > were not created.
         context: Context,
     ) -> Result<HashMap<NodeId, Runner>> {
         let mut runners = HashMap::default();
+        let assigned_nodes = match record.mapping.get(&self.runtime_id) {
+            Some(nodes) => nodes,
+            None => return Ok(HashMap::default()),
+        };
 
         for (source_id, source) in record
             .sources
             .iter()
-            .filter(|(_, source)| source.runtime() == &self.runtime_id)
+            .filter(|(_, source)| assigned_nodes.contains(&source.id))
         {
             let (_, outputs) = channels.remove(source_id).context(format!(
                 r#"
@@ -290,11 +303,15 @@ Maybe change the features in the Cargo.toml?
         context: Context,
     ) -> Result<HashMap<NodeId, Runner>> {
         let mut runners = HashMap::default();
+        let assigned_nodes = match record.mapping.get(&self.runtime_id) {
+            Some(nodes) => nodes,
+            None => return Ok(HashMap::default()),
+        };
 
         for (sink_id, sink) in record
             .sinks
             .iter()
-            .filter(|(_, sink)| sink.runtime() == &self.runtime_id)
+            .filter(|(_, sink)| assigned_nodes.contains(&sink.id))
         {
             let (inputs, _) = channels.remove(sink_id).context(format!(
                 r#"

@@ -15,8 +15,8 @@
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, sync::Arc};
-use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, RuntimeId, Vars};
 use url::Url;
+use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, Vars};
 use zenoh_keyexpr::OwnedKeyExpr;
 
 use crate::{
@@ -34,8 +34,6 @@ pub struct FlattenedSourceDescriptor {
     pub outputs: Vec<PortId>,
     #[serde(default)]
     pub configuration: Configuration,
-    #[serde(default)]
-    pub runtime: Option<RuntimeId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -99,7 +97,6 @@ impl FlattenedSourceDescriptor {
                 outputs: custom_source.outputs,
                 configuration: overwritting_configuration
                     .merge_overwrite(custom_source.configuration),
-                runtime: source_desc.runtime,
             }),
             LocalSourceVariants::Zenoh(zenoh_desc) => Ok(Self {
                 id: source_desc.id,
@@ -107,7 +104,6 @@ impl FlattenedSourceDescriptor {
                 outputs: zenoh_desc.subscribers.keys().cloned().collect(),
                 source: SourceVariant::Zenoh(zenoh_desc.subscribers),
                 configuration: Configuration::default(),
-                runtime: source_desc.runtime,
             }),
         }
     }

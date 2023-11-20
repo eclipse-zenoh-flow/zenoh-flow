@@ -12,11 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{
-    connectors::{ReceiverRecord, SenderRecord},
-    OperatorRecord, SinkRecord, SourceRecord,
-};
-use anyhow::anyhow;
+use crate::connectors::{ReceiverRecord, SenderRecord};
+use anyhow::{anyhow, bail, Context};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
@@ -43,6 +40,7 @@ pub struct DataFlowRecord {
     pub senders: HashMap<NodeId, SenderRecord>,
     pub receivers: HashMap<NodeId, ReceiverRecord>,
     pub links: Vec<LinkDescriptor>,
+    pub mapping: HashMap<RuntimeId, HashSet<NodeId>>,
 }
 
 impl DataFlowRecord {
@@ -67,6 +65,7 @@ impl DataFlowRecord {
             operators,
             sinks,
             mut links,
+            mut mapping,
         } = data_flow;
 
         let record_id = uuid::Uuid::new_v4().into();
@@ -76,13 +75,23 @@ impl DataFlowRecord {
         let mut receivers = HashMap::default();
         let mut senders = HashMap::default();
 
-        // To determine which nodes should be connected, collect all the mappings in a dedicated structure while
-        // converting the flattened descriptors into record.
-        let mut mapping = HashMap::with_capacity(sources.len() + operators.len() + sinks.len());
+        let mut default_mapping_if_unassigned = |node_id: &NodeId| {
+            for (_, nodes) in mapping.iter() {
+                if nodes.contains(node_id) {
+                    return;
+                }
+            }
+
+            let runtime_entry = mapping
+                .entry(default_runtime.clone())
+                .or_insert_with(HashSet::default);
+            runtime_entry.insert(node_id.clone());
+        };
 
         let sources = sources
             .into_iter()
             .map(|source| {
+                default_mapping_if_unassigned(&source.id);
                 (source.id.clone(), source)
             })
             .collect::<HashMap<_, _>>();
@@ -90,6 +99,7 @@ impl DataFlowRecord {
         let operators = operators
             .into_iter()
             .map(|operator| {
+                default_mapping_if_unassigned(&operator.id);
                 (operator.id.clone(), operator)
             })
             .collect::<HashMap<_, _>>();
@@ -97,20 +107,34 @@ impl DataFlowRecord {
         let sinks = sinks
             .into_iter()
             .map(|sink| {
+                default_mapping_if_unassigned(&sink.id);
                 (sink.id.clone(), sink)
             })
             .collect::<HashMap<_, _>>();
 
-        for link in links.iter_mut() {
-            let runtime_from = mapping
-                .entry(link.from.node.clone())
-                .or_insert(default_runtime.clone())
-                .clone(); // extra clone to not mutably borrow `mapping` twice
-            let runtime_to = mapping
-                .entry(link.to.node.clone())
-                .or_insert(default_runtime.clone());
+        let try_get_mapping = |node_id: &NodeId| -> Result<&RuntimeId> {
+            for (runtime, nodes) in mapping.iter() {
+                if nodes.contains(node_id) {
+                    return Ok(runtime);
+                }
+            }
 
-            if runtime_from != *runtime_to {
+            bail!(
+                r#"
+Zenoh-Flow encountered a fatal error: the node < {} > is not mapped to a runtime.
+Is its name valid (i.e. does it reference an actual node)?
+"#,
+                node_id
+            )
+        };
+
+        for link in links.iter_mut() {
+            let runtime_from = try_get_mapping(&link.from.node)
+                .context(format!("Failed to process link:\n{}", link))?;
+            let runtime_to = try_get_mapping(&link.to.node)
+                .context(format!("Failed to process link:\n{}", link))?;
+
+            if runtime_from != runtime_to {
                 let key_expr_str = format!("{}/{}/{}", record_id, link.from.node, link.from.output);
                 let key_expression =
                     OwnedKeyExpr::autocanonize(key_expr_str.clone()).map_err(|e| {
@@ -174,6 +198,7 @@ Caused by:
                 );
             }
         }
+
         links.append(&mut additional_links);
 
         Ok(Self {
@@ -185,6 +210,7 @@ Caused by:
             senders,
             receivers,
             links,
+            mapping,
         })
     }
 
@@ -202,43 +228,6 @@ Caused by:
     /// Returns the name of the data flow from which this [`DataFlowRecord`] was generated.
     pub fn name(&self) -> &Arc<str> {
         &self.name
-    }
-
-    /// Returns the list of nodes that are set to run on the specified runtime.
-    pub fn get_nodes_for_runtime(&self, runtime: &RuntimeId) -> HashSet<&NodeId> {
-        let mut nodes: HashSet<&NodeId> = HashSet::default();
-        nodes.extend(
-            self.sources
-                .values()
-                .filter(|source| source.runtime() == runtime)
-                .map(|op| &op.id),
-        );
-        nodes.extend(
-            self.operators
-                .values()
-                .filter(|operator| operator.runtime() == runtime)
-                .map(|op| &op.id),
-        );
-        nodes.extend(
-            self.sinks
-                .values()
-                .filter(|sink| sink.runtime() == runtime)
-                .map(|sink| &sink.id),
-        );
-        nodes.extend(
-            self.senders
-                .values()
-                .filter(|sender| sender.runtime() == runtime)
-                .map(|sender| &sender.id),
-        );
-        nodes.extend(
-            self.receivers
-                .values()
-                .filter(|receiver| receiver.runtime() == runtime)
-                .map(|receiver| &receiver.id),
-        );
-
-        nodes
     }
 }
 

@@ -18,8 +18,12 @@ use crate::{
 };
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, fmt::Display, sync::Arc};
-use zenoh_flow_commons::{Configuration, Result, Vars};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
+    sync::Arc,
+};
+use zenoh_flow_commons::{Configuration, NodeId, Result, RuntimeId, Vars};
 
 use super::validator::Validator;
 
@@ -30,6 +34,7 @@ pub struct FlattenedDataFlowDescriptor {
     pub operators: Vec<FlattenedOperatorDescriptor>,
     pub sinks: Vec<FlattenedSinkDescriptor>,
     pub links: Vec<LinkDescriptor>,
+    pub mapping: HashMap<RuntimeId, HashSet<NodeId>>,
 }
 
 impl Display for FlattenedDataFlowDescriptor {
@@ -42,7 +47,7 @@ impl FlattenedDataFlowDescriptor {
     pub fn try_flatten(mut data_flow: DataFlowDescriptor, vars: Vars) -> Result<Self> {
         let mut flattened_operators = Vec::with_capacity(data_flow.operators.len());
         for operator_desc in data_flow.operators {
-            let operator_runtime = operator_desc.runtime.clone();
+            let operator_id = operator_desc.id.clone();
             let (mut flat_ops, mut flat_links, patch) = FlattenedOperatorDescriptor::try_flatten(
                 operator_desc,
                 data_flow.configuration.clone(),
@@ -51,10 +56,15 @@ impl FlattenedDataFlowDescriptor {
                 &mut HashSet::default(),
             )?;
 
-            flat_ops
-                .iter_mut()
-                .for_each(|flat_op| flat_op.runtime = operator_runtime.clone());
+            // Update the mapping: removing the id of the composite node & adding the "leaves".
+            let flattened_ids: Vec<_> = flat_ops.iter().map(|op| op.id.clone()).collect();
+            for nodes in data_flow.mapping.values_mut() {
+                if nodes.remove(&operator_id) {
+                    nodes.extend(flattened_ids.clone().into_iter());
+                }
+            }
 
+            // NOTE: This `append` has to be done after updating the mapping as it drains the content of the vector.
             flattened_operators.append(&mut flat_ops);
             patch.apply(&mut data_flow.links);
             data_flow.links.append(&mut flat_links);
@@ -90,6 +100,7 @@ impl FlattenedDataFlowDescriptor {
             operators: flattened_operators,
             sinks,
             links: data_flow.links,
+            mapping: data_flow.mapping,
         };
 
         Validator::validate(&flattened_data_flow)
