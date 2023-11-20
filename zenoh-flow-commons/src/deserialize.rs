@@ -29,13 +29,14 @@ where
     if id.contains(['*', '#', '$', '?', '>']) {
         return Err(serde::de::Error::custom(format!(
             r#"
-Identifiers (for nodes or ports) in Zenoh-Flow must *not* contain any of the characters: '*', '#', '$', '?', '\'.
+Identifiers (for nodes or ports) in Zenoh-Flow must *not* contain any of the characters: '*', '#', '$', '?', '>'.
 The identifier < {} > does not satisfy that condition.
 
 These characters, except for '>', have a special meaning in Zenoh and they could negatively impact Zenoh-Flow's
 behavior.
-The character '\' is used as a "separator" when flattening a composite operator. Allowing it could also negatively
-impact Zenoh-Flow's behavior.
+
+The character '>' is used as a separator when flattening a composite operator. Allowing it could also negatively impact
+Zenoh-Flow's behavior.
 "#,
             id
         )));
