@@ -39,8 +39,8 @@ use zenoh_keyexpr::OwnedKeyExpr;
 /// let yaml_description = r#"
 /// description: My zenoh source
 /// zenoh-subscribers:
-///   - rt/*/cmd_vel
-///   - rt/*/status
+///   "cmd_vel": "rt/*/cmd_vel"
+///   "status": "rt/*/status"
 /// "#;
 ///
 /// let z_source_yaml = serde_yaml::from_str::<ZenohSourceDescriptor>(yaml_description).unwrap();
@@ -48,10 +48,10 @@ use zenoh_keyexpr::OwnedKeyExpr;
 /// let json_description = r#"
 /// {
 ///    "description": "My zenoh source",
-///    "zenoh-subscribers": [
-///      "rt/*/cmd_vel",
-///      "rt/*/status"
-///    ]
+///    "zenoh-subscribers": {
+///      "cmd_vel": "rt/*/cmd_vel",
+///      "status": "rt/*/status"
+///    }
 /// }
 /// "#;
 ///
@@ -85,8 +85,8 @@ pub struct ZenohSourceDescriptor {
 /// let yaml_description = r#"
 /// description: My zenoh sink
 /// zenoh-publishers:
-///   - rt/cmd_vel
-///   - rt/status
+///   cmd_vel: rt/cmd_vel
+///   status: rt/status
 /// "#;
 ///
 /// let z_sink_yaml = serde_yaml::from_str::<ZenohSinkDescriptor>(yaml_description).unwrap();
@@ -94,10 +94,10 @@ pub struct ZenohSourceDescriptor {
 /// let json_description = r#"
 /// {
 ///    "description": "My zenoh sink",
-///    "zenoh-publishers": [
-///      "rt/cmd_vel",
-///      "rt/status"
-///    ]
+///    "zenoh-publishers": {
+///      "cmd_vel": "rt/cmd_vel",
+///      "status": "rt/status"
+///    }
 /// }
 /// "#;
 ///
@@ -112,20 +112,19 @@ pub struct ZenohSinkDescriptor {
     pub publishers: HashMap<PortId, OwnedKeyExpr>,
 }
 
-// Transforms a Vec<String> into a HashMap<PortId, OwnedKeyExpr>.
-//
-//
+// Transforms a HashMap<String, String> into a HashMap<PortId, OwnedKeyExpr>.
 fn deserialize_canon<'de, D>(
     deserializer: D,
 ) -> std::result::Result<HashMap<PortId, OwnedKeyExpr>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let key_expressions: Vec<String> = serde::de::Deserialize::deserialize(deserializer)?;
+    let key_expressions: HashMap<String, String> =
+        serde::de::Deserialize::deserialize(deserializer)?;
     let mut h_map = HashMap::with_capacity(key_expressions.len());
     let mut h_set = HashSet::with_capacity(key_expressions.len());
 
-    for key_expr in key_expressions {
+    for (port_id, key_expr) in key_expressions {
         let owned_canon_ke = OwnedKeyExpr::autocanonize(key_expr.clone()).map_err(|e| {
             serde::de::Error::custom(format!(
                 "Failed to autocanonize key expression < {} >:\n{:?}",
@@ -157,7 +156,7 @@ https://github.com/eclipse-zenoh/roadmap/blob/main/rfcs/ALL/Key%20Expressions.md
             );
         }
 
-        h_map.insert(key_expr.into(), owned_canon_ke);
+        h_map.insert(port_id.into(), owned_canon_ke);
     }
 
     Ok(h_map)

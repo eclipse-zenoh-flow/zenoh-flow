@@ -76,13 +76,12 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 /// id: my-source-0
 /// description: My zenoh source
 /// zenoh-subscribers:
-///   - key/expr/0
-///   - key/expr/1
+///   ke-0: key/expr/0
+///   ke-1: key/expr/1
 /// "#;
 ///
 /// assert!(serde_yaml::from_str::<SourceDescriptor>(source_desc_zenoh).is_ok());
 /// ```
-///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SourceDescriptor {
     pub id: NodeId,

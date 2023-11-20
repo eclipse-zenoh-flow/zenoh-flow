@@ -76,8 +76,8 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 /// id: my-sink-0
 /// description: My zenoh sink
 /// zenoh-publishers:
-///   - key/expr/0
-///   - key/expr/1
+///   key_0: key/expr/0
+///   key_1: key/expr/1
 /// "#;
 ///
 /// assert!(serde_yaml::from_str::<SinkDescriptor>(sink_desc_zenoh).is_ok());
