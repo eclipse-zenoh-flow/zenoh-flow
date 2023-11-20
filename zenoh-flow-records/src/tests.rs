@@ -313,3 +313,60 @@ mapping:
     };
     assert!(record.links.contains(&link_default));
 }
+
+#[test]
+fn test_serialize() {
+    let flow_yaml = r#"
+name: base test flow
+
+sources:
+  - id: source-0
+    description: test source
+    library: file:///home/zenoh-flow/libsource.so
+    outputs:
+      - out-0
+
+operators:
+  - id: operator-1
+    description: test operator
+    library: file:///home/zenoh-flow/liboperator.so
+    inputs:
+      - in-1
+    outputs:
+      - out-1
+
+sinks:
+  - id: sink-2
+    description: test sink
+    library: file:///home/zenoh-flow/libsink.so
+    inputs:
+      - in-2
+
+links:
+  - from:
+     node: source-0
+     output: out-0
+    to:
+     node: operator-1
+     input: in-1
+
+  - from:
+     node: operator-1
+     output: out-1
+    to:
+     node: sink-2
+     input: in-2
+    "#;
+
+    let flat_desc = FlattenedDataFlowDescriptor::try_flatten(
+        serde_yaml::from_str::<DataFlowDescriptor>(flow_yaml).unwrap(),
+        Vars::default(),
+    )
+    .unwrap();
+
+    let default_runtime: RuntimeId = Uuid::new_v4().into();
+    let record = DataFlowRecord::try_new(flat_desc, &default_runtime).unwrap();
+
+    let _string = serde_yaml::to_string(&record).expect("Failed to serialize to yaml");
+    println!("{_string}");
+}
