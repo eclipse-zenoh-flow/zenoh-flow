@@ -25,6 +25,9 @@ use crate::{
 };
 
 /// TODO@J-Loudet
+/// - documentation
+/// - validation would be a nice addition: what if users decide to write their own yaml/json and write something that is
+/// wrong? For instance, assuming a built-in Zenoh Source is wanted, some keys that are not mapped to a subscriber.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedSourceDescriptor {
     pub id: NodeId,
@@ -106,5 +109,61 @@ impl FlattenedSourceDescriptor {
                 configuration: Configuration::default(),
             }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serialize_zenoh() {
+        let yaml_str = r#"
+id: source-0
+description: source-0
+zenoh:
+  kitchen_all: home/kitchen/*
+outputs:
+  - kitchen_all
+configuration: null
+runtime: null
+"#;
+        let flat_source: FlattenedSourceDescriptor =
+            serde_yaml::from_str(yaml_str).expect("Failed to deserialise");
+
+        assert!(serde_yaml::to_string(&flat_source).is_ok());
+    }
+
+    #[test]
+    fn test_serialize_no_configuration() {
+        let yaml_str = r#"
+id: "source-0"
+description: "source-0"
+library: file:///home/zenoh-flow/nodes/libsource_0.so
+outputs:
+  - out-0
+"#;
+
+        let flat_source: FlattenedSourceDescriptor =
+            serde_yaml::from_str(yaml_str).expect("Failed to deserialise");
+        assert!(serde_yaml::to_string(&flat_source).is_ok());
+    }
+
+    #[test]
+    fn test_serialize_full() {
+        let yaml_str = r#"
+id: "source-0"
+description: "source-0"
+library: file:///home/zenoh-flow/nodes/libsource_0.so
+outputs:
+  - out-0
+runtime: 3dd70f57-feb7-424c-9278-8bc8813c644e
+configuration:
+  answer: 42
+"#;
+
+        let flat_source: FlattenedSourceDescriptor =
+            serde_yaml::from_str(yaml_str).expect("Failed to deserialise");
+        assert!(serde_yaml::to_string(&flat_source).is_ok());
     }
 }

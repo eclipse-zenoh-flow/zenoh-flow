@@ -107,3 +107,57 @@ impl FlattenedSinkDescriptor {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serialize_zenoh() {
+        let yaml_str = r#"
+id: sink-2
+description: sink-2
+zenoh:
+  kitchen_all: home/kitchen/*
+inputs:
+  - kitchen_all
+configuration: null
+"#;
+        let flat_sink: FlattenedSinkDescriptor =
+            serde_yaml::from_str(yaml_str).expect("Failed to deserialise");
+
+        assert!(serde_yaml::to_string(&flat_sink).is_ok());
+    }
+
+    #[test]
+    fn test_serialize_no_configuration() {
+        let yaml_str = r#"
+id: sink-2
+description: sink-2
+library: file:///home/zenoh-flow/nodes/libsink_0.so
+inputs:
+  - in-0
+"#;
+
+        let flat_sink: FlattenedSinkDescriptor =
+            serde_yaml::from_str(yaml_str).expect("Failed to deserialise");
+        assert!(serde_yaml::to_string(&flat_sink).is_ok());
+    }
+
+    #[test]
+    fn test_serialize_full() {
+        let yaml_str = r#"
+id: "sink-0"
+description: "sink-0"
+library: file:///home/zenoh-flow/nodes/libsink_0.so
+inputs:
+  - in-0
+configuration:
+  answer: 42
+"#;
+
+        let flat_sink: FlattenedSinkDescriptor =
+            serde_yaml::from_str(yaml_str).expect("Failed to deserialise");
+        assert!(serde_yaml::to_string(&flat_sink).is_ok());
+    }
+}
