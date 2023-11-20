@@ -24,7 +24,8 @@ use std::{
 };
 use zenoh_flow_commons::{NodeId, RecordId, Result, RuntimeId};
 use zenoh_flow_descriptors::{
-    FlattenedDataFlowDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor,
+    FlattenedDataFlowDescriptor, FlattenedOperatorDescriptor, FlattenedSinkDescriptor,
+    FlattenedSourceDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor,
 };
 use zenoh_keyexpr::OwnedKeyExpr;
 
@@ -36,9 +37,9 @@ const RECEIVER_SUFFIX: &str = "__zenoh_flow_receiver";
 pub struct DataFlowRecord {
     pub(crate) record_id: RecordId,
     pub(crate) name: Arc<str>,
-    pub sources: HashMap<NodeId, SourceRecord>,
-    pub operators: HashMap<NodeId, OperatorRecord>,
-    pub sinks: HashMap<NodeId, SinkRecord>,
+    pub sources: HashMap<NodeId, FlattenedSourceDescriptor>,
+    pub operators: HashMap<NodeId, FlattenedOperatorDescriptor>,
+    pub sinks: HashMap<NodeId, FlattenedSinkDescriptor>,
     pub senders: HashMap<NodeId, SenderRecord>,
     pub receivers: HashMap<NodeId, ReceiverRecord>,
     pub links: Vec<LinkDescriptor>,
@@ -82,30 +83,21 @@ impl DataFlowRecord {
         let sources = sources
             .into_iter()
             .map(|source| {
-                let record = SourceRecord::new(source, default_runtime.clone());
-                mapping.insert(record.id.clone(), record.runtime.clone());
-
-                (record.id.clone(), record)
+                (source.id.clone(), source)
             })
-            .collect::<HashMap<NodeId, SourceRecord>>();
+            .collect::<HashMap<_, _>>();
 
         let operators = operators
             .into_iter()
             .map(|operator| {
-                let record = OperatorRecord::new(operator, default_runtime.clone());
-                mapping.insert(record.id.clone(), record.runtime.clone());
-
-                (record.id.clone(), record)
+                (operator.id.clone(), operator)
             })
             .collect::<HashMap<_, _>>();
 
         let sinks = sinks
             .into_iter()
             .map(|sink| {
-                let record = SinkRecord::new(sink, default_runtime.clone());
-                mapping.insert(record.id.clone(), record.runtime.clone());
-
-                (record.id.clone(), record)
+                (sink.id.clone(), sink)
             })
             .collect::<HashMap<_, _>>();
 

@@ -15,8 +15,5 @@
 mod dataflow;
 pub use dataflow::DataFlowRecord;
 
-mod nodes;
-pub use nodes::{OperatorRecord, SinkRecord, SourceRecord};
-
 mod connectors;
 pub use connectors::{ReceiverRecord, SenderRecord};
