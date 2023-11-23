@@ -356,3 +356,68 @@ fn test_duplicate_composite_at_same_level_not_detected_as_recursion() {
     .expect("Failed to parse descriptor");
     assert!(FlattenedDataFlowDescriptor::try_flatten(descriptor, vars).is_ok());
 }
+
+#[test]
+fn test_serialize_deserialize() {
+    let flow_yaml = r#"
+name: test-flow
+
+sources:
+  - id: source-0
+    description: source-0
+    library: "file:///home/zenoh-flow/libsource.so"
+    outputs:
+      - out-1
+    configuration:
+      id: source-0
+
+operators:
+  - id: operator-1
+    description: operator-1
+    library: "file:///home/zenoh-flow/liboperator.so"
+    inputs:
+      - in-0
+    outputs:
+      - out-2
+    configuration:
+      id: operator-1
+
+sinks:
+  - id: sink-2
+    description: sink-2
+    library: "file:///home/zenoh-flow/libsink.so"
+    inputs:
+      - in-1
+    configuration:
+      id: sink-2
+
+links:
+  - from:
+      node: source-0
+      output: out-1
+    to:
+      node: operator-1
+      input: in-0
+
+  - from:
+      node: operator-1
+      output: out-2
+    to:
+      node: sink-2
+      input: in-1
+"#;
+
+    let flat_flow_yaml = serde_yaml::from_str::<FlattenedDataFlowDescriptor>(flow_yaml)
+        .expect("Failed to deserialize flow from YAML");
+
+    let json_string_flow =
+        serde_json::to_string(&flat_flow_yaml).expect("Failed to serialize flow as JSON");
+
+    let flat_flow_json =
+        serde_json::from_str::<FlattenedDataFlowDescriptor>(json_string_flow.as_str())
+            .expect("Failed to deserialize flow from JSON");
+
+    assert_eq!(flat_flow_yaml, flat_flow_json);
+    assert!(flat_flow_json.uuid.is_none());
+    assert!(flat_flow_yaml.mapping.is_empty());
+}

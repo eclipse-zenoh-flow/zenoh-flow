@@ -69,71 +69,6 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 /// "#;
 ///
 /// let data_flow_yaml = serde_yaml::from_str::<DataFlowDescriptor>(yaml).unwrap();
-///
-/// let json = r#"
-/// {
-///   "name": "DataFlow",
-///
-///   "configuration": {
-///     "foo": "bar"
-///   },
-///
-///   "sources": [
-///     {
-///       "id": "Source-0",
-///       "descriptor": "file:///home/zenoh-flow/nodes/source.yaml",
-///       "configuration": {
-///         "answer": 0
-///       }
-///     }
-///   ],
-///
-///   "operators": [
-///     {
-///       "id": "Operator-1",
-///       "descriptor": "file:///home/zenoh-flow/nodes/operator.yaml",
-///       "configuration": {
-///         "answer": 1
-///       }
-///     }
-///   ],
-///
-///   "sinks": [
-///     {
-///       "id": "Sink-2",
-///       "descriptor": "file:///home/zenoh-flow/nodes/sink.yaml",
-///       "configuration": {
-///         "answer": 2
-///       }
-///     }
-///   ],
-///
-///   "links": [
-///     {
-///       "from": {
-///         "node": "Source-0",
-///         "output": "out-operator"
-///       },
-///       "to": {
-///         "node": "Operator-1",
-///         "input": "in-source"
-///       }
-///     },
-///     {
-///       "from": {
-///         "node": "Operator-1",
-///         "output": "out-sink"
-///       },
-///       "to": {
-///         "node": "Sink-2",
-///         "input": "in-operator"
-///       }
-///     }
-///   ]
-/// }
-/// "#;
-///
-/// let data_flow_json = serde_json::from_str::<DataFlowDescriptor>(json).unwrap();
 /// assert_eq!(data_flow_yaml, data_flow_json);
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -154,4 +89,78 @@ pub struct DataFlowDescriptor {
     pub links: Vec<LinkDescriptor>,
     #[serde(default)]
     pub mapping: HashMap<RuntimeId, HashSet<NodeId>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serialization_deserialization() {
+        let flow_json_str = r#"
+{
+   "name": "DataFlow",
+
+   "configuration": {
+     "foo": "bar"
+   },
+
+   "sources": [
+     {
+       "id": "Source-0",
+       "descriptor": "file:///home/zenoh-flow/nodes/source.yaml",
+       "configuration": {
+         "answer": 0
+       }
+     }
+   ],
+
+   "operators": [
+     {
+       "id": "Operator-1",
+       "descriptor": "file:///home/zenoh-flow/nodes/operator.yaml",
+       "configuration": {
+         "answer": 1
+       }
+     }
+   ],
+
+   "sinks": [
+     {
+       "id": "Sink-2",
+       "descriptor": "file:///home/zenoh-flow/nodes/sink.yaml",
+       "configuration": {
+         "answer": 2
+       }
+     }
+   ],
+
+   "links": [
+     {
+       "from": {
+         "node": "Source-0",
+         "output": "out-operator"
+       },
+       "to": {
+         "node": "Operator-1",
+         "input": "in-source"
+       }
+     },
+     {
+       "from": {
+         "node": "Operator-1",
+         "output": "out-sink"
+       },
+       "to": {
+         "node": "Sink-2",
+         "input": "in-operator"
+       }
+     }
+   ]
+ }
+ "#;
+        let data_flow_json = serde_json::from_str::<DataFlowDescriptor>(flow_json_str)
+            .expect("Failed to deserialize flow from JSON");
+        assert!(serde_json::to_string(&data_flow_json).is_ok());
+    }
 }
