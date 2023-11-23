@@ -18,6 +18,7 @@ use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
+use uuid::Uuid;
 use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 
 /// TODO@J-Loudet Documentation?
@@ -137,6 +138,13 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct DataFlowDescriptor {
+    /// The `uuid` uniquely identifies an instance of a data flow.
+    ///
+    /// If provided, Zenoh-Flow will not generate one when instantiating the flow and keep this value instead. This
+    /// behavior can be useful when it is impossible to rely on a correctly configured Zenoh router (i.e. where a
+    /// storage subscribing to Zenoh-Flow's key expression exists).
+    #[serde(default)]
+    pub uuid: Option<Uuid>,
     pub name: Arc<str>,
     #[serde(default)]
     pub configuration: Configuration,

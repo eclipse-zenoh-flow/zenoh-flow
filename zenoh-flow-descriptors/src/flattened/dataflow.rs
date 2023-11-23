@@ -23,12 +23,15 @@ use std::{
     fmt::Display,
     sync::Arc,
 };
+use uuid::Uuid;
 use zenoh_flow_commons::{Configuration, NodeId, Result, RuntimeId, Vars};
 
 use super::validator::Validator;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct FlattenedDataFlowDescriptor {
+    #[serde(default)]
+    pub uuid: Option<Uuid>,
     pub name: Arc<str>,
     pub sources: Vec<FlattenedSourceDescriptor>,
     pub operators: Vec<FlattenedOperatorDescriptor>,
@@ -95,6 +98,7 @@ impl FlattenedDataFlowDescriptor {
             .collect::<Result<Vec<_>>>()?;
 
         let flattened_data_flow = Self {
+            uuid: data_flow.uuid,
             name: data_flow.name,
             sources,
             operators: flattened_operators,
