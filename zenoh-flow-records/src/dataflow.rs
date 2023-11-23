@@ -145,14 +145,11 @@ Is its name valid (i.e. does it reference an actual node)?
                         // '$' characters (look for `deserialize_id` in zenoh_flow_commons).
                         anyhow!(
                             r#"
-Zenoh-Flow encountered a fatal internal error:
-
-  The key expression generated to connect the nodes < {} > and < {} > is not valid:
-
-  {}
+Zenoh-Flow encountered a fatal internal error: the key expression generated to connect the nodes < {} > and < {} > is
+not valid:
+{}
 
 Caused by:
-
 {:?}
 "#,
                             link.from.node,
