@@ -37,6 +37,7 @@ pub struct FlattenedDataFlowDescriptor {
     pub operators: Vec<FlattenedOperatorDescriptor>,
     pub sinks: Vec<FlattenedSinkDescriptor>,
     pub links: Vec<LinkDescriptor>,
+    #[serde(default)]
     pub mapping: HashMap<RuntimeId, HashSet<NodeId>>,
 }
 
