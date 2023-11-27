@@ -13,12 +13,14 @@
 //
 
 use crate::deserialize::deserialize_id;
-use std::fmt::Display;
 use std::ops::Deref;
 use std::sync::Arc;
+use std::{fmt::Display, str::FromStr};
 
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use zenoh_protocol::core::ZenohId;
 
 /// A `NodeId` identifies a Node in a data flow.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone, Hash)]
@@ -80,8 +82,15 @@ impl From<&str> for PortId {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
-pub struct RuntimeId(Arc<Uuid>);
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[repr(transparent)]
+pub struct RuntimeId(ZenohId);
+
+impl RuntimeId {
+    pub fn rand() -> Self {
+        Self(ZenohId::rand())
+    }
+}
 
 impl Display for RuntimeId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -90,16 +99,26 @@ impl Display for RuntimeId {
 }
 
 impl Deref for RuntimeId {
-    type Target = Uuid;
+    type Target = ZenohId;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl From<Uuid> for RuntimeId {
-    fn from(value: Uuid) -> Self {
-        Self(Arc::new(value))
+impl From<ZenohId> for RuntimeId {
+    fn from(value: ZenohId) -> Self {
+        Self(value)
+    }
+}
+
+impl FromStr for RuntimeId {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(ZenohId::from_str(s)
+            .map_err(|e| anyhow!("Failed to parse < {} > as a valid ZenohId:\n{:?}", s, e))?
+            .into())
     }
 }
 

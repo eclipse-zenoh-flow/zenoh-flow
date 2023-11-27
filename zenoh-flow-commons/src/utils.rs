@@ -52,32 +52,13 @@ pub fn try_load_from_file<N>(path: impl AsRef<OsStr>, vars: Vars) -> Result<(N, 
 where
     N: for<'a> Deserialize<'a>,
 {
-    let mut path_buf = PathBuf::new();
-
-    #[cfg(test)]
-    {
-        // When running the test on the CI we cannot know the path of the clone of Zenoh-Flow. By
-        // using relative paths (w.r.t. the manifest dir) in the tests and, only in tests, prepend
-        // the paths with this environment variable we obtain a correct absolute path.
-        path_buf.push(env!("CARGO_MANIFEST_DIR"));
-        path_buf.push(
-            path.as_ref()
-                .to_string_lossy()
-                .strip_prefix('/')
-                .expect("Failed to remove leading '/'"),
-        );
-    }
-
-    #[cfg(not(test))]
-    path_buf.push(path.as_ref());
-
-    let path = std::fs::canonicalize(&path_buf).context(format!(
+    let path_buf = std::fs::canonicalize(path.as_ref()).context(format!(
         "Failed to canonicalize path (did you put an absolute path?):\n{}",
-        path_buf.display()
+        path.as_ref().to_string_lossy()
     ))?;
 
     let mut buf = String::default();
-    std::fs::File::open(path.clone())
+    std::fs::File::open(&path_buf)
         .context(format!("Failed to open file:\n{}", path_buf.display()))?
         .read_to_string(&mut buf)
         .context(format!(
@@ -85,8 +66,9 @@ where
             path_buf.display()
         ))?;
 
-    let merged_vars = vars
-        .merge_overwrite(deserializer::<Vars>(&path)?(&buf).context("Failed to deserialize Vars")?);
+    let merged_vars = vars.merge_overwrite(
+        deserializer::<Vars>(&path_buf)?(&buf).context("Failed to deserialize Vars")?,
+    );
 
     let expanded_buf = ramhorns::Template::new(buf.as_str())
         .context(format!(
@@ -96,8 +78,8 @@ where
         .render(&*merged_vars);
 
     Ok((
-        (deserializer::<N>(&path))?(&expanded_buf)
-            .context(format!("Failed to deserialize {}", &path.display()))?,
+        (deserializer::<N>(&path_buf))?(&expanded_buf)
+            .context(format!("Failed to deserialize {}", &path_buf.display()))?,
         merged_vars,
     ))
 }

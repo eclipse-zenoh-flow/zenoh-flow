@@ -16,7 +16,7 @@ use anyhow::Context;
 use async_std::io::ReadExt;
 use clap::Parser;
 use std::{path::PathBuf, sync::Arc};
-use zenoh_flow_commons::Vars;
+use zenoh_flow_commons::{RuntimeId, Vars};
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
 use zenoh_flow_records::DataFlowRecord;
 use zenoh_flow_runtime::{
@@ -76,7 +76,7 @@ async fn main() {
     let hlc = Arc::new(uhlc::HLC::default());
 
     let session = zenoh::open(zenoh::peer()).res().await.unwrap().into_arc();
-    let mut runtime = Runtime::new(loader, hlc, session);
+    let mut runtime = Runtime::new(RuntimeId::rand(), loader, hlc, session);
 
     let record = DataFlowRecord::try_new(flattened_flow, runtime.id())
         .context("Failed to create a Record from the flattened data flow descriptor")

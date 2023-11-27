@@ -1,8 +1,8 @@
 name: test-recursion-ok
 
 vars:
-  SCHEME: file://
-  BASE_DIR: ./src/tests/descriptors
+  SCHEME:
+  BASE_DIR:
 
 sources:
   - id: source-composite

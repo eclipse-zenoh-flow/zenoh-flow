@@ -53,13 +53,13 @@ impl IMergeOverwrite for Vars {
     }
 }
 
-impl<const N: usize> From<[(&str, &str); N]> for Vars {
-    fn from(value: [(&str, &str); N]) -> Self {
+impl<T: AsRef<str>, U: AsRef<str>, const N: usize> From<[(T, U); N]> for Vars {
+    fn from(value: [(T, U); N]) -> Self {
         Self {
             vars: Rc::new(
                 value
                     .into_iter()
-                    .map(|(k, v)| (k.into(), v.into()))
+                    .map(|(k, v)| (k.as_ref().into(), v.as_ref().into()))
                     .collect::<HashMap<Rc<str>, Rc<str>>>(),
             ),
         }

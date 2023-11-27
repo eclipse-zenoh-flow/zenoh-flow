@@ -25,7 +25,6 @@ use crate::{
 };
 use anyhow::{bail, Context as errContext};
 use uhlc::HLC;
-use uuid::Uuid;
 #[cfg(feature = "zenoh")]
 use zenoh::Session;
 #[cfg(feature = "shared-memory")]
@@ -58,13 +57,14 @@ impl Runtime {
 
     /// TODO@J-Loudet
     pub fn new(
+        id: RuntimeId,
         loader: Loader,
         hlc: Arc<HLC>,
         #[cfg(feature = "zenoh")] session: Arc<Session>,
         #[cfg(feature = "shared-memory")] shared_memory: SharedMemoryConfiguration,
     ) -> Self {
         Self {
-            runtime_id: Uuid::new_v4().into(),
+            runtime_id: id,
             #[cfg(feature = "zenoh")]
             session,
             hlc,

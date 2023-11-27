@@ -2,10 +2,10 @@ name: test
 
 vars:
   SCHEME: file://
-  BASE_DIR: ./tests/descriptors
-  RUNTIME_1: 10628aa2-66ca-4fda-8d5c-d7de63764bcc
-  RUNTIME_2: 5f7a170d-cfaf-4f7a-971e-6c3e63c50e1e
-  RUNTIME_COMPOSITE: e051658a-0cd6-4cef-8b08-0d0f17d3cc5d
+  BASE_DIR:
+  RUNTIME_1:
+  RUNTIME_2:
+  RUNTIME_COMPOSITE:
 
 configuration:
   foo: "global-outer"

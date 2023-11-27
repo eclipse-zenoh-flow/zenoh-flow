@@ -61,6 +61,7 @@ url = { version = "2.2", features = ["serde"] }
 uuid = { version = "1.1", features = ["serde", "v4"] }
 zenoh = { version = "0.7.2-rc", features = ["shared-memory"] }
 zenoh-collections = { version = "0.7.2-rc" }
+zenoh-protocol = { version = "0.7.2-rc" }
 zenoh-core = { version = "0.7.2-rc" }
 zenoh-ext = { version = "0.7.2-rc" }
 zenoh-flow-commons = { path = "./zenoh-flow-commons" }

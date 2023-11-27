@@ -16,7 +16,6 @@ use crate::{
     dataflow::{RECEIVER_SUFFIX, SENDER_SUFFIX},
     DataFlowRecord, ReceiverRecord, SenderRecord,
 };
-use uuid::Uuid;
 use zenoh_flow_commons::{NodeId, RuntimeId, Vars};
 use zenoh_flow_descriptors::{
     DataFlowDescriptor, FlattenedDataFlowDescriptor, InputDescriptor, LinkDescriptor,
@@ -74,7 +73,7 @@ links:
     )
     .unwrap();
 
-    let default_runtime: RuntimeId = Uuid::new_v4().into();
+    let default_runtime = RuntimeId::rand();
     let record = DataFlowRecord::try_new(flat_desc, &default_runtime).unwrap();
 
     assert!(record.receivers.is_empty());
@@ -84,7 +83,7 @@ links:
 
 #[test]
 fn test_success_same_runtime() {
-    let runtime: RuntimeId = Uuid::new_v4().into();
+    let runtime = RuntimeId::rand();
     let flow = format!(
         r#"
 name: base test flow
@@ -142,7 +141,7 @@ mapping:
     )
     .unwrap();
 
-    let record = DataFlowRecord::try_new(flat_desc, &Uuid::new_v4().into()).unwrap();
+    let record = DataFlowRecord::try_new(flat_desc, &RuntimeId::rand()).unwrap();
 
     assert!(record.receivers.is_empty());
     assert!(record.senders.is_empty());
@@ -151,9 +150,9 @@ mapping:
 
 #[test]
 fn test_success_different_runtime() {
-    let runtime_thing: RuntimeId = Uuid::new_v4().into();
-    let runtime_edge: RuntimeId = Uuid::new_v4().into();
-    let default_runtime: RuntimeId = Uuid::new_v4().into();
+    let runtime_thing = RuntimeId::rand();
+    let runtime_edge = RuntimeId::rand();
+    let default_runtime = RuntimeId::rand();
 
     let desc = format!(
         r#"
@@ -364,7 +363,7 @@ links:
     )
     .unwrap();
 
-    let default_runtime: RuntimeId = Uuid::new_v4().into();
+    let default_runtime = RuntimeId::rand();
     let record = DataFlowRecord::try_new(flat_desc, &default_runtime).unwrap();
 
     let _string = serde_yaml::to_string(&record).expect("Failed to serialize to yaml");

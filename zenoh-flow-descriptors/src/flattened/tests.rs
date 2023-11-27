@@ -23,7 +23,6 @@ use crate::{
 };
 use serde_json::json;
 use url::Url;
-use uuid::Uuid;
 use zenoh_flow_commons::{NodeId, RuntimeId, Vars};
 
 const BASE_DIR: &str = "./tests/descriptors";
@@ -40,11 +39,24 @@ const SCHEME: &str = "file://";
 // See the comments around the "expected" structures for more information.
 #[test]
 fn test_flatten_descriptor() {
-    // env variable CARGO_MANIFEST_DIR puts us in zenoh-flow/zenoh-flow-descriptors
-    let uri = format!("file://{}/data-flow.yml", BASE_DIR);
+    let base_dir = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), BASE_DIR);
+    let runtime_1 = RuntimeId::rand();
+    let runtime_2 = RuntimeId::rand();
+    let runtime_composite = RuntimeId::rand();
 
-    let (descriptor, vars) = try_load_descriptor::<DataFlowDescriptor>(&uri, Vars::default())
-        .expect("Failed to load DataFlowDescriptor");
+    let (descriptor, vars) = try_load_descriptor::<DataFlowDescriptor>(
+        &format!("file://{}/data-flow.yml", base_dir),
+        Vars::from([
+            ("BASE_DIR", base_dir.as_str()),
+            ("RUNTIME_1", format!("{}", runtime_1).as_str()),
+            ("RUNTIME_2", format!("{}", runtime_2).as_str()),
+            (
+                "RUNTIME_COMPOSITE",
+                format!("{}", runtime_composite).as_str(),
+            ),
+        ]),
+    )
+    .expect("Failed to load DataFlowDescriptor");
 
     let flatten = FlattenedDataFlowDescriptor::try_flatten(descriptor, vars).unwrap();
 
@@ -300,22 +312,10 @@ fn test_flatten_descriptor() {
     assert_eq!(expected_links.len(), flatten.links.len());
 
     let expected_mapping: HashMap<RuntimeId, HashSet<NodeId>> = HashMap::from([
+        (runtime_1, HashSet::from(["source-1".into()])),
+        (runtime_2, HashSet::from(["sink-2".into()])),
         (
-            Uuid::parse_str("10628aa2-66ca-4fda-8d5c-d7de63764bcc")
-                .unwrap()
-                .into(),
-            HashSet::from(["source-1".into()]),
-        ),
-        (
-            Uuid::parse_str("5f7a170d-cfaf-4f7a-971e-6c3e63c50e1e")
-                .unwrap()
-                .into(),
-            HashSet::from(["sink-2".into()]),
-        ),
-        (
-            Uuid::parse_str("e051658a-0cd6-4cef-8b08-0d0f17d3cc5d")
-                .unwrap()
-                .into(),
+            runtime_composite,
             HashSet::from([
                 "source-composite".into(),
                 "sink-composite".into(),
@@ -332,11 +332,12 @@ fn test_flatten_descriptor() {
 
 #[test]
 fn test_detect_recursion() {
-    let path = format!("{}{}/data-flow-recursion.yml", SCHEME, BASE_DIR,);
+    let base_dir = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), BASE_DIR);
+    let path = format!("{}{}/data-flow-recursion.yml", SCHEME, base_dir);
 
     let (descriptor, vars) = try_load_descriptor::<DataFlowDescriptor>(
         &path,
-        Vars::from([("BASE_DIR", BASE_DIR), ("SCHEME", SCHEME)]),
+        Vars::from([("BASE_DIR", base_dir.as_str()), ("SCHEME", SCHEME)]),
     )
     .expect("Failed to parse descriptor");
     assert!(FlattenedDataFlowDescriptor::try_flatten(descriptor, vars).is_err());
@@ -344,16 +345,18 @@ fn test_detect_recursion() {
 
 #[test]
 fn test_duplicate_composite_at_same_level_not_detected_as_recursion() {
+    let base_dir = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), BASE_DIR);
     let path = format!(
-        "{}{}/data-flow-recursion-duplicate-composite.yml",
-        SCHEME, BASE_DIR,
+        "{}/{}/data-flow-recursion-duplicate-composite.yml",
+        SCHEME, base_dir,
     );
 
     let (descriptor, vars) = try_load_descriptor::<DataFlowDescriptor>(
         &path,
-        Vars::from([("BASE_DIR", BASE_DIR), ("SCHEME", SCHEME)]),
+        Vars::from([("BASE_DIR", base_dir.as_str()), ("SCHEME", SCHEME)]),
     )
     .expect("Failed to parse descriptor");
+
     assert!(FlattenedDataFlowDescriptor::try_flatten(descriptor, vars).is_ok());
 }
 
