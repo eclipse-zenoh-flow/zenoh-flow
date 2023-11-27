@@ -30,6 +30,9 @@ pub use runtime::RuntimeContext;
 mod shared_memory;
 pub use shared_memory::SharedMemoryConfiguration;
 
+mod utils;
+pub use utils::try_load_from_file;
+
 mod vars;
 pub use vars::Vars;
 

@@ -39,7 +39,7 @@ async fn main() {
 
     let loader_config = match cli.loader {
         Some(loader_config_path) => {
-            let (config, _) = zenoh_flow_descriptors::try_load_from_file::<LoaderConfig>(
+            let (config, _) = zenoh_flow_commons::try_load_from_file::<LoaderConfig>(
                 loader_config_path.as_os_str(),
                 Vars::default(),
             )
@@ -56,7 +56,7 @@ async fn main() {
 
     let loader = Loader::new(loader_config);
 
-    let (data_flow, vars) = zenoh_flow_descriptors::try_load_from_file::<DataFlowDescriptor>(
+    let (data_flow, vars) = zenoh_flow_commons::try_load_from_file::<DataFlowDescriptor>(
         cli.flow.as_os_str(),
         Vars::default(),
     )

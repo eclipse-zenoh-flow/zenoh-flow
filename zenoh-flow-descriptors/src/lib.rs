@@ -29,5 +29,3 @@ pub use nodes::builtin::zenoh::{ZenohSinkDescriptor, ZenohSourceDescriptor};
 pub use nodes::operator::{composite::CompositeOperatorDescriptor, OperatorDescriptor};
 pub use nodes::sink::SinkDescriptor;
 pub use nodes::source::SourceDescriptor;
-
-pub use uri::try_load_from_file;
