@@ -12,14 +12,19 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-mod configuration;
-pub use configuration::LoaderConfig;
+mod extensions;
+pub use extensions::Extensions;
 
 use anyhow::{anyhow, bail, Context};
 use libloading::Library;
-use std::{collections::HashMap, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    str::FromStr,
+    sync::Arc,
+};
 use url::Url;
-use zenoh_flow_commons::Result;
+use zenoh_flow_commons::{Result, Vars};
 use zenoh_flow_nodes::{NodeDeclaration, CORE_VERSION, RUSTC_VERSION};
 
 /// NodeSymbol groups the symbol we must find in the shared library we load.
@@ -56,30 +61,47 @@ impl NodeSymbol {
 ///
 /// - `RTLD_NOW` load all the symbols when loading the library.
 /// - `RTLD_LOCAL` keep all the symbols local.
+#[derive(Default)]
 pub struct Loader {
-    pub(crate) config: LoaderConfig,
-    pub(crate) libraries: HashMap<Url, Library>,
+    pub(crate) extensions: Extensions,
+    pub(crate) libraries: HashMap<Url, Arc<Library>>,
 }
 
 impl Loader {
-    /// Creates a new `Loader` with the given `config`.
-    pub fn new(config: LoaderConfig) -> Self {
+    /// Creates a new `Loader` with the given `Extensions`.
+    pub fn new(extensions: Extensions) -> Self {
         Self {
-            config,
+            extensions,
             libraries: HashMap::default(),
         }
+    }
+
+    pub fn remove_unused_libraries(&mut self) {
+        self.libraries
+            .retain(|_, library| Arc::strong_count(library) > 1)
+    }
+
+    /// TODO@J-Loudet
+    pub fn try_from_file(extensions_path: impl AsRef<Path>) -> Result<Self> {
+        let (extensions, _) =
+            zenoh_flow_commons::try_load_from_file::<Extensions>(extensions_path, Vars::default())?;
+
+        Ok(Self {
+            extensions,
+            libraries: HashMap::default(),
+        })
     }
 
     pub(crate) fn try_load_constructor<C>(
         &mut self,
         url: &Url,
         node_symbol: &NodeSymbol,
-    ) -> Result<C> {
+    ) -> Result<(C, Arc<Library>)> {
         if let Some(library) = self.libraries.get(url) {
-            return self.try_get_constructor(library, node_symbol);
+            return self.try_get_constructor(library.clone(), node_symbol);
         }
 
-        let library = match url.scheme() {
+        let library = Arc::new(match url.scheme() {
             "file" => self
                 .try_load_library_from_uri(url.path(), node_symbol)
                 .context(format!("Failed to load library from file:\n{}", url.path()))?,
@@ -88,14 +110,15 @@ impl Loader {
                 url.scheme(),
                 url
             ),
-        };
+        });
 
-        let constructor = self.try_get_constructor::<C>(&library, node_symbol);
-        self.libraries.insert(url.clone(), library);
+        let (constructor, library) = self.try_get_constructor::<C>(library, node_symbol)?;
+        self.libraries.insert(url.clone(), library.clone());
 
-        constructor
+        Ok((constructor, library))
     }
 
+    /// TODO@J-Loudet
     pub(crate) fn try_load_library_from_uri(
         &self,
         path: &str,
@@ -109,7 +132,7 @@ impl Loader {
                 if extension == std::env::consts::DLL_EXTENSION {
                     &path_buf
                 } else {
-                    self.config
+                    self.extensions
                         .get_library_path(extension, node_symbol)
                         .ok_or_else(|| {
                             anyhow!(
@@ -140,7 +163,12 @@ impl Loader {
         })
     }
 
-    fn try_get_constructor<N>(&self, library: &Library, node_symbol: &NodeSymbol) -> Result<N> {
+    /// TODO@J-Loudet
+    fn try_get_constructor<N>(
+        &self,
+        library: Arc<Library>,
+        node_symbol: &NodeSymbol,
+    ) -> Result<(N, Arc<Library>)> {
         let decl = unsafe {
             library
                 .get::<*mut NodeDeclaration<N>>(node_symbol.to_bytes())?
@@ -172,6 +200,6 @@ It appears that the node was not compiled with the same version of Zenoh-Flow th
             )
         }
 
-        Ok(decl.constructor)
+        Ok((decl.constructor, library))
     }
 }

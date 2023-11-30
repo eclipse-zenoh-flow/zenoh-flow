@@ -12,73 +12,86 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::{collections::HashMap, sync::Arc};
+// This file centralizes all the logic regarding the LOADING of a data flow on a Runtime.
+//
+// The entry point, from an external point of view (think API consumer), is the method: `try_load_data_flow`.
+//
+// This method requires several steps:
+// - Creating all the channels connecting all the nodes -> the channels are then passed down the constructor of all
+//   the nodes.
+// - For each type of node and each node:
+//   - load its library,
+//   - call its constructor with the correct parameters (i.e. only Inputs for a Sink, only Outputs for a Source).
 
-#[cfg(feature = "zenoh")]
-use crate::runners::builtin::zenoh::{sink::ZenohSink, source::ZenohSource};
-#[cfg(feature = "zenoh")]
-use crate::runners::connectors::{ZenohConnectorReceiver, ZenohConnectorSender};
-use crate::{
-    instance::DataFlowInstance,
-    loader::{Loader, NodeSymbol},
-    runners::Runner,
-};
-use anyhow::{bail, Context as errContext};
-use uhlc::HLC;
-#[cfg(feature = "zenoh")]
-use zenoh::Session;
-#[cfg(feature = "shared-memory")]
-use zenoh_flow_commons::SharedMemoryConfiguration;
-use zenoh_flow_commons::{NodeId, RecordId, Result, RuntimeId};
+use super::Runtime;
+use crate::loader::NodeSymbol;
+use crate::runners::builtin::zenoh::sink::ZenohSink;
+use crate::runners::builtin::zenoh::source::ZenohSource;
+use crate::{instance::DataFlowInstance, runners::Runner};
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use anyhow::{bail, Context as _};
+use async_std::sync::Mutex;
+use libloading::Library;
+use url::Url;
+use zenoh_flow_commons::{NodeId, Result};
 use zenoh_flow_descriptors::{SinkVariant, SourceVariant};
-use zenoh_flow_nodes::{
-    prelude::{Inputs, Outputs},
-    Context, OperatorFn, SinkFn, SourceFn,
-};
+use zenoh_flow_nodes::prelude::{Inputs, Outputs};
+use zenoh_flow_nodes::{Context, OperatorFn, SinkFn, SourceFn};
 use zenoh_flow_records::DataFlowRecord;
 
 pub(crate) type Channels = HashMap<NodeId, (Inputs, Outputs)>;
 
-pub struct Runtime {
-    pub(crate) hlc: Arc<HLC>,
-    #[cfg(feature = "zenoh")]
-    pub(crate) session: Arc<Session>,
-    pub(crate) runtime_id: RuntimeId,
-    #[cfg(feature = "shared-memory")]
-    pub(crate) shared_memory: SharedMemoryConfiguration,
-    pub(crate) loader: Loader,
-    pub(crate) flows: HashMap<RecordId, DataFlowInstance>,
-}
-
 impl Runtime {
-    pub fn id(&self) -> &RuntimeId {
-        &self.runtime_id
-    }
-
     /// TODO@J-Loudet
-    pub fn new(
-        id: RuntimeId,
-        loader: Loader,
-        hlc: Arc<HLC>,
-        #[cfg(feature = "zenoh")] session: Arc<Session>,
-        #[cfg(feature = "shared-memory")] shared_memory: SharedMemoryConfiguration,
-    ) -> Self {
-        Self {
-            runtime_id: id,
-            #[cfg(feature = "zenoh")]
-            session,
-            hlc,
-            loader,
-            #[cfg(feature = "shared-memory")]
-            shared_memory,
-            flows: HashMap::default(),
+    pub async fn try_load_data_flow(&mut self, data_flow: DataFlowRecord) -> Result<()> {
+        // -----------------------------------
+        // The following code tries to do two things:
+        // 1. minimizing the amount of time `self.flows` is locked,
+        // 2. ensuring that which ever thread accesses a data flow from `self.flows` will access it **after** it was
+        //    fully loaded.
+        //
+        // To achieve 1. we put all `DataFlowInstance` into `Arc` which lets us drop the lock on `self.flows` while
+        // retaining on reference on the `DataFlowInstance` we are interested in.
+        //
+        // To achieve 2. when we want to load an instance we insert in `self.flows` a **locked** Mutex of the instance
+        // we are trying to create.
+        let instance_id = data_flow.id().clone();
+        let instance = Arc::new(Mutex::new(DataFlowInstance {
+            record: data_flow,
+            runners: HashMap::default(),
+        }));
+        let mut instance_guard = instance.lock().await;
+
+        let mut flows_guard = self.flows.lock().await;
+        let instance_from_flows = flows_guard
+            .entry(instance_id)
+            .or_insert_with(|| instance.clone())
+            .clone();
+
+        drop(flows_guard);
+
+        // NOTE: We have to compare the `Arc` we obtain from `self.flows` in case another thread was tasked with
+        // creating the same instance and arrived there first.
+        //
+        // If the two pointers are equals then we have to continue, if they are different it means another thread was on
+        // it before.
+        if !Arc::ptr_eq(&instance, &instance_from_flows) {
+            tracing::warn!(
+                "Data Flow < {} > ({}) is either being instantiated or already is, exiting",
+                instance_guard.id(),
+                instance_guard.name()
+            );
+            return Ok(());
         }
-    }
+        // -----------------------------------
 
-    /// TODO@J-Loudet
-    pub async fn try_instantiate_data_flow(&mut self, data_flow: DataFlowRecord) -> Result<()> {
-        let mut channels = self.create_channels(&data_flow)?;
         let mut runners = HashMap::<NodeId, Runner>::default();
+        let data_flow = &instance_guard.record;
+
+        let mut channels = self.create_channels(data_flow)?;
 
         let context = Context::new(
             data_flow.name().clone(),
@@ -87,38 +100,26 @@ impl Runtime {
         );
 
         runners.extend(
-            self.try_load_operators(&data_flow, &mut channels, context.clone())
+            self.try_load_operators(data_flow, &mut channels, context.clone())
                 .await?,
         );
         runners.extend(
-            self.try_load_sources(&data_flow, &mut channels, context.clone())
+            self.try_load_sources(data_flow, &mut channels, context.clone())
                 .await?,
         );
         runners.extend(
-            self.try_load_sinks(&data_flow, &mut channels, context.clone())
+            self.try_load_sinks(data_flow, &mut channels, context.clone())
                 .await?,
         );
 
         #[cfg(feature = "zenoh")]
         {
-            runners.extend(self.try_load_receivers(&data_flow, &mut channels).await?);
-            runners.extend(self.try_load_senders(&data_flow, &mut channels)?);
+            runners.extend(self.try_load_receivers(data_flow, &mut channels).await?);
+            runners.extend(self.try_load_senders(data_flow, &mut channels)?);
         }
 
-        self.flows.insert(
-            data_flow.id().clone(),
-            DataFlowInstance {
-                record: data_flow,
-                runners,
-            },
-        );
-
+        instance_guard.runners = runners;
         Ok(())
-    }
-
-    /// TODO@J-Loudet
-    pub fn get_instance_mut(&mut self, record_id: &RecordId) -> Option<&mut DataFlowInstance> {
-        self.flows.get_mut(record_id)
     }
 
     /// Create all the channels for the provided `DataFlowRecord`.
@@ -215,9 +216,9 @@ The channels for the Inputs and Outputs of Operator < {} > were not created.
                 &operator_id
             ))?;
 
-            let constructor = self
-                .loader
-                .try_load_constructor::<OperatorFn>(&operator.library, &NodeSymbol::Operator)?;
+            let (constructor, library) = self
+                .try_load_constructor::<OperatorFn>(&operator.library, &NodeSymbol::Operator)
+                .await?;
             let operator_node = (constructor)(
                 context.clone(),
                 operator.configuration.clone(),
@@ -227,7 +228,7 @@ The channels for the Inputs and Outputs of Operator < {} > were not created.
             .await?;
             runners.insert(
                 operator_id.clone(),
-                Runner::new(operator_id.clone(), operator_node),
+                Runner::new(operator_id.clone(), operator_node, Some(library)),
             );
         }
 
@@ -262,14 +263,14 @@ The channels for the Outputs of Source < {} > were not created.
 
             let runner = match &source.source {
                 SourceVariant::Library(uri) => {
-                    let constructor = self
-                        .loader
-                        .try_load_constructor::<SourceFn>(uri, &NodeSymbol::Source)?;
+                    let (constructor, library) = self
+                        .try_load_constructor::<SourceFn>(uri, &NodeSymbol::Source)
+                        .await?;
                     let source_node =
                         (constructor)(context.clone(), source.configuration.clone(), outputs)
                             .await?;
 
-                    Runner::new(source.id.clone(), source_node)
+                    Runner::new(source.id.clone(), source_node, Some(library))
                 }
                 #[cfg(not(feature = "zenoh"))]
                 SourceVariant::Zenoh(_) => {
@@ -285,7 +286,7 @@ Maybe change the features in the Cargo.toml?
                     let dyn_source =
                         ZenohSource::try_new(&source.id, self.session.clone(), key_exprs, outputs)
                             .await?;
-                    Runner::new(source.id.clone(), Arc::new(dyn_source))
+                    Runner::new(source.id.clone(), Arc::new(dyn_source), None)
                 }
             };
 
@@ -323,13 +324,13 @@ The channels for the Inputs of Sink < {} > were not created.
 
             let runner = match &sink.sink {
                 SinkVariant::Library(uri) => {
-                    let constructor = self
-                        .loader
-                        .try_load_constructor::<SinkFn>(uri, &NodeSymbol::Sink)?;
+                    let (constructor, library) = self
+                        .try_load_constructor::<SinkFn>(uri, &NodeSymbol::Sink)
+                        .await?;
                     let sink_node =
                         (constructor)(context.clone(), sink.configuration.clone(), inputs).await?;
 
-                    Runner::new(sink.id.clone(), sink_node)
+                    Runner::new(sink.id.clone(), sink_node, Some(library))
                 }
                 #[cfg(not(feature = "zenoh"))]
                 SinkVariant::Zenoh(_) => {
@@ -352,7 +353,7 @@ Maybe change the features in the Cargo.toml?
                     )
                     .await?;
 
-                    Runner::new(sink_id.clone(), Arc::new(zenoh_sink))
+                    Runner::new(sink_id.clone(), Arc::new(zenoh_sink), None)
                 }
             };
 
@@ -369,6 +370,8 @@ Maybe change the features in the Cargo.toml?
         record: &DataFlowRecord,
         channels: &mut Channels,
     ) -> Result<HashMap<NodeId, Runner>> {
+        use crate::runners::connectors::ZenohConnectorReceiver;
+
         let mut runners = HashMap::new();
 
         for (receiver_id, receiver) in record
@@ -390,7 +393,7 @@ The channels for the Outputs of Connector Receiver < {} > were not created.
 
             runners.insert(
                 receiver_id.clone(),
-                Runner::new(receiver_id.clone(), Arc::new(runner)),
+                Runner::new(receiver_id.clone(), Arc::new(runner), None),
             );
         }
 
@@ -404,6 +407,8 @@ The channels for the Outputs of Connector Receiver < {} > were not created.
         record: &DataFlowRecord,
         channels: &mut Channels,
     ) -> Result<HashMap<NodeId, Runner>> {
+        use crate::runners::connectors::ZenohConnectorSender;
+
         let mut runners = HashMap::new();
 
         for (sender_id, sender) in record
@@ -429,10 +434,19 @@ The channels for the Inputs of Connector Sender < {} > were not created.
 
             runners.insert(
                 sender_id.clone(),
-                Runner::new(sender_id.clone(), Arc::new(runner)),
+                Runner::new(sender_id.clone(), Arc::new(runner), None),
             );
         }
 
         Ok(runners)
+    }
+
+    async fn try_load_constructor<C>(
+        &self,
+        url: &Url,
+        node_symbol: &NodeSymbol,
+    ) -> Result<(C, Arc<Library>)> {
+        let mut loader_write_guard = self.loader.lock().await;
+        loader_write_guard.try_load_constructor::<C>(url, node_symbol)
     }
 }

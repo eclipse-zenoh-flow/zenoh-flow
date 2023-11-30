@@ -15,7 +15,7 @@
 mod instance;
 
 mod loader;
-pub use loader::{Loader, LoaderConfig};
+pub use loader::{Extensions, Loader};
 
 #[cfg(feature = "shared-memory")]
 mod shared_memory;

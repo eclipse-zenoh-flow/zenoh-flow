@@ -19,6 +19,7 @@ pub(crate) mod connectors;
 
 use async_std::task::JoinHandle;
 use futures::future::{AbortHandle, Abortable, Aborted};
+use libloading::Library;
 use std::sync::Arc;
 use std::time::Instant;
 use zenoh_flow_commons::NodeId;
@@ -32,13 +33,20 @@ pub(crate) struct Runner {
     pub(crate) node: Arc<dyn Node>,
     pub(crate) run_loop_handle: Option<JoinHandle<std::result::Result<anyhow::Error, Aborted>>>,
     pub(crate) run_loop_abort_handle: Option<AbortHandle>,
+    // The `_library` field is used solely for its `Arc`. We need to keep track of how many `Runners` are using the
+    // `Library` such that once that number reaches 0, drop the library.
+    //
+    // The `Option` exists because only user-implemented nodes have a `Library`. For example, built-in Zenoh Source /
+    // Sink and the connectors have no `Library`.
+    pub(crate) _library: Option<Arc<Library>>,
 }
 
 impl Runner {
-    pub(crate) fn new(id: NodeId, node: Arc<dyn Node>) -> Self {
+    pub(crate) fn new(id: NodeId, node: Arc<dyn Node>, library: Option<Arc<Library>>) -> Self {
         Self {
             id,
             node,
+            _library: library,
             run_loop_handle: None,
             run_loop_abort_handle: None,
         }
