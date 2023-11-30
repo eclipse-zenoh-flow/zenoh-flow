@@ -20,7 +20,7 @@ use std::{
     sync::Arc,
 };
 use uuid::Uuid;
-use zenoh_flow_commons::{NodeId, RecordId, Result, RuntimeId};
+use zenoh_flow_commons::{InstanceId, NodeId, Result, RuntimeId};
 use zenoh_flow_descriptors::{
     FlattenedDataFlowDescriptor, FlattenedOperatorDescriptor, FlattenedSinkDescriptor,
     FlattenedSourceDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor,
@@ -33,7 +33,7 @@ const RECEIVER_SUFFIX: &str = "__zenoh_flow_receiver";
 /// TODO@J-Loudet
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct DataFlowRecord {
-    pub(crate) record_id: RecordId,
+    pub(crate) record_id: InstanceId,
     pub(crate) name: Arc<str>,
     pub sources: HashMap<NodeId, FlattenedSourceDescriptor>,
     pub operators: HashMap<NodeId, FlattenedOperatorDescriptor>,
@@ -218,7 +218,7 @@ Caused by:
     /// # Performance
     ///
     /// The id is internally stored behind an [`Arc`](std::sync::Arc) so there is limited overhead to cloning it.
-    pub fn id(&self) -> &RecordId {
+    pub fn id(&self) -> &InstanceId {
         &self.record_id
     }
 

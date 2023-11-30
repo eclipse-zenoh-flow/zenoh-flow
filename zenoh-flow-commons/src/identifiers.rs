@@ -123,21 +123,21 @@ impl FromStr for RuntimeId {
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
-pub struct RecordId(Arc<Uuid>);
+pub struct InstanceId(Arc<Uuid>);
 
-impl Display for RecordId {
+impl Display for InstanceId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", &self.0)
     }
 }
 
-impl From<Uuid> for RecordId {
+impl From<Uuid> for InstanceId {
     fn from(value: Uuid) -> Self {
         Self(Arc::new(value))
     }
 }
 
-impl Deref for RecordId {
+impl Deref for InstanceId {
     type Target = Uuid;
 
     fn deref(&self) -> &Self::Target {

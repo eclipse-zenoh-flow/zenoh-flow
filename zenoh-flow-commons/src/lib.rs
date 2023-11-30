@@ -19,7 +19,7 @@ mod deserialize;
 pub use deserialize::deserialize_id;
 
 mod identifiers;
-pub use identifiers::{NodeId, PortId, RecordId, RuntimeId};
+pub use identifiers::{InstanceId, NodeId, PortId, RuntimeId};
 
 mod merge;
 pub use merge::IMergeOverwrite;
