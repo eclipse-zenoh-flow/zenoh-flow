@@ -15,8 +15,8 @@
 use crate::{IMergeOverwrite, Result, Vars};
 use anyhow::{bail, Context};
 use serde::Deserialize;
-use std::path::PathBuf;
-use std::{ffi::OsStr, io::Read};
+use std::io::Read;
+use std::path::{Path, PathBuf};
 
 pub(crate) fn deserializer<N>(path: &PathBuf) -> Result<fn(&str) -> Result<N>>
 where
@@ -48,7 +48,7 @@ Currently supported file extensions are:
     }
 }
 
-pub fn try_load_from_file<N>(path: impl AsRef<OsStr>, vars: Vars) -> Result<(N, Vars)>
+pub fn try_load_from_file<N>(path: impl AsRef<Path>, vars: Vars) -> Result<(N, Vars)>
 where
     N: for<'a> Deserialize<'a>,
 {
