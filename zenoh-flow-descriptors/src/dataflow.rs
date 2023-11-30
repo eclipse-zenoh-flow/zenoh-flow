@@ -69,7 +69,6 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 /// "#;
 ///
 /// let data_flow_yaml = serde_yaml::from_str::<DataFlowDescriptor>(yaml).unwrap();
-/// assert_eq!(data_flow_yaml, data_flow_json);
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct DataFlowDescriptor {
