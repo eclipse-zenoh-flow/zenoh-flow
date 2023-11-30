@@ -91,10 +91,10 @@ impl Runner {
     /// is being polled on another thread.
     ///
     /// `stop` is idempotent and will do nothing if the node is not running.
-    pub(crate) async fn stop(&mut self) {
+    pub(crate) async fn abort(&mut self) {
         if !self.is_running() {
             tracing::warn!(
-                "[{}] Called `stop` while node is NOT running. Returning.",
+                "[{}] Called `abort` while node is NOT running. Returning.",
                 self.id
             );
             return;

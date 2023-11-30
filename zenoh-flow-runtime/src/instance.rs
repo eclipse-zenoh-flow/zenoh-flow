@@ -34,55 +34,17 @@ impl Deref for DataFlowInstance {
 }
 
 impl DataFlowInstance {
-    pub fn start_sources(&mut self) {
-        self.start_nodes(self.sources.keys().cloned().collect());
-    }
-
-    pub async fn stop_sources(&mut self) {
-        self.stop_nodes(self.sources.keys().cloned().collect())
-            .await;
-    }
-
-    pub fn start_operators(&mut self) {
-        self.start_nodes(self.receivers.keys().cloned().collect());
-        self.start_nodes(self.operators.keys().cloned().collect());
-        self.start_nodes(self.senders.keys().cloned().collect());
-    }
-
-    pub async fn stop_operators(&mut self) {
-        self.stop_nodes(self.senders.keys().cloned().collect())
-            .await;
-        self.stop_nodes(self.operators.keys().cloned().collect())
-            .await;
-        self.stop_nodes(self.receivers.keys().cloned().collect())
-            .await;
-    }
-
-    pub fn start_sinks(&mut self) {
-        self.start_nodes(self.sinks.keys().cloned().collect());
-    }
-
-    pub async fn stop_sinks(&mut self) {
-        self.stop_nodes(self.sinks.keys().cloned().collect()).await;
-    }
-
-    fn start_nodes(&mut self, nodes: HashSet<NodeId>) {
-        for (_, runner) in self
-            .runners
-            .iter_mut()
-            .filter(|(runner_id, _)| nodes.contains(runner_id))
-        {
-            runner.start()
+    pub fn start(&mut self) {
+        for (node_id, runner) in self.runners.iter_mut() {
+            runner.start();
+            tracing::trace!("Started node < {} >", node_id);
         }
     }
 
-    async fn stop_nodes(&mut self, nodes: HashSet<NodeId>) {
-        for (_, runner) in self
-            .runners
-            .iter_mut()
-            .filter(|(runner_id, _)| nodes.contains(runner_id))
-        {
-            runner.stop().await
+    pub async fn abort(&mut self) {
+        for (node_id, runner) in self.runners.iter_mut() {
+            runner.abort().await;
+            tracing::trace!("Aborted node < {} >", node_id);
         }
     }
 }
