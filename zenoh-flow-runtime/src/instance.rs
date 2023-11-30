@@ -13,10 +13,7 @@
 //
 
 use crate::runners::Runner;
-use std::{
-    collections::{HashMap, HashSet},
-    ops::Deref,
-};
+use std::{collections::HashMap, ops::Deref};
 use zenoh_flow_commons::NodeId;
 use zenoh_flow_records::DataFlowRecord;
 
