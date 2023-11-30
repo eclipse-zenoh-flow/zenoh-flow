@@ -68,7 +68,7 @@ zenoh-flow-commons = { path = "./zenoh-flow-commons" }
 zenoh-flow-descriptors = { path = "./zenoh-flow-descriptors" }
 zenoh-flow-nodes = { path = "./zenoh-flow-nodes" }
 zenoh-flow-records = { path = "./zenoh-flow-records" }
-zenoh-flow-runtime = { path = "./zenoh-flow-runtime", default-features = false }
+zenoh-flow-runtime = { path = "./zenoh-flow-runtime" }
 zenoh-keyexpr = { version = "0.7.2-rc" }
 zenoh-plugin-trait = { version = "0.7.2-rc", default-features = false }
 zenoh-sync = { version = "0.7.2-rc" }

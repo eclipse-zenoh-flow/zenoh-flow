@@ -32,4 +32,4 @@ serde = { workspace = true }
 zenoh-flow-commons = { workspace = true }
 zenoh-flow-descriptors = { workspace = true }
 zenoh-flow-records = { workspace = true }
-zenoh-flow-runtime = { workspace = true, features = ["zenoh"] }
+zenoh-flow-runtime = { workspace = true }
