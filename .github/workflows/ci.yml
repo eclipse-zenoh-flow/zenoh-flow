@@ -92,6 +92,12 @@ jobs:
       #   with:
       #     command: build
       #     args: --release --verbose --all-targets --target-dir ZF_RELEASE_TEMP_DIR
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --verbose --all-targets 
       
       - name: Build Zenoh-Flow
         run: |
