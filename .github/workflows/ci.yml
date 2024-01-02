@@ -78,8 +78,8 @@ jobs:
 
       - name: Install latest Rust toolchain
         uses: actions-rs/toolchain@v1
-        # with:
-        #   toolchain: 1.70.0
+        with:
+          toolchain: 1.70.0
 
       # questo builda znoh-flow in una temp dir
       # - name: Create Zenoh-Flow artifact TEMP_DIR
@@ -93,17 +93,11 @@ jobs:
       #     command: build
       #     args: --release --verbose --all-targets --target-dir ZF_RELEASE_TEMP_DIR
       
-      - name: Build Zenoh-Flow Standalone
-        uses: actions-rs/cargo@v1
-        with:
-          command: build 
-          args: --package zenoh-flow-standalone-runtime
-      
       - name: Build Examples
         uses: actions-rs/cargo@v1
         with:
           command: build 
-          args: --package zenoh-flow-standalone-runtime
+          args: --package zenoh-flow-standalone-runtime --target-dir ${{ github.workspace }}
       
       - name: Find yaml files
         uses: Rishabh510/Path-lister-action@master
