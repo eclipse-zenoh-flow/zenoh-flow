@@ -81,16 +81,46 @@ jobs:
         # with:
         #   toolchain: 1.70.0
 
-      - name: Create Zenoh-Flow artifact TEMP_DIR
-        run: |
-          echo "ZF_RELEASE_TEMP_DIR=$(mktemp -d)" >> $GITHUB_ENV
-          echo "${{ env.ZF_RELEASE_TEMP_DIR}} >> ${{ env.ZF_RELEASE_TEMP_DIR}}"
+      # questo builda znoh-flow in una temp dir
+      # - name: Create Zenoh-Flow artifact TEMP_DIR
+      #   run: |
+      #     echo "ZF_RELEASE_TEMP_DIR=$(mktemp -d)" >> $GITHUB_ENV
+      #     echo "${{ env.ZF_RELEASE_TEMP_DIR}} >> ${{ env.ZF_RELEASE_TEMP_DIR}}"
 
-      - name: Build
+      # - name: Build
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: build
+      #     args: --release --verbose --all-targets --target-dir ZF_RELEASE_TEMP_DIR
+      
+      - name: Build Zenoh-Flow Standalone
         uses: actions-rs/cargo@v1
         with:
-          command: build
-          args: --release --verbose --all-targets --target-dir ZF_RELEASE_TEMP_DIR
+          command: build 
+          args: --package zenoh-flow-standalone-runtime
+      
+      - name: Build Examples
+        uses: actions-rs/cargo@v1
+        with:
+          command: build 
+          args: --package zenoh-flow-standalone-runtime
+      
+      - name: Find yaml files
+        uses: Rishabh510/Path-lister-action@master
+        with:
+          path: "/examples/flows"
+          type: ".yaml"
+      
+      - name: Output results
+        run: |
+          echo "Found ${{ steps.pl.outputs.path_count }} file(s) with this extension:"
+          for i in ${{ steps.pl.outputs.paths }}; do
+          echo $i
+          done
+      
+      # - name: Update data-flow yaml
+      #   uses: loveholidays/gitops-action-yaml-updater@v1.0.0
+      #   with:
 
       # - name: Run tests
       #   uses: actions-rs/cargo@v1
@@ -193,11 +223,11 @@ jobs:
       #     cd ..
       #     pwd
 
-      - name: Set Zenoh-Flow plugin path
-        run: |
-          cd ${{ github.workspace }}                   
-          echo "ZF_PLUGIN_PATH= ${{ github.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
-          echo ${{env.ZF_PLUGIN_PATH}}
+      # - name: Set Zenoh-Flow plugin path
+      #   run: |
+      #     cd ${{ github.workspace }}                   
+      #     echo "ZF_PLUGIN_PATH= ${{ github.workspace }}/zenoh-flow-plugin/etc/zenoh-zf-plugin.json" >> $GITHUB_ENV
+      #     echo ${{env.ZF_PLUGIN_PATH}}
 
       # Your action in .github/workflows questo checkout che fa un "Removing previously created refs, to avoid conflicts" potrebbe portare a non avere più le cartelle disponibili
       # - name: Checkout repository
@@ -240,12 +270,14 @@ jobs:
           echo "ZENOHD_PATH= ${{ env.TEMP_DIR}}/zenoh/target/debug/zenohd" >> $GITHUB_ENV
           echo "ZFCTL_PATH= ${{ github.workspace }}/target/release/zfctl" >> $GITHUB_ENV
           echo "PY_TEST_PATH= ${{ github.workspace }}/manual-tests/automated-test.py" >> $GITHUB_ENV
-          echo "LIB_ZF_PLUGIN_PATH= ${{ github.workspace }}/target/release/" >> $GITHUB_ENV
           echo ${{env.ZENOHD_PATH}}
           echo ${{env.ZFCTL_PATH}}
           echo ${{env.PY_TEST_PATH}}
-          echo ${{env.LIB_ZF_PLUGIN_PATH}}
-          echo ${{env.ZF_PLUGIN_PATH}}
+
+
+        #echo "LIB_ZF_PLUGIN_PATH= ${{ github.workspace }}/target/release/" >> $GITHUB_ENV
+        #echo ${{env.LIB_ZF_PLUGIN_PATH}}
+        #echo ${{env.ZF_PLUGIN_PATH}}
 
       - name: ls runner.workspace
         run: |
@@ -271,6 +303,6 @@ jobs:
         run: |
           cd ${{ github.workspace }}
           chmod u+x manual-tests/automated-test.py
-          output=$(python3 manual-tests/automated-test.py --build release --zenohd ${{env.ZENOHD_PATH}} --zfctl ${{env.ZFCTL_PATH}} --plugin ${{env.ZF_PLUGIN_PATH}} --lib ${{env.ZF_RELEASE_TEMP_DIR}} )
+          output=$(python3 automated-test.py --standalone True --zenohd ~/dev/zenoh/target/debug/zenohd )
 
 #

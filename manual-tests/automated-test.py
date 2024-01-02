@@ -22,6 +22,8 @@ class ZF_conf:
         self.uuid_runtimes = None
         self.libzenoh_plugin = None
         self.libzenoh_plugin = None
+        self.data_flow_path = None
+        self.standalone = False
 
 
 zf_conf = ZF_conf()
@@ -107,30 +109,51 @@ parser.add_argument(
     default=None,
     help="Specifies a different path for libzenoh_plugin (default=None)",
 )
+parser.add_argument(
+    "-f",
+    "--flow",
+    nargs="?",
+    type=str,
+    default=None,
+    help="Specifies a different data-flow.yaml file path (default=path/to/zenoh-flow/examples/flows/getting-started.yaml)",
+)
+parser.add_argument(
+    "-s",
+    "--standalone",
+    nargs="?",
+    type=str,
+    default=None,
+    help="Set this field to 'True' to enable the standalone version of zenoh-flow (default --> standalone = False)",
+)
 args = parser.parse_args()
 home_path = os.path.expanduser("~")
-zenoh_release_flag = args.build
+zf_release_flag = args.build
 
 zf_conf.zenohd_path = args.zenohd
 zf_conf.zfctl_path = args.zfctl
 zf_conf.zf_plugin_path = args.plugin
 zf_conf.libzenoh_plugin = args.lib
+zf_conf.data_flow_path = args.flow
+zf_conf.standalone = args.standalone
 
 print("[Info] Looking for paths...")
 manual_tests_path = os.getcwd()
 zenoh_flow_path = os.path.abspath(os.path.join(manual_tests_path, os.pardir))
 
-print(f"Path of zenohd: {zf_conf.zenohd_path}")
-print(f"Path of zenoh-Flow path: {zenoh_flow_path}")
+print(f"Zenohd path: {zf_conf.zenohd_path}")
+print(f"Zenoh-Flow path: {zenoh_flow_path}")
 
-data_flow_path = os.path.join(zenoh_flow_path, "examples/flows/getting-started.yaml")
+if zf_conf.data_flow_path is None:
+    zf_conf.data_flow_path = os.path.join(
+        zenoh_flow_path, "examples/flows/getting-started.yaml"
+    )
 
-print(f"Path of getting-started example: {data_flow_path}")
+print(f"getting-started example path: {zf_conf.data_flow_path}")
 
 dir_zenoh_zf_plugin = zenoh_flow_path + "/zenoh-flow-plugin/etc/"
 zenoh_zf_plugin_path = zenoh_flow_path + "/zenoh-flow-plugin/etc/zenoh-zf-plugin.json"
-print(f"Path of plugin library: {zenoh_zf_plugin_path}")
-print(f"Path of zfctl: {zf_conf.zfctl_path}")
+print(f"plugin library path: {zenoh_zf_plugin_path}")
+print(f"zfctl path: {zf_conf.zfctl_path}")
 
 p = len("zenoh-zf-plugin-01.json")
 if zf_conf.zf_plugin_path[-p:] != "zenoh-zf-plugin-01.json":
@@ -142,9 +165,9 @@ if zf_conf.zf_plugin_path[-p:] != "zenoh-zf-plugin-01.json":
     elif platform.system() == "Darwin":
         lib_name = "libzenoh_plugin_zenoh_flow.dylib"
 
-    if zenoh_release_flag == "release" and zf_conf.libzenoh_plugin is None:
+    if zf_release_flag == "release" and zf_conf.libzenoh_plugin is None:
         zf_conf.libzenoh_plugin = os.path.join(zenoh_flow_path, "target/release/")
-    elif zenoh_release_flag == "debug" and zf_conf.libzenoh_plugin is None:
+    elif zf_release_flag == "debug" and zf_conf.libzenoh_plugin is None:
         zf_conf.libzenoh_plugin = os.path.join(zenoh_flow_path, "target/debug/")
 
     print(f"[Info] {lib_name} path: ", zf_conf.libzenoh_plugin)
@@ -160,7 +183,7 @@ if zf_conf.zf_plugin_path[-p:] != "zenoh-zf-plugin-01.json":
     # the path of the new file "zenoh-zf-plugin.json" created into manual-test folder
     zf_conf.zf_plugin_path = os.path.join(manual_tests_path, "zenoh-zf-plugin.json")
     print(
-        f"[Info] Create new zenoh-zf-plugin.json and update the path\n[Info] New path: {zf_conf.zf_plugin_path}"
+        f"[Info] Create new zenoh-zf-plugin.json and update the path\n[Info] New Zenoh-Flow plugin path: {zf_conf.zf_plugin_path}"
     )
     with open(zf_conf.zf_plugin_path) as json_file:
         json_string = json_file.read()
@@ -179,19 +202,43 @@ if zf_conf.zf_plugin_path[-p:] != "zenoh-zf-plugin-01.json":
         with open(zf_conf.zf_plugin_path, "w", encoding="utf8") as json_file:
             json_file.write(add_lib_folder)
 
-print("[Info] Commands:")
+print("[Info] Commands")
 if (
     zf_conf.zenohd_path != home_path + "/.local/bin/zenohd"
     or zf_conf.zfctl_path != home_path + "/.config/zenoh-flow/zfctl.json"
-):
+) and zf_conf.standalone != "True":
     zf_command["zenohd_cmd"] = zf_conf.zenohd_path + " -c " + zf_conf.zf_plugin_path
     print(f'Lauch Zenoh with Zenoh-Flow plugin: \n {zf_command["zenohd_cmd"]}')
     zf_command["runtimes_cmd"] = zf_conf.zfctl_path + " list runtimes"
     print(f'Show runtimes list: \n {zf_command["runtimes_cmd"]}')
-    zf_command["dataflow_yaml_cmd"] = zf_conf.zfctl_path + " launch " + data_flow_path
+    zf_command["dataflow_yaml_cmd"] = (
+        zf_conf.zfctl_path + " launch " + zf_conf.data_flow_path
+    )
     print(f'Lauch Zenoh-Flow configuration: \n {zf_command["dataflow_yaml_cmd"]}')
     zf_command["instances_cmd"] = zf_conf.zfctl_path + " list instances"
     print(f'Show Zenoh-Flow list instances: \n {zf_command["instances_cmd"]}')
+elif zf_conf.standalone == "True":
+    print("[Info] Standalone version\n")
+    zf_command["zenohd_cmd"] = (
+        zf_conf.zenohd_path
+        + " -c "
+        + zenoh_flow_path
+        + "/zenoh-flow-daemon/etc/zenoh-zf-router.json"
+        " --rest-http-port=8000"
+    )
+    print(f'Lauch Zenoh with Zenoh-Flow plugin: \n {zf_command["zenohd_cmd"]}')
+    if zf_release_flag == "release":
+        standalone_path = os.path.join(
+            zenoh_flow_path, "target/release/zenoh-flow-standalone-runtime"
+        )
+    elif zf_release_flag == "debug":
+        standalone_path = os.path.join(
+            zenoh_flow_path, "target/debug/zenoh-flow-standalone-runtime"
+        )
+
+    zf_command["dataflow_yaml_cmd"] = standalone_path + " " + zf_conf.data_flow_path
+    print(f'Lauch Zenoh-Flow configuration: \n {zf_command["dataflow_yaml_cmd"]}')
+
 else:
     zf_command["zenohd_cmd"] = zf_conf.zenohd_path + " -c " + zf_conf.zf_plugin_path
     print(f'Lauch Zenoh with Zenoh-Flow plugin: \n {zf_command["zenohd_cmd"]}')
@@ -211,7 +258,7 @@ else:
         + home_path
         + "/.local/bin/zfctl"
         + " launch "
-        + data_flow_path
+        + zf_conf.data_flow_path
     )
     print(f'Lauch Zenoh-Flow configuration: \n {zf_command["dataflow_yaml_cmd"]}')
     zf_command["instances_cmd"] = (
@@ -236,39 +283,36 @@ print(f'[Info] Launching Zenod process: {zf_command["zenohd_cmd"]}')
 launch_zenohd = os.popen(zf_command["zenohd_cmd"])
 print("Waiting for zenohd...")
 time.sleep(5)
-pid = ""
+pid = None
 for process in psutil.process_iter():
     if process_name in process.name():
         pid = process.pid
         break
 
-if zf_conf.zenohd_process != "none":
+if zf_conf.zenohd_process is not None and zf_conf.standalone != "True":
     print("[info] Launching list runtimes command:  ", zf_command["runtimes_cmd"])
     launch_runtimes = os.popen(zf_command["runtimes_cmd"])
     runtimes_string = launch_runtimes.read()
 
 
-print(f"[Info] Test {process_name}  process pid {pid}")
+print(f"[Info] Test procress {process_name}  pid {pid}")
 zf_conf.zenohd_process = pid
 if zf_conf.zenohd_process is not None:
     if os.path.exists("/tmp/greetings.txt"):
         os.remove("/tmp/greetings.txt")
     print(f'[Info] Launching Zenoh-Flow example: {zf_command["dataflow_yaml_cmd"]}')
     launch_zf_yaml = os.popen(zf_command["dataflow_yaml_cmd"])
-    zf_example_string = launch_zf_yaml.read()
-    print(f"[Info] zf_example_string: {zf_example_string}")
-    if len(zf_example_string) == 0:
-        print("[Error] Zenoh-Flow example: FAILED.")
-        sys.exit(-1)
-    else:
-        zf_conf.uuid_runtimes = zf_example_string
-        print(f"[Info] Zenoh-Flow example UUID: {zf_conf.uuid_runtimes}")
-else:
-    print("[Error] test zenohd process: FAILED.")
-    sys.exit(-1)
+    if zf_conf.standalone != "True":
+        zf_example_string = launch_zf_yaml.read()
+        print(f"[Info] zf_example_string: {zf_example_string}")
+        if len(zf_example_string) == 0:
+            print("[Error] Zenoh-Flow example: FAILED.")
+            sys.exit(-1)
+        else:
+            zf_conf.uuid_runtimes = zf_example_string
+            print(f"[Info] Zenoh-Flow example UUID: {zf_conf.uuid_runtimes}")
 
 curl_getting_started = "curl -X PUT -H 'content-type:text/plain' -d 'Test' http://localhost:8000/zf/getting-started/hello"
-
 time.sleep(1)
 
 if os.path.exists("/tmp/greetings.txt"):
@@ -312,7 +356,6 @@ if os.path.exists("/tmp/greetings.txt"):
 
 
 print("\n[Info] Killing `zenohd` processes...")
-process_name = "zenohd"
 pid = None
 for process in psutil.process_iter():
     if process_name in process.name():
@@ -320,7 +363,11 @@ for process in psutil.process_iter():
         process.kill()
 
 print("\n[Info] Commands:")
-print(zf_command["zenohd_cmd"])
-print(zf_command["runtimes_cmd"])
-print(zf_command["dataflow_yaml_cmd"])
-print(zf_command["instances_cmd"])
+if zf_conf.standalone != "True":
+    print(zf_command["zenohd_cmd"])
+    print(zf_command["runtimes_cmd"])
+    print(zf_command["dataflow_yaml_cmd"])
+    print(zf_command["instances_cmd"])
+else:
+    print(zf_command["zenohd_cmd"])
+    print(zf_command["dataflow_yaml_cmd"])
