@@ -65,3 +65,16 @@ impl<T: AsRef<str>, U: AsRef<str>, const N: usize> From<[(T, U); N]> for Vars {
         }
     }
 }
+
+impl<T: AsRef<str>, U: AsRef<str>> From<Vec<(T, U)>> for Vars {
+    fn from(value: Vec<(T, U)>) -> Self {
+        Self {
+            vars: Rc::new(
+                value
+                    .into_iter()
+                    .map(|(k, v)| (k.as_ref().into(), v.as_ref().into()))
+                    .collect::<HashMap<Rc<str>, Rc<str>>>(),
+            ),
+        }
+    }
+}
