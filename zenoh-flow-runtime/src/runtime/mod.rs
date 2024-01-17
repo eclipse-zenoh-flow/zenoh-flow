@@ -30,6 +30,7 @@ use zenoh::Session;
 #[cfg(feature = "shared-memory")]
 use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{InstanceId, Result, RuntimeId};
+use zenoh_flow_records::DataFlowRecord;
 
 pub struct Runtime {
     pub(crate) name: Arc<str>,
@@ -89,6 +90,16 @@ impl Runtime {
             shared_memory,
             flows: RwLock::new(HashMap::default()),
         }
+    }
+
+    /// Returns the [DataFlowRecord] associated with the provided instance.
+    pub async fn get_record(&self, id: &InstanceId) -> Option<DataFlowRecord> {
+        let flows = self.flows.read().await;
+        if let Some(instance) = flows.get(id) {
+            return Some(instance.read().await.record.clone());
+        }
+
+        None
     }
 
     async fn try_get_instance(&self, id: &InstanceId) -> Result<Arc<RwLock<DataFlowInstance>>> {
