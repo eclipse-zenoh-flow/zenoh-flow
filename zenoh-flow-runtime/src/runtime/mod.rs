@@ -59,6 +59,15 @@ impl Runtime {
         &self.runtime_id
     }
 
+    pub fn hlc(&self) -> Arc<HLC> {
+        self.hlc.clone()
+    }
+
+    #[cfg(feature = "zenoh")]
+    pub fn session(&self) -> Arc<Session> {
+        self.session.clone()
+    }
+
     /// TODO@J-Loudet
     pub fn new(
         id: RuntimeId,
