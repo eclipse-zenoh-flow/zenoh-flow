@@ -16,7 +16,11 @@ mod load;
 
 use crate::{instance::DataFlowInstance, loader::Loader};
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+    sync::Arc,
+};
 
 use anyhow::{anyhow, bail};
 use async_std::sync::Mutex;
@@ -28,14 +32,26 @@ use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{InstanceId, Result, RuntimeId};
 
 pub struct Runtime {
+    pub(crate) name: Arc<str>,
+    pub(crate) runtime_id: RuntimeId,
     pub(crate) hlc: Arc<HLC>,
     #[cfg(feature = "zenoh")]
     pub(crate) session: Arc<Session>,
-    pub(crate) runtime_id: RuntimeId,
     #[cfg(feature = "shared-memory")]
     pub(crate) shared_memory: SharedMemoryConfiguration,
     pub(crate) loader: Mutex<Loader>,
     flows: Mutex<HashMap<InstanceId, Arc<Mutex<DataFlowInstance>>>>,
+
+impl Debug for Runtime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "runtime: '{}' - {}", self.name, self.runtime_id)
+    }
+}
+
+impl Display for Runtime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", &self)
+    }
 }
 
 impl Runtime {
@@ -46,12 +62,14 @@ impl Runtime {
     /// TODO@J-Loudet
     pub fn new(
         id: RuntimeId,
+        name: Arc<str>,
         loader: Loader,
         hlc: Arc<HLC>,
         #[cfg(feature = "zenoh")] session: Arc<Session>,
         #[cfg(feature = "shared-memory")] shared_memory: SharedMemoryConfiguration,
     ) -> Self {
         Self {
+            name,
             runtime_id: id,
             #[cfg(feature = "zenoh")]
             session,
