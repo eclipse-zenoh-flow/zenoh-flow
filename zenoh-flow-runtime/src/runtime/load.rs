@@ -33,7 +33,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::{bail, Context as _};
-use async_std::sync::Mutex;
+use async_std::sync::RwLock;
 use libloading::Library;
 use url::Url;
 use zenoh_flow_commons::{NodeId, Result};
@@ -46,7 +46,7 @@ pub(crate) type Channels = HashMap<NodeId, (Inputs, Outputs)>;
 
 impl Runtime {
     /// TODO@J-Loudet
-    pub async fn try_load_data_flow(&mut self, data_flow: DataFlowRecord) -> Result<()> {
+    pub async fn try_load_data_flow(&self, data_flow: DataFlowRecord) -> Result<()> {
         // -----------------------------------
         // The following code tries to do two things:
         // 1. minimizing the amount of time `self.flows` is locked,
@@ -56,16 +56,16 @@ impl Runtime {
         // To achieve 1. we put all `DataFlowInstance` into `Arc` which lets us drop the lock on `self.flows` while
         // retaining on reference on the `DataFlowInstance` we are interested in.
         //
-        // To achieve 2. when we want to load an instance we insert in `self.flows` a **locked** Mutex of the instance
+        // To achieve 2. when we want to load an instance we insert in `self.flows` a **locked** lock of the instance
         // we are trying to create.
-        let instance_id = data_flow.id().clone();
-        let instance = Arc::new(Mutex::new(DataFlowInstance {
+        let instance_id = data_flow.instance_id().clone();
+        let instance = Arc::new(RwLock::new(DataFlowInstance {
             record: data_flow,
             runners: HashMap::default(),
         }));
-        let mut instance_guard = instance.lock().await;
+        let mut instance_guard = instance.write().await;
 
-        let mut flows_guard = self.flows.lock().await;
+        let mut flows_guard = self.flows.write().await;
         let instance_from_flows = flows_guard
             .entry(instance_id)
             .or_insert_with(|| instance.clone())
@@ -192,7 +192,7 @@ The problematic link is:
 
     /// TODO@J-Loudet
     async fn try_load_operators(
-        &mut self,
+        &self,
         record: &DataFlowRecord,
         channels: &mut Channels,
         context: Context,
@@ -237,7 +237,7 @@ The channels for the Inputs and Outputs of Operator < {} > were not created.
 
     /// TODO@J-Loudet
     async fn try_load_sources(
-        &mut self,
+        &self,
         record: &DataFlowRecord,
         channels: &mut Channels,
         context: Context,
@@ -298,7 +298,7 @@ Maybe change the features in the Cargo.toml?
 
     /// TODO@J-Loudet
     async fn try_load_sinks(
-        &mut self,
+        &self,
         record: &DataFlowRecord,
         channels: &mut Channels,
         context: Context,
@@ -366,7 +366,7 @@ Maybe change the features in the Cargo.toml?
     /// TODO@J-Loudet
     #[cfg(feature = "zenoh")]
     async fn try_load_receivers(
-        &mut self,
+        &self,
         record: &DataFlowRecord,
         channels: &mut Channels,
     ) -> Result<HashMap<NodeId, Runner>> {
@@ -403,7 +403,7 @@ The channels for the Outputs of Connector Receiver < {} > were not created.
     /// TODO@J-Loudet
     #[cfg(feature = "zenoh")]
     fn try_load_senders(
-        &mut self,
+        &self,
         record: &DataFlowRecord,
         channels: &mut Channels,
     ) -> Result<HashMap<NodeId, Runner>> {

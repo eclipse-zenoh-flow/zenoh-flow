@@ -23,7 +23,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail};
-use async_std::sync::Mutex;
+use async_std::sync::{Mutex, RwLock};
 use uhlc::HLC;
 #[cfg(feature = "zenoh")]
 use zenoh::Session;
@@ -40,7 +40,8 @@ pub struct Runtime {
     #[cfg(feature = "shared-memory")]
     pub(crate) shared_memory: SharedMemoryConfiguration,
     pub(crate) loader: Mutex<Loader>,
-    flows: Mutex<HashMap<InstanceId, Arc<Mutex<DataFlowInstance>>>>,
+    flows: RwLock<HashMap<InstanceId, Arc<RwLock<DataFlowInstance>>>>,
+}
 
 impl Debug for Runtime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -86,12 +87,12 @@ impl Runtime {
             loader: Mutex::new(loader),
             #[cfg(feature = "shared-memory")]
             shared_memory,
-            flows: Mutex::new(HashMap::default()),
+            flows: RwLock::new(HashMap::default()),
         }
     }
 
-    async fn try_get_instance(&self, id: &InstanceId) -> Result<Arc<Mutex<DataFlowInstance>>> {
-        let flows_guard = self.flows.lock().await;
+    async fn try_get_instance(&self, id: &InstanceId) -> Result<Arc<RwLock<DataFlowInstance>>> {
+        let flows_guard = self.flows.read().await;
         flows_guard
             .get(id)
             .cloned()
@@ -100,7 +101,7 @@ impl Runtime {
 
     pub async fn try_start_instance(&self, id: &InstanceId) -> Result<()> {
         let instance = self.try_get_instance(id).await?;
-        let mut instance_guard = instance.lock().await;
+        let mut instance_guard = instance.write().await;
 
         tracing::trace!(
             "Starting Data Flow ({}) < {} > ",
@@ -124,7 +125,7 @@ impl Runtime {
     /// - abort all nodes
     pub async fn try_abort_instance(&self, id: &InstanceId) -> Result<()> {
         let instance = self.try_get_instance(id).await?;
-        let mut instance_guard = instance.lock().await;
+        let mut instance_guard = instance.write().await;
 
         tracing::trace!(
             "Aborting Data Flow ({}) < {} >",
@@ -137,8 +138,9 @@ impl Runtime {
     }
 
     pub async fn try_delete_instance(&self, id: &InstanceId) -> Result<()> {
+        tracing::trace!("Attempting to delete instance < {} >", id);
         let instance = {
-            let mut flows_guard = self.flows.lock().await;
+            let mut flows_guard = self.flows.write().await;
             flows_guard
                 .remove(id)
                 .ok_or_else(|| anyhow!("Found no Data Flow with id < {} >", id))?
@@ -157,7 +159,7 @@ impl Runtime {
                 })?;
 
                 {
-                    let mut flows_guard = self.flows.lock().await;
+                    let mut flows_guard = self.flows.write().await;
                     flows_guard.insert(id.clone(), backup);
                 }
 
