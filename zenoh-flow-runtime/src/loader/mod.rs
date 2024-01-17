@@ -77,8 +77,13 @@ impl Loader {
     }
 
     pub fn remove_unused_libraries(&mut self) {
+        let number_libraries = self.libraries.len();
         self.libraries
-            .retain(|_, library| Arc::strong_count(library) > 1)
+            .retain(|_, library| Arc::strong_count(library) > 1);
+        tracing::trace!(
+            "Removed {} unused libraries.",
+            number_libraries - self.libraries.len()
+        );
     }
 
     /// TODO@J-Loudet
