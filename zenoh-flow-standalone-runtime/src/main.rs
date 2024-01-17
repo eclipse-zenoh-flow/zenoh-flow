@@ -82,7 +82,7 @@ async fn main() {
         .context("Failed to create a Record from the flattened data flow descriptor")
         .unwrap();
 
-    let instance_id = record.id().clone();
+    let instance_id = record.instance_id().clone();
     let record_name = record.name().clone();
     runtime
         .try_load_data_flow(record)

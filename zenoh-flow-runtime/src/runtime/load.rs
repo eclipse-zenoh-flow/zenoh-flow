@@ -81,7 +81,7 @@ impl Runtime {
         if !Arc::ptr_eq(&instance, &instance_from_flows) {
             tracing::warn!(
                 "Data Flow < {} > ({}) is either being instantiated or already is, exiting",
-                instance_guard.id(),
+                instance_guard.instance_id(),
                 instance_guard.name()
             );
             return Ok(());
@@ -95,7 +95,7 @@ impl Runtime {
 
         let context = Context::new(
             data_flow.name().clone(),
-            data_flow.id().clone(),
+            data_flow.instance_id().clone(),
             self.runtime_id.clone(),
         );
 

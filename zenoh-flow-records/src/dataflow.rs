@@ -218,7 +218,7 @@ Caused by:
     /// # Performance
     ///
     /// The id is internally stored behind an [`Arc`](std::sync::Arc) so there is limited overhead to cloning it.
-    pub fn id(&self) -> &InstanceId {
+    pub fn instance_id(&self) -> &InstanceId {
         &self.record_id
     }
 

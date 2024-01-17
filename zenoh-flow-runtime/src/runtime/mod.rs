@@ -105,7 +105,7 @@ impl Runtime {
         tracing::trace!(
             "Starting Data Flow ({}) < {} > ",
             instance_guard.name(),
-            instance_guard.id()
+            instance_guard.instance_id()
         );
 
         instance_guard.start();
@@ -113,7 +113,7 @@ impl Runtime {
         tracing::trace!(
             "Successfully started Data Flow ({}) < {} > ",
             instance_guard.name(),
-            instance_guard.id()
+            instance_guard.instance_id()
         );
 
         Ok(())
@@ -129,7 +129,7 @@ impl Runtime {
         tracing::trace!(
             "Aborting Data Flow ({}) < {} >",
             instance_guard.name(),
-            instance_guard.id()
+            instance_guard.instance_id()
         );
         instance_guard.abort().await;
 
@@ -171,7 +171,7 @@ impl Runtime {
         tracing::trace!(
             "Aborting Data Flow ({}) < {} >",
             instance.name(),
-            instance.id()
+            instance.instance_id()
         );
         instance.abort().await;
 
