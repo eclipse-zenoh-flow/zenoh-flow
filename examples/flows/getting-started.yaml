@@ -9,7 +9,7 @@ sources:
   - id: zenoh-sub
     description: The Source receiving the names
     zenoh-subscribers:
-      - "zf/getting-started/hello"
+      hello: "zf/getting-started/hello"
 
 operators:
   - id: greetings-maker
@@ -32,12 +32,12 @@ sinks:
   - id: zenoh-writer
     description: The Sink publishing the result of the processing
     zenoh-publishers:
-      - "zf/getting-started/greeting"
+      greeting: "zf/getting-started/greeting"
 
 links:
   - from:
       node: zenoh-sub
-      output: zf/getting-started/hello
+      output: hello
     to:
       node: greetings-maker
       input: name
@@ -54,4 +54,4 @@ links:
       output: greeting
     to:
       node: zenoh-writer
-      input: zf/getting-started/greeting
+      input: greeting
