@@ -113,6 +113,16 @@ impl FlattenedDataFlowDescriptor {
 
         Ok(flattened_data_flow)
     }
+
+    pub fn get_runtime(&self, node: &NodeId) -> Option<&RuntimeId> {
+        for (runtime_id, nodes) in self.mapping.iter() {
+            if nodes.contains(node) {
+                return Some(runtime_id);
+            }
+        }
+
+        None
+    }
 }
 
 #[cfg(test)]
