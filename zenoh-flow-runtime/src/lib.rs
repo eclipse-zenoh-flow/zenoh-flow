@@ -13,6 +13,7 @@
 //
 
 mod instance;
+pub use instance::{DataFlowInstance, InstanceStatus};
 
 mod loader;
 pub use loader::{Extensions, Loader};

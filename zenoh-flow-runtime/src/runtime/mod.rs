@@ -14,7 +14,7 @@
 
 mod load;
 
-use crate::{instance::DataFlowInstance, loader::Loader};
+use crate::{instance::DataFlowInstance, loader::Loader, InstanceStatus};
 
 use std::{
     collections::HashMap,
@@ -102,6 +102,22 @@ impl Runtime {
         None
     }
 
+    /// Returns the [status](InstanceStatus) of the provided data flow instance or `None` if this runtime does not
+    /// manage this instance.
+    ///
+    /// The possible values are:
+    /// - [Loaded](InstanceStatus::Loaded) when all the nodes that this runtime manages have been successfully
+    ///   loaded. In particular, this means that each node has successfully called its constructor.
+    /// - [Running](InstanceStatus::Running) when the nodes that this runtime manages are running.
+    /// - [Aborted](InstanceStatus::Aborted) when the nodes were previously running and their execution was aborted.
+    pub async fn get_status(&self, id: &InstanceId) -> Option<InstanceStatus> {
+        if let Some(instance) = self.flows.read().await.get(id) {
+            return Some(*instance.read().await.status());
+        }
+
+        None
+    }
+
     async fn try_get_instance(&self, id: &InstanceId) -> Result<Arc<RwLock<DataFlowInstance>>> {
         let flows_guard = self.flows.read().await;
         flows_guard
@@ -114,16 +130,10 @@ impl Runtime {
         let instance = self.try_get_instance(id).await?;
         let mut instance_guard = instance.write().await;
 
-        tracing::trace!(
-            "Starting Data Flow ({}) < {} > ",
-            instance_guard.name(),
-            instance_guard.instance_id()
-        );
-
         instance_guard.start();
 
         tracing::trace!(
-            "Successfully started Data Flow ({}) < {} > ",
+            "Started data flow ({}) instance < {} > ",
             instance_guard.name(),
             instance_guard.instance_id()
         );
@@ -136,14 +146,20 @@ impl Runtime {
     /// - abort all nodes
     pub async fn try_abort_instance(&self, id: &InstanceId) -> Result<()> {
         let instance = self.try_get_instance(id).await?;
+
+        if !matches!(instance.read().await.status(), &InstanceStatus::Running) {
+            return Ok(());
+        }
+
         let mut instance_guard = instance.write().await;
 
+        instance_guard.abort().await;
+
         tracing::trace!(
-            "Aborting Data Flow ({}) < {} >",
+            "Aborted data flow ({}) instance < {} >",
             instance_guard.name(),
             instance_guard.instance_id()
         );
-        instance_guard.abort().await;
 
         Ok(())
     }

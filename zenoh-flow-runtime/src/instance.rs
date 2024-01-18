@@ -13,13 +13,22 @@
 //
 
 use crate::runners::Runner;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, ops::Deref};
 use zenoh_flow_commons::NodeId;
 use zenoh_flow_records::DataFlowRecord;
 
 pub struct DataFlowInstance {
+    status: InstanceStatus,
     pub(crate) record: DataFlowRecord,
     pub(crate) runners: HashMap<NodeId, Runner>,
+}
+
+#[derive(Clone, Copy, Deserialize, Serialize, Debug)]
+pub enum InstanceStatus {
+    Loaded,
+    Running,
+    Aborted,
 }
 
 impl Deref for DataFlowInstance {
@@ -31,11 +40,21 @@ impl Deref for DataFlowInstance {
 }
 
 impl DataFlowInstance {
+    pub fn new(record: DataFlowRecord) -> Self {
+        Self {
+            status: InstanceStatus::Loaded,
+            record,
+            runners: HashMap::default(),
+        }
+    }
+
     pub fn start(&mut self) {
         for (node_id, runner) in self.runners.iter_mut() {
             runner.start();
             tracing::trace!("Started node < {} >", node_id);
         }
+
+        self.status = InstanceStatus::Running;
     }
 
     pub async fn abort(&mut self) {
@@ -43,5 +62,11 @@ impl DataFlowInstance {
             runner.abort().await;
             tracing::trace!("Aborted node < {} >", node_id);
         }
+
+        self.status = InstanceStatus::Aborted;
+    }
+
+    pub fn status(&self) -> &InstanceStatus {
+        &self.status
     }
 }

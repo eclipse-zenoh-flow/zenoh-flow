@@ -59,10 +59,7 @@ impl Runtime {
         // To achieve 2. when we want to load an instance we insert in `self.flows` a **locked** lock of the instance
         // we are trying to create.
         let instance_id = data_flow.instance_id().clone();
-        let instance = Arc::new(RwLock::new(DataFlowInstance {
-            record: data_flow,
-            runners: HashMap::default(),
-        }));
+        let instance = Arc::new(RwLock::new(DataFlowInstance::new(data_flow)));
         let mut instance_guard = instance.write().await;
 
         let mut flows_guard = self.flows.write().await;
