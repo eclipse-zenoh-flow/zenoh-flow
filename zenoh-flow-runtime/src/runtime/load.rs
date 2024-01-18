@@ -373,11 +373,15 @@ Maybe change the features in the Cargo.toml?
         use crate::runners::connectors::ZenohConnectorReceiver;
 
         let mut runners = HashMap::new();
+        let assigned_nodes = match record.mapping.get(&self.runtime_id) {
+            Some(nodes) => nodes,
+            None => return Ok(HashMap::default()),
+        };
 
         for (receiver_id, receiver) in record
             .receivers
             .iter()
-            .filter(|(_, receiver)| receiver.runtime() == &self.runtime_id)
+            .filter(|(_, receiver)| assigned_nodes.contains(&receiver.id))
         {
             let (_, outputs) = channels.remove(receiver_id).context(format!(
                 r#"
@@ -410,11 +414,15 @@ The channels for the Outputs of Connector Receiver < {} > were not created.
         use crate::runners::connectors::ZenohConnectorSender;
 
         let mut runners = HashMap::new();
+        let assigned_nodes = match record.mapping.get(&self.runtime_id) {
+            Some(nodes) => nodes,
+            None => return Ok(HashMap::default()),
+        };
 
         for (sender_id, sender) in record
             .senders
             .iter()
-            .filter(|(_, sender)| sender.runtime() == &self.runtime_id)
+            .filter(|(_, sender)| assigned_nodes.contains(&sender.id))
         {
             let (inputs, _) = channels.remove(sender_id).context(format!(
                 r#"

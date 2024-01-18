@@ -55,9 +55,11 @@ impl DataFlowRecord {
     ///
     /// To generate these connectors, a Zenoh key expression is computed. Computing this expression can result in an
     /// error if the [`NodeId`] or [`PortId`] are not valid chunks. This should not happen as, when deserializing from a
-    /// descriptor, verifications are performed.
+    /// descriptor, the necessary verifications are performed.
+    ///
+    /// However, we cannot guarantee that the structures were not modified later on.
     pub fn try_new(
-        data_flow: FlattenedDataFlowDescriptor,
+        data_flow: &FlattenedDataFlowDescriptor,
         default_runtime: &RuntimeId,
     ) -> Result<Self> {
         let FlattenedDataFlowDescriptor {
@@ -68,7 +70,7 @@ impl DataFlowRecord {
             sinks,
             mut links,
             mut mapping,
-        } = data_flow;
+        } = data_flow.clone();
 
         let record_id = uuid.unwrap_or_else(Uuid::new_v4).into();
 
@@ -130,6 +132,7 @@ Is its name valid (i.e. does it reference an actual node)?
             )
         };
 
+        let mut additional_mappings: HashMap<RuntimeId, HashSet<NodeId>> = HashMap::default();
         for link in links.iter_mut() {
             let runtime_from = try_get_mapping(&link.from.node)
                 .context(format!("Failed to process link:\n{}", link))?;
@@ -181,24 +184,38 @@ Caused by:
                 senders.insert(
                     sender_id.clone(),
                     SenderRecord {
-                        id: sender_id,
+                        id: sender_id.clone(),
                         resource: key_expression.clone(),
-                        runtime: runtime_from.clone(),
                     },
                 );
+                additional_mappings
+                    .entry(runtime_from.clone())
+                    .or_insert_with(HashSet::default)
+                    .insert(sender_id);
 
                 receivers.insert(
                     receiver_id.clone(),
                     ReceiverRecord {
-                        id: receiver_id,
+                        id: receiver_id.clone(),
                         resource: key_expression,
-                        runtime: runtime_to.clone(),
                     },
                 );
+                additional_mappings
+                    .entry(runtime_to.clone())
+                    .or_insert_with(HashSet::default)
+                    .insert(receiver_id);
             }
         }
 
         links.append(&mut additional_links);
+        additional_mappings
+            .into_iter()
+            .for_each(|(runtime_id, nodes)| {
+                mapping
+                    .entry(runtime_id)
+                    .or_insert_with(|| HashSet::default())
+                    .extend(nodes.into_iter());
+            });
 
         Ok(Self {
             record_id,

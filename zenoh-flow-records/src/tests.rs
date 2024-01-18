@@ -12,6 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::collections::{HashMap, HashSet};
+
 use crate::{
     dataflow::{RECEIVER_SUFFIX, SENDER_SUFFIX},
     DataFlowRecord, ReceiverRecord, SenderRecord,
@@ -74,7 +76,7 @@ links:
     .unwrap();
 
     let default_runtime = RuntimeId::rand();
-    let record = DataFlowRecord::try_new(flat_desc, &default_runtime).unwrap();
+    let record = DataFlowRecord::try_new(&flat_desc, &default_runtime).unwrap();
 
     assert!(record.receivers.is_empty());
     assert!(record.senders.is_empty());
@@ -141,7 +143,7 @@ mapping:
     )
     .unwrap();
 
-    let record = DataFlowRecord::try_new(flat_desc, &RuntimeId::rand()).unwrap();
+    let record = DataFlowRecord::try_new(&flat_desc, &RuntimeId::rand()).unwrap();
 
     assert!(record.receivers.is_empty());
     assert!(record.senders.is_empty());
@@ -211,7 +213,7 @@ mapping:
     )
     .unwrap();
 
-    let record = DataFlowRecord::try_new(flat_desc, &default_runtime).unwrap();
+    let record = DataFlowRecord::try_new(&flat_desc, &default_runtime).unwrap();
     assert_eq!(2, record.receivers.len());
     assert_eq!(2, record.senders.len());
     assert_eq!(4, record.links.len());
@@ -225,7 +227,6 @@ mapping:
         Some(&SenderRecord {
             id: sender_thing_edge.clone(),
             resource: key_expr_thing_edge.clone(),
-            runtime: runtime_thing,
         }),
         record.senders.get(&sender_thing_edge)
     );
@@ -233,7 +234,6 @@ mapping:
         Some(&ReceiverRecord {
             id: receiver_thing_edge.clone(),
             resource: key_expr_thing_edge.clone(),
-            runtime: runtime_edge.clone(),
         }),
         record.receivers.get(&receiver_thing_edge)
     );
@@ -246,7 +246,6 @@ mapping:
         Some(&SenderRecord {
             id: sender_edge_default.clone(),
             resource: key_expr_edge_default.clone(),
-            runtime: runtime_edge,
         }),
         record.senders.get(&sender_edge_default)
     );
@@ -254,7 +253,6 @@ mapping:
         Some(&ReceiverRecord {
             id: receiver_edge_default.clone(),
             resource: key_expr_edge_default.clone(),
-            runtime: default_runtime,
         }),
         record.receivers.get(&receiver_edge_default)
     );
@@ -266,7 +264,7 @@ mapping:
             output: "out-0".into(),
         },
         to: InputDescriptor {
-            node: sender_thing_edge,
+            node: sender_thing_edge.clone(),
             input: key_expr_thing_edge.to_string().into(),
         },
         shared_memory: None,
@@ -275,7 +273,7 @@ mapping:
 
     let link_egde_1 = LinkDescriptor {
         from: OutputDescriptor {
-            node: receiver_thing_edge,
+            node: receiver_thing_edge.clone(),
             output: key_expr_thing_edge.to_string().into(),
         },
         to: InputDescriptor {
@@ -292,7 +290,7 @@ mapping:
             output: "out-1".into(),
         },
         to: InputDescriptor {
-            node: sender_edge_default,
+            node: sender_edge_default.clone(),
             input: key_expr_edge_default.to_string().into(),
         },
         shared_memory: None,
@@ -301,7 +299,7 @@ mapping:
 
     let link_default = LinkDescriptor {
         from: OutputDescriptor {
-            node: receiver_edge_default,
+            node: receiver_edge_default.clone(),
             output: key_expr_edge_default.to_string().into(),
         },
         to: InputDescriptor {
@@ -311,6 +309,29 @@ mapping:
         shared_memory: None,
     };
     assert!(record.links.contains(&link_default));
+
+    // assert the mapping
+    assert_eq!(
+        HashMap::from([
+            (
+                runtime_thing,
+                HashSet::from(["source-0".into(), sender_thing_edge])
+            ),
+            (
+                runtime_edge,
+                HashSet::from([
+                    "operator-1".into(),
+                    receiver_thing_edge,
+                    sender_edge_default
+                ])
+            ),
+            (
+                default_runtime,
+                HashSet::from(["sink-2".into(), receiver_edge_default])
+            )
+        ]),
+        record.mapping
+    );
 }
 
 #[test]
@@ -364,7 +385,7 @@ links:
     .unwrap();
 
     let default_runtime = RuntimeId::rand();
-    let record = DataFlowRecord::try_new(flat_desc, &default_runtime).unwrap();
+    let record = DataFlowRecord::try_new(&flat_desc, &default_runtime).unwrap();
 
     let _string = serde_yaml::to_string(&record).expect("Failed to serialize to yaml");
     println!("{_string}");
