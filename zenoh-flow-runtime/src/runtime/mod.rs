@@ -146,17 +146,14 @@ impl Runtime {
             .ok_or_else(|| anyhow!("Found no Data Flow with id < {} >", id))
     }
 
+    #[tracing::instrument(name = "start", skip(self, id), fields(instance = %id))]
     pub async fn try_start_instance(&self, id: &InstanceId) -> Result<()> {
         let instance = self.try_get_instance(id).await?;
         let mut instance_guard = instance.write().await;
 
-        instance_guard.start();
+        instance_guard.start().await?;
 
-        tracing::trace!(
-            "Started data flow ({}) instance < {} > ",
-            instance_guard.name(),
-            instance_guard.instance_id()
-        );
+        tracing::info!("started");
 
         Ok(())
     }
@@ -164,6 +161,7 @@ impl Runtime {
     /// TODO@J-Loudet
     ///
     /// - abort all nodes
+    #[tracing::instrument(name = "abort", skip(self, id), fields(instance = %id))]
     pub async fn try_abort_instance(&self, id: &InstanceId) -> Result<()> {
         let instance = self.try_get_instance(id).await?;
 
@@ -173,24 +171,20 @@ impl Runtime {
 
         let mut instance_guard = instance.write().await;
 
-        instance_guard.abort().await;
+        instance_guard.abort().await?;
 
-        tracing::trace!(
-            "Aborted data flow ({}) instance < {} >",
-            instance_guard.name(),
-            instance_guard.instance_id()
-        );
+        tracing::info!("aborted");
 
         Ok(())
     }
 
+    #[tracing::instrument(name = "delete", skip(self, id), fields(instance = %id))]
     pub async fn try_delete_instance(&self, id: &InstanceId) -> Result<()> {
-        tracing::trace!("Attempting to delete instance < {} >", id);
         let instance = {
             let mut flows_guard = self.flows.write().await;
             flows_guard
                 .remove(id)
-                .ok_or_else(|| anyhow!("Found no Data Flow with id < {} >", id))?
+                .ok_or_else(|| anyhow!("found no instance with this id"))?
         };
 
         let backup = Arc::downgrade(&instance);
@@ -198,34 +192,24 @@ impl Runtime {
             if let Some(instance) = Arc::into_inner(instance) {
                 instance.into_inner()
             } else {
-                let backup = backup.upgrade().ok_or_else(|| {
-                    anyhow!(
-                        "Data Flow instance < {} > was, miraculously, deleted elsewhere",
-                        id
-                    )
-                })?;
+                let backup = backup
+                    .upgrade()
+                    .ok_or_else(|| anyhow!("instance was, miraculously, deleted elsewhere"))?;
 
                 {
                     let mut flows_guard = self.flows.write().await;
                     flows_guard.insert(id.clone(), backup);
                 }
 
-                bail!(
-                    "Unable to delete Data Flow < {} >, another action is being performed on it",
-                    id
-                )
+                bail!("unable to delete instance, another action is being performed on it")
             }
         };
 
-        tracing::trace!(
-            "Aborting Data Flow ({}) < {} >",
-            instance.name(),
-            instance.instance_id()
-        );
-        instance.abort().await;
+        instance.abort().await?;
 
         drop(instance); // Forcefully drop the instance so we can check if we can free up some Libraries.
         self.loader.lock().await.remove_unused_libraries();
+        tracing::info!("deleted");
 
         Ok(())
     }
