@@ -76,9 +76,15 @@ async fn main() {
     let hlc = Arc::new(uhlc::HLC::default());
 
     let session = zenoh::open(zenoh::peer()).res().await.unwrap().into_arc();
-    let mut runtime = Runtime::new(RuntimeId::rand(), loader, hlc, session);
+    let runtime = Runtime::new(
+        RuntimeId::rand(),
+        "zenoh-flow-standalone-runtime".into(),
+        loader,
+        hlc,
+        session,
+    );
 
-    let record = DataFlowRecord::try_new(flattened_flow, runtime.id())
+    let record = DataFlowRecord::try_new(&flattened_flow, runtime.id())
         .context("Failed to create a Record from the flattened data flow descriptor")
         .unwrap();
 
