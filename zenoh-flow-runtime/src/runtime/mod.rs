@@ -57,6 +57,7 @@ impl Display for Runtime {
 }
 
 impl Runtime {
+    /// Returns the unique identifier of this Zenoh-Flow runtime.
     pub fn id(&self) -> &RuntimeId {
         &self.runtime_id
     }
@@ -65,12 +66,24 @@ impl Runtime {
         self.hlc.clone()
     }
 
+    /// Returns an atomically counted reference over the Zenoh session this Zenoh-Flow runtime leverages.
     #[cfg(feature = "zenoh")]
     pub fn session(&self) -> Arc<Session> {
         self.session.clone()
     }
 
     /// TODO@J-Loudet
+    ///
+    /// Creates a new Zenoh-Flow runtime.
+    ///
+    /// Runtime manages data flows:
+    /// - node management,
+    /// - library management
+    ///
+    /// # Features
+    ///
+    /// - "zenoh": requires a Zenoh session to be able to communicate with other Zenoh nodes
+    /// - "shared-memory": enables the Zenoh shared-memory transport (experimental)
     pub fn new(
         id: RuntimeId,
         name: Arc<str>,
