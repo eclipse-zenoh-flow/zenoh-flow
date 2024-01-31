@@ -17,110 +17,122 @@ pub(crate) mod builtin;
 #[cfg(feature = "zenoh")]
 pub(crate) mod connectors;
 
+use anyhow::Context;
 use async_std::task::JoinHandle;
-use futures::future::{AbortHandle, Abortable, Aborted};
 use libloading::Library;
 use std::sync::Arc;
 use std::time::Instant;
-use zenoh_flow_commons::NodeId;
+use tracing::Instrument;
+use zenoh_flow_commons::{NodeId, Result};
 use zenoh_flow_nodes::prelude::Node;
+
+enum State {
+    Uninitialized,
+    Initialized,
+}
 
 /// A `Runner` takes care of running a `Node`.
 ///
-/// It spawns an abortable task in which the `iteration` is called in a loop, indefinitely.
+/// Each Runner runs in a separate task.
 pub(crate) struct Runner {
     pub(crate) id: NodeId,
-    pub(crate) node: Arc<dyn Node>,
-    pub(crate) run_loop_handle: Option<JoinHandle<std::result::Result<anyhow::Error, Aborted>>>,
-    pub(crate) run_loop_abort_handle: Option<AbortHandle>,
+    node: Arc<dyn Node>,
+    state: State,
+    handle: Option<JoinHandle<()>>,
     // The `_library` field is used solely for its `Arc`. We need to keep track of how many `Runners` are using the
-    // `Library` such that once that number reaches 0, drop the library.
+    // `Library` such that once that number reaches 0, we drop the library.
     //
     // The `Option` exists because only user-implemented nodes have a `Library`. For example, built-in Zenoh Source /
     // Sink and the connectors have no `Library`.
-    pub(crate) _library: Option<Arc<Library>>,
+    _library: Option<Arc<Library>>,
 }
 
 impl Runner {
+    /// Creates a runner, spawning a [Task](async_std::task::Task) that will poll, in a loop, the `iteration` of the
+    /// underlying [Node].
+    //
+    // The control logic is relatively simple:
+    // 1. When `start` is called, create a task that will poll indefinitely, in a loop, the `iteration` method of the
+    //    Node.
+    // 2. Keep a reference to that task through its JoinHandle so we can call `cancel` to stop it.
     pub(crate) fn new(id: NodeId, node: Arc<dyn Node>, library: Option<Arc<Library>>) -> Self {
         Self {
             id,
             node,
+            state: State::Uninitialized,
+            handle: None,
             _library: library,
-            run_loop_handle: None,
-            run_loop_abort_handle: None,
         }
     }
 
-    /// Start the `Runner`, spawning an abortable task.
-    ///
-    /// `start` is idempotent and will do nothing if the node is already running.
-    pub(crate) fn start(&mut self) {
-        if self.is_running() {
-            tracing::warn!(
-                "[{}] Called `start` while node is already running. Returning.",
-                self.id
-            );
-            return;
-        }
-
-        let node = self.node.clone();
-        let id = self.id.clone();
-        let run_loop = async move {
-            let mut instant: Instant;
-            loop {
-                instant = Instant::now();
-                if let Err(e) = node.iteration().await {
-                    tracing::error!("[{}] Iteration error: {:?}", id, e);
-                    return e;
-                }
-
-                tracing::trace!(
-                    "[{}] iteration took: {}µs",
-                    id,
-                    instant.elapsed().as_micros()
-                );
-
-                async_std::task::yield_now().await;
-            }
-        };
-
-        let (abort_handle, abort_registration) = AbortHandle::new_pair();
-        let handle = async_std::task::spawn(Abortable::new(run_loop, abort_registration));
-
-        self.run_loop_handle = Some(handle);
-        self.run_loop_abort_handle = Some(abort_handle);
-    }
-
-    /// Stop the execution of a `Node`.
-    ///
-    /// We will call `abort` on the `AbortHandle` and then `await` the `JoinHandle`. As per its
-    /// documentation, `abort` will not forcefully interrupt an execution if the corresponding task
-    /// is being polled on another thread.
-    ///
-    /// `stop` is idempotent and will do nothing if the node is not running.
-    pub(crate) async fn abort(&mut self) {
-        if !self.is_running() {
-            tracing::warn!(
-                "[{}] Called `abort` while node is NOT running. Returning.",
-                self.id
-            );
-            return;
-        }
-
-        if let Some(abort_handle) = self.run_loop_abort_handle.take() {
-            abort_handle.abort();
-            if let Some(handle) = self.run_loop_handle.take() {
-                tracing::trace!("[{}] Handler finished with {:?}", self.id, handle.await);
-            }
-        }
-    }
-
-    /// Tell if the node is running.
-    ///
-    /// To do so we check if an `AbortHandle` was set. If so, then a task was spawned and the node
-    /// is indeed running.
+    /// Returns `true` if the Runner is running, i.e. if the `iteration` of the [Node] it wraps is being polled in a
+    /// loop.
     pub(crate) fn is_running(&self) -> bool {
-        self.run_loop_handle.is_some()
+        self.handle.is_some()
+    }
+
+    /// Starts the runner: run the `iteration` method of the [Node] it wraps in a loop.
+    ///
+    /// This method is also idempotent: if the runner is already running, nothing will happen.
+    pub(crate) async fn start(&mut self) -> Result<()> {
+        if self.is_running() {
+            return Ok(());
+        }
+
+        if matches!(self.state, State::Initialized) {
+            self.node
+                .on_resume()
+                .await
+                .with_context(|| format!("{}: call to `on_resume` failed", self.id))?;
+        }
+
+        let id = self.id.clone();
+        let node = self.node.clone();
+        let iteration_span = tracing::trace_span!("iteration", node = %id);
+
+        self.handle = Some(async_std::task::spawn(
+            async move {
+                let mut instant;
+                let mut iteration;
+                loop {
+                    instant = Instant::now();
+                    iteration = node.iteration().await;
+                    tracing::trace!("duration: {}µs", instant.elapsed().as_micros());
+                    if let Err(e) = iteration {
+                        tracing::error!("{:?}", e);
+                    }
+
+                    async_std::task::yield_now().await;
+                }
+            }
+            .instrument(iteration_span),
+        ));
+
+        self.state = State::Initialized;
+        Ok(())
+    }
+
+    /// Aborts the runner: stop the execution of its `iteration` method at its nearest `await` point.
+    ///
+    /// This method is idempotent: if the runner is not running, nothing will happen.
+    ///
+    /// # Warning
+    ///
+    /// This method will *drop* the future driving the execution of the current `iteration`. This will effectively
+    /// cancel it at its nearest next `.await` point in its code.
+    ///
+    /// What this also means is that there is a possibility to leave the node in an **inconsistent state**. For
+    /// instance, modified values that are not saved between several `.await` points would be lost if the node is
+    /// aborted.
+    pub(crate) async fn abort(&mut self) -> Result<()> {
+        if let Some(handle) = self.handle.take() {
+            handle.cancel().await;
+            self.node
+                .on_abort()
+                .await
+                .with_context(|| format!("{}: call to `on_abort` failed", self.id))?;
+        }
+
+        Ok(())
     }
 }

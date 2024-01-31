@@ -14,8 +14,8 @@
 
 use crate::runners::Runner;
 use serde::{Deserialize, Serialize};
-use zenoh_flow_commons::NodeId;
 use std::{collections::HashMap, fmt::Display, ops::Deref};
+use zenoh_flow_commons::{NodeId, Result};
 use zenoh_flow_records::DataFlowRecord;
 
 pub struct DataFlowInstance {
@@ -60,22 +60,24 @@ impl DataFlowInstance {
         }
     }
 
-    pub fn start(&mut self) {
+    pub async fn start(&mut self) -> Result<()> {
         for (node_id, runner) in self.runners.iter_mut() {
-            runner.start();
+            runner.start().await?;
             tracing::trace!("Started node < {} >", node_id);
         }
 
         self.status = InstanceStatus::Running;
+        Ok(())
     }
 
-    pub async fn abort(&mut self) {
+    pub async fn abort(&mut self) -> Result<()> {
         for (node_id, runner) in self.runners.iter_mut() {
-            runner.abort().await;
+            runner.abort().await?;
             tracing::trace!("Aborted node < {} >", node_id);
         }
 
         self.status = InstanceStatus::Aborted;
+        Ok(())
     }
 
     pub fn status(&self) -> &InstanceStatus {
