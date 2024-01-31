@@ -42,17 +42,24 @@ impl<T: 'static + Send + Sync> SendSyncAny for T {
 
 /// A `Node` is defined by its `iteration` that is repeatedly called by Zenoh-Flow.
 ///
-/// This trait takes an immutable reference to `self` so as to not impact performance. To keep a
-/// state and to mutate it, the interior mutability pattern is necessary.
+/// This trait takes an immutable reference to `self` so as to not impact performance. To keep a state and to mutate it,
+/// the interior mutability pattern is necessary.
 ///
-/// A struct implementing the Node trait typically needs to keep a reference to the `Input` and
-/// `Output` it needs.
+/// A structure implementing the Node trait typically needs to keep a reference to the `Input`(s) and `Output`(s) it
+/// needs.
 ///
-/// For usage examples see: [`Operator`](`Operator`), [`Source`](`Source`) or [`Sink`](`Sink`)
-/// traits.
+/// For usage examples see: [`Operator`](`Operator`), [`Source`](`Source`) or [`Sink`](`Sink`) traits.
 #[async_trait]
 pub trait Node: Send + Sync {
     async fn iteration(&self) -> Result<()>;
+
+    async fn on_resume(&self) -> Result<()> {
+        Ok(())
+    }
+
+    async fn on_abort(&self) -> Result<()> {
+        Ok(())
+    }
 }
 
 /// The `Source` trait represents a Source of data in Zenoh Flow. Sources only possess `Outputs` and

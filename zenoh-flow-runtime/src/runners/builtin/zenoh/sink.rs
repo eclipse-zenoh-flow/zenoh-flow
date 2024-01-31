@@ -32,14 +32,7 @@ fn wait_flow_input(id: PortId, input: &InputRaw) -> ZFInputFut {
     Box::pin(async move { (id, input.recv().await) })
 }
 
-/// The builtin Zenoh Sink
-/// It can publish to multiple KEs and can have multiple outputs
-/// It expects a configuration in the format
-///
-/// <input_id> : <key expression>
-/// <input_id> : <key expression>
-///
-/// It expects the input(s) defined in the configuration to be connected.
+/// TODO
 pub(crate) struct ZenohSink<'a> {
     id: NodeId,
     inputs: HashMap<PortId, InputRaw>,
@@ -48,12 +41,7 @@ pub(crate) struct ZenohSink<'a> {
     state: Arc<Mutex<State>>,
 }
 
-/// The ZenohSinkState stores in a single structure all the fields protected by a lock.
-///
-/// The fields are:
-/// - `futs` contains the pending futures waiting for inputs on their channel;
-/// - `buffer` holds a growable vector of bytes in which the result of the serialization of the data
-///   is stored.
+/// Structure grouping the fields that need interior mutability.
 struct State {
     pub(crate) futs: Vec<ZFInputFut>,
     pub(crate) payload_buffer: Vec<u8>,
@@ -143,13 +131,26 @@ Caused by:
 
 #[async_trait::async_trait]
 impl<'a> Node for ZenohSink<'a> {
+    // If the node is aborted / paused while waiting for inputs, the execution will be interrupted while
+    // `self.state.futs` is empty. If this happens then we need to fill again `futs`.
+    async fn on_resume(&self) -> Result<()> {
+        let mut state = self.state.lock().await;
+        if state.futs.is_empty() {
+            self.inputs
+                .iter()
+                .for_each(|(id, input)| state.futs.push(wait_flow_input(id.clone(), input)));
+        }
+
+        Ok(())
+    }
+
     async fn iteration(&self) -> Result<()> {
         // Getting the list of futures to poll in a temporary variable (that `select_all` can take ownership of)
         let mut state = self.state.lock().await;
-        let tmp = std::mem::take(&mut state.futs);
+        let inputs = std::mem::take(&mut state.futs);
         let mut payload_buffer = std::mem::take(&mut state.payload_buffer);
 
-        let ((id, message), _index, mut remaining) = select_all(tmp).await;
+        let ((id, message), _index, mut remaining) = select_all(inputs).await;
 
         let (key_expr, input, publisher) = self.get(&id);
 

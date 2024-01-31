@@ -35,8 +35,10 @@ fn wait_zenoh_sub(id: PortId, sub: &FlumeSubscriber<'_>) -> ZSubFut {
 
 pub(crate) struct ZenohSource<'a> {
     id: NodeId,
+    session: Arc<Session>,
     outputs: HashMap<PortId, OutputRaw>,
-    subscribers: HashMap<PortId, FlumeSubscriber<'a>>,
+    key_exprs: HashMap<PortId, OwnedKeyExpr>,
+    subscribers: Mutex<HashMap<PortId, FlumeSubscriber<'a>>>,
     futs: Arc<Mutex<Vec<ZSubFut>>>,
 }
 
@@ -48,109 +50,118 @@ impl<'a> ZenohSource<'a> {
         mut outputs: Outputs,
     ) -> Result<ZenohSource<'a>> {
         let mut raw_outputs = HashMap::with_capacity(key_exprs.len());
-        let mut subscribers = HashMap::with_capacity(key_exprs.len());
 
         for (port, key_expr) in key_exprs.iter() {
             raw_outputs.insert(
                 port.clone(),
                 outputs
                     .take(port.as_ref())
-                    .context(
-                        r#"
-Zenoh-Flow encountered a fatal internal error.
-
-The Zenoh built-in Source < {} > wants to subscribe to the key expression < {} > but
-no channel for this key expression was created.
-"#,
+                    .with_context(||
+                        format!("{id}: fatal internal error: no channel was created for key expression < {} >", key_expr)
                     )?
                     .raw(),
             );
-
-            subscribers.insert(
-                port.clone(),
-                session
-                    .declare_subscriber(key_expr)
-                    .res()
-                    .await
-                    .map_err(|e| {
-                        anyhow!(
-                            r#"
-Zenoh-Flow encountered a fatal internal error.
-
-Zenoh failed to declare a subscriber on < {} > for the Zenoh built-in Source < {} >.
-Caused by:
-
-{:?}"#,
-                            key_expr,
-                            id,
-                            e
-                        )
-                    })?,
-            );
         }
 
-        let futs = subscribers
-            .iter()
-            .map(|(id, sub)| wait_zenoh_sub(id.clone(), sub))
-            .collect::<Vec<_>>();
-
-        Ok(Self {
+        let zenoh_source = Self {
             id: id.clone(),
+            session,
             outputs: raw_outputs,
-            subscribers,
-            futs: Arc::new(Mutex::new(futs)),
-        })
+            key_exprs: key_exprs.clone(),
+            subscribers: Mutex::new(HashMap::with_capacity(key_exprs.len())),
+            futs: Arc::new(Mutex::new(Vec::with_capacity(key_exprs.len()))),
+        };
+
+        // NOTE: Calling this function avoids repeating code initializing the `futs` and `subscribers`.
+        zenoh_source.on_resume().await?;
+
+        Ok(zenoh_source)
     }
 }
 
 #[async_trait::async_trait]
 impl<'a> Node for ZenohSource<'a> {
-    async fn iteration(&self) -> Result<()> {
-        // Getting the list of futures to poll in a temporary variable (that `select_all` can take
-        // ownership of)
-        let mut futs = self.futs.lock().await;
-        let tmp = std::mem::take(&mut (*futs));
+    // When we resume an aborted Zenoh Source, we have to re-subscribe to the key expressions and, possibly, recreate
+    // the futures awaiting publications.
+    async fn on_resume(&self) -> Result<()> {
+        let mut futures = self.futs.lock().await;
+        let futures_were_empty = futures.is_empty();
 
-        let ((id, result), _index, mut remaining) = select_all(tmp).await;
+        let mut subscribers = self.subscribers.lock().await;
+        for (port, key_expr) in self.key_exprs.iter() {
+            let subscriber = self
+                .session
+                .declare_subscriber(key_expr)
+                .res()
+                .await
+                .map_err(|e| {
+                    anyhow!(
+                        r#"fatal internal error: failed to declare a subscriber on < {} >
+Caused by:
+{:?}"#,
+                        key_expr,
+                        e
+                    )
+                })?;
+
+            // NOTE: Even though it is more likely that the node was aborted while the `futures` were swapped (and thus
+            // empty), there is still a possibility that the `abort` happened outside of this scenario.
+            // In this rare case, we should not push new futures.
+            if futures_were_empty {
+                futures.push(wait_zenoh_sub(port.clone(), &subscriber));
+            }
+
+            subscribers.insert(port.clone(), subscriber);
+        }
+
+        Ok(())
+    }
+
+    // When we abort a Zenoh Source we drop the subscribers to remove them from the Zenoh network.
+    //
+    // This action is motivated by two factors:
+    // 1. It prevents receiving publications that happened while the Zenoh Source was not active.
+    // 2. It prevents impacting the other subscribers / publishers on the same resource.
+    async fn on_abort(&self) -> Result<()> {
+        let mut subscribers = self.subscribers.lock().await;
+        subscribers.clear();
+
+        Ok(())
+    }
+
+    // The iteration of a Zenoh Source polls, concurrently, the subscribers and forwards the first publication received
+    // on the associated port.
+    async fn iteration(&self) -> Result<()> {
+        let mut subscribers_futures = self.futs.lock().await;
+        let subs = std::mem::take(&mut (*subscribers_futures));
+
+        let ((id, result), _index, mut remaining) = select_all(subs).await;
 
         match result {
             Ok(sample) => {
                 let data = sample.payload.contiguous().to_vec();
                 let ke = sample.key_expr;
-                tracing::trace!(
-                    "[ZenohSource] Received data from {ke:?} Len: {} for output: {id}",
-                    data.len()
-                );
+                tracing::trace!("received subscription on {ke}");
                 let output = self.outputs.get(&id).ok_or(anyhow!(
-                    "[{}] Built-in Zenoh source, unable to find output < {} >",
+                    "{}: internal error, unable to find output < {} >",
                     self.id,
                     id
                 ))?;
                 output.send(data, None).await?;
             }
-            Err(e) => tracing::error!("[ZenohSource] got a Zenoh error from output {id} : {e:?}"),
+            Err(e) => tracing::error!("subscriber for output {id} failed with: {e:?}"),
         }
 
         // Add back the subscriber that got polled
-        let sub = self
-            .subscribers
+        let subscribers = self.subscribers.lock().await;
+        let sub = subscribers
             .get(&id)
             .ok_or_else(|| anyhow!("[{}] Cannot find port < {} >", self.id, id))?;
 
-        let next_sub = sub.receiver.clone();
-        let source_id = self.id.clone();
-        remaining.push(Box::pin(async move {
-            (
-                id.clone(),
-                next_sub.recv_async().await.context(format!(
-                    "[{}] Zenoh subscriber < {} > failed",
-                    source_id, id
-                )),
-            )
-        }));
+        remaining.push(wait_zenoh_sub(id.clone(), sub));
 
         // Setting back a complete list for the next iteration
-        *futs = remaining;
+        *subscribers_futures = remaining;
 
         Ok(())
     }
