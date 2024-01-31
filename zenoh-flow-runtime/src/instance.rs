@@ -14,8 +14,8 @@
 
 use crate::runners::Runner;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, ops::Deref};
 use zenoh_flow_commons::NodeId;
+use std::{collections::HashMap, fmt::Display, ops::Deref};
 use zenoh_flow_records::DataFlowRecord;
 
 pub struct DataFlowInstance {
@@ -29,6 +29,18 @@ pub enum InstanceStatus {
     Loaded,
     Running,
     Aborted,
+}
+
+impl Display for InstanceStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let repr = match self {
+            InstanceStatus::Loaded => "Loaded",
+            InstanceStatus::Running => "Running",
+            InstanceStatus::Aborted => "Aborted",
+        };
+
+        write!(f, "{}", repr)
+    }
 }
 
 impl Deref for DataFlowInstance {
