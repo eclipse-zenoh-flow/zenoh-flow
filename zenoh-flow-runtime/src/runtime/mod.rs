@@ -73,6 +73,23 @@ impl Runtime {
         self.hlc.clone()
     }
 
+    /// Returns information regarding the data flows that are running on this Zenoh-Flow runtime.
+    ///
+    /// For each instance of a data flow, returns its unique identifier, its name and its status.
+    pub async fn instances_status(&self) -> HashMap<InstanceId, (Arc<str>, InstanceStatus)> {
+        let flows = self.flows.read().await;
+        let mut status = HashMap::with_capacity(flows.len());
+        for (instance_id, instance_lck) in flows.iter() {
+            let instance = instance_lck.read().await;
+            status.insert(
+                instance_id.clone(),
+                (instance.name().clone(), *instance.status()),
+            );
+        }
+
+        status
+    }
+
     /// Returns an atomically counted reference over the Zenoh session this Zenoh-Flow runtime leverages.
     #[cfg(feature = "zenoh")]
     pub fn session(&self) -> Arc<Session> {
