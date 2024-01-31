@@ -213,7 +213,7 @@ Caused by:
             .for_each(|(runtime_id, nodes)| {
                 mapping
                     .entry(runtime_id)
-                    .or_insert_with(|| HashSet::default())
+                    .or_insert_with(HashSet::default)
                     .extend(nodes.into_iter());
             });
 
