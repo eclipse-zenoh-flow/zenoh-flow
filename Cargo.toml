@@ -17,6 +17,7 @@ members = [
   "zenoh-flow",
   "zenoh-flow-commons",
   "zenoh-flow-daemon",
+  "zenoh-flow-daemon-2",
   "zenoh-flow-derive",
   "zenoh-flow-descriptors",
   "zenoh-flow-nodes",
@@ -66,6 +67,7 @@ zenoh-protocol = { version = "0.7.2-rc" }
 zenoh-core = { version = "0.7.2-rc" }
 zenoh-ext = { version = "0.7.2-rc" }
 zenoh-flow-commons = { path = "./zenoh-flow-commons" }
+zenoh-flow-daemon-2 = { path = "./zenoh-flow-daemon-2" }
 zenoh-flow-descriptors = { path = "./zenoh-flow-descriptors" }
 zenoh-flow-nodes = { path = "./zenoh-flow-nodes" }
 zenoh-flow-records = { path = "./zenoh-flow-records" }
