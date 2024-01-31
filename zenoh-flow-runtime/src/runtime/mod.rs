@@ -62,6 +62,13 @@ impl Runtime {
         &self.runtime_id
     }
 
+    /// Returns the name of this Zenoh-Flow runtime.
+    ///
+    /// The name of a Zenoh-Flow runtime does NOT have to be unique, it is only used as a human-readable description.
+    pub fn name(&self) -> Arc<str> {
+        self.name.clone()
+    }
+
     pub fn hlc(&self) -> Arc<HLC> {
         self.hlc.clone()
     }
