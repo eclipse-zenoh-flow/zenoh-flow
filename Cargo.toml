@@ -24,6 +24,7 @@ members = [
   "zenoh-flow-plugin",
   "zenoh-flow-records",
   "zenoh-flow-runtime",
+  "zenoh-flow-standalone-daemon",
   "zenoh-flow-standalone-runtime",
   "zfctl",
   "examples",
@@ -58,6 +59,7 @@ serde_derive = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.9"
 tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = { version = "0.3" }
 uhlc = "0.6"
 url = { version = "2.2", features = ["serde"] }
 uuid = { version = "1.1", features = ["serde", "v4"] }
