@@ -25,7 +25,7 @@ version = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }
-bytesize = "1.2.0"
+bytesize = { workspace = true }
 humantime = "2.1"
 uuid = { workspace = true }
 ramhorns = "0.14"

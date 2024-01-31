@@ -44,6 +44,7 @@ anyhow = "1"
 async-std = { version = "1.12", features = ["attributes"] }
 async-trait = "0.1.50"
 base64 = "0.21"
+bytesize = "1.2.0"
 clap = { version = "4.0", features = ["derive"] }
 env_logger = "0.10"
 flume = "0.11"
