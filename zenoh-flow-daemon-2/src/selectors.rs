@@ -34,11 +34,9 @@ fn try_autocanonize(maybe_ke: String) -> Result<OwnedKeyExpr> {
 /// Helper function to generate an [OwnedKeyExpr] to query the data flow instances managed by a specific Zenoh-Flow
 /// runtime.
 ///
-/// The generated key expression has the following structure:
+/// The generated key expression has the following structure: " zenoh-flow/<runtime id>/instances "
 ///
-///     `zenoh-flow/{runtime id}/instances`
-///
-/// where `{runtime id}` corresponds to the unique identifier of the chosen runtime.
+/// where `<runtime id>` corresponds to the unique identifier of the chosen runtime.
 ///
 /// To obtain the list of available Zenoh-Flow runtimes, a query can be made on [runtime::KE_ALL].
 pub fn selector_instances(runtime_id: &RuntimeId) -> Result<OwnedKeyExpr> {
@@ -48,9 +46,7 @@ pub fn selector_instances(runtime_id: &RuntimeId) -> Result<OwnedKeyExpr> {
 /// Helper function to generate an [OwnedKeyExpr] to query the data flow instances managed by all the reachable
 /// Zenoh-Flow runtimes.
 ///
-/// The generated key expression has the following structure:
-///
-///     `zenoh-flow/*/instances`
+/// The generated key expression has the following structure: " zenoh-flow/*/instances "
 ///
 /// # Performance
 ///
@@ -62,9 +58,7 @@ pub fn selector_all_instances() -> Result<OwnedKeyExpr> {
 
 /// Helper function to generate an [OwnedKeyExpr] to query the provided runtime.
 ///
-/// The generated key expression has the following structure:
-///
-///     `zenoh-flow/{runtime id}/runtime`
+/// The generated key expression has the following structure: " zenoh-flow/<runtime id>/runtime "
 ///
 /// where `{runtime id}` corresponds to the unique identifier of the chosen runtime.
 pub fn selector_runtimes(runtime_id: &RuntimeId) -> Result<OwnedKeyExpr> {
@@ -73,9 +67,7 @@ pub fn selector_runtimes(runtime_id: &RuntimeId) -> Result<OwnedKeyExpr> {
 
 /// Helper function to generate an [OwnedKeyExpr] to query all the reachable Zenoh-Flow runtimes.
 ///
-/// The generated key expression has the following structure:
-///
-///     `zenoh-flow/*/runtime`
+/// The generated key expression has the following structure: " zenoh-flow/*/runtime "
 ///
 /// # Performance
 ///
