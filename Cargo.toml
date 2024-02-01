@@ -14,6 +14,7 @@
 [workspace]
 members = [
   "cargo-zenoh-flow",
+  "examples",
   "zenoh-flow",
   "zenoh-flow-commons",
   "zenoh-flow-daemon",
@@ -27,7 +28,6 @@ members = [
   "zenoh-flow-standalone-daemon",
   "zenoh-flow-standalone-runtime",
   "zfctl",
-  "examples",
 ]
 
 [workspace.package]
@@ -65,7 +65,6 @@ url = { version = "2.2", features = ["serde"] }
 uuid = { version = "1.1", features = ["serde", "v4"] }
 zenoh = { version = "0.7.2-rc", features = ["shared-memory"] }
 zenoh-collections = { version = "0.7.2-rc" }
-zenoh-protocol = { version = "0.7.2-rc" }
 zenoh-core = { version = "0.7.2-rc" }
 zenoh-ext = { version = "0.7.2-rc" }
 zenoh-flow-commons = { path = "./zenoh-flow-commons" }
@@ -76,6 +75,7 @@ zenoh-flow-records = { path = "./zenoh-flow-records" }
 zenoh-flow-runtime = { path = "./zenoh-flow-runtime" }
 zenoh-keyexpr = { version = "0.7.2-rc" }
 zenoh-plugin-trait = { version = "0.7.2-rc", default-features = false }
+zenoh-protocol = { version = "0.7.2-rc" }
 zenoh-sync = { version = "0.7.2-rc" }
 zenoh-util = { version = "0.7.2-rc" }
 zrpc = { version = "0.7.0-alpha.1" }
