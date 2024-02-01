@@ -14,7 +14,7 @@
 
 mod instances;
 pub use instances::{InstancesQuery, Origin};
-pub use zenoh_flow_runtime::InstanceStatus;
+pub use zenoh_flow_runtime::{InstanceState, InstanceStatus};
 
 pub mod selectors;
 

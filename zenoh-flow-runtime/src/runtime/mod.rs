@@ -14,7 +14,11 @@
 
 mod load;
 
-use crate::{instance::DataFlowInstance, loader::Loader, InstanceStatus};
+use crate::{
+    instance::{DataFlowInstance, InstanceStatus},
+    loader::Loader,
+    InstanceState,
+};
 
 use std::{
     collections::HashMap,
@@ -75,19 +79,19 @@ impl Runtime {
 
     /// Returns information regarding the data flows that are running on this Zenoh-Flow runtime.
     ///
-    /// For each instance of a data flow, returns its unique identifier, its name and its status.
-    pub async fn instances_status(&self) -> HashMap<InstanceId, (Arc<str>, InstanceStatus)> {
+    /// For each instance of a data flow, returns its unique identifier, its name and its state.
+    pub async fn instances_state(&self) -> HashMap<InstanceId, (Arc<str>, InstanceState)> {
         let flows = self.flows.read().await;
-        let mut status = HashMap::with_capacity(flows.len());
+        let mut states = HashMap::with_capacity(flows.len());
         for (instance_id, instance_lck) in flows.iter() {
             let instance = instance_lck.read().await;
-            status.insert(
+            states.insert(
                 instance_id.clone(),
-                (instance.name().clone(), *instance.status()),
+                (instance.name().clone(), *instance.state()),
             );
         }
 
-        status
+        states
     }
 
     /// Returns an atomically counted reference over the Zenoh session this Zenoh-Flow runtime leverages.
@@ -147,9 +151,9 @@ impl Runtime {
     ///   loaded. In particular, this means that each node has successfully called its constructor.
     /// - [Running](InstanceStatus::Running) when the nodes that this runtime manages are running.
     /// - [Aborted](InstanceStatus::Aborted) when the nodes were previously running and their execution was aborted.
-    pub async fn get_status(&self, id: &InstanceId) -> Option<InstanceStatus> {
+    pub async fn get_instance_status(&self, id: &InstanceId) -> Option<InstanceStatus> {
         if let Some(instance) = self.flows.read().await.get(id) {
-            return Some(*instance.read().await.status());
+            return Some(instance.read().await.status(&self.runtime_id));
         }
 
         None
@@ -182,7 +186,7 @@ impl Runtime {
     pub async fn try_abort_instance(&self, id: &InstanceId) -> Result<()> {
         let instance = self.try_get_instance(id).await?;
 
-        if !matches!(instance.read().await.status(), &InstanceStatus::Running) {
+        if !matches!(instance.read().await.state(), &InstanceState::Running) {
             return Ok(());
         }
 

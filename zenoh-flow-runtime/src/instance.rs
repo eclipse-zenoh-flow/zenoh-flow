@@ -15,32 +15,39 @@
 use crate::runners::Runner;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, ops::Deref};
-use zenoh_flow_commons::{NodeId, Result};
+use zenoh_flow_commons::{NodeId, Result, RuntimeId};
 use zenoh_flow_records::DataFlowRecord;
 
 pub struct DataFlowInstance {
-    status: InstanceStatus,
+    state: InstanceState,
     pub(crate) record: DataFlowRecord,
     pub(crate) runners: HashMap<NodeId, Runner>,
 }
 
 #[derive(Clone, Copy, Deserialize, Serialize, Debug)]
-pub enum InstanceStatus {
+pub enum InstanceState {
     Loaded,
     Running,
     Aborted,
 }
 
-impl Display for InstanceStatus {
+impl Display for InstanceState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let repr = match self {
-            InstanceStatus::Loaded => "Loaded",
-            InstanceStatus::Running => "Running",
-            InstanceStatus::Aborted => "Aborted",
+            InstanceState::Loaded => "Loaded",
+            InstanceState::Running => "Running",
+            InstanceState::Aborted => "Aborted",
         };
 
         write!(f, "{}", repr)
     }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct InstanceStatus {
+    pub runtime_id: RuntimeId,
+    pub state: InstanceState,
+    pub nodes: Vec<NodeId>,
 }
 
 impl Deref for DataFlowInstance {
@@ -54,7 +61,7 @@ impl Deref for DataFlowInstance {
 impl DataFlowInstance {
     pub fn new(record: DataFlowRecord) -> Self {
         Self {
-            status: InstanceStatus::Loaded,
+            state: InstanceState::Loaded,
             record,
             runners: HashMap::default(),
         }
@@ -66,7 +73,7 @@ impl DataFlowInstance {
             tracing::trace!("Started node < {} >", node_id);
         }
 
-        self.status = InstanceStatus::Running;
+        self.state = InstanceState::Running;
         Ok(())
     }
 
@@ -76,11 +83,32 @@ impl DataFlowInstance {
             tracing::trace!("Aborted node < {} >", node_id);
         }
 
-        self.status = InstanceStatus::Aborted;
+        self.state = InstanceState::Aborted;
         Ok(())
     }
 
-    pub fn status(&self) -> &InstanceStatus {
-        &self.status
+    pub fn state(&self) -> &InstanceState {
+        &self.state
+    }
+
+    pub fn status(&self, runtime_id: &RuntimeId) -> InstanceStatus {
+        InstanceStatus {
+            runtime_id: runtime_id.clone(),
+            state: self.state,
+            nodes: self
+                .mapping
+                .get(runtime_id)
+                .map(|node_ids| {
+                    node_ids
+                        .iter()
+                        .filter(|&node_id| {
+                            !(self.senders.contains_key(node_id)
+                                || self.receivers.contains_key(node_id))
+                        })
+                        .cloned()
+                        .collect()
+                })
+                .unwrap_or_default(),
+        }
     }
 }

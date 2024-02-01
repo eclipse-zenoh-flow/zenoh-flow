@@ -118,9 +118,12 @@ impl InstancesQuery {
             InstancesQuery::Status(instance_id) => {
                 if let Err(e) = reply(
                     query,
-                    runtime.get_status(&instance_id).await.ok_or_else(|| {
-                        anyhow!("Found no data flow with instance id < {} >", instance_id)
-                    }),
+                    runtime
+                        .get_instance_status(&instance_id)
+                        .await
+                        .ok_or_else(|| {
+                            anyhow!("Found no data flow with instance id < {} >", instance_id)
+                        }),
                 )
                 .await
                 {
@@ -129,7 +132,7 @@ impl InstancesQuery {
             }
 
             InstancesQuery::List => {
-                if let Err(e) = reply(query, Ok(runtime.instances_status().await)).await {
+                if let Err(e) = reply(query, Ok(runtime.instances_state().await)).await {
                     tracing::error!("Failed to reply to 'List' query: {:?}", e);
                 }
             }

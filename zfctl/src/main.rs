@@ -33,6 +33,16 @@ If the above error log does not help you troubleshoot the reason, you can contac
 - GitHub:   https://github.com/eclipse-zenoh/zenoh-flow
 "#;
 
+/// Macro to facilitate the creation of a [Row](comfy_table::Row) where its contents are not of the same type.
+#[macro_export]
+macro_rules! row {
+    (
+        $( $cell: expr ),*
+    ) => {
+        comfy_table::Row::from(vec![ $( &$cell as &dyn std::fmt::Display ),*])
+    };
+}
+
 #[derive(Parser)]
 struct Zfctl {
     #[command(subcommand)]

@@ -12,16 +12,19 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::row;
+
 use super::{parse_key_val, ZENOH_FLOW_INTERNAL_ERROR};
 
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail};
 use clap::Subcommand;
+use comfy_table::Table;
 use uuid::Uuid;
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{Result, RuntimeId, Vars};
-use zenoh_flow_daemon_2::{selectors, InstancesQuery, Origin};
+use zenoh_flow_daemon_2::{selectors, InstanceStatus, InstancesQuery, Origin};
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
 
 #[derive(Subcommand)]
@@ -169,24 +172,40 @@ Caused by:
                 }
             }
             InstancesQuery::Status(_) => {
-                tracing::info!("Runtime                           |   Status");
+                let mut table = Table::new();
+                table.set_width(80);
+                table.set_header(row!("Runtime", "Instance State", "Node"));
+
                 while let Ok(response) = reply.recv_async().await {
                     match response.sample {
                         Ok(sample) => {
-                            // TODO: Magic number "1"
-                            //
-                            // In the daemon, when processing a status query, the key expression returned has the id
-                            // of the runtime in 2nd position (counts start at 0… hence `nth(1)` to get the 2nd)
-                            let runtime_id = sample.key_expr.chunks().nth(1).unwrap();
-                            tracing::info!(
-                                "{}     {}",
-                                runtime_id,
-                                String::from_utf8_lossy(&sample.payload.contiguous())
-                            );
+                            match serde_json::from_slice::<InstanceStatus>(
+                                &sample.value.payload.contiguous(),
+                            ) {
+                                Ok(mut status) => {
+                                    if let Some(node_id) = status.nodes.pop() {
+                                        table.add_row(row!(
+                                            status.runtime_id,
+                                            status.state,
+                                            node_id
+                                        ));
+                                        status.nodes.iter().for_each(|node_id| {
+                                            table.add_row(row!("", "", node_id));
+                                        });
+                                    }
+                                }
+                                Err(e) => tracing::error!(
+                                    "Failed to parse 'status' reply from < {} >: {:?}",
+                                    response.replier_id,
+                                    e
+                                ),
+                            }
                         }
                         Err(err) => tracing::error!("{:?}", err),
                     }
                 }
+
+                println!("{table}");
             }
             _ => {}
         }

@@ -22,7 +22,7 @@ use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind};
 use zenoh::prelude::r#async::*;
 use zenoh::queryable::Query;
 use zenoh_flow_commons::{InstanceId, Result, RuntimeId};
-use zenoh_flow_runtime::{InstanceStatus, Runtime};
+use zenoh_flow_runtime::{InstanceState, Runtime};
 
 use crate::{selectors::selector_runtimes, validate_query};
 
@@ -46,7 +46,7 @@ pub struct RuntimeStatus {
     pub operating_system: Option<String>,
     pub cpus: usize,
     pub ram_total: u64,
-    pub data_flows_status: HashMap<InstanceId, (Arc<str>, InstanceStatus)>,
+    pub data_flows_status: HashMap<InstanceId, (Arc<str>, InstanceState)>,
 }
 
 impl RuntimesQuery {
@@ -64,7 +64,7 @@ impl RuntimesQuery {
             }
 
             RuntimesQuery::Status => {
-                let data_flows_status = runtime.instances_status().await;
+                let data_flows_status = runtime.instances_state().await;
 
                 // TODO For better performance, we should initialise this structure once and simply refresh it whenever
                 // we want to access some data about the machine.

@@ -12,6 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use super::row;
+
 use std::time::Duration;
 
 use anyhow::{anyhow, bail};
@@ -23,15 +25,6 @@ use zenoh_flow_daemon_2::{
     runtime::{RuntimeInfo, RuntimeStatus, RuntimesQuery},
     selectors::selector_runtimes,
 };
-
-/// Macro to facilitate the creation of a [Row](comfy_table::Row) where its contents are not of the same type.
-macro_rules! row {
-    (
-        $( $cell: expr ),*
-    ) => {
-        comfy_table::Row::from(vec![ $( &$cell as &dyn std::fmt::Display ),*])
-    };
-}
 
 use crate::ZENOH_FLOW_INTERNAL_ERROR;
 
