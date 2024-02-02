@@ -22,11 +22,11 @@ members = [
   "zenoh-flow-derive",
   "zenoh-flow-descriptors",
   "zenoh-flow-nodes",
-  "zenoh-flow-plugin",
   "zenoh-flow-records",
   "zenoh-flow-runtime",
   "zenoh-flow-standalone-daemon",
   "zenoh-flow-standalone-runtime",
+  "zenoh-plugin-zenoh-flow",
   "zfctl",
 ]
 
