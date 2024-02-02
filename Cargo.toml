@@ -16,7 +16,6 @@ members = [
   "examples",
   "zenoh-flow",
   "zenoh-flow-commons",
-  "zenoh-flow-daemon",
   "zenoh-flow-daemon-2",
   "zenoh-flow-derive",
   "zenoh-flow-descriptors",
