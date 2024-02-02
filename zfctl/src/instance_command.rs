@@ -24,7 +24,7 @@ use comfy_table::Table;
 use uuid::Uuid;
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{Result, RuntimeId, Vars};
-use zenoh_flow_daemon_2::{selectors, InstanceStatus, InstancesQuery, Origin};
+use zenoh_flow_daemon::{selectors, InstanceStatus, InstancesQuery, Origin};
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
 
 #[derive(Subcommand)]

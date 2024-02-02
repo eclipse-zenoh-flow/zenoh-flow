@@ -15,11 +15,11 @@
 [package]
 authors = { workspace = true }
 categories = { workspace = true }
-description = "Zenoh-Flow daemon exposes a Zenoh-Flow runtime on Zenoh"
+description = "The Zenoh-Flow daemon exposes a Zenoh-Flow runtime on Zenoh"
 edition = { workspace = true }
 homepage = { workspace = true }
 license = { workspace = true }
-name = "zenoh-flow-daemon-2"
+name = "zenoh-flow-daemon"
 repository = { workspace = true }
 version = { workspace = true }
 

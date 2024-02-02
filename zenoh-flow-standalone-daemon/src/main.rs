@@ -20,7 +20,7 @@ use signal_hook::consts::{SIGINT, SIGQUIT, SIGTERM};
 use signal_hook_async_std::Signals;
 use uhlc::HLC;
 use zenoh::prelude::r#async::*;
-use zenoh_flow_daemon_2::DaemonBuilder;
+use zenoh_flow_daemon::DaemonBuilder;
 
 #[derive(Parser)]
 struct Cli {

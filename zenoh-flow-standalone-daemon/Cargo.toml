@@ -36,4 +36,4 @@ tracing-subscriber = { workspace = true }
 uhlc = { workspace = true }
 zenoh = { workspace = true }
 zenoh-flow-commons = { workspace = true }
-zenoh-flow-daemon-2 = { workspace = true }
+zenoh-flow-daemon = { workspace = true }

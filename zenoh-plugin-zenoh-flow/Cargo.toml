@@ -41,5 +41,5 @@ tracing-subscriber = { workspace = true }
 uhlc = { workspace = true }
 zenoh = { workspace = true, features = ["unstable"] }
 zenoh-result = "0.7.2-rc"
-zenoh-flow-daemon-2 = { path = "../zenoh-flow-daemon-2", features = ["plugin"] }
+zenoh-flow-daemon = { path = "../zenoh-flow-daemon", features = ["plugin"] }
 zenoh-plugin-trait = { version = "0.7.2-rc", default-features = false }
