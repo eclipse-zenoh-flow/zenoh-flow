@@ -13,16 +13,15 @@
 #
 
 [package]
-authors.workspace = true
-categories.workspace = true
-description.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license.workspace = true
+authors = { workspace = true }
+categories = { workspace = true }
+description = "Zenoh-Flow daemon exposes a Zenoh-Flow runtime on Zenoh"
+edition = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
 name = "zenoh-flow-daemon-2"
-readme.workspace = true
-repository.workspace = true
-version.workspace = true
+repository = { workspace = true }
+version = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }
