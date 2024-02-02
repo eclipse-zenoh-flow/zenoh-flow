@@ -13,8 +13,13 @@
 //
 
 mod instances;
+#[cfg(not(feature = "plugin"))]
+use configuration::ZenohConfiguration;
+use configuration::ZenohFlowConfiguration;
 pub use instances::{InstancesQuery, Origin};
 pub use zenoh_flow_runtime::{InstanceState, InstanceStatus};
+
+pub mod configuration;
 
 pub mod selectors;
 
@@ -26,8 +31,10 @@ use serde::Deserialize;
 use std::sync::Arc;
 use uhlc::HLC;
 use zenoh::{prelude::r#async::*, queryable::Query};
-use zenoh_flow_commons::{Result, RuntimeId};
+use zenoh_flow_commons::{try_load_from_file, Result, Vars};
 use zenoh_flow_runtime::{Extensions, Loader, Runtime};
+
+use crate::configuration::ExtensionsConfiguration;
 
 /// A Zenoh-Flow daemon declares 2 queryables:
 /// 1. `zenoh-flow/<uuid>/runtime`
@@ -40,12 +47,16 @@ pub struct Daemon {
     abort_ack_rx: Receiver<()>,
 }
 
+/// TODO Documentation
+///
+/// - builder pattern to provide default arguments
+/// - needs to be `start`ed for the Daemon to actually start serving queries
+#[must_use = "A Daemon will not serve queries unless you `start` it"]
 pub struct DaemonBuilder {
     zenoh_session: Arc<Session>,
     hlc: Arc<HLC>,
     name: Arc<str>,
     extensions: Extensions,
-    runtime_id: RuntimeId,
 }
 
 impl DaemonBuilder {
@@ -70,7 +81,6 @@ impl DaemonBuilder {
             hlc,
             name,
             extensions: Extensions::default(),
-            runtime_id: RuntimeId::rand(),
         }
     }
 
@@ -84,18 +94,6 @@ impl DaemonBuilder {
 
     /// TODO
     ///
-    /// To provide a custom [RuntimeId]. This identifier has to be unique in the system.
-    ///
-    /// # Errors
-    ///
-    /// If the provided `runtime_id` is already in use in the system then this operation will return an Error.
-    pub fn runtime_id(mut self, runtime_id: RuntimeId) -> Self {
-        self.runtime_id = runtime_id;
-        self
-    }
-
-    /// TODO
-    ///
     /// Starts a Zenoh-Flow daemon based on the the builder
     ///
     /// - creates a Zenoh-Flow runtime,
@@ -103,14 +101,11 @@ impl DaemonBuilder {
     ///    1. `zenoh-flow/<uuid>/runtime`: for everything that relates to the runtime.
     ///    2. `zenoh-flow/<uuid>/instances`: for everything that relates to the data flow instances.
     pub async fn start(self) -> Daemon {
-        tracing::info!(
-            "Zenoh-Flow daemon < {} > has id: {}",
-            self.name,
-            self.runtime_id
-        );
+        let runtime_id = self.zenoh_session.zid().into();
+        tracing::info!("Zenoh-Flow daemon < {} > has id: {}", self.name, runtime_id);
 
         let zenoh_flow_runtime = Arc::new(Runtime::new(
-            self.runtime_id,
+            runtime_id,
             self.name,
             Loader::new(self.extensions),
             self.hlc,
@@ -162,6 +157,45 @@ impl DaemonBuilder {
 }
 
 impl Daemon {
+    /// TODO Documentation
+    pub async fn from_config(
+        #[cfg(feature = "plugin")] zenoh_session: Arc<Session>,
+        configuration: ZenohFlowConfiguration,
+    ) -> Result<DaemonBuilder> {
+        #[cfg(not(feature = "plugin"))]
+        let zenoh_config = match configuration.zenoh {
+            ZenohConfiguration::File(path) => {
+                zenoh::prelude::Config::from_file(path).map_err(|e| anyhow!("{e:?}"))
+            }
+            ZenohConfiguration::Configuration(config) => Ok(config),
+        }?;
+
+        #[cfg(not(feature = "plugin"))]
+        let zenoh_session = zenoh::open(zenoh_config)
+            .res()
+            .await
+            .map(|session| session.into_arc())
+            .map_err(|e| anyhow!("{e:?}"))?;
+
+        let extensions = if let Some(extensions) = configuration.extensions {
+            match extensions {
+                ExtensionsConfiguration::File(path) => {
+                    try_load_from_file::<Extensions>(path, Vars::default()).map(|(ext, _)| ext)
+                }
+                ExtensionsConfiguration::Extensions(extensions) => Ok(extensions),
+            }?
+        } else {
+            Extensions::default()
+        };
+
+        Ok(DaemonBuilder {
+            zenoh_session,
+            hlc: Arc::new(HLC::default()),
+            name: configuration.name,
+            extensions,
+        })
+    }
+
     /// Gracefully stops the Zenoh-Flow daemon.
     ///
     /// This method will first stop the queryables this daemon declared (to not process new requests) and then stop all

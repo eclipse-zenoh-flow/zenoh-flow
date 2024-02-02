@@ -37,7 +37,18 @@ async fn main() {
 
     let cli = Cli::parse();
 
-    let zenoh_session = zenoh::open(zenoh::config::peer())
+    let mut zenoh_config = zenoh::config::peer();
+    if let Some(runtime_id) = cli.runtime_id {
+        if zenoh_config.set_id(runtime_id).is_err() {
+            tracing::error!(
+                "Failed to set id of the Zenoh session: (desired) {}, (current) {}",
+                runtime_id,
+                zenoh_config.id()
+            );
+        }
+    }
+
+    let zenoh_session = zenoh::open(zenoh_config)
         .res()
         .await
         .expect("Failed to open Zenoh session in PEER mode.")
@@ -45,10 +56,7 @@ async fn main() {
 
     let hlc = Arc::new(HLC::default());
 
-    let mut builder = DaemonBuilder::new(zenoh_session, hlc, cli.name);
-    if let Some(runtime_id) = cli.runtime_id {
-        builder = builder.runtime_id(runtime_id.into());
-    }
+    let builder = DaemonBuilder::new(zenoh_session, hlc, cli.name);
 
     let daemon = builder.start().await;
 
