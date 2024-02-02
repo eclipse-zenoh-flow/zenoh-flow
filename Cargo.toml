@@ -13,7 +13,6 @@
 #
 [workspace]
 members = [
-  "cargo-zenoh-flow",
   "examples",
   "zenoh-flow",
   "zenoh-flow-commons",
