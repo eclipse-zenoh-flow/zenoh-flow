@@ -1,7 +1,0 @@
-id: sub-leaf-operator-2
-
-uri: file://sub-sub-operator-2.so
-
-inputs: [sub-sub-operator-2-in]
-
-outputs: [sub-sub-operator-2-out]

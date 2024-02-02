@@ -1,7 +1,0 @@
-id: composite-outer
-
-uri: file://composite-outer.so
-
-inputs: [composite-outer-in]
-
-outputs: [composite-outer-out]

@@ -14,7 +14,6 @@
 [workspace]
 members = [
   "examples",
-  "zenoh-flow",
   "zenoh-flow-commons",
   "zenoh-flow-daemon",
   "zenoh-flow-derive",
