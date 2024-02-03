@@ -24,7 +24,7 @@ use std::{
 use serde::{Deserialize, Deserializer};
 
 // Convenient shortcut.
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct Extensions(
     #[serde(deserialize_with = "deserialize_extensions")] HashMap<Arc<str>, Extension>,
 );
@@ -43,13 +43,13 @@ impl DerefMut for Extensions {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Hash)]
+#[derive(Debug, Clone, Deserialize, Hash, PartialEq, Eq)]
 pub struct Extension {
     pub(crate) file_extension: Arc<str>,
     pub(crate) libraries: ExtensionLibraries,
 }
 
-#[derive(Debug, Clone, Deserialize, Hash)]
+#[derive(Debug, Clone, Deserialize, Hash, PartialEq, Eq)]
 pub(crate) struct ExtensionLibraries {
     pub(crate) source: PathBuf,
     pub(crate) sink: PathBuf,
@@ -68,6 +68,29 @@ impl Extensions {
             NodeSymbol::Operator => &extension.libraries.operator,
             NodeSymbol::Sink => &extension.libraries.sink,
         })
+    }
+
+    pub fn add_extension(
+        mut self,
+        file_extension: impl AsRef<str>,
+        source: PathBuf,
+        operator: PathBuf,
+        sink: PathBuf,
+    ) -> Self {
+        let file_ext: Arc<str> = file_extension.as_ref().into();
+        self.insert(
+            file_ext.clone(),
+            Extension {
+                file_extension: file_ext,
+                libraries: ExtensionLibraries {
+                    source,
+                    sink,
+                    operator,
+                },
+            },
+        );
+
+        self
     }
 }
 

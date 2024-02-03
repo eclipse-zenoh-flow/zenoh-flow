@@ -17,7 +17,7 @@ use std::{path::PathBuf, sync::Arc};
 use serde::Deserialize;
 use zenoh_flow_runtime::Extensions;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct ZenohFlowConfiguration {
     pub name: Arc<str>,
     pub extensions: Option<ExtensionsConfiguration>,
@@ -25,14 +25,16 @@ pub struct ZenohFlowConfiguration {
     pub zenoh: ZenohConfiguration,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq, Eq)]
+#[serde(untagged)]
 pub enum ExtensionsConfiguration {
     File(PathBuf),
     Extensions(Extensions),
 }
 
 #[cfg(not(feature = "plugin"))]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq)]
+#[serde(untagged)]
 pub enum ZenohConfiguration {
     File(PathBuf),
     Configuration(zenoh::prelude::Config),
@@ -44,38 +46,30 @@ mod tests {
 
     #[test]
     fn test_deserialize() {
-        let configuration_zenoh_path_extension_path_yaml = r#"
+        let configuration_extension_path_yaml = r#"
 name: My test daemon
 
 extensions: /home/zenoh-flow/extensions/configuration.ext
-
-zenoh: /home/zenoh/config.json5
 "#;
 
-        serde_yaml::from_str::<ZenohFlowConfiguration>(
-            configuration_zenoh_path_extension_path_yaml,
+        let config = serde_yaml::from_str::<ZenohFlowConfiguration>(
+            configuration_extension_path_yaml,
         )
         .expect(
             "Failed to parse ZenohFlowConfiguration with Zenoh as a PathBuf + Extensions as a PathBuf",
         );
 
-        let configuration_zenoh_inline_extension_path_yaml = r#"
-name: My test daemon
-
-extensions: /home/zenoh-flow/extensions/configuration.ext
-
-zenoh:
-  mode: peer
-"#;
-
-        serde_yaml::from_str::<ZenohFlowConfiguration>(
-            configuration_zenoh_inline_extension_path_yaml,
-        )
-        .expect(
-            "Failed to parse ZenohFlowConfiguration with Zenoh inline + Extensions as a PathBuf",
+        assert_eq!(
+            ZenohFlowConfiguration {
+                name: "My test daemon".into(),
+                extensions: Some(ExtensionsConfiguration::File(PathBuf::from(
+                    "/home/zenoh-flow/extensions/configuration.ext"
+                ))),
+            },
+            config
         );
 
-        let configuration_zenoh_inline_extension_inline_yaml = r#"
+        let configuration_extension_inline_yaml = r#"
 name: My test daemon
 
 extensions:
@@ -84,14 +78,27 @@ extensions:
       source: /home/zenoh-flow/extension/libpython_source.so
       operator: /home/zenoh-flow/extension/libpython_operator.so
       sink: /home/zenoh-flow/extension/libpython_sink.so
-
-zenoh:
-  mode: peer
 "#;
 
-        serde_yaml::from_str::<ZenohFlowConfiguration>(
-            configuration_zenoh_inline_extension_inline_yaml,
-        )
-        .expect("Failed to parse ZenohFlowConfiguration with Zenoh inline + Extensions inline");
+        let config =
+            serde_yaml::from_str::<ZenohFlowConfiguration>(configuration_extension_inline_yaml)
+                .expect(
+                    "Failed to parse ZenohFlowConfiguration with Zenoh inline + Extensions inline",
+                );
+
+        assert_eq!(
+            ZenohFlowConfiguration {
+                name: "My test daemon".into(),
+                extensions: Some(ExtensionsConfiguration::Extensions(
+                    Extensions::default().add_extension(
+                        "py",
+                        PathBuf::from("/home/zenoh-flow/extension/libpython_source.so"),
+                        "/home/zenoh-flow/extension/libpython_operator.so".into(),
+                        "/home/zenoh-flow/extension/libpython_sink.so".into()
+                    )
+                )),
+            },
+            config
+        );
     }
 }
