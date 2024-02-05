@@ -1,0 +1,5 @@
+description: sink
+
+library: "{{ SCHEME }}sink.so"
+
+inputs: [sink-in]

@@ -1,0 +1,39 @@
+#
+# Copyright (c) 2021 - 2024 ZettaScale Technology
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+# which is available at https://www.apache.org/licenses/LICENSE-2.0.
+#
+# SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+#
+# Contributors:
+#   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
+#
+
+[package]
+authors.workspace = true
+categories.workspace = true
+description = "A standalone Zenoh-Flow daemon."
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+name = "zenoh-flow-standalone-daemon"
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-std = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+signal-hook = "0.3"
+signal-hook-async-std = "0.2"
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uhlc = { workspace = true }
+zenoh = { workspace = true }
+zenoh-flow-commons = { workspace = true }
+zenoh-flow-daemon = { workspace = true }

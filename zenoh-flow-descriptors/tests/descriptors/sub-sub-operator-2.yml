@@ -1,0 +1,7 @@
+description: sub-leaf-operator-2
+
+library: "{{ SCHEME }}sub-sub-operator-2.so"
+
+inputs: [sub-sub-operator-2-in]
+
+outputs: [sub-sub-operator-2-out]

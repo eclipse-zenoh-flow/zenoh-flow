@@ -1,7 +1,0 @@
-id: operator
-
-uri: file://operator.so
-
-inputs: [operator-in]
-
-outputs: [operator-out]

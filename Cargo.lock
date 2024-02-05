@@ -746,18 +746,8 @@ version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b750cb3417fd1b327431a470f388520309479ab0bf5e323505daf0290cd3850"
 dependencies = [
- "darling_core 0.14.4",
- "darling_macro 0.14.4",
-]
-
-[[package]]
-name = "darling"
-version = "0.20.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0209d94da627ab5605dcccf08bb18afa5009cfbef48d8a8b7d7bdbc79be25c5e"
-dependencies = [
- "darling_core 0.20.3",
- "darling_macro 0.20.3",
+ "darling_core",
+ "darling_macro",
 ]
 
 [[package]]
@@ -775,39 +765,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "darling_core"
-version = "0.20.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "177e3443818124b357d8e76f53be906d60937f0d3a90773a664fa63fa253e621"
-dependencies = [
- "fnv",
- "ident_case",
- "proc-macro2",
- "quote",
- "strsim",
- "syn 2.0.37",
-]
-
-[[package]]
 name = "darling_macro"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4aab4dbc9f7611d8b55048a3a16d2d010c2c8334e46304b40ac1cc14bf3b48e"
 dependencies = [
- "darling_core 0.14.4",
+ "darling_core",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "darling_macro"
-version = "0.20.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "836a9bbc7ad63342d6d6e7b815ccab164bc77a2d95d84bc3117a8c0d5c98e2d5"
-dependencies = [
- "darling_core 0.20.3",
- "quote",
- "syn 2.0.37",
 ]
 
 [[package]]
@@ -2889,18 +2854,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "syn-serde"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c304c2cec7c24cf8d9da6435d88d1a12eadd1d96212a14bebf2a540155c1e2de"
-dependencies = [
- "proc-macro2",
- "serde",
- "serde_json",
- "syn 2.0.37",
-]
-
-[[package]]
 name = "synstructure"
 version = "0.12.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3881,6 +3834,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "zenoh-flow-commons"
+version = "0.6.0-dev"
+dependencies = [
+ "anyhow",
+ "bytesize",
+ "humantime",
+ "serde",
+ "serde_json",
+ "uuid",
+ "zenoh-keyexpr",
+]
+
+[[package]]
 name = "zenoh-flow-daemon"
 version = "0.6.0-dev"
 dependencies = [
@@ -3912,18 +3878,45 @@ dependencies = [
 name = "zenoh-flow-derive"
 version = "0.6.0-dev"
 dependencies = [
- "Inflector",
- "async-std",
- "darling 0.20.3",
- "env_logger",
- "futures",
- "proc-macro-error",
  "proc-macro2",
  "quote",
- "serde",
- "serde_derive",
  "syn 2.0.37",
- "syn-serde 0.3.0",
+]
+
+[[package]]
+name = "zenoh-flow-descriptors"
+version = "0.6.0-dev"
+dependencies = [
+ "anyhow",
+ "ramhorns",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tracing",
+ "url",
+ "uuid",
+ "zenoh-flow-commons",
+ "zenoh-keyexpr",
+]
+
+[[package]]
+name = "zenoh-flow-nodes"
+version = "0.6.0-dev"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bincode",
+ "flume 0.11.0",
+ "futures",
+ "prost",
+ "rustc_version",
+ "serde",
+ "serde_json",
+ "tracing",
+ "uhlc",
+ "uuid",
+ "zenoh-flow-commons",
+ "zenoh-flow-derive",
 ]
 
 [[package]]
@@ -3949,6 +3942,20 @@ dependencies = [
  "zenoh-flow",
  "zenoh-flow-daemon",
  "zenoh-plugin-trait",
+]
+
+[[package]]
+name = "zenoh-flow-records"
+version = "0.6.0-dev"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "uuid",
+ "zenoh-flow-commons",
+ "zenoh-flow-descriptors",
+ "zenoh-keyexpr",
 ]
 
 [[package]]
@@ -4336,7 +4343,7 @@ dependencies = [
  "Inflector",
  "async-std",
  "base64 0.21.2",
- "darling 0.14.4",
+ "darling",
  "futures",
  "log",
  "proc-macro2",
@@ -4344,7 +4351,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "syn 1.0.109",
- "syn-serde 0.2.4",
+ "syn-serde",
  "zenoh",
  "zenoh-util",
  "zrpc",

@@ -16,7 +16,7 @@ use async_std::prelude::FutureExt;
 use async_std::sync::{Arc, Mutex};
 use prost::Message as pMessage;
 use std::time::{Duration, Instant};
-use zenoh_flow::{anyhow, prelude::*};
+use zenoh_flow_nodes::prelude::*;
 
 #[export_operator]
 pub struct PeriodMissDetector {
@@ -30,7 +30,7 @@ pub struct PeriodMissDetector {
 impl Operator for PeriodMissDetector {
     async fn new(
         _context: Context,
-        _configuration: Option<Configuration>,
+        _configuration: Configuration,
         mut inputs: Inputs,
         mut outputs: Outputs,
     ) -> Result<Self> {

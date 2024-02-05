@@ -1,5 +1,0 @@
-id: source
-
-uri: file://source.so
-
-outputs: [source-out]
