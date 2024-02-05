@@ -27,20 +27,9 @@ version.workspace = true
 # To build with debug on macros: RUSTFLAGS="-Z macro-backtrace"
 
 [dependencies]
-Inflector = "0.11.4"
-async-std = { workspace = true, features = ["attributes"] }
-darling = "0.20"
-futures = { workspace = true }
-proc-macro-error = "1.0.4"
 proc-macro2 = "1.0"
 quote = "1.0"
-serde = { workspace = true, features = ["derive"] }
-serde_derive = { workspace = true }
 syn = { version = "2", features = ["full"] }
-syn-serde = { version = "0.3", features = ["json"] }
-
-[dev-dependencies]
-env_logger = { workspace = true }
 
 [lib]
 proc-macro = true

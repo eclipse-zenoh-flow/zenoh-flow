@@ -1,0 +1,13 @@
+description: sub-leaf-operator-1
+
+library: "{{ SCHEME }}sub-sub-operator-1.so"
+
+configuration:
+  foo: "leaf"
+  bar: "leaf"
+  baz: "leaf"
+  quux: "leaf"
+
+inputs: [sub-sub-operator-1-in]
+
+outputs: [sub-sub-operator-1-out]

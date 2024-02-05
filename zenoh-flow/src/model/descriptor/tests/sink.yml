@@ -1,5 +1,0 @@
-id: sink
-
-uri: file://sink.so
-
-inputs: [sink-in]

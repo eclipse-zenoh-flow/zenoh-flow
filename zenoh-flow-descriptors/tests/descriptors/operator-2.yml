@@ -1,0 +1,7 @@
+description: operator-2
+
+library: file://operator-2.so
+
+inputs: [operator-2-in]
+
+outputs: [operator-2-out]

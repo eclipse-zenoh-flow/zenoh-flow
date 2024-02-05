@@ -13,13 +13,18 @@
 #
 [workspace]
 members = [
-  "cargo-zenoh-flow",
-  "zenoh-flow",
+  "examples",
+  "zenoh-flow-commons",
   "zenoh-flow-daemon",
   "zenoh-flow-derive",
-  "zenoh-flow-plugin",
+  "zenoh-flow-descriptors",
+  "zenoh-flow-nodes",
+  "zenoh-flow-records",
+  "zenoh-flow-runtime",
+  "zenoh-flow-standalone-daemon",
+  "zenoh-flow-standalone-runtime",
+  "zenoh-plugin-zenoh-flow",
   "zfctl",
-  "examples",
 ]
 
 [workspace.package]
@@ -34,27 +39,40 @@ repository = "https://github.com/eclipse-zenoh/zenoh-flow"
 version = "0.6.0-dev"
 
 [workspace.dependencies]
-async-std = "1.12"
+anyhow = "1"
+async-std = { version = "1.12", features = ["attributes"] }
 async-trait = "0.1.50"
 base64 = "0.21"
-clap = "4.0"
+bytesize = "1.2.0"
+clap = { version = "4.0", features = ["derive"] }
 env_logger = "0.10"
 flume = "0.11"
 futures = "0.3.15"
 git-version = "0.3"
 log = "0.4"
-serde = "1.0"
+serde = { version = "1.0", features = ["derive", "rc"] }
 serde_cbor = "0.11"
 serde_derive = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.9"
+tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = { version = "0.3" }
 uhlc = "0.6"
-uuid = "1.1"
-zenoh = { version = "0.7.2-rc" }
+url = { version = "2.2", features = ["serde"] }
+uuid = { version = "1.1", features = ["serde", "v4"] }
+zenoh = { version = "0.7.2-rc", features = ["shared-memory"] }
 zenoh-collections = { version = "0.7.2-rc" }
 zenoh-core = { version = "0.7.2-rc" }
 zenoh-ext = { version = "0.7.2-rc" }
+zenoh-flow-commons = { path = "./zenoh-flow-commons" }
+zenoh-flow-daemon = { path = "./zenoh-flow-daemon" }
+zenoh-flow-descriptors = { path = "./zenoh-flow-descriptors" }
+zenoh-flow-nodes = { path = "./zenoh-flow-nodes" }
+zenoh-flow-records = { path = "./zenoh-flow-records" }
+zenoh-flow-runtime = { path = "./zenoh-flow-runtime" }
+zenoh-keyexpr = { version = "0.7.2-rc" }
 zenoh-plugin-trait = { version = "0.7.2-rc", default-features = false }
+zenoh-protocol = { version = "0.7.2-rc" }
 zenoh-sync = { version = "0.7.2-rc" }
 zenoh-util = { version = "0.7.2-rc" }
 zrpc = { version = "0.7.0-alpha.1" }

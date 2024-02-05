@@ -1,35 +1,43 @@
-flow: getting-started
+name: getting-started
 
 vars:
-  BASE_DIR: "/path/to/zenoh-flow/examples/examples"
+  TARGET_DIR: "/path/to/zenoh-flow/target"
+  BUILD: "debug"
+  DLL_EXTENSION: "dylib"
 
 sources:
   - id: zenoh-sub
-    configuration:
-      key-expressions:
-        out: zf/getting-started/hello
-    descriptor: "builtin://zenoh"
+    description: The Source receiving the names
+    zenoh-subscribers:
+      hello: "zf/getting-started/hello"
 
 operators:
   - id: greetings-maker
-    descriptor: "file://{{ BASE_DIR }}/greetings-maker/greetings-maker.yaml"
+    description: "This node will create the greeting, transforming for instance 'John' to: 'Hello, John!'"
+    library: "file://{{ TARGET_DIR }}/{{ BUILD }}/examples/libgreetings_maker.{{ DLL_EXTENSION }}"
+    inputs:
+      - name
+    outputs:
+      - greeting
 
 sinks:
   - id: file-writer
     configuration:
       file: "/tmp/greetings.txt"
-    descriptor: "file://{{ BASE_DIR }}/file-writer/file-writer.yaml"
+    library: "file://{{ TARGET_DIR }}/{{ BUILD }}/examples/libfile_writer.{{ DLL_EXTENSION }}"
+    description: "This Sink will write the greetings in a temporary file."
+    inputs:
+      - in
 
   - id: zenoh-writer
-    configuration:
-      key-expressions:
-        in: zf/getting-started/greeting
-    descriptor: "builtin://zenoh"
+    description: The Sink publishing the result of the processing
+    zenoh-publishers:
+      greeting: "zf/getting-started/greeting"
 
 links:
   - from:
       node: zenoh-sub
-      output: out
+      output: hello
     to:
       node: greetings-maker
       input: name
@@ -46,4 +54,4 @@ links:
       output: greeting
     to:
       node: zenoh-writer
-      input: in
+      input: greeting

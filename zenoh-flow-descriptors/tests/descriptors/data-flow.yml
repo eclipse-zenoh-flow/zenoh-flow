@@ -1,0 +1,112 @@
+name: test
+
+vars:
+  SCHEME: file://
+  BASE_DIR:
+  RUNTIME_1:
+  RUNTIME_2:
+  RUNTIME_COMPOSITE:
+
+configuration:
+  foo: "global-outer"
+
+sources:
+  - id: source-1
+    descriptor: "{{ SCHEME }}{{ BASE_DIR }}/source.yml"
+
+  - id: source-2
+    descriptor: "{{ SCHEME }}{{    BASE_DIR }}/source.yml"
+
+  - id: source-composite
+    descriptor: "{{ SCHEME }}{{ BASE_DIR   }}/source-composite.yml"
+
+
+operators:
+  - id: operator-1
+    descriptor: "{{ SCHEME }}{{BASE_DIR }}/operator.yml"
+
+  - id: operator-2
+    descriptor: "{{ SCHEME }}{{ BASE_DIR}}/operator.yml"
+
+  - id: operator-composite
+    descriptor: "{{ SCHEME }}{{BASE_DIR}}/operator-composite.yml"
+    configuration:
+      quux: "global-inner"
+
+
+sinks:
+  - id: sink-1
+    descriptor: "{{ SCHEME }}{{ BASE_DIR }}/sink.yml"
+
+  - id: sink-2
+    descriptor: "{{ SCHEME }}{{ BASE_DIR }}/sink.yml"
+
+  - id: sink-composite
+    descriptor: "{{ SCHEME }}{{ BASE_DIR }}/sink-composite.yml"
+
+
+links:
+  - from:
+      node: source-1
+      output: source-out
+    to:
+      node: operator-1
+      input: operator-in
+  - from:
+      node: operator-1
+      output: operator-out
+    to:
+      node: sink-1
+      input: sink-in
+
+  - from:
+      node: source-2
+      output: source-out
+    to:
+      node: operator-2
+      input: operator-in
+  - from:
+      node: operator-2
+      output: operator-out
+    to:
+      node: sink-2
+      input: sink-in
+
+  - from:
+      node: source-composite
+      output: source-composite-out-1
+    to:
+      node: operator-composite
+      input: operator-composite-in-1
+
+  - from:
+      node: source-composite
+      output: source-composite-out-2
+    to:
+      node: operator-composite
+      input: operator-composite-in-2
+
+  - from:
+      node: operator-composite
+      output: operator-composite-out-1
+    to:
+      node: sink-composite
+      input: sink-composite-in-1
+
+  - from:
+      node: operator-composite
+      output: operator-composite-out-2
+    to:
+      node: sink-composite
+      input: sink-composite-in-2
+
+
+mapping:
+  "{{ RUNTIME_1 }}":
+    - source-1
+  "{{ RUNTIME_2 }}":
+    - sink-2
+  "{{ RUNTIME_COMPOSITE }}":
+    - source-composite
+    - operator-composite
+    - sink-composite

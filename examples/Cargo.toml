@@ -1,22 +1,33 @@
-[package]
-name = "zenoh-flow-examples"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-repository.workspace = true
-homepage.workspace = true
-categories.workspace = true
-description.workspace = true
-license.workspace = true
-readme = "README.md"
+#
+# Copyright (c) 2021 - 2023 ZettaScale Technology
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+# which is available at https://www.apache.org/licenses/LICENSE-2.0.
+#
+# SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+#
+# Contributors:
+#   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
+#
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[package]
+authors = { workspace = true }
+categories = { workspace = true }
+description = "A set of Zenoh-Flow data flow examples"
+edition = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
+name = "zenoh-flow-examples"
+repository = { workspace = true }
+version = { workspace = true }
 
 [dependencies]
 async-std = { workspace = true }
 async-trait = { workspace = true }
 prost = "0.11"
-zenoh-flow = { path = "../zenoh-flow/" }
+zenoh-flow-nodes = { workspace = true }
 
 [[example]]
 name = "greetings-maker"
