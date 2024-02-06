@@ -32,7 +32,7 @@ where
                 .context(format!("Failed to deserialize from YAML:\n{}", buf))
         }),
         Some(extension) => bail!(
-            r###"
+            r#"
 Unsupported file extension < {} > in:
    {:?}
 
@@ -40,7 +40,7 @@ Currently supported file extensions are:
 - .json
 - .yml
 - .yaml
-"###,
+"#,
             extension,
             path
         ),

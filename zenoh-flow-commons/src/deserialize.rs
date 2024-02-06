@@ -123,39 +123,39 @@ mod tests {
 "#;
         assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
 
-        let json_str = r###"
+        let json_str = r##"
 {
   "id": "#chunk"
 }
-"###;
+"##;
         assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
 
-        let json_str = r###"
+        let json_str = r#"
 {
   "id": "?chunk"
 }
-"###;
+"#;
         assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
 
-        let json_str = r###"
+        let json_str = r#"
 {
   "id": "$chunk"
 }
-"###;
+"#;
         assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
 
-        let json_str = r###"
+        let json_str = r#"
 {
   "id": "my>chunk"
 }
-"###;
+"#;
         assert!(serde_json::from_str::<TestStruct>(json_str).is_err());
 
-        let json_str = r###"
+        let json_str = r#"
 {
   "id": "my/chunk/is/alright"
 }
-"###;
+"#;
         assert!(serde_json::from_str::<TestStruct>(json_str).is_ok());
     }
 }
