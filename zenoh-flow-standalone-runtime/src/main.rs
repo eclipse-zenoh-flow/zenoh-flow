@@ -35,6 +35,7 @@ struct Cli {
 
 #[async_std::main]
 async fn main() {
+    let _ = tracing_subscriber::fmt::try_init();
     let cli = Cli::parse();
 
     let extensions = match cli.extensions {
