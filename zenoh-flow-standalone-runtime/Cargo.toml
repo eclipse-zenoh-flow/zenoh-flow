@@ -29,6 +29,8 @@ async-std = { workspace = true }
 clap = { workspace = true }
 uhlc = { workspace = true }
 serde = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 zenoh-flow-commons = { workspace = true }
 zenoh-flow-descriptors = { workspace = true }
 zenoh-flow-records = { workspace = true }
