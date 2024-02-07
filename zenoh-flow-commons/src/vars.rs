@@ -80,7 +80,6 @@ impl<T: AsRef<str>, U: AsRef<str>> From<Vec<(T, U)>> for Vars {
     }
 }
 
-
 /// Parse a Vars from a string of the format "KEY=VALUE".
 pub fn parse_vars<T, U>(
     s: &str,
