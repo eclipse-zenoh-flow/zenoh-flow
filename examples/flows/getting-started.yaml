@@ -3,7 +3,8 @@ name: getting-started
 vars:
   TARGET_DIR: "/path/to/zenoh-flow/target"
   BUILD: "debug"
-  DLL_EXTENSION: "dylib"
+  DLL_EXTENSION: ""
+  OUT_FILE: ""
 
 sources:
   - id: zenoh-sub
@@ -23,7 +24,7 @@ operators:
 sinks:
   - id: file-writer
     configuration:
-      file: "/tmp/greetings.txt"
+      file: "{{ OUT_FILE }}"
     library: "file://{{ TARGET_DIR }}/{{ BUILD }}/examples/libfile_writer.{{ DLL_EXTENSION }}"
     description: "This Sink will write the greetings in a temporary file."
     inputs:
