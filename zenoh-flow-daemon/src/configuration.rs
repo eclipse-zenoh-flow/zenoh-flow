@@ -17,7 +17,7 @@ use std::{path::PathBuf, sync::Arc};
 use serde::Deserialize;
 use zenoh_flow_runtime::Extensions;
 
-#[derive(Deserialize, Debug, PartialEq, Eq)]
+#[derive(Deserialize, Debug)]
 pub struct ZenohFlowConfiguration {
     pub name: Arc<str>,
     pub extensions: Option<ExtensionsConfiguration>,
@@ -33,7 +33,7 @@ pub enum ExtensionsConfiguration {
 }
 
 #[cfg(not(feature = "plugin"))]
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Deserialize, Debug)]
 #[serde(untagged)]
 pub enum ZenohConfiguration {
     File(PathBuf),
@@ -59,15 +59,15 @@ extensions: /home/zenoh-flow/extensions/configuration.ext
             "Failed to parse ZenohFlowConfiguration with Zenoh as a PathBuf + Extensions as a PathBuf",
         );
 
-        assert_eq!(
-            ZenohFlowConfiguration {
-                name: "My test daemon".into(),
-                extensions: Some(ExtensionsConfiguration::File(PathBuf::from(
-                    "/home/zenoh-flow/extensions/configuration.ext"
-                ))),
-            },
-            config
-        );
+        let expected_configuration = ZenohFlowConfiguration {
+            name: "My test daemon".into(),
+            extensions: Some(ExtensionsConfiguration::File(PathBuf::from(
+                "/home/zenoh-flow/extensions/configuration.ext",
+            ))),
+        };
+
+        assert_eq!(expected_configuration.name, config.name);
+        assert_eq!(expected_configuration.extensions, config.extensions);
 
         let configuration_extension_inline_yaml = r#"
 name: My test daemon
@@ -86,19 +86,19 @@ extensions:
                     "Failed to parse ZenohFlowConfiguration with Zenoh inline + Extensions inline",
                 );
 
-        assert_eq!(
-            ZenohFlowConfiguration {
-                name: "My test daemon".into(),
-                extensions: Some(ExtensionsConfiguration::Extensions(
-                    Extensions::default().add_extension(
-                        "py",
-                        PathBuf::from("/home/zenoh-flow/extension/libpython_source.so"),
-                        "/home/zenoh-flow/extension/libpython_operator.so".into(),
-                        "/home/zenoh-flow/extension/libpython_sink.so".into()
-                    )
-                )),
-            },
-            config
-        );
+        let expected_configuration = ZenohFlowConfiguration {
+            name: "My test daemon".into(),
+            extensions: Some(ExtensionsConfiguration::Extensions(
+                Extensions::default().add_extension(
+                    "py",
+                    "/home/zenoh-flow/extension/libpython_source.so".into(),
+                    "/home/zenoh-flow/extension/libpython_operator.so".into(),
+                    "/home/zenoh-flow/extension/libpython_sink.so".into(),
+                ),
+            )),
+        };
+
+        assert_eq!(expected_configuration.name, config.name);
+        assert_eq!(expected_configuration.extensions, config.extensions);
     }
 }

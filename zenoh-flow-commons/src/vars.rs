@@ -45,7 +45,7 @@ impl Deref for Vars {
 impl IMergeOverwrite for Vars {
     fn merge_overwrite(self, other: Self) -> Self {
         let mut merged = (*other.vars).clone();
-        merged.extend((*self.vars).clone().into_iter());
+        merged.extend((*self.vars).clone());
 
         Self {
             vars: Rc::new(merged),

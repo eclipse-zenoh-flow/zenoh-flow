@@ -12,6 +12,7 @@
 #   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 #
 [workspace]
+resolver = "2"
 members = [
   "examples",
   "zenoh-flow-commons",
@@ -60,23 +61,22 @@ tracing-subscriber = { version = "0.3" }
 uhlc = "0.6"
 url = { version = "2.2", features = ["serde"] }
 uuid = { version = "1.1", features = ["serde", "v4"] }
-zenoh = { version = "0.7.2-rc", features = ["shared-memory"] }
-zenoh-collections = { version = "0.7.2-rc" }
-zenoh-core = { version = "0.7.2-rc" }
-zenoh-ext = { version = "0.7.2-rc" }
+zenoh = { version = "0.10.1-rc", features = ["shared-memory"] }
+zenoh-collections = { version = "0.10.1-rc" }
+zenoh-core = { version = "0.10.1-rc" }
+zenoh-ext = { version = "0.10.1-rc" }
 zenoh-flow-commons = { path = "./zenoh-flow-commons" }
 zenoh-flow-daemon = { path = "./zenoh-flow-daemon" }
 zenoh-flow-descriptors = { path = "./zenoh-flow-descriptors" }
 zenoh-flow-nodes = { path = "./zenoh-flow-nodes" }
 zenoh-flow-records = { path = "./zenoh-flow-records" }
 zenoh-flow-runtime = { path = "./zenoh-flow-runtime" }
-zenoh-keyexpr = { version = "0.7.2-rc" }
-zenoh-plugin-trait = { version = "0.7.2-rc", default-features = false }
-zenoh-protocol = { version = "0.7.2-rc" }
-zenoh-sync = { version = "0.7.2-rc" }
-zenoh-util = { version = "0.7.2-rc" }
-zrpc = { version = "0.7.0-alpha.1" }
-zrpc-macros = { version = "0.7.0-alpha.2" }
+zenoh-keyexpr = { version = "0.10.1-rc" }
+zenoh-plugin-trait = { version = "0.10.1-rc", default-features = false }
+zenoh-protocol = { version = "0.10.1-rc" }
+zenoh-result = "0.10.1-rc"
+zenoh-sync = { version = "0.10.1-rc" }
+zenoh-util = { version = "0.10.1-rc" }
 
 [profile.dev]
 debug = true
