@@ -33,11 +33,8 @@ clap = { workspace = true, features = ["derive", "wrap_help"] }
 comfy-table = "7.1.0"
 derive_more = "0.99.10"
 dirs = "5.0"
-exitfailure = "0.5.1"
-failure = "0.1.8"
 git-version = { workspace = true }
 log = { workspace = true }
-prettytable-rs = "^0.10"
 rand = "0.8.3"
 semver = { version = "1.0.4", features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
