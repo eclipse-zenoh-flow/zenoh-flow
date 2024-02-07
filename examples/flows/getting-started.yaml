@@ -17,8 +17,8 @@ name: getting-started
 vars:
   TARGET_DIR: "/path/to/zenoh-flow/target"
   BUILD: "debug"
-  DLL_EXTENSION: ""
-  OUT_FILE: ""
+  DLL_EXTENSION: "so"
+  OUT_FILE: "/tmp/greetings.txt"
 
 sources:
   - id: zenoh-sub
