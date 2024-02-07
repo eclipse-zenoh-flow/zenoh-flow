@@ -15,6 +15,7 @@
 use crate::IMergeOverwrite;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::error::Error;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -77,4 +78,21 @@ impl<T: AsRef<str>, U: AsRef<str>> From<Vec<(T, U)>> for Vars {
             ),
         }
     }
+}
+
+
+/// Parse a Vars from a string of the format "KEY=VALUE".
+pub fn parse_vars<T, U>(
+    s: &str,
+) -> std::result::Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
+where
+    T: std::str::FromStr,
+    T::Err: Error + Send + Sync + 'static,
+    U: std::str::FromStr,
+    U::Err: Error + Send + Sync + 'static,
+{
+    let pos = s
+        .find('=')
+        .ok_or_else(|| format!("invalid KEY=value: no `=` found in `{s}`"))?;
+    Ok((s[..pos].parse()?, s[pos + 1..].parse()?))
 }

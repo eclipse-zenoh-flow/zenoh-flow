@@ -14,7 +14,7 @@
 
 use crate::row;
 
-use super::{parse_key_val, ZENOH_FLOW_INTERNAL_ERROR};
+use super::ZENOH_FLOW_INTERNAL_ERROR;
 
 use std::path::PathBuf;
 
@@ -23,7 +23,7 @@ use clap::Subcommand;
 use comfy_table::Table;
 use uuid::Uuid;
 use zenoh::prelude::r#async::*;
-use zenoh_flow_commons::{Result, RuntimeId, Vars};
+use zenoh_flow_commons::{Result, RuntimeId, Vars, parse_vars};
 use zenoh_flow_daemon::{selectors, InstanceStatus, InstancesQuery, Origin};
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
 
@@ -56,7 +56,7 @@ pub(crate) enum InstanceCommand {
         ///
         /// Example:
         ///     --vars HOME_DIR=/home/zenoh-flow --vars BUILD=debug
-        #[arg(long, value_parser = parse_key_val::<String, String>, verbatim_doc_comment)]
+        #[arg(long, value_parser = parse_vars::<String, String>, verbatim_doc_comment)]
         vars: Option<Vec<(String, String)>>,
     },
     /// To delete (and abort, if required) the data flow instance

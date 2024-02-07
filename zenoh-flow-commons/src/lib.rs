@@ -34,7 +34,7 @@ mod utils;
 pub use utils::try_load_from_file;
 
 mod vars;
-pub use vars::Vars;
+pub use vars::{Vars, parse_vars};
 
 /// Zenoh-Flow's result type.
 pub type Result<T> = std::result::Result<T, anyhow::Error>;
