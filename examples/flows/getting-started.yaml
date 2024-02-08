@@ -1,9 +1,24 @@
+#
+# Copyright (c) 2021 - 2024 ZettaScale Technology
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+# which is available at https://www.apache.org/licenses/LICENSE-2.0.
+#
+# SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+#
+# Contributors:
+#   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
+#
+
 name: getting-started
 
 vars:
   TARGET_DIR: "/path/to/zenoh-flow/target"
   BUILD: "debug"
-  DLL_EXTENSION: "dylib"
+  DLL_EXTENSION: "so"
+  OUT_FILE: "/tmp/greetings.txt"
 
 sources:
   - id: zenoh-sub
@@ -23,7 +38,7 @@ operators:
 sinks:
   - id: file-writer
     configuration:
-      file: "/tmp/greetings.txt"
+      file: "{{ OUT_FILE }}"
     library: "file://{{ TARGET_DIR }}/{{ BUILD }}/examples/libfile_writer.{{ DLL_EXTENSION }}"
     description: "This Sink will write the greetings in a temporary file."
     inputs:
