@@ -16,7 +16,7 @@ use anyhow::Context;
 use async_std::io::ReadExt;
 use clap::Parser;
 use std::{path::PathBuf, sync::Arc};
-use zenoh_flow_commons::{RuntimeId, Vars};
+use zenoh_flow_commons::{parse_vars, RuntimeId, Vars};
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
 use zenoh_flow_records::DataFlowRecord;
 use zenoh_flow_runtime::{
@@ -31,10 +31,18 @@ struct Cli {
     /// The, optional, location of the configuration to load nodes implemented not in Rust.
     #[arg(short, long, value_name = "path")]
     extensions: Option<PathBuf>,
+    /// Variables to add / overwrite in the `vars` section of your data
+    /// flow, with the form `KEY=VALUE`. Can be repeated multiple times.
+    ///
+    /// Example:
+    ///     --vars HOME_DIR=/home/zenoh-flow --vars BUILD=debug
+    #[arg(long, value_parser = parse_vars::<String, String>, verbatim_doc_comment)]
+    vars: Option<Vec<(String, String)>>,
 }
 
 #[async_std::main]
 async fn main() {
+    let _ = tracing_subscriber::fmt::try_init();
     let cli = Cli::parse();
 
     let extensions = match cli.extensions {
@@ -56,15 +64,18 @@ async fn main() {
 
     let loader = Loader::new(extensions);
 
-    let (data_flow, vars) = zenoh_flow_commons::try_load_from_file::<DataFlowDescriptor>(
-        cli.flow.as_os_str(),
-        Vars::default(),
-    )
-    .context(format!(
-        "Failed to load data flow descriptor from < {} >",
-        &cli.flow.display()
-    ))
-    .unwrap();
+    let vars = match cli.vars {
+        Some(v) => Vars::from(v),
+        None => Vars::default(),
+    };
+
+    let (data_flow, vars) =
+        zenoh_flow_commons::try_load_from_file::<DataFlowDescriptor>(cli.flow.as_os_str(), vars)
+            .context(format!(
+                "Failed to load data flow descriptor from < {} >",
+                &cli.flow.display()
+            ))
+            .unwrap();
 
     let flattened_flow = FlattenedDataFlowDescriptor::try_flatten(data_flow, vars)
         .context(format!(
