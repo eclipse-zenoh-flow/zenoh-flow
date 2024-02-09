@@ -14,6 +14,7 @@
 
 use crate::{IMergeOverwrite, Result, Vars};
 use anyhow::{bail, Context};
+use handlebars::Handlebars;
 use serde::Deserialize;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -70,15 +71,19 @@ where
         deserializer::<Vars>(&path_buf)?(&buf).context("Failed to deserialize Vars")?,
     );
 
-    let expanded_buf = ramhorns::Template::new(buf.as_str())
-        .context(format!(
-            "Failed to create a ramhorns::Template from\n:{}",
-            &buf
-        ))?
-        .render(&*merged_vars);
+    let mut handlebars = Handlebars::new();
+    handlebars.set_strict_mode(true);
+
+    let rendered_descriptor = handlebars
+        // NOTE: We have to dereference `merged_vars` (this: `&(*merged_vars)`) and pass the contained `HashMap` such
+        // that `handlebars` can correctly manipulate it.
+        //
+        // We have to have this indirection in the structure such that `serde` can correctly deserialise the descriptor.
+        .render_template(buf.as_str(), &(*merged_vars))
+        .context("Failed to expand descriptor")?;
 
     Ok((
-        (deserializer::<N>(&path_buf))?(&expanded_buf)
+        (deserializer::<N>(&path_buf))?(&rendered_descriptor)
             .context(format!("Failed to deserialize {}", &path_buf.display()))?,
         merged_vars,
     ))
