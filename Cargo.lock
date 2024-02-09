@@ -3649,6 +3649,8 @@ dependencies = [
  "async-std",
  "clap",
  "serde",
+ "tracing",
+ "tracing-subscriber",
  "uhlc",
  "zenoh-flow-commons",
  "zenoh-flow-descriptors",
