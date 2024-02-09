@@ -19,16 +19,33 @@ use std::error::Error;
 use std::ops::Deref;
 use std::rc::Rc;
 
-/// `Vars` is an internal structure that we use to expand the "mustache variables" in a descriptor
-/// file.
+/// `Vars` is an internal structure that we use to expand the "moustache variables" in a descriptor file.
 ///
-/// Mustache variables take the form: "{{ var }}..." where the number of spaces after the '{{' and
-/// before the '}}' do not matter.
+/// Moustache variables take the form: `{{ var }}` where the number of spaces after the `{{` and before the `}}` do
+/// not matter.
 ///
 /// We first parse the descriptor file to only extract the `vars` section and build a `HashMap` out of it.
 ///
-/// We then load the descriptor file as a template and "render" it, substituting every "mustache
-/// variable" with its corresponding value in the HashMap.
+/// We then load the descriptor file as a template and "render" it, substituting every "moustache variable" with its
+/// corresponding value in the HashMap.
+///
+/// # Example (YAML)
+///
+/// Declaration within a descriptor:
+///
+/// ```yaml
+///   vars:
+///     BUILD: debug
+///     DLL_EXT: so
+/// ```
+///
+/// Its usage within the descriptor:
+///
+/// ```yaml
+///   sources:
+///     - id: my-source
+///       library: "file:///zenoh-flow/target/{{ BUILD }}/libmy_source.{{ DLL_EXT }}"
+/// ```
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Vars {
     #[serde(default)]
@@ -80,7 +97,7 @@ impl<T: AsRef<str>, U: AsRef<str>> From<Vec<(T, U)>> for Vars {
     }
 }
 
-/// Parse a Vars from a string of the format "KEY=VALUE".
+/// Parse a single [Var](Vars) from a string of the format "KEY=VALUE".
 pub fn parse_vars<T, U>(
     s: &str,
 ) -> std::result::Result<(T, U), Box<dyn Error + Send + Sync + 'static>>

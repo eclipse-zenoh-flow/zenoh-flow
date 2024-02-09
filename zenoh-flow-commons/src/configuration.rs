@@ -16,8 +16,8 @@ use crate::merge::IMergeOverwrite;
 use serde::{Deserialize, Serialize};
 use std::{ops::Deref, sync::Arc};
 
-/// A `Configuration` is a recursive key-value structure that allows modifying the behavior of a
-/// node without altering its implementation.
+/// A `Configuration` is a recursive key-value structure that allows modifying the behavior of a node without altering
+/// its implementation.
 ///
 /// It is effectively a re-export of [serde_json::Value].
 ///
@@ -49,8 +49,8 @@ use std::{ops::Deref, sync::Arc};
 //
 // NOTE: we take the `serde_json` representation because:
 // - JSON is the most supported representation when going online,
-// - a `serde_json::Value` can be converted to a `serde_yaml::Value` whereas the opposite is not
-//   true (YAML introduces "tags" which are not supported by JSON).
+// - a `serde_json::Value` can be converted to a `serde_yaml::Value` whereas the opposite is not true (YAML introduces
+//   "tags" which are not supported by JSON).
 #[derive(Default, Deserialize, Debug, Serialize, Clone, PartialEq, Eq)]
 pub struct Configuration(Arc<serde_json::Value>);
 
@@ -81,7 +81,7 @@ impl IMergeOverwrite for Configuration {
                 Configuration(Arc::new(other.into()))
             }
             (_, _) => unreachable!(
-                "We are checking, when deserializing, that a Configuration is a JSON object."
+                "We are checking, when deserialising, that a Configuration is a JSON object."
             ),
         }
     }

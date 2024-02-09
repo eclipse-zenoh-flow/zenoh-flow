@@ -21,6 +21,13 @@ use serde::Deserializer;
 use std::{str::FromStr, sync::Arc};
 use zenoh_keyexpr::OwnedKeyExpr;
 
+/// Deserialise, from a [String], an `Arc<str>` that is guaranteed to be a valid Zenoh-Flow [NodeId](crate::NodeId) or
+/// [PortId](crate::PortId).
+///
+/// To be valid, the following properties must be upheld:
+/// - the String does not contain any of the symbols: * # $ ? >
+/// - the String is a valid Zenoh key expression in its canonical form (see
+///   [autocanonize](zenoh_keyexpr::OwnedKeyExpr::autocanonize)).
 pub fn deserialize_id<'de, D>(deserializer: D) -> std::result::Result<Arc<str>, D::Error>
 where
     D: Deserializer<'de>,
@@ -33,10 +40,10 @@ Identifiers (for nodes or ports) in Zenoh-Flow must *not* contain any of the cha
 The identifier < {} > does not satisfy that condition.
 
 These characters, except for '>', have a special meaning in Zenoh and they could negatively impact Zenoh-Flow's
-behavior.
+behaviour.
 
 The character '>' is used as a separator when flattening a composite operator. Allowing it could also negatively impact
-Zenoh-Flow's behavior.
+Zenoh-Flow's behaviour.
 "#,
             id
         )));
@@ -58,6 +65,9 @@ Caused by:
     Ok(id.into())
 }
 
+/// Deserialise a bytes size leveraging the [bytesize] crate.
+///
+/// This allows parsing, for instance, "1Ko" into "1024" bytes. For more example, see the [bytesize] crate.
 pub fn deserialize_size<'de, D>(deserializer: D) -> std::result::Result<usize, D::Error>
 where
     D: Deserializer<'de>,
@@ -78,6 +88,9 @@ where
     )))
 }
 
+/// Deserialise a duration in *microseconds* leveraging the [humantime] crate.
+///
+/// This allows parsing, for instance, "1ms" as 1000 microseconds.
 pub fn deserialize_time<'de, D>(deserializer: D) -> std::result::Result<u64, D::Error>
 where
     D: Deserializer<'de>,
@@ -86,7 +99,7 @@ where
     let time_u128 = buf
         .parse::<humantime::Duration>()
         .map_err(serde::de::Error::custom)?
-        .as_nanos();
+        .as_micros();
 
     u64::try_from(time_u128).map_err(|e| {
         serde::de::Error::custom(format!(
