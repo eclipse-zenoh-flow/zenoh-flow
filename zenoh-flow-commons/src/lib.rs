@@ -24,9 +24,6 @@ pub use identifiers::{InstanceId, NodeId, PortId, RuntimeId};
 mod merge;
 pub use merge::IMergeOverwrite;
 
-mod runtime;
-pub use runtime::RuntimeContext;
-
 mod shared_memory;
 pub use shared_memory::SharedMemoryConfiguration;
 
