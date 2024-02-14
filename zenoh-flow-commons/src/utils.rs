@@ -49,6 +49,15 @@ Currently supported file extensions are:
     }
 }
 
+/// Attempts to parse an instance of `N` from the content of the file located at `path`, overwriting (or complementing)
+/// the [Vars] declared in said file with the provided `vars`.
+///
+/// This function is notably used to parse a data flow descriptor. Two file types are supported, identified by their
+/// extension:
+/// - JSON (`.json` file extension)
+/// - YAML (`.yaml` or `.yml` extensions)
+///
+/// This function does not impose writing *all* descriptor file, within the same data flow, in the same format.
 pub fn try_load_from_file<N>(path: impl AsRef<Path>, vars: Vars) -> Result<(N, Vars)>
 where
     N: for<'a> Deserialize<'a>,

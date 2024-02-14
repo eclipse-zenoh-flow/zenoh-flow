@@ -12,6 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+//! This crate centralises structures that are shared across Zenoh-Flow.
+//!
+//! ⚠️ This crate is intended for internal usage within Zenoh-Flow. All structures that are exposed in public
+//! facing API are re-exposed in the relevant crates.
+
 mod configuration;
 pub use configuration::Configuration;
 
