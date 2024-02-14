@@ -31,7 +31,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use uhlc::HLC;
 use zenoh::{prelude::r#async::*, queryable::Query};
-use zenoh_flow_commons::{try_load_from_file, Result, Vars};
+use zenoh_flow_commons::{try_parse_from_file, Result, Vars};
 use zenoh_flow_runtime::{Extensions, Loader, Runtime};
 
 use crate::configuration::ExtensionsConfiguration;
@@ -180,7 +180,7 @@ impl Daemon {
         let extensions = if let Some(extensions) = configuration.extensions {
             match extensions {
                 ExtensionsConfiguration::File(path) => {
-                    try_load_from_file::<Extensions>(path, Vars::default()).map(|(ext, _)| ext)
+                    try_parse_from_file::<Extensions>(path, Vars::default()).map(|(ext, _)| ext)
                 }
                 ExtensionsConfiguration::Extensions(extensions) => Ok(extensions),
             }?

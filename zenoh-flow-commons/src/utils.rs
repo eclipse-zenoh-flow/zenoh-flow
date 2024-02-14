@@ -58,7 +58,7 @@ Currently supported file extensions are:
 /// - YAML (`.yaml` or `.yml` extensions)
 ///
 /// This function does not impose writing *all* descriptor file, within the same data flow, in the same format.
-pub fn try_load_from_file<N>(path: impl AsRef<Path>, vars: Vars) -> Result<(N, Vars)>
+pub fn try_parse_from_file<N>(path: impl AsRef<Path>, vars: Vars) -> Result<(N, Vars)>
 where
     N: for<'a> Deserialize<'a>,
 {

@@ -90,7 +90,7 @@ impl InstanceCommand {
 
                 tracing::trace!("Path to data flow descriptor is: {}", flow.display());
                 let (data_flow_desc, vars) =
-                    zenoh_flow_commons::try_load_from_file::<DataFlowDescriptor>(&flow, vars)
+                    zenoh_flow_commons::try_parse_from_file::<DataFlowDescriptor>(&flow, vars)
                         .map_err(|e| {
                             tracing::error!("{:?}", e);
                             anyhow!("Failed to parse data flow from < {} >", flow.display())

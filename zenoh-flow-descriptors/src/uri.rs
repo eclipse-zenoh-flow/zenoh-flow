@@ -15,7 +15,7 @@
 use anyhow::{bail, Context};
 use serde::Deserialize;
 use url::Url;
-use zenoh_flow_commons::{try_load_from_file, Result, Vars};
+use zenoh_flow_commons::{try_parse_from_file, Result, Vars};
 
 pub(crate) fn try_load_descriptor<N>(uri: &str, vars: Vars) -> Result<(N, Vars)>
 where
@@ -24,7 +24,7 @@ where
     let url = Url::parse(uri).context(format!("Failed to parse uri:\n{}", uri))?;
 
     match url.scheme() {
-        "file" => try_load_from_file::<N>(url.path(), vars).context(format!(
+        "file" => try_parse_from_file::<N>(url.path(), vars).context(format!(
             "Failed to load descriptor from file:\n{}",
             url.path()
         )),
