@@ -227,20 +227,20 @@ fn test_flatten_descriptor() {
 
     let expected_links = vec![
         // source 1 -> operator 1 -> sink 1
-        LinkDescriptor::new_no_shm(
+        LinkDescriptor::new(
             OutputDescriptor::new("source-1", "source-out"),
             InputDescriptor::new("operator-1", "operator-in"),
         ),
-        LinkDescriptor::new_no_shm(
+        LinkDescriptor::new(
             OutputDescriptor::new("operator-1", "operator-out"),
             InputDescriptor::new("sink-1", "sink-in"),
         ),
         // source 2 -> operator 2 -> sink 2
-        LinkDescriptor::new_no_shm(
+        LinkDescriptor::new(
             OutputDescriptor::new("source-2", "source-out"),
             InputDescriptor::new("operator-2", "operator-in"),
         ),
-        LinkDescriptor::new_no_shm(
+        LinkDescriptor::new(
             OutputDescriptor::new("operator-2", "operator-out"),
             InputDescriptor::new("sink-2", "sink-in"),
         ),
@@ -252,26 +252,26 @@ fn test_flatten_descriptor() {
          * Hence, the name of the input ports of "sub-operator-1" (operator-composite.yml) are
          * replaced by what is declared in "data-flow.yml".
          */
-        LinkDescriptor::new_no_shm(
+        LinkDescriptor::new(
             OutputDescriptor::new("source-composite", "source-composite-out-1"),
             InputDescriptor::new("operator-composite>sub-operator-1", "sub-operator-1-in-1"),
         ),
-        LinkDescriptor::new_no_shm(
+        LinkDescriptor::new(
             OutputDescriptor::new("source-composite", "source-composite-out-2"),
             InputDescriptor::new("operator-composite>sub-operator-1", "sub-operator-1-in-2"),
         ),
         // operator-composite-sub-2 -> sink-composite
-        LinkDescriptor::new_no_shm(
+        LinkDescriptor::new(
             OutputDescriptor::new("operator-composite>sub-operator-2", "sub-operator-2-out-1"),
             InputDescriptor::new("sink-composite", "sink-composite-in-1"),
         ),
-        LinkDescriptor::new_no_shm(
+        LinkDescriptor::new(
             OutputDescriptor::new("operator-composite>sub-operator-2", "sub-operator-2-out-2"),
             InputDescriptor::new("sink-composite", "sink-composite-in-2"),
         ),
         // operator-composite-sub-operator-1 ->
         // operator-composite-sub-operator-composite-sub-sub-operator-1
-        LinkDescriptor::new_no_shm(
+        LinkDescriptor::new(
             OutputDescriptor::new("operator-composite>sub-operator-1", "sub-operator-1-out"),
             InputDescriptor::new(
                 "operator-composite>sub-operator-composite>sub-sub-operator-1",
@@ -280,7 +280,7 @@ fn test_flatten_descriptor() {
         ),
         // operator-composite-sub-operator-composite-sub-sub-operator-2 ->
         // operator-composite-sub-operator-2
-        LinkDescriptor::new_no_shm(
+        LinkDescriptor::new(
             OutputDescriptor::new(
                 "operator-composite>sub-operator-composite>sub-sub-operator-2",
                 "sub-sub-operator-2-out",
@@ -289,7 +289,7 @@ fn test_flatten_descriptor() {
         ),
         // operator-composite-sub-operator-composite-sub-sub-operator-1 ->
         // operator-composite-sub-operator-composite-sub-sub-operator-2
-        LinkDescriptor::new_no_shm(
+        LinkDescriptor::new(
             OutputDescriptor::new(
                 "operator-composite>sub-operator-composite>sub-sub-operator-1",
                 "sub-sub-operator-1-out",

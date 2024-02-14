@@ -34,5 +34,9 @@ uuid = { workspace = true }
 zenoh-flow-commons = { workspace = true }
 zenoh-keyexpr = { workspace = true }
 
+[features]
+default = []
+shared-memory = []
+
 [dev-dependencies]
 uuid = { workspace = true }

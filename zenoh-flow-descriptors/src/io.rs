@@ -14,7 +14,9 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use zenoh_flow_commons::{NodeId, PortId, SharedMemoryConfiguration};
+#[cfg(feature = "shared-memory")]
+use zenoh_flow_commons::SharedMemoryConfiguration;
+use zenoh_flow_commons::{NodeId, PortId};
 
 /// An `InputDescriptor` describes an Input port of a Zenoh-Flow node.
 ///
@@ -86,6 +88,7 @@ impl OutputDescriptor {
 pub struct LinkDescriptor {
     pub from: OutputDescriptor,
     pub to: InputDescriptor,
+    #[cfg(feature = "shared-memory")]
     #[serde(default, alias = "shm", alias = "shared-memory")]
     pub shared_memory: Option<SharedMemoryConfiguration>,
 }
@@ -97,23 +100,18 @@ impl std::fmt::Display for LinkDescriptor {
 }
 
 impl LinkDescriptor {
-    pub fn new(
-        from: OutputDescriptor,
-        to: InputDescriptor,
-        shm: SharedMemoryConfiguration,
-    ) -> Self {
+    pub fn new(from: OutputDescriptor, to: InputDescriptor) -> Self {
         Self {
             from,
             to,
-            shared_memory: Some(shm),
+            #[cfg(feature = "shared-memory")]
+            shared_memory: None,
         }
     }
 
-    pub fn new_no_shm(from: OutputDescriptor, to: InputDescriptor) -> Self {
-        Self {
-            from,
-            to,
-            shared_memory: None,
-        }
+    #[cfg(feature = "shared-memory")]
+    pub fn set_shared_memory(mut self, shm: SharedMemoryConfiguration) -> Self {
+        self.shared_memory = Some(shm);
+        self
     }
 }

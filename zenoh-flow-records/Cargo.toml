@@ -31,6 +31,10 @@ zenoh-flow-commons = { workspace = true }
 zenoh-flow-descriptors = { workspace = true }
 zenoh-keyexpr = { workspace = true }
 
+[features]
+default = []
+shared-memory = []
+
 [dev-dependencies]
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

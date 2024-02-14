@@ -267,6 +267,7 @@ mapping:
             node: sender_thing_edge.clone(),
             input: key_expr_thing_edge.to_string().into(),
         },
+        #[cfg(feature = "shared-memory")]
         shared_memory: None,
     };
     assert!(record.links.contains(&link_thing));
@@ -280,6 +281,7 @@ mapping:
             node: "operator-1".into(),
             input: "in-1".into(),
         },
+        #[cfg(feature = "shared-memory")]
         shared_memory: None,
     };
     assert!(record.links.contains(&link_egde_1));
@@ -293,6 +295,7 @@ mapping:
             node: sender_edge_default.clone(),
             input: key_expr_edge_default.to_string().into(),
         },
+        #[cfg(feature = "shared-memory")]
         shared_memory: None,
     };
     assert!(record.links.contains(&link_edge_2));
@@ -306,6 +309,7 @@ mapping:
             node: "sink-2".into(),
             input: "in-2".into(),
         },
+        #[cfg(feature = "shared-memory")]
         shared_memory: None,
     };
     assert!(record.links.contains(&link_default));
