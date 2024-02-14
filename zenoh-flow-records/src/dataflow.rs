@@ -178,6 +178,7 @@ Caused by:
                 additional_links.push(LinkDescriptor {
                     from: output,
                     to: input,
+                    #[cfg(feature = "shared-memory")]
                     shared_memory: link.shared_memory,
                 });
 
