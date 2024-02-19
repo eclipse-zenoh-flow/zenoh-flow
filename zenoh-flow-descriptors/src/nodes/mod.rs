@@ -19,13 +19,11 @@ pub(crate) mod source;
 
 use serde::{Deserialize, Serialize};
 use url::Url;
-use zenoh_flow_commons::{Configuration, RuntimeId};
+use zenoh_flow_commons::Configuration;
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct RemoteNodeDescriptor {
     pub descriptor: Url,
     #[serde(default)]
     pub configuration: Configuration,
-    #[serde(default)]
-    pub runtime: Option<RuntimeId>,
 }
