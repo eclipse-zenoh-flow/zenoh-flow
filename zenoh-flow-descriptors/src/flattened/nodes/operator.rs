@@ -61,7 +61,7 @@ impl FlattenedOperatorDescriptor {
         mut outer_configuration: Configuration,
         mut overwritting_configuration: Configuration,
         overwritting_vars: Vars,
-        ancestors: &mut HashSet<Arc<str>>,
+        ancestors: &mut HashSet<Url>,
     ) -> Result<(Vec<Self>, Vec<LinkDescriptor>, Patch)> {
         let descriptor = match operator_descriptor.variant {
             OperatorVariants::Remote(remote_desc) => {

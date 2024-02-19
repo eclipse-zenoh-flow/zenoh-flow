@@ -45,7 +45,7 @@ fn test_flatten_descriptor() {
     let runtime_composite = RuntimeId::rand();
 
     let (descriptor, vars) = try_load_descriptor::<DataFlowDescriptor>(
-        &format!("file://{}/data-flow.yml", base_dir),
+        &Url::parse(&format!("file://{}/data-flow.yml", base_dir)).unwrap(),
         Vars::from([
             ("BASE_DIR", base_dir.as_str()),
             ("RUNTIME_1", format!("{}", runtime_1).as_str()),
@@ -333,10 +333,10 @@ fn test_flatten_descriptor() {
 #[test]
 fn test_detect_recursion() {
     let base_dir = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), BASE_DIR);
-    let path = format!("{}{}/data-flow-recursion.yml", SCHEME, base_dir);
+    let url = Url::parse(&format!("{}{}/data-flow-recursion.yml", SCHEME, base_dir)).unwrap();
 
     let (descriptor, vars) = try_load_descriptor::<DataFlowDescriptor>(
-        &path,
+        &url,
         Vars::from([("BASE_DIR", base_dir.as_str()), ("SCHEME", SCHEME)]),
     )
     .expect("Failed to parse descriptor");
@@ -346,10 +346,11 @@ fn test_detect_recursion() {
 #[test]
 fn test_duplicate_composite_at_same_level_not_detected_as_recursion() {
     let base_dir = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), BASE_DIR);
-    let path = format!(
+    let path = Url::parse(&format!(
         "{}/{}/data-flow-recursion-duplicate-composite.yml",
         SCHEME, base_dir,
-    );
+    ))
+    .unwrap();
 
     let (descriptor, vars) = try_load_descriptor::<DataFlowDescriptor>(
         &path,
