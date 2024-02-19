@@ -1,22 +1,22 @@
 name: test-recursion
 
 vars:
-  BASE_DIR: file://./src/tests
+  BASE_DIR: ./src/tests
 
 sources:
   - id: source-1
-    descriptor: "{{ BASE_DIR }}/source-1.yml"
+    descriptor: "file://{{ BASE_DIR }}/source-1.yml"
 
 operators:
   - id: operator-1
-    descriptor: "{{ BASE_DIR }}/operator-1.yml"
+    descriptor: "file://{{ BASE_DIR }}/operator-1.yml"
 
   - id: operator-infinite
-    descriptor: "{{ BASE_DIR }}/operator-infinite.yml"
+    descriptor: "file://{{ BASE_DIR }}/operator-infinite.yml"
 
 sinks:
   - id: sink-1
-    descriptor: "{{ BASE_DIR }}/sink-1.yml"
+    descriptor: "file://{{ BASE_DIR }}/sink-1.yml"
 
 links:
   - from:

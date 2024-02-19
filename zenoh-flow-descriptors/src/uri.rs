@@ -17,21 +17,15 @@ use serde::Deserialize;
 use url::Url;
 use zenoh_flow_commons::{try_load_from_file, Result, Vars};
 
-pub(crate) fn try_load_descriptor<N>(uri: &str, vars: Vars) -> Result<(N, Vars)>
+pub(crate) fn try_load_descriptor<N>(url: &Url, vars: Vars) -> Result<(N, Vars)>
 where
     N: for<'a> Deserialize<'a>,
 {
-    let url = Url::parse(uri).context(format!("Failed to parse uri:\n{}", uri))?;
-
     match url.scheme() {
         "file" => try_load_from_file::<N>(url.path(), vars).context(format!(
             "Failed to load descriptor from file:\n{}",
             url.path()
         )),
-        _ => bail!(
-            "Failed to parse uri, unsupported scheme < {} > found:\n{}",
-            url.scheme(),
-            uri
-        ),
+        _ => bail!("Unsupported URL scheme < {} >", url.scheme(),),
     }
 }
