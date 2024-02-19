@@ -16,10 +16,33 @@ use crate::merge::IMergeOverwrite;
 use serde::{Deserialize, Serialize};
 use std::{ops::Deref, sync::Arc};
 
-/// A `Configuration` is a recursive key-value structure that allows modifying the behavior of a node without altering
+/// A `Configuration` is a recursive key-value structure that allows modifying the behaviour of a node without altering
 /// its implementation.
 ///
 /// It is effectively a re-export of [serde_json::Value].
+///
+/// # Declaration, propagation and merging
+///
+/// Zenoh-Flow allows users to declare a configuration at 3 locations:
+/// - at the top-level of a data flow descriptor,
+/// - at the top-level of a composite operator descriptor,
+/// - in a node (be it within a data flow descriptor, a composite descriptor or in its dedicated file).
+///
+/// If a configuration is declared at a top-level it is propagated to all the nodes it includes. Hence, a declaration at
+/// the top-level of a data flow is propagated to all the nodes it contains.
+///
+/// When two configuration keys collide, the configuration with the highest order is kept. The priorities are (from
+/// highest to lowest):
+/// - the configuration in a node within a data flow descriptor,
+/// - the configuration in a data flow descriptor,
+/// - the configuration in a node within a composite operator,
+/// - the configuration in a composite operator,
+/// - the configuration in a dedicated file of a node.
+///
+/// Hence, configuration at the data flow level are propagating to all nodes, possibly overwriting default values. The
+/// same rules apply at the composite operator level. If a node should have a slightly different setting compared to all
+/// others, then these priorities allow setting a global value and tweaking only the node that differs (either in the
+/// data flow or in the composite operator).
 ///
 /// # Examples
 ///

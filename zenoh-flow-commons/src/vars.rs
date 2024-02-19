@@ -29,6 +29,21 @@ use std::rc::Rc;
 /// We then load the descriptor file as a template and "render" it, substituting every "moustache variable" with its
 /// corresponding value in the HashMap.
 ///
+/// # Declaration, propagation and merging
+///
+/// Zenoh-Flow allows users to declare `vars` at 3 locations:
+/// - at the top-level of a data flow descriptor,
+/// - at the top-level of a composite operator descriptor,
+/// - at the top-level of a node descriptor (not contained within a data flow or composite operator descriptor).
+///
+/// The `vars` are propagated to all "contained" descriptors. For instance, a data flow descriptor that references a
+/// composite operator whose descriptor resides in a separate file will have its `vars` propagated there.
+///
+/// At the same time, if a "contained" descriptor also has a `vars` section, that section will be merged and all
+/// duplicated keys overwritten with the values of the "container" descriptor.
+///
+/// This allows defining default values for substitutions in leaf descriptors and overwriting them if necessary.
+///
 /// # Example (YAML)
 ///
 /// Declaration within a descriptor:
