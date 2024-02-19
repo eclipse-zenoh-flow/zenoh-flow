@@ -24,18 +24,27 @@ use url::Url;
 use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, Vars};
 use zenoh_keyexpr::OwnedKeyExpr;
 
-/// TODO@J-Loudet
+/// A `FlattenedSinkDescriptor` is a self-contained description of a Sink node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedSinkDescriptor {
+    /// The unique (within a data flow) identifier of the Sink.
     pub id: NodeId,
+    /// A human-readable description of the Sink.
     pub description: Option<Arc<str>>,
+    /// The type of implementation of the Sink, either built-in or a path to a Library.
     #[serde(flatten)]
     pub sink: SinkVariant,
+    /// The identifiers of the inputs the Sink uses.
     pub inputs: Vec<PortId>,
+    /// Pairs of `(key, value)` to change the behaviour of the Sink without altering its implementation.
     #[serde(default)]
     pub configuration: Configuration,
 }
 
+/// ⚠️ This is structure is intended for internal usage.
+///
+/// The implementation of a Sink: either a custom Sink with the location of its implementation or a Zenoh built-in node
+/// with the list of key expressions to which it should publish.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SinkVariant {
@@ -43,6 +52,7 @@ pub enum SinkVariant {
     Zenoh(HashMap<PortId, OwnedKeyExpr>),
 }
 
+/// The Sink variant after it has been fetched (if it was remote) but before it has been flattened.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 enum LocalSinkVariants {
@@ -57,6 +67,16 @@ impl Display for FlattenedSinkDescriptor {
 }
 
 impl FlattenedSinkDescriptor {
+    /// Attempts to flatten a [SinkDescriptor] into a [FlattenedSinkDescriptor].
+    ///
+    /// If the descriptor needs to be fetched this function will first fetch it, propagate and merge the overwriting
+    /// [Vars] and finally construct a [FlattenedSinkDescriptor].
+    ///
+    /// The configuration of the Sink is finally merged with the `overwriting_configuration`.
+    ///
+    /// # Errors
+    ///
+    /// The flattening process can fail if we cannot retrieve the remote descriptor.
     pub(crate) fn try_flatten(
         sink_desc: SinkDescriptor,
         overwritting_vars: Vars,

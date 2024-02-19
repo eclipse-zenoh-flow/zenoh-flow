@@ -26,18 +26,26 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, Vars};
 
+/// A `FlattenedOperatorDescriptor` is a self-contained description of an Operator node.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct FlattenedOperatorDescriptor {
+    /// The unique (within a data flow) identifier of the Operator.
     pub id: NodeId,
+    /// A human-readable description of the Operator.
     pub description: Option<Arc<str>>,
+    /// The path to the implementation of the Operator.
     #[serde(alias = "Library")]
     pub library: Url,
+    /// The identifiers of the inputs the Operator uses.
     pub inputs: Vec<PortId>,
+    /// The identifiers of the outputs the Operator uses.
     pub outputs: Vec<PortId>,
+    /// Pairs of `(key, value)` to change the behaviour of the Operator without altering its implementation.
     #[serde(default)]
     pub configuration: Configuration,
 }
 
+/// The Operator variant after it has been fetched (if it was remote) but before it has been flattened.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 enum LocalOperatorVariants {
@@ -52,6 +60,30 @@ impl Display for FlattenedOperatorDescriptor {
 }
 
 impl FlattenedOperatorDescriptor {
+    /// Attempts to flatten a [OperatorDescriptor] into a [FlattenedOperatorDescriptor].
+    ///
+    /// If the descriptor needs to be fetched this function will first fetch it, propagate and merge the overwriting
+    /// [Vars], and expand them.
+    ///
+    /// It will then attempt to parse the descriptor into either a regular Operator or a Composite.
+    ///
+    /// If it is a Composite, things get more complicated. In short, a Composite need to be expanded into a set of
+    /// regular Operators and their links, which we then need to add to the data flow.
+    ///
+    /// But that's not all, we also need to replace few elements in the data flow: the composite node should be dropped
+    /// from the list of Operators & the links should be updated to point to the actual inputs / outputs of the expanded
+    /// operators (instead of that of the Composite).
+    /// To make that part easier we created dedicated structures [Patch] and [Substitutions].
+    ///
+    /// Finally, we need to merge the different configurations.
+    ///
+    /// # Errors
+    ///
+    /// The flattening process can fail if:
+    /// - we cannot retrieve the remote descriptor,
+    /// - we failed to parse the remote descriptor into either a regular Operator or a Composite,
+    /// - we are expanding a Composite that we have already expanded before, effectively creating an infinite loop,
+    /// - we failed to flatten an Operator within a Composite for any of the above reasons.
     pub(crate) fn try_flatten(
         operator_descriptor: OperatorDescriptor,
         mut outer_configuration: Configuration,
@@ -105,7 +137,7 @@ Possible infinite recursion detected, the following descriptor appears to includ
                     inputs: custom_desc.inputs,
                     outputs: custom_desc.outputs,
                     // An inline operator's configuration has higher priority than the outer configuration. In turn, the
-                    // overwritting configuration has the highest priority.
+                    // overwriting configuration has the highest priority.
                     configuration: overwritting_configuration.merge_overwrite(
                         custom_desc
                             .configuration

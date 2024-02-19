@@ -30,7 +30,7 @@ use zenoh_protocol::core::ZenohId;
 ///
 /// # Performance
 ///
-/// A `NodeId` is encapsulated in an [Arc] rendering clone operations almost cost-free.
+/// A `NodeId` is encapsulated in an [Arc] rendering clone operations inexpensive.
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Clone, Hash)]
 pub struct NodeId(#[serde(deserialize_with = "deserialize_id")] Arc<str>);
 
@@ -74,7 +74,7 @@ impl From<&str> for NodeId {
 ///
 /// # Performance
 ///
-/// A `PortId` is encapsulated in an [Arc] rendering clone operations almost cost-free.
+/// A `PortId` is encapsulated in an [Arc] rendering clone operations inexpensive.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PortId(#[serde(deserialize_with = "deserialize_id")] Arc<str>);
 
@@ -159,7 +159,7 @@ impl FromStr for RuntimeId {
 /// A data flow instance is created every time Zenoh-Flow is tasked to run a data flow. Each instance of the same data
 /// flow will have a different `InstanceId`.
 ///
-/// Internally, it uses a [Uuid v4](uuid::Uuid::new_v4) that it wraps inside an [Arc]. This allows for almost cost-free
+/// Internally, it uses a [Uuid v4](uuid::Uuid::new_v4) that it wraps inside an [Arc]. This allows for inexpensive
 /// `clone` operations.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 pub struct InstanceId(Arc<Uuid>);
