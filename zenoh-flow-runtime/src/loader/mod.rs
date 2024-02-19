@@ -88,8 +88,10 @@ impl Loader {
 
     /// TODO@J-Loudet
     pub fn try_from_file(extensions_path: impl AsRef<Path>) -> Result<Self> {
-        let (extensions, _) =
-            zenoh_flow_commons::try_load_from_file::<Extensions>(extensions_path, Vars::default())?;
+        let (extensions, _) = zenoh_flow_commons::try_parse_from_file::<Extensions>(
+            extensions_path,
+            Vars::default(),
+        )?;
 
         Ok(Self {
             extensions,

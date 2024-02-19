@@ -47,7 +47,7 @@ async fn main() {
 
     let extensions = match cli.extensions {
         Some(extensions_path) => {
-            let (extensions, _) = zenoh_flow_commons::try_load_from_file::<Extensions>(
+            let (extensions, _) = zenoh_flow_commons::try_parse_from_file::<Extensions>(
                 extensions_path.as_os_str(),
                 Vars::default(),
             )
@@ -70,7 +70,7 @@ async fn main() {
     };
 
     let (data_flow, vars) =
-        zenoh_flow_commons::try_load_from_file::<DataFlowDescriptor>(cli.flow.as_os_str(), vars)
+        zenoh_flow_commons::try_parse_from_file::<DataFlowDescriptor>(cli.flow.as_os_str(), vars)
             .context(format!(
                 "Failed to load data flow descriptor from < {} >",
                 &cli.flow.display()
