@@ -13,7 +13,7 @@
 //
 
 use super::RemoteNodeDescriptor;
-use crate::ZenohSinkDescriptor;
+use crate::nodes::builtin::zenoh::ZenohSinkDescriptor;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use url::Url;
@@ -34,26 +34,17 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 /// # Examples
 /// ## Remote descriptor
 ///
-/// ```
-/// use zenoh_flow_descriptors::SinkDescriptor;
-///
-/// let sink_desc_uri = r#"
+/// ```yaml
 /// id: my-sink-0
 /// descriptor: file:///home/zenoh-flow/my-sink.yaml
 /// configuration:
 ///   answer: 0
-/// "#;
-///
-/// assert!(serde_yaml::from_str::<SinkDescriptor>(sink_desc_uri).is_ok());
 /// ```
 ///
 /// ## Inline declaration
 /// ### Custom sink
 ///
-/// ```
-/// use zenoh_flow_descriptors::SinkDescriptor;
-///
-/// let sink_desc_custom = r#"
+/// ```yaml
 /// id: my-sink-0
 /// description: This is my Sink
 /// library: file:///home/zenoh-flow/libmy_sink.so
@@ -62,32 +53,23 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 ///   - out-1
 /// configuration:
 ///   answer: 42
-/// "#;
-///
-/// assert!(serde_yaml::from_str::<SinkDescriptor>(sink_desc_custom).is_ok());
 /// ```
 ///
 /// ### Zenoh built-in Sink
 ///
-/// ```
-/// use zenoh_flow_descriptors::SinkDescriptor;
-///
-/// let sink_desc_zenoh = r#"
+/// ```yaml
 /// id: my-sink-0
 /// description: My zenoh sink
 /// zenoh-publishers:
 ///   key_0: key/expr/0
 ///   key_1: key/expr/1
-/// "#;
-///
-/// assert!(serde_yaml::from_str::<SinkDescriptor>(sink_desc_zenoh).is_ok());
 /// ```
 ///
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct SinkDescriptor {
+pub(crate) struct SinkDescriptor {
     pub id: NodeId,
     #[serde(flatten)]
-    pub(crate) variant: SinkVariants,
+    pub variant: SinkVariants,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]

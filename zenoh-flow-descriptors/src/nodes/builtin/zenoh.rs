@@ -33,34 +33,13 @@ use zenoh_keyexpr::OwnedKeyExpr;
 ///
 /// # Examples
 ///
-/// ```
-/// use zenoh_flow_descriptors::ZenohSourceDescriptor;
-///
-/// let yaml_description = r#"
-/// description: My zenoh source
+/// ```yaml
 /// zenoh-subscribers:
 ///   "cmd_vel": "rt/*/cmd_vel"
 ///   "status": "rt/*/status"
-/// "#;
-///
-/// let z_source_yaml = serde_yaml::from_str::<ZenohSourceDescriptor>(yaml_description).unwrap();
-///
-/// let json_description = r#"
-/// {
-///    "description": "My zenoh source",
-///    "zenoh-subscribers": {
-///      "cmd_vel": "rt/*/cmd_vel",
-///      "status": "rt/*/status"
-///    }
-/// }
-/// "#;
-///
-/// let z_source_json = serde_json::from_str::<ZenohSourceDescriptor>(json_description).unwrap();
-///
-/// assert_eq!(z_source_yaml, z_source_json);
 /// ```
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-pub struct ZenohSourceDescriptor {
+pub(crate) struct ZenohSourceDescriptor {
     pub description: Arc<str>,
     #[serde(deserialize_with = "deserialize_canon", alias = "zenoh-subscribers")]
     pub subscribers: HashMap<PortId, OwnedKeyExpr>,
@@ -79,34 +58,14 @@ pub struct ZenohSourceDescriptor {
 ///
 /// # Examples
 ///
-/// ```
-/// use zenoh_flow_descriptors::ZenohSinkDescriptor;
-///
-/// let yaml_description = r#"
+/// ```yaml
 /// description: My zenoh sink
 /// zenoh-publishers:
 ///   cmd_vel: rt/cmd_vel
 ///   status: rt/status
-/// "#;
-///
-/// let z_sink_yaml = serde_yaml::from_str::<ZenohSinkDescriptor>(yaml_description).unwrap();
-///
-/// let json_description = r#"
-/// {
-///    "description": "My zenoh sink",
-///    "zenoh-publishers": {
-///      "cmd_vel": "rt/cmd_vel",
-///      "status": "rt/status"
-///    }
-/// }
-/// "#;
-///
-/// let z_sink_json = serde_json::from_str::<ZenohSinkDescriptor>(json_description).unwrap();
-///
-/// assert_eq!(z_sink_yaml, z_sink_json);
 /// ```
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-pub struct ZenohSinkDescriptor {
+pub(crate) struct ZenohSinkDescriptor {
     pub description: Arc<str>,
     #[serde(deserialize_with = "deserialize_canon", alias = "zenoh-publishers")]
     pub publishers: HashMap<PortId, OwnedKeyExpr>,

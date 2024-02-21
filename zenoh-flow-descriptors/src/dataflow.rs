@@ -12,12 +12,15 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{LinkDescriptor, OperatorDescriptor, SinkDescriptor, SourceDescriptor};
+use crate::nodes::operator::OperatorDescriptor;
+use crate::nodes::sink::SinkDescriptor;
+use crate::nodes::source::SourceDescriptor;
+use crate::LinkDescriptor;
+
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
 use uuid::Uuid;
 use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 
@@ -77,17 +80,20 @@ pub struct DataFlowDescriptor {
     /// If provided, Zenoh-Flow will not generate one when instantiating the flow and keep this value instead. This
     /// behavior can be useful when it is impossible to rely on a correctly configured Zenoh router (i.e. where a
     /// storage subscribing to Zenoh-Flow's key expression exists).
+    pub(crate) uuid: Option<Uuid>,
+    pub(crate) name: Arc<str>,
     #[serde(default)]
-    pub uuid: Option<Uuid>,
-    pub name: Arc<str>,
+    pub(crate) configuration: Configuration,
+    /// *(optional)* A list of Operator(s), the nodes that manipulate and / or produce data.
     #[serde(default)]
-    pub configuration: Configuration,
-    pub operators: Vec<OperatorDescriptor>,
-    pub sources: Vec<SourceDescriptor>,
-    pub sinks: Vec<SinkDescriptor>,
-    pub links: Vec<LinkDescriptor>,
+    pub(crate) operators: Vec<OperatorDescriptor>,
+    /// A non-empty list of Source(s), the nodes that provide data to the data flow.
+    pub(crate) sources: Vec<SourceDescriptor>,
+    /// A non-empty list of Sink(s), the nodes that returns the result of the manipulation.
+    pub(crate) sinks: Vec<SinkDescriptor>,
+    pub(crate) links: Vec<LinkDescriptor>,
     #[serde(default)]
-    pub mapping: HashMap<RuntimeId, HashSet<NodeId>>,
+    pub(crate) mapping: HashMap<RuntimeId, HashSet<NodeId>>,
 }
 
 #[cfg(test)]

@@ -12,13 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{
-    nodes::sink::{CustomSinkDescriptor, SinkVariants},
-    uri, SinkDescriptor, ZenohSinkDescriptor,
-};
+use crate::nodes::builtin::zenoh::ZenohSinkDescriptor;
+use crate::nodes::sink::{CustomSinkDescriptor, SinkDescriptor, SinkVariants};
+use crate::uri;
+
+use std::{collections::HashMap, fmt::Display, sync::Arc};
+
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Display, sync::Arc};
 use url::Url;
 use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, Vars};
 use zenoh_keyexpr::OwnedKeyExpr;
@@ -56,7 +57,7 @@ impl Display for FlattenedSinkDescriptor {
 }
 
 impl FlattenedSinkDescriptor {
-    pub fn try_flatten(
+    pub(crate) fn try_flatten(
         sink_desc: SinkDescriptor,
         overwritting_vars: Vars,
         mut overwritting_configuration: Configuration,

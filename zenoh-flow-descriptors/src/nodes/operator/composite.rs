@@ -12,7 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{InputDescriptor, LinkDescriptor, OperatorDescriptor, OutputDescriptor};
+use crate::nodes::operator::OperatorDescriptor;
+use crate::{InputDescriptor, LinkDescriptor, OutputDescriptor};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use zenoh_flow_commons::{Configuration, NodeId, PortId};
@@ -20,20 +21,10 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 /// TODO@J-Loudet example?
 /// TODO@J-Loudet documentation?
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CompositeOutputDescriptor {
+pub(crate) struct CompositeOutputDescriptor {
     pub id: PortId,
     pub node: NodeId,
     pub output: PortId,
-}
-
-impl CompositeOutputDescriptor {
-    pub fn new(id: impl AsRef<str>, node: impl AsRef<str>, output: impl AsRef<str>) -> Self {
-        Self {
-            id: id.as_ref().into(),
-            node: node.as_ref().into(),
-            output: output.as_ref().into(),
-        }
-    }
 }
 
 impl From<CompositeOutputDescriptor> for OutputDescriptor {
@@ -55,20 +46,10 @@ impl From<CompositeOutputDescriptor> for OutputDescriptor {
 /// input: Input
 /// ```
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct CompositeInputDescriptor {
+pub(crate) struct CompositeInputDescriptor {
     pub id: PortId,
     pub node: NodeId,
     pub input: PortId,
-}
-
-impl CompositeInputDescriptor {
-    pub fn new(id: impl AsRef<str>, node: impl AsRef<str>, input: impl AsRef<str>) -> Self {
-        Self {
-            id: id.as_ref().into(),
-            node: node.as_ref().into(),
-            input: input.as_ref().into(),
-        }
-    }
 }
 
 impl From<CompositeInputDescriptor> for InputDescriptor {
@@ -92,10 +73,7 @@ impl From<CompositeInputDescriptor> for InputDescriptor {
 ///
 /// # Examples
 ///
-/// ```
-/// use zenoh_flow_descriptors::CompositeOperatorDescriptor;
-///
-/// let yaml = r#"
+/// ```yaml
 /// description: CompositeOperator
 ///
 /// configuration:
@@ -125,65 +103,9 @@ impl From<CompositeInputDescriptor> for InputDescriptor {
 ///   - id: CompositeOperator-out
 ///     node: InnerOperator2
 ///     output: out-1
-/// "#;
-///
-/// let composite_operator_yaml = serde_yaml::from_str::<CompositeOperatorDescriptor>(&yaml).unwrap();
-///
-/// let json = r#"
-/// {
-///   "description": "CompositeOperator",
-///
-///   "configuration": {
-///     "name": "foo"
-///   },
-///
-///   "operators": [
-///     {
-///       "id": "InnerOperator1",
-///       "descriptor": "file:///home/zenoh-flow/nodes/operator1.yaml"
-///     },
-///     {
-///       "id": "InnerOperator2",
-///       "descriptor": "file:///home/zenoh-flow/nodes/operator2.yaml"
-///     }
-///   ],
-///
-///   "links": [
-///     {
-///       "from": {
-///         "node": "InnerOperator1",
-///         "output": "out-2"
-///       },
-///       "to": {
-///         "node": "InnerOperator2",
-///         "input": "in-1"
-///       }
-///     }
-///   ],
-///
-///   "inputs": [
-///     {
-///       "id": "CompositeOperator-in",
-///       "node": "InnerOperator1",
-///       "input": "in-1"
-///     }
-///   ],
-///
-///   "outputs": [
-///     {
-///       "id": "CompositeOperator-out",
-///       "node": "InnerOperator2",
-///       "output": "out-1"
-///     }
-///   ]
-/// }"#;
-///
-/// let composite_operator_json = serde_json::from_str::<CompositeOperatorDescriptor>(&json).unwrap();
-/// assert_eq!(composite_operator_yaml, composite_operator_json);
-/// assert_eq!(composite_operator_yaml.configuration.get("name").unwrap().as_str(), Some("foo"));
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct CompositeOperatorDescriptor {
+pub(crate) struct CompositeOperatorDescriptor {
     pub description: Arc<str>,
     pub inputs: Vec<CompositeInputDescriptor>,
     pub outputs: Vec<CompositeOutputDescriptor>,
