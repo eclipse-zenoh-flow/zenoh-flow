@@ -18,7 +18,7 @@ use super::RemoteNodeDescriptor;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use url::Url;
-use zenoh_flow_commons::{Configuration, NodeId, PortId, RuntimeId};
+use zenoh_flow_commons::{Configuration, NodeId, PortId};
 
 /// A `OperatorDescriptor` uniquely identifies a Operator.
 ///
@@ -78,9 +78,7 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId, RuntimeId};
 ///
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct OperatorDescriptor {
-    pub id: NodeId,
-    #[serde(default)]
-    pub runtime: Option<RuntimeId>,
+    pub(crate) id: NodeId,
     #[serde(flatten)]
     pub(crate) variant: OperatorVariants,
 }
