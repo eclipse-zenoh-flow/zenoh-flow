@@ -43,25 +43,29 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 ///
 /// ## Remote descriptor
 ///
-/// ```
-/// use zenoh_flow_descriptors::OperatorDescriptor;
+/// ⚠️ For now only the `file://` schema is supported. We are planning to support other protocols in future releases of
+/// Zenoh-Flow.
 ///
-/// let operator_desc_uri = r#"
+/// ```yaml
 /// id: my-operator-1
 /// descriptor: file:///home/zenoh-flow/my-operator.yaml
 /// configuration:
 ///   answer: 1
-/// "#;
+/// ```
 ///
-/// assert!(serde_yaml::from_str::<OperatorDescriptor>(operator_desc_uri).is_ok());
+/// With the file at `/home/zenoh-flow/my-operator.yaml` containing:
+/// ```yaml
+/// description: This is my Operator
+/// library: file:///home/zenoh-flow/libmy_operator.so
+/// inputs:
+///   - in-1
+/// outputs:
+///   - out-1
 /// ```
 ///
 /// ## Inline declaration: custom operator
 ///
-/// ```
-/// use zenoh_flow_descriptors::OperatorDescriptor;
-///
-/// let operator_desc_custom = r#"
+/// ```yaml
 /// id: my-operator-1
 /// description: This is my Operator
 /// library: file:///home/zenoh-flow/libmy_operator.so
@@ -71,16 +75,13 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 ///   - out-1
 /// configuration:
 ///   answer: 1
-/// "#;
-///
-/// assert!(serde_yaml::from_str::<OperatorDescriptor>(operator_desc_custom).is_ok());
 /// ```
 ///
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-pub struct OperatorDescriptor {
-    pub(crate) id: NodeId,
+pub(crate) struct OperatorDescriptor {
+    pub id: NodeId,
     #[serde(flatten)]
-    pub(crate) variant: OperatorVariants,
+    pub variant: OperatorVariants,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]

@@ -25,7 +25,3 @@ pub use flattened::nodes::sink::{FlattenedSinkDescriptor, SinkVariant};
 pub use flattened::nodes::source::{FlattenedSourceDescriptor, SourceVariant};
 
 pub use io::{InputDescriptor, LinkDescriptor, OutputDescriptor};
-pub use nodes::builtin::zenoh::{ZenohSinkDescriptor, ZenohSourceDescriptor};
-pub use nodes::operator::{composite::CompositeOperatorDescriptor, OperatorDescriptor};
-pub use nodes::sink::SinkDescriptor;
-pub use nodes::source::SourceDescriptor;

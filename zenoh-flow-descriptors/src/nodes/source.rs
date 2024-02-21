@@ -13,7 +13,7 @@
 //
 
 use super::RemoteNodeDescriptor;
-use crate::ZenohSourceDescriptor;
+use crate::nodes::builtin::zenoh::ZenohSourceDescriptor;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use url::Url;
@@ -34,26 +34,17 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 /// # Examples
 /// ## Remote descriptor
 ///
-/// ```
-/// use zenoh_flow_descriptors::SourceDescriptor;
-///
-/// let source_desc_uri = r#"
+/// ```yaml
 /// id: my-source-0
 /// descriptor: file:///home/zenoh-flow/my-source.yaml
 /// configuration:
 ///   answer: 0
-/// "#;
-///
-/// assert!(serde_yaml::from_str::<SourceDescriptor>(source_desc_uri).is_ok());
 /// ```
 ///
 /// ## Inline declaration
 /// ### Custom source
 ///
-/// ```
-/// use zenoh_flow_descriptors::SourceDescriptor;
-///
-/// let source_desc_custom = r#"
+/// ```yaml
 /// id: my-source-0
 /// description: This is my Source
 /// library: file:///home/zenoh-flow/libmy_source.so
@@ -62,31 +53,22 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 ///   - out-1
 /// configuration:
 ///   answer: 42
-/// "#;
-///
-/// assert!(serde_yaml::from_str::<SourceDescriptor>(source_desc_custom).is_ok());
 /// ```
 ///
 /// ### Zenoh built-in Source
 ///
-/// ```
-/// use zenoh_flow_descriptors::SourceDescriptor;
-///
-/// let source_desc_zenoh = r#"
+/// ```yaml
 /// id: my-source-0
 /// description: My zenoh source
 /// zenoh-subscribers:
 ///   ke-0: key/expr/0
 ///   ke-1: key/expr/1
-/// "#;
-///
-/// assert!(serde_yaml::from_str::<SourceDescriptor>(source_desc_zenoh).is_ok());
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub struct SourceDescriptor {
+pub(crate) struct SourceDescriptor {
     pub id: NodeId,
     #[serde(flatten)]
-    pub(crate) variant: SourceVariants,
+    pub variant: SourceVariants,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]

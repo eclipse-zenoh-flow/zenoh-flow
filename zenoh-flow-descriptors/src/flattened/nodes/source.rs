@@ -12,22 +12,19 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::nodes::builtin::zenoh::ZenohSourceDescriptor;
+use crate::nodes::source::{CustomSourceDescriptor, SourceDescriptor, SourceVariants};
+use crate::uri;
+
+use std::{collections::HashMap, fmt::Display, sync::Arc};
+
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Display, sync::Arc};
 use url::Url;
 use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, Vars};
 use zenoh_keyexpr::OwnedKeyExpr;
 
-use crate::{
-    nodes::source::{CustomSourceDescriptor, SourceVariants},
-    uri, SourceDescriptor, ZenohSourceDescriptor,
-};
-
-/// TODO@J-Loudet
-/// - documentation
-/// - validation would be a nice addition: what if users decide to write their own yaml/json and write something that is
-/// wrong? For instance, assuming a built-in Zenoh Source is wanted, some keys that are not mapped to a subscriber.
+/// A `FlattenedSourceDescriptor` is a self-contained description of a Source node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedSourceDescriptor {
     pub id: NodeId,
@@ -60,7 +57,7 @@ impl Display for FlattenedSourceDescriptor {
 }
 
 impl FlattenedSourceDescriptor {
-    pub fn try_flatten(
+    pub(crate) fn try_flatten(
         source_desc: SourceDescriptor,
         overwritting_vars: Vars,
         mut overwritting_configuration: Configuration,

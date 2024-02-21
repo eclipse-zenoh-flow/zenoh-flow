@@ -22,7 +22,7 @@ use url::Url;
 use zenoh_flow_commons::Configuration;
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-pub struct RemoteNodeDescriptor {
+pub(crate) struct RemoteNodeDescriptor {
     pub descriptor: Url,
     #[serde(default)]
     pub configuration: Configuration,

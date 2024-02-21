@@ -12,23 +12,19 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::flattened::{Patch, Substitutions};
+use crate::nodes::operator::composite::CompositeOperatorDescriptor;
+use crate::nodes::operator::{CustomOperatorDescriptor, OperatorDescriptor, OperatorVariants};
+use crate::{uri, InputDescriptor, LinkDescriptor, OutputDescriptor};
+
+use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
+use std::sync::Arc;
+
 use anyhow::{bail, Context};
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Display,
-    sync::Arc,
-};
 use url::Url;
 use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, Vars};
-
-use crate::{
-    flattened::{Patch, Substitutions},
-    nodes::operator::{
-        composite::CompositeOperatorDescriptor, CustomOperatorDescriptor, OperatorVariants,
-    },
-    uri, InputDescriptor, LinkDescriptor, OperatorDescriptor, OutputDescriptor,
-};
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct FlattenedOperatorDescriptor {
@@ -56,7 +52,7 @@ impl Display for FlattenedOperatorDescriptor {
 }
 
 impl FlattenedOperatorDescriptor {
-    pub fn try_flatten(
+    pub(crate) fn try_flatten(
         operator_descriptor: OperatorDescriptor,
         mut outer_configuration: Configuration,
         mut overwritting_configuration: Configuration,
