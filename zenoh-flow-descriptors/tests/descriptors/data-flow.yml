@@ -23,6 +23,7 @@ sources:
 
 operators:
   - id: operator-1
+    description: "Outer description"
     descriptor: "{{ SCHEME }}{{BASE_DIR }}/operator.yml"
 
   - id: operator-2

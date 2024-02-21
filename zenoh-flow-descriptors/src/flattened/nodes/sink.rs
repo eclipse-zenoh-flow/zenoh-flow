@@ -28,7 +28,7 @@ use zenoh_keyexpr::OwnedKeyExpr;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedSinkDescriptor {
     pub id: NodeId,
-    pub description: Arc<str>,
+    pub description: Option<Arc<str>>,
     #[serde(flatten)]
     pub sink: SinkVariant,
     pub inputs: Vec<PortId>,
@@ -64,7 +64,7 @@ impl FlattenedSinkDescriptor {
     ) -> Result<Self> {
         let descriptor = match sink_desc.variant {
             SinkVariants::Remote(remote_desc) => {
-                let (descriptor, _) = uri::try_load_descriptor::<LocalSinkVariants>(
+                let (mut descriptor, _) = uri::try_load_descriptor::<LocalSinkVariants>(
                     &remote_desc.descriptor,
                     overwritting_vars,
                 )
@@ -76,6 +76,11 @@ impl FlattenedSinkDescriptor {
                 overwritting_configuration = remote_desc
                     .configuration
                     .merge_overwrite(overwritting_configuration);
+
+                if let LocalSinkVariants::Custom(ref mut desc) = descriptor {
+                    let description = desc.description.take();
+                    desc.description = remote_desc.description.or(description);
+                }
 
                 descriptor
             }

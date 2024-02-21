@@ -93,7 +93,7 @@ pub(crate) enum OperatorVariants {
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CustomOperatorDescriptor {
-    pub description: Arc<str>,
+    pub description: Option<Arc<str>>,
     pub library: Url,
     pub inputs: Vec<PortId>,
     pub outputs: Vec<PortId>,

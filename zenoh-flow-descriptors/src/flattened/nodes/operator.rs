@@ -29,7 +29,7 @@ use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result,
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct FlattenedOperatorDescriptor {
     pub id: NodeId,
-    pub description: Arc<str>,
+    pub description: Option<Arc<str>>,
     #[serde(alias = "Library")]
     pub library: Url,
     pub inputs: Vec<PortId>,
@@ -77,7 +77,7 @@ Possible infinite recursion detected, the following descriptor appears to includ
                     .configuration
                     .merge_overwrite(outer_configuration);
 
-                let (descriptor, _) = uri::try_load_descriptor::<LocalOperatorVariants>(
+                let (mut descriptor, _) = uri::try_load_descriptor::<LocalOperatorVariants>(
                     &remote_desc.descriptor,
                     overwritting_vars.clone(),
                 )
@@ -85,6 +85,11 @@ Possible infinite recursion detected, the following descriptor appears to includ
                     "Failed to load Operator from < {} >",
                     &remote_desc.descriptor
                 ))?;
+
+                if let LocalOperatorVariants::Custom(ref mut desc) = descriptor {
+                    let description = desc.description.take();
+                    desc.description = remote_desc.description.or(description);
+                }
 
                 descriptor
             }

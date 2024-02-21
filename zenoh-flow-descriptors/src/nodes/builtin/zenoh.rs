@@ -40,7 +40,7 @@ use zenoh_keyexpr::OwnedKeyExpr;
 /// ```
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ZenohSourceDescriptor {
-    pub description: Arc<str>,
+    pub description: Option<Arc<str>>,
     #[serde(deserialize_with = "deserialize_canon", alias = "zenoh-subscribers")]
     pub subscribers: HashMap<PortId, OwnedKeyExpr>,
 }
@@ -66,7 +66,7 @@ pub(crate) struct ZenohSourceDescriptor {
 /// ```
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ZenohSinkDescriptor {
-    pub description: Arc<str>,
+    pub description: Option<Arc<str>>,
     #[serde(deserialize_with = "deserialize_canon", alias = "zenoh-publishers")]
     pub publishers: HashMap<PortId, OwnedKeyExpr>,
 }
