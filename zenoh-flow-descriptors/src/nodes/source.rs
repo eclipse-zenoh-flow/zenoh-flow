@@ -81,7 +81,7 @@ pub(crate) enum SourceVariants {
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CustomSourceDescriptor {
-    pub description: Arc<str>,
+    pub description: Option<Arc<str>>,
     pub library: Url,
     pub outputs: Vec<PortId>,
     #[serde(default)]

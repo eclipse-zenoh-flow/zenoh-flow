@@ -28,7 +28,7 @@ use zenoh_keyexpr::OwnedKeyExpr;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedSourceDescriptor {
     pub id: NodeId,
-    pub description: Arc<str>,
+    pub description: Option<Arc<str>>,
     #[serde(flatten)]
     pub source: SourceVariant,
     pub outputs: Vec<PortId>,
@@ -64,7 +64,7 @@ impl FlattenedSourceDescriptor {
     ) -> Result<Self> {
         let descriptor = match source_desc.variant {
             SourceVariants::Remote(remote_desc) => {
-                let (descriptor, _) = uri::try_load_descriptor::<LocalSourceVariants>(
+                let (mut descriptor, _) = uri::try_load_descriptor::<LocalSourceVariants>(
                     &remote_desc.descriptor,
                     overwritting_vars,
                 )
@@ -75,6 +75,11 @@ impl FlattenedSourceDescriptor {
                 overwritting_configuration = remote_desc
                     .configuration
                     .merge_overwrite(overwritting_configuration);
+
+                if let LocalSourceVariants::Custom(ref mut desc) = descriptor {
+                    let description = desc.description.take();
+                    desc.description = remote_desc.description.or(description);
+                }
 
                 descriptor
             }

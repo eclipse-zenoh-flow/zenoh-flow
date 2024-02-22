@@ -82,7 +82,7 @@ pub(crate) enum SinkVariants {
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CustomSinkDescriptor {
-    pub description: Arc<str>,
+    pub description: Option<Arc<str>>,
     pub library: Url,
     pub inputs: Vec<PortId>,
     #[serde(default)]
