@@ -54,6 +54,7 @@ pub struct FlattenedDataFlowDescriptor {
     /// A non-empty list of Sources.
     pub sources: Vec<FlattenedSourceDescriptor>,
     /// A list of Operators.
+    #[serde(default)]
     pub operators: Vec<FlattenedOperatorDescriptor>,
     /// A non-empty list of Sinks.
     pub sinks: Vec<FlattenedSinkDescriptor>,
