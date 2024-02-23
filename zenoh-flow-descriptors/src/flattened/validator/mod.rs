@@ -67,6 +67,14 @@ impl<'a> Validator<'a> {
     pub(crate) fn validate(data_flow: &FlattenedDataFlowDescriptor) -> Result<()> {
         let mut this = Validator::default();
 
+        if data_flow.sources.is_empty() {
+            bail!("A data flow must specify at least ONE Source.");
+        }
+
+        if data_flow.sinks.is_empty() {
+            bail!("A data flow must specify at least ONE Sink.");
+        }
+
         for flat_source in &data_flow.sources {
             this.validate_node_id(&flat_source.id)?;
 
