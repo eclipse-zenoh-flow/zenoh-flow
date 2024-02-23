@@ -67,6 +67,98 @@ links:
 }
 
 #[test]
+fn test_no_source() {
+    let yaml_no_source = r#"
+name: invalid data flow no source
+
+sources:
+
+operators:
+  - id: operator
+    library: file:///home/zenoh-flow/liboperator.so
+    inputs:
+      - in-op
+    outputs:
+      - out-op
+
+sinks:
+  - id: sink
+    library: file:///home/zenoh-flow/libsink.so
+    inputs:
+      - in-si
+
+links:
+  - from:
+      node: operator
+      output: out-op
+    to:
+      node: operator
+      input: in-op
+
+  - from:
+      node: operator
+      output: out-op
+    to:
+      node: sink-1
+      input: sink-in
+"#;
+
+    let res = FlattenedDataFlowDescriptor::try_flatten(
+        serde_yaml::from_str(yaml_no_source).unwrap(),
+        Vars::default(),
+    );
+
+    assert!(res.is_err());
+    assert!(format!("{:?}", res).contains("A data flow must specify at least ONE Source."));
+}
+
+#[test]
+fn test_no_sink() {
+    let yaml_no_sink = r#"
+name: invalid data flow no sink
+
+sources:
+  - id: source
+    library: file:///home/zenoh-flow/libsource.so
+    outputs:
+      - out-so
+
+operators:
+  - id: operator
+    library: file:///home/zenoh-flow/liboperator.so
+    inputs:
+      - in-op
+    outputs:
+      - out-op
+
+sinks:
+
+links:
+  - from:
+      node: source
+      output: out-so
+    to:
+      node: operator
+      input: in-op
+
+  - from:
+      node: operator
+      output: out-op
+    to:
+      node: operator
+      input: in-op
+"#;
+
+    let res = FlattenedDataFlowDescriptor::try_flatten(
+        serde_yaml::from_str(yaml_no_sink).unwrap(),
+        Vars::default(),
+    );
+
+    assert!(res.is_err());
+    assert!(format!("{:?}", res).contains("A data flow must specify at least ONE Sink."));
+}
+
+#[test]
 fn test_duplicate_ids() {
     let yaml_duplicate_same_section = r#"
 name: duplicate
