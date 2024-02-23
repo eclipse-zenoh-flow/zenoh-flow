@@ -27,15 +27,24 @@ use zenoh_keyexpr::OwnedKeyExpr;
 /// A `FlattenedSourceDescriptor` is a self-contained description of a Source node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FlattenedSourceDescriptor {
+    /// The unique (within a data flow) identifier of the Source.
     pub id: NodeId,
+    /// A human-readable description of the Source.
     pub description: Option<Arc<str>>,
+    /// The type of implementation of the Source, either built-in or a path to a Library.
     #[serde(flatten)]
     pub source: SourceVariant,
+    /// The identifiers of the outputs the Source uses.
     pub outputs: Vec<PortId>,
+    /// Pairs of `(key, value)` to change the behaviour of the Source without altering its implementation.
     #[serde(default)]
     pub configuration: Configuration,
 }
 
+/// ⚠️ This is structure is intended for internal usage.
+///
+/// The implementation of a Source: either a custom Source with the location of its implementation or a Zenoh built-in
+/// node with the list of key expressions to which it should subscribe.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SourceVariant {
@@ -43,6 +52,7 @@ pub enum SourceVariant {
     Zenoh(HashMap<PortId, OwnedKeyExpr>),
 }
 
+/// The Source variant after it has been fetched (if it was remote) but before it has been flattened.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 enum LocalSourceVariants {
@@ -57,6 +67,16 @@ impl Display for FlattenedSourceDescriptor {
 }
 
 impl FlattenedSourceDescriptor {
+    /// Attempts to flatten a [SourceDescriptor] into a [FlattenedSourceDescriptor].
+    ///
+    /// If the descriptor needs to be fetched this function will first fetch it, propagate and merge the overwriting
+    /// [Vars] and finally construct a [FlattenedSourceDescriptor].
+    ///
+    /// The configuration of the Source is finally merged with the `overwriting_configuration`.
+    ///
+    /// # Errors
+    ///
+    /// The flattening process can fail if we cannot retrieve the remote descriptor.
     pub(crate) fn try_flatten(
         source_desc: SourceDescriptor,
         overwritting_vars: Vars,

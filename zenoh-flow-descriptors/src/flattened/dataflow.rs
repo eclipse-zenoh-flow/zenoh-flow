@@ -28,15 +28,41 @@ use zenoh_flow_commons::{Configuration, NodeId, Result, RuntimeId, Vars};
 
 use super::validator::Validator;
 
+/// A `FlattenedDataFlowDescriptor` is a self-contained description of a data flow.
+///
+/// If a `FlattenedDataFlowDescriptor` is obtained after a Zenoh-Flow runtime has processed a [DataFlowDescriptor] then
+/// this flattened descriptor is also guaranteed to be *valid*: it respects a set of constraints imposed by
+/// Zenoh-Flow. See the [try_flatten](FlattenedDataFlowDescriptor::try_flatten()) method for a detailed explanation.
+///
+/// # ⚠️ Warning: risky manual creation
+///
+/// Although the fields are public, manually creating an instance is risky as no validation is performed. This could
+/// have many practical implications, e.g. your application could produce no data as your nodes are not (well)
+/// connected.
+///
+/// TODO Provide a builder API to check its validity.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct FlattenedDataFlowDescriptor {
-    #[serde(default)]
+    /// *(optional)* A unique identifier of an instance of this data flow.
+    ///
+    /// If provided, Zenoh-Flow will not generate one when instantiating the flow and keep this value instead.
+    ///
+    /// ⚠️ *Note that this will prevent having multiple instances of this data flow on the same Zenoh network*.
     pub uuid: Option<Uuid>,
+    /// A human-readable description of the data flow.
     pub name: Arc<str>,
+    /// A non-empty list of Sources.
     pub sources: Vec<FlattenedSourceDescriptor>,
+    /// A list of Operators.
     pub operators: Vec<FlattenedOperatorDescriptor>,
+    /// A non-empty list of Sinks.
     pub sinks: Vec<FlattenedSinkDescriptor>,
+    /// The complete list of links.
     pub links: Vec<LinkDescriptor>,
+    /// *(optional)* A list specifying on which device the nodes run.
+    ///
+    /// Note that, if this field is omitted or only covers a part of the nodes, Zenoh-Flow will assign the nodes without
+    /// a mapping to the Zenoh-Flow runtime that instantiates the data flow.
     #[serde(default)]
     pub mapping: HashMap<RuntimeId, HashSet<NodeId>>,
 }
@@ -48,6 +74,39 @@ impl Display for FlattenedDataFlowDescriptor {
 }
 
 impl FlattenedDataFlowDescriptor {
+    /// Flatten the provided [DataFlowDescriptor], centralising all descriptors and checking its validity.
+    ///
+    /// The flattening process is recursive: to flatten the data flow, all nodes must first be flattened.
+    ///
+    /// For Sources and Sinks this flattening process is similar: retrieve the descriptor if it was not written directly
+    /// inside the data flow and expose, for all variations, the same information.
+    ///
+    /// For Operators this process is different when it is Composite. In this particular case, its entry in the list of
+    /// Operators (at the data flow level) must be replaced with the Operators it contains and the links that points to
+    /// it must be modified to instead point to the actual Operator(s) that receive / send data.
+    ///
+    /// A `FlattenedDataFlowDescriptor` does not contain a [Configuration] as it has been propagated (possibly extended)
+    /// to each node.
+    ///
+    /// A set of substitution [Vars] can be provided when flattening. This set allows overwriting the `vars` section of
+    /// the provided [DataFlowDescriptor].
+    ///
+    /// # Validity
+    ///
+    /// A data flow in Zenoh-Flow is considered valid if:
+    /// - it has at least one Source and one Sink,
+    /// - all nodes, regardless of their type, have a different identifier,
+    /// - no node has two inputs or two outputs with the same identifier,
+    /// - all outputs are connected to at least one input,
+    /// - all inputs are connected to at least one output.
+    ///
+    /// # Errors
+    ///
+    /// A flattening operation can fail for multiple reasons:
+    /// - The flattening of an Operator failed.
+    /// - The flattening of a Source failed.
+    /// - The flattening of a Sink failed.
+    /// - The flattened data flow is not valid.
     pub fn try_flatten(mut data_flow: DataFlowDescriptor, vars: Vars) -> Result<Self> {
         let mut flattened_operators = Vec::with_capacity(data_flow.operators.len());
         for operator_desc in data_flow.operators {
@@ -114,6 +173,9 @@ impl FlattenedDataFlowDescriptor {
         Ok(flattened_data_flow)
     }
 
+    /// Returns the unique identifier of the Zenoh-Flow runtime on which the node is configured to run.
+    ///
+    /// If there is no mapping entry for this specific node, `None` is returned.
     pub fn get_runtime(&self, node: &NodeId) -> Option<&RuntimeId> {
         for (runtime_id, nodes) in self.mapping.iter() {
             if nodes.contains(node) {

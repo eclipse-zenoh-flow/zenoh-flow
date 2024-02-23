@@ -22,14 +22,14 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 /// A `SinkDescriptor` uniquely identifies a Sink.
 ///
 /// Zenoh-Flow supports several ways of declaring a Sink:
-/// - by importing a "remote" descriptor,
-/// - with an inline declaration of a [`CustomSinkDescriptor`],
+/// - by importing a "remote" descriptor (e.g. located in another descriptor file),
+/// - with an inline declaration,
 /// - with an inline declaration of a Zenoh built-in, listing on which key expressions to publish.
 ///
-/// # Caveat: `NodeId`
+/// # ⚠️ Caveat: `NodeId` and `PortId`
 ///
-/// Zenoh-Flow nodes cannot contain the "slash" character '/'. Including such character in the id will result in a hard
-/// error when parsing.
+/// Zenoh-Flow identifiers cannot contain certain special characters as it could prevent creating valid Zenoh
+/// key-expressions. The list can be found [here](zenoh_flow_commons::deserialize_id).
 ///
 /// # Examples
 /// ## Remote descriptor

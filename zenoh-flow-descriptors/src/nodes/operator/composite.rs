@@ -18,8 +18,15 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use zenoh_flow_commons::{Configuration, NodeId, PortId};
 
-/// TODO@J-Loudet example?
-/// TODO@J-Loudet documentation?
+/// A `CompositeOutputDescriptor` exposes the [Output](OutputDescriptor) of a node.
+///
+/// # Example (YAML)
+///
+/// ```yaml
+/// id: my-composite-output
+/// node: my-operator
+/// output: out
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub(crate) struct CompositeOutputDescriptor {
     pub id: PortId,
@@ -36,14 +43,14 @@ impl From<CompositeOutputDescriptor> for OutputDescriptor {
     }
 }
 
-/// Describes an Input of a Composite Operator.
+/// A `CompositeInputDescriptor` exposes the [Input](InputDescriptor) of a node.
 ///
-/// # Example
+/// # Example (YAML)
 ///
 /// ```yaml
-/// id: UniquePortIdentifier
-/// node: Node
-/// input: Input
+/// id: my-composite-input
+/// node: my-operator
+/// input: in
 /// ```
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub(crate) struct CompositeInputDescriptor {
@@ -61,15 +68,9 @@ impl From<CompositeInputDescriptor> for InputDescriptor {
     }
 }
 
-/// A `Composite Operator` Zenoh-Flow node.
+/// A `CompositeOperatorDescriptor` groups together one or more Operators in a single descriptor.
 ///
-/// A Composite Operator is a meta-operator: it groups together one or more Operators in a single descriptor. Its main
-/// purpose is to simplify the creation of data flow graphs by allowing this form of grouping.
-///
-/// # `configuration` section caveats
-///
-/// The `configuration` section of a Composite Operator supersedes the same section in the Operator(s) it references.
-/// See the documentation for more details regarding this behavior.
+/// Its main purpose is to simplify the creation of data flow graphs by allowing this form of grouping.
 ///
 /// # Examples
 ///

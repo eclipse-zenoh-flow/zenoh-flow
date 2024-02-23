@@ -18,9 +18,18 @@ use std::fmt;
 use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{NodeId, PortId};
 
-/// An `InputDescriptor` describes an Input port of a Zenoh-Flow node.
+/// An `InputDescriptor` uniquely describes an Input port of a Zenoh-Flow node.
 ///
-/// FIXME@J-Loudet See [links] for their usage.
+/// # Example
+///
+/// ```
+/// # use zenoh_flow_descriptors::InputDescriptor;
+/// # let input_desc = r#"
+/// node: Operator
+/// input: i-operator
+/// # "#;
+/// # serde_yaml::from_str::<InputDescriptor>(input_desc).unwrap();
+/// ```
 #[derive(Debug, Hash, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct InputDescriptor {
     pub node: NodeId,
@@ -42,9 +51,18 @@ impl InputDescriptor {
     }
 }
 
-/// An `OutputDescriptor` describes an Output port of a Zenoh-Flow node.
+/// An `OutputDescriptor` uniquely describes an Output port of a Zenoh-Flow node.
 ///
-/// See [LinkDescriptor][crate::link::LinkDescriptor] for their usage.
+/// # Example
+///
+/// ```
+/// # use zenoh_flow_descriptors::OutputDescriptor;
+/// # let output_desc = r#"
+/// node: Operator
+/// output: o-operator
+/// # "#;
+/// # serde_yaml::from_str::<OutputDescriptor>(output_desc).unwrap();
+/// ```
 #[derive(Debug, Clone, Hash, Serialize, Deserialize, PartialEq, Eq)]
 pub struct OutputDescriptor {
     pub node: NodeId,
@@ -71,18 +89,22 @@ impl OutputDescriptor {
 /// A link is composed of:
 /// - an [OutputDescriptor],
 /// - an [InputDescriptor],
-/// - (optional) Zenoh shared-memory parameters.
+/// - *(optional, disabled by default)* Zenoh shared-memory parameters.
 ///
 /// # Example
 ///
 /// The textual representation, in YAML, of a link is as following:
-/// ```yaml
+/// ```
+/// # use zenoh_flow_descriptors::LinkDescriptor;
+/// # let link_desc = r#"
 /// from:
-///   node : Counter
-///   output : Counter
+///   node : Operator
+///   output : o-operator
 /// to:
-///   node : SumOperator
-///   input : Number
+///   node : Sink
+///   input : i-sink
+/// # "#;
+/// # serde_yaml::from_str::<LinkDescriptor>(link_desc).unwrap();
 /// ```
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct LinkDescriptor {

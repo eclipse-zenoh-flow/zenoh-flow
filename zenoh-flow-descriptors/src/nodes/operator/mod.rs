@@ -20,24 +20,28 @@ use std::sync::Arc;
 use url::Url;
 use zenoh_flow_commons::{Configuration, NodeId, PortId};
 
-/// A `OperatorDescriptor` uniquely identifies a Operator.
+/// An `OperatorDescriptor` uniquely identifies and configures an Operator.
 ///
 /// Zenoh-Flow supports several ways of declaring a Operator:
-/// - by importing a "remote" descriptor,
-/// - with an inline declaration of a [`CustomOperatorDescriptor`].
+/// - by importing a "remote" descriptor (e.g. located in another descriptor file),
+/// - with an inline declaration.
+///
+/// It is not possible to define an `Operator` inside your code base. This structure was made to be parsed from a
+/// configuration file. You should instead use a [FlattenedOperatorDescriptor](crate::FlattenedOperatorDescriptor).
 ///
 /// # Remote descriptor: composite or custom
 ///
-/// Specifying a remote descriptor allows including a [CompositeOperatorDescriptor]: the composition of several
-/// [CustomOperatorDescriptor]s.
+/// Specifying a remote descriptor allows including a [CompositeOperatorDescriptor](crate::CompositeOperatorDescriptor):
+/// the composition of several Operators.
 ///
 /// Manually describing a composite operator is not supported as it defeats its primary purpose: simplifying the
 /// creation of a data flow.
 ///
-/// # Caveat: `NodeId`
+/// # ⚠️ Caveat: `NodeId` and `PortId`
 ///
-/// Zenoh-Flow nodes cannot contain the "slash" character '/'. Including such character in the id will result in a hard
-/// error when parsing.
+/// Zenoh-Flow identifiers cannot contain certain special characters as it could prevent creating valid Zenoh
+/// key-expressions. The list can be found [here](zenoh_flow_commons::deserialize_id).
+///
 ///
 /// # Examples
 ///
@@ -76,7 +80,6 @@ use zenoh_flow_commons::{Configuration, NodeId, PortId};
 /// configuration:
 ///   answer: 1
 /// ```
-///
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub(crate) struct OperatorDescriptor {
     pub id: NodeId,
