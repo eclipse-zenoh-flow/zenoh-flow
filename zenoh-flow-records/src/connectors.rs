@@ -17,6 +17,13 @@ use std::fmt::Display;
 use zenoh_flow_commons::NodeId;
 use zenoh_keyexpr::OwnedKeyExpr;
 
+/// A `SenderRecord` describes the sending end of a "Zenoh connection" between Zenoh-Flow runtimes.
+///
+/// Effectively, a `Sender` performs `put` operations on Zenoh. The main difference with an out-of-the-box `put` is
+/// that Zenoh-Flow manages when they are done and on which resource.
+///
+/// Specifically, Zenoh-Flow ensures that each resource stays unique. This allows deploying the same data flow multiple
+/// times on the same infrastructure and keeping them isolated.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct SenderRecord {
     pub(crate) id: NodeId,
@@ -39,6 +46,13 @@ impl SenderRecord {
     }
 }
 
+/// A `ReceiverRecord` describes the receiving end of a "Zenoh connection" between Zenoh-Flow runtimes.
+///
+/// Effectively, a `Receiver` encapsulates a Zenoh subscriber. The main difference with out-of-the-box subscriber is
+/// that Zenoh-Flow manages how it is pulled and the resource it declares.
+///
+/// Specifically, Zenoh-Flow ensures that each resource stays unique. This allows deploying the same data flow multiple
+/// times on the same infrastructure and keeping them isolated.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ReceiverRecord {
     pub(crate) id: NodeId,
