@@ -12,7 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use crate::{
     flattened::nodes::{sink::SinkVariant, source::SourceVariant},
@@ -23,6 +26,7 @@ use crate::{
 };
 use serde_json::json;
 use url::Url;
+use uuid::Uuid;
 use zenoh_flow_commons::{NodeId, RuntimeId, Vars};
 
 const BASE_DIR: &str = "./tests/descriptors";
@@ -422,13 +426,15 @@ links:
             .expect("Failed to deserialize flow from JSON");
 
     assert_eq!(flat_flow_yaml, flat_flow_json);
-    assert!(flat_flow_json.uuid.is_none());
+    assert!(flat_flow_json.id.is_none());
     assert!(flat_flow_yaml.mapping.is_empty());
 }
 
 #[test]
 fn test_serialize_deserialize_no_operators() {
     let flow_yaml = r#"
+id: e8f1f252-e984-4d0f-92f6-0cd97b5cfc1e
+
 name: test-flow
 
 sources:
@@ -469,6 +475,13 @@ links:
             .expect("Failed to deserialize flow from JSON");
 
     assert_eq!(flat_flow_yaml, flat_flow_json);
-    assert!(flat_flow_json.uuid.is_none());
+    assert_eq!(
+        flat_flow_json.id,
+        Some(
+            Uuid::from_str("e8f1f252-e984-4d0f-92f6-0cd97b5cfc1e")
+                .unwrap()
+                .into()
+        )
+    );
     assert!(flat_flow_yaml.mapping.is_empty());
 }

@@ -23,8 +23,7 @@ use std::{
     fmt::Display,
     sync::Arc,
 };
-use uuid::Uuid;
-use zenoh_flow_commons::{Configuration, NodeId, Result, RuntimeId, Vars};
+use zenoh_flow_commons::{Configuration, InstanceId, NodeId, Result, RuntimeId, Vars};
 
 use super::validator::Validator;
 
@@ -48,7 +47,7 @@ pub struct FlattenedDataFlowDescriptor {
     /// If provided, Zenoh-Flow will not generate one when instantiating the flow and keep this value instead.
     ///
     /// ⚠️ *Note that this will prevent having multiple instances of this data flow on the same Zenoh network*.
-    pub uuid: Option<Uuid>,
+    pub id: Option<InstanceId>,
     /// A human-readable description of the data flow.
     pub name: Arc<str>,
     /// A non-empty list of Sources.
@@ -159,7 +158,7 @@ impl FlattenedDataFlowDescriptor {
             .collect::<Result<Vec<_>>>()?;
 
         let flattened_data_flow = Self {
-            uuid: data_flow.uuid,
+            id: data_flow.id,
             name: data_flow.name,
             sources,
             operators: flattened_operators,

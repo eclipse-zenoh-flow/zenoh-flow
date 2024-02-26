@@ -21,8 +21,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
+use zenoh_flow_commons::{Configuration, InstanceId, NodeId, RuntimeId};
 
 /// A `DataFlowDescriptor` describes an entire Zenoh-Flow application and is obtained after a parsing step.
 ///
@@ -239,7 +238,7 @@ pub struct DataFlowDescriptor {
     /// If provided, Zenoh-Flow will not generate one when instantiating the flow and keep this value instead.
     ///
     /// ⚠️ *Note that this will prevent having multiple instances of this data flow on the same Zenoh network*.
-    pub(crate) uuid: Option<Uuid>,
+    pub(crate) id: Option<InstanceId>,
     /// A human-readable description of the data flow.
     pub(crate) name: Arc<str>,
     /// *(optional)* Pairs of `(key, value)` that are transmitted to the nodes at their creation.
