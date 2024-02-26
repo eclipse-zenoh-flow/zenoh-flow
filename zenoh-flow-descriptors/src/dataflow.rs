@@ -41,15 +41,16 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 ///
 /// In Zenoh-Flow, we divide a descriptor into sections, each responsible for a single aspect of the applications.
 ///
-/// The **required** sections are:
+/// The *main* sections are:
 /// - `name`     : A short human-readable summary of what your data flow will do.
 /// - `sources`  : A non-empty list of Source(s) to feed data into your data flow.
-/// - `operators`: A list of Operator(s) to perform transformation on the data.
+/// - `operators`: A list of Operator(s) to perform transformation on the data. A data flow can have no Operator, in
+///                which case this section can be omitted.
 /// - `sinks`    : A non-empty list of Sink(s) to output the result of the transformation(s) performed in your data
 ///                flow.
 /// - `links`    : How the different nodes of your data flow are connected.
 ///
-/// Special, **optional**, sections can also be added to tweak a data flow:
+/// Special, *optional*, sections can also be added to tweak a data flow:
 /// - `uuid`: The unique identifier to give to an instance of this data flow.
 ///   If not provided, Zenoh-Flow will generate a random one when instantiating the flow.
 ///
@@ -71,13 +72,13 @@ use zenoh_flow_commons::{Configuration, NodeId, RuntimeId};
 ///
 /// The three types of nodes -- Sources, Sinks and Operators -- share a similar structure.
 ///
-/// The **required** sections are:
+/// The *required* sections are:
 /// - `id`     : A unique name -- within your data flow.
 /// - `library`: A [Url](url::Url) pointing at the implementation of the node's logic.
 /// - `inputs` : The entry points of the node (i.e. to receive data). ⚠️ Only for **Sinks** and **Operators**.
 /// - `outputs`: The exit points of the node (i.e. to forward data). ⚠️ Only for **Sources** and **Operators**.
 ///
-/// The **optional** sections are:
+/// The *optional* sections are:
 /// - `description`  : A human-readable description of what the node does.
 /// - `configuration`: To pass down values to the node when Zenoh-Flow creates it. Values in a node's section will
 ///   *overwrite* that of the data flow.
@@ -248,6 +249,7 @@ pub struct DataFlowDescriptor {
     #[serde(default)]
     pub(crate) configuration: Configuration,
     /// *(optional)* A list of Operator(s), the nodes that manipulate and / or produce data.
+    #[serde(default)]
     pub(crate) operators: Vec<OperatorDescriptor>,
     /// A non-empty list of Source(s), the nodes that provide data to the data flow.
     pub(crate) sources: Vec<SourceDescriptor>,
@@ -329,6 +331,55 @@ mod tests {
        "to": {
          "node": "Sink-2",
          "input": "in-operator"
+       }
+     }
+   ]
+ }
+ "#;
+        let data_flow_json = serde_json::from_str::<DataFlowDescriptor>(flow_json_str)
+            .expect("Failed to deserialize flow from JSON");
+        assert!(serde_json::to_string(&data_flow_json).is_ok());
+    }
+
+    #[test]
+    fn test_serialization_deserialization_no_operators() {
+        let flow_json_str = r#"
+{
+   "name": "DataFlow",
+
+   "configuration": {
+     "foo": "bar"
+   },
+
+   "sources": [
+     {
+       "id": "Source",
+       "descriptor": "file:///home/zenoh-flow/nodes/source.yaml",
+       "configuration": {
+         "answer": 0
+       }
+     }
+   ],
+
+   "sinks": [
+     {
+       "id": "Sink",
+       "descriptor": "file:///home/zenoh-flow/nodes/sink.yaml",
+       "configuration": {
+         "answer": 2
+       }
+     }
+   ],
+
+   "links": [
+     {
+       "from": {
+         "node": "Source",
+         "output": "o-source"
+       },
+       "to": {
+         "node": "Sink",
+         "input": "i-sink"
        }
      }
    ]
