@@ -33,7 +33,7 @@ const RECEIVER_SUFFIX: &str = "__zenoh_flow_receiver";
 /// TODO@J-Loudet
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct DataFlowRecord {
-    pub(crate) record_id: InstanceId,
+    pub(crate) id: InstanceId,
     pub(crate) name: Arc<str>,
     pub sources: HashMap<NodeId, FlattenedSourceDescriptor>,
     pub operators: HashMap<NodeId, FlattenedOperatorDescriptor>,
@@ -63,7 +63,7 @@ impl DataFlowRecord {
         default_runtime: &RuntimeId,
     ) -> Result<Self> {
         let FlattenedDataFlowDescriptor {
-            uuid,
+            id,
             name,
             sources,
             operators,
@@ -72,7 +72,7 @@ impl DataFlowRecord {
             mut mapping,
         } = data_flow.clone();
 
-        let record_id = uuid.unwrap_or_else(Uuid::new_v4).into();
+        let id = id.unwrap_or_else(|| Uuid::new_v4().into());
 
         // Nodes that are not running on the same runtime need to be connected.
         let mut additional_links = Vec::default();
@@ -140,7 +140,7 @@ Is its name valid (i.e. does it reference an actual node)?
                 .context(format!("Failed to process link:\n{}", link))?;
 
             if runtime_from != runtime_to {
-                let key_expr_str = format!("{}/{}/{}", record_id, link.from.node, link.from.output);
+                let key_expr_str = format!("{}/{}/{}", id, link.from.node, link.from.output);
                 let key_expression =
                     OwnedKeyExpr::autocanonize(key_expr_str.clone()).map_err(|e| {
                         // NOTE: This error should not happen as we ensure that (i) all node ids and port ids are valid
@@ -219,7 +219,7 @@ Caused by:
             });
 
         Ok(Self {
-            record_id,
+            id,
             name,
             sources,
             operators,
@@ -237,7 +237,7 @@ Caused by:
     ///
     /// The id is internally stored behind an [`Arc`](std::sync::Arc) so there is limited overhead to cloning it.
     pub fn instance_id(&self) -> &InstanceId {
-        &self.record_id
+        &self.id
     }
 
     /// Returns the name of the data flow from which this [`DataFlowRecord`] was generated.

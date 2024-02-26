@@ -220,7 +220,7 @@ mapping:
 
     // assert the connectors
     let key_expr_thing_edge =
-        OwnedKeyExpr::autocanonize(format!("{}/source-0/out-0", record.record_id)).unwrap();
+        OwnedKeyExpr::autocanonize(format!("{}/source-0/out-0", record.instance_id())).unwrap();
     let sender_thing_edge: NodeId = format!("source-0{}", SENDER_SUFFIX).into();
     let receiver_thing_edge: NodeId = format!("operator-1{}", RECEIVER_SUFFIX).into();
     assert_eq!(
@@ -239,7 +239,7 @@ mapping:
     );
 
     let key_expr_edge_default =
-        OwnedKeyExpr::autocanonize(format!("{}/operator-1/out-1", record.record_id)).unwrap();
+        OwnedKeyExpr::autocanonize(format!("{}/operator-1/out-1", record.instance_id())).unwrap();
     let sender_edge_default: NodeId = format!("operator-1{}", SENDER_SUFFIX).into();
     let receiver_edge_default: NodeId = format!("sink-2{}", RECEIVER_SUFFIX).into();
     assert_eq!(
