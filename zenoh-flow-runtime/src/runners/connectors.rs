@@ -48,21 +48,21 @@ impl ZenohConnectorSender {
         mut inputs: Inputs,
     ) -> Result<Self> {
         let input = inputs
-            .take(&record.resource)
+            .take(record.resource())
             // TODO@J-Loudet
             .ok_or_else(|| anyhow!(""))?
             .raw();
 
         Ok(Self {
             input,
-            key_expr: record.resource,
+            key_expr: record.resource().clone(),
             state: Arc::new(Mutex::new(State {
                 payload_buffer: Vec::new(),
                 message_buffer: Vec::new(),
                 #[cfg(feature = "shared-memory")]
                 shm: SharedMemory::new(&record.id, session.clone(), shm_config),
             })),
-            id: record.id,
+            id: record.id(),
             session,
         })
     }
@@ -183,7 +183,7 @@ impl ZenohConnectorReceiver {
         mut outputs: Outputs,
     ) -> Result<Self> {
         let ke = session
-            .declare_keyexpr(record.resource.clone())
+            .declare_keyexpr(record.resource())
             .res()
             .await
             // TODO@J-Loudet
@@ -197,14 +197,14 @@ impl ZenohConnectorReceiver {
             .map_err(|e| anyhow!("{:?}", e))?;
 
         let output_raw = outputs
-            .take(&record.resource)
+            .take(record.resource())
             // TODO@J-Loudet
             .ok_or_else(|| anyhow!(""))?
             .raw();
 
         Ok(Self {
-            id: record.id,
-            key_expr: record.resource,
+            id: record.id(),
+            key_expr: record.resource().clone(),
             output_raw,
             subscriber,
         })

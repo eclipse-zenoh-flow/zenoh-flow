@@ -96,14 +96,14 @@ impl DataFlowInstance {
             runtime_id: runtime_id.clone(),
             state: self.state,
             nodes: self
-                .mapping
+                .mapping()
                 .get(runtime_id)
                 .map(|node_ids| {
                     node_ids
                         .iter()
                         .filter(|&node_id| {
-                            !(self.senders.contains_key(node_id)
-                                || self.receivers.contains_key(node_id))
+                            !(self.senders().contains_key(node_id)
+                                || self.receivers().contains_key(node_id))
                         })
                         .cloned()
                         .collect()
