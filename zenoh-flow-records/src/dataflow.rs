@@ -30,7 +30,17 @@ use zenoh_keyexpr::OwnedKeyExpr;
 const SENDER_SUFFIX: &str = "__zenoh_flow_sender";
 const RECEIVER_SUFFIX: &str = "__zenoh_flow_receiver";
 
-/// TODO@J-Loudet
+/// A `DataFlowRecord` represents a single deployment of a [FlattenedDataFlowDescriptor] on an infrastructure, i.e. on a
+/// set of Zenoh-Flow runtimes.
+///
+/// A `DataFlowRecord` can only be created by processing a [FlattenedDataFlowDescriptor] and providing a default
+/// Zenoh-Flow [runtime](RuntimeId) -- that will manage the nodes that have no explicit mapping. See the
+/// [try_new](DataFlowRecord::try_new()) method.
+///
+/// The differences between a [FlattenedDataFlowDescriptor] and a [DataFlowRecord] are:
+/// - In a record, all nodes are mapped to a Zenoh-Flow runtime.
+/// - A record leverages two additional nodes: [Sender](SenderRecord) and [Receiver](ReceiverRecord). These nodes take
+///   care of connecting nodes that are running on different Zenoh-Flow runtimes.
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct DataFlowRecord {
     pub(crate) id: InstanceId,
@@ -45,19 +55,24 @@ pub struct DataFlowRecord {
 }
 
 impl DataFlowRecord {
-    /// TODO@J-Loudet
+    /// Attempts to create a [DataFlowRecord] from the provided [FlattenedDataFlowDescriptor], assigning nodes without
+    /// a mapping to the default [runtime](RuntimeId).
+    ///
+    /// If the [FlattenedDataFlowDescriptor] did not specify a unique identifier, one will be randomly generated.
     ///
     /// # Errors
     ///
-    /// The creation of the `DataFlowRecord` should, in theory, not fail. The only failure point is during the creation
-    /// of the connectors: the [`SenderRecord`] and [`ReceiverRecord`] that are automatically generated when two nodes
-    /// that need to communicate are located on different runtimes.
+    /// The creation of the [DataFlowRecord] should, in theory, not fail. The only failure point is during the creation
+    /// of the connectors: the [Sender](SenderRecord) and [Receiver](ReceiverRecord) that are automatically generated
+    /// when two nodes that need to communicate are located on different runtimes.
     ///
     /// To generate these connectors, a Zenoh key expression is computed. Computing this expression can result in an
-    /// error if the [`NodeId`] or [`PortId`] are not valid chunks. This should not happen as, when deserializing from a
-    /// descriptor, the necessary verifications are performed.
+    /// error if the [NodeId] or [PortId](zenoh_flow_commons::PortId) are not valid chunks (see Zenoh's
+    /// [keyexpr](https://docs.rs/zenoh-keyexpr/0.10.1-rc/zenoh_keyexpr/key_expr/struct.keyexpr.html) documentation for
+    /// more details).
     ///
-    /// However, we cannot guarantee that the structures were not modified later on.
+    /// Node that this should not happen if the [FlattenedDataFlowDescriptor] was obtained by parsing and flattening a
+    /// [DataFlowDescriptor](zenoh_flow_descriptors::DataFlowDescriptor).
     pub fn try_new(
         data_flow: &FlattenedDataFlowDescriptor,
         default_runtime: &RuntimeId,
