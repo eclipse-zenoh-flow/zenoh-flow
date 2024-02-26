@@ -36,15 +36,15 @@ use zenoh_flow_commons::{InstanceId, RuntimeId};
 #[derive(Clone, Debug)]
 pub struct Context {
     pub(crate) flow_name: Arc<str>,
-    pub(crate) record_id: InstanceId,
+    pub(crate) instance_id: InstanceId,
     pub(crate) runtime_id: RuntimeId,
 }
 
 impl Context {
-    pub fn new(flow_name: Arc<str>, record_id: InstanceId, runtime_id: RuntimeId) -> Self {
+    pub fn new(flow_name: Arc<str>, instance_id: InstanceId, runtime_id: RuntimeId) -> Self {
         Self {
             flow_name,
-            record_id,
+            instance_id,
             runtime_id,
         }
     }
@@ -53,8 +53,8 @@ impl Context {
         self.flow_name.as_ref()
     }
 
-    pub fn record(&self) -> &InstanceId {
-        &self.record_id
+    pub fn instance_id(&self) -> &InstanceId {
+        &self.instance_id
     }
 
     pub fn runtime(&self) -> &RuntimeId {
