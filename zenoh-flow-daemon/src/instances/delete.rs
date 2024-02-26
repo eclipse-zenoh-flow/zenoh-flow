@@ -75,7 +75,7 @@ pub(crate) fn delete_instance(runtime: Arc<Runtime>, origin: Origin, instance_id
                 query_delete(
                     &runtime.session(),
                     record
-                        .mapping
+                        .mapping()
                         .keys()
                         .filter(|&runtime_id| runtime_id != runtime.id()),
                     &instance_id,

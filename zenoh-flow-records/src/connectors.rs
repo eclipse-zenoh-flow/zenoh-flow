@@ -19,8 +19,8 @@ use zenoh_keyexpr::OwnedKeyExpr;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct SenderRecord {
-    pub id: NodeId,
-    pub resource: OwnedKeyExpr,
+    pub(crate) id: NodeId,
+    pub(crate) resource: OwnedKeyExpr,
 }
 
 impl Display for SenderRecord {
@@ -29,14 +29,34 @@ impl Display for SenderRecord {
     }
 }
 
+impl SenderRecord {
+    pub fn id(&self) -> NodeId {
+        self.id.clone()
+    }
+
+    pub fn resource(&self) -> &OwnedKeyExpr {
+        &self.resource
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ReceiverRecord {
-    pub id: NodeId,
-    pub resource: OwnedKeyExpr,
+    pub(crate) id: NodeId,
+    pub(crate) resource: OwnedKeyExpr,
 }
 
 impl Display for ReceiverRecord {
     fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
+    }
+}
+
+impl ReceiverRecord {
+    pub fn id(&self) -> NodeId {
+        self.id.clone()
+    }
+
+    pub fn resource(&self) -> &OwnedKeyExpr {
+        &self.resource
     }
 }

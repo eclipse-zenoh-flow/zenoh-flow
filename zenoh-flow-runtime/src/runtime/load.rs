@@ -126,7 +126,7 @@ impl Runtime {
     /// The only scenario in which this method fails is if we did not correctly processed the data flow descriptor and
     /// ended up having a link with nodes on two different runtime.
     fn create_channels(&self, record: &DataFlowRecord) -> Result<Channels> {
-        let nodes_runtime = match record.mapping.get(&self.runtime_id) {
+        let nodes_runtime = match record.mapping().get(&self.runtime_id) {
             Some(nodes) => nodes,
             // NOTE: There is a possibility that the runtime that is orchestrating the deployment of the data flow will
             // not have to run any node. In which case, `record.mapping.get` will return nothing.
@@ -134,7 +134,7 @@ impl Runtime {
         };
 
         let mut channels = HashMap::default();
-        for link in &record.links {
+        for link in record.links() {
             if !nodes_runtime.contains(&link.from.node) || !nodes_runtime.contains(&link.to.node) {
                 #[cfg(feature = "zenoh")]
                 {
@@ -195,13 +195,13 @@ The problematic link is:
         context: Context,
     ) -> Result<HashMap<NodeId, Runner>> {
         let mut runners = HashMap::default();
-        let assigned_nodes = match record.mapping.get(&self.runtime_id) {
+        let assigned_nodes = match record.mapping().get(&self.runtime_id) {
             Some(nodes) => nodes,
             None => return Ok(HashMap::default()),
         };
 
         for (operator_id, operator) in record
-            .operators
+            .operators()
             .iter()
             .filter(|(_, operator)| assigned_nodes.contains(&operator.id))
         {
@@ -240,13 +240,13 @@ The channels for the Inputs and Outputs of Operator < {} > were not created.
         context: Context,
     ) -> Result<HashMap<NodeId, Runner>> {
         let mut runners = HashMap::default();
-        let assigned_nodes = match record.mapping.get(&self.runtime_id) {
+        let assigned_nodes = match record.mapping().get(&self.runtime_id) {
             Some(nodes) => nodes,
             None => return Ok(HashMap::default()),
         };
 
         for (source_id, source) in record
-            .sources
+            .sources()
             .iter()
             .filter(|(_, source)| assigned_nodes.contains(&source.id))
         {
@@ -301,13 +301,13 @@ Maybe change the features in the Cargo.toml?
         context: Context,
     ) -> Result<HashMap<NodeId, Runner>> {
         let mut runners = HashMap::default();
-        let assigned_nodes = match record.mapping.get(&self.runtime_id) {
+        let assigned_nodes = match record.mapping().get(&self.runtime_id) {
             Some(nodes) => nodes,
             None => return Ok(HashMap::default()),
         };
 
         for (sink_id, sink) in record
-            .sinks
+            .sinks()
             .iter()
             .filter(|(_, sink)| assigned_nodes.contains(&sink.id))
         {
@@ -370,15 +370,15 @@ Maybe change the features in the Cargo.toml?
         use crate::runners::connectors::ZenohConnectorReceiver;
 
         let mut runners = HashMap::new();
-        let assigned_nodes = match record.mapping.get(&self.runtime_id) {
+        let assigned_nodes = match record.mapping().get(&self.runtime_id) {
             Some(nodes) => nodes,
             None => return Ok(HashMap::default()),
         };
 
         for (receiver_id, receiver) in record
-            .receivers
+            .receivers()
             .iter()
-            .filter(|(_, receiver)| assigned_nodes.contains(&receiver.id))
+            .filter(|(_, receiver)| assigned_nodes.contains(&receiver.id()))
         {
             let (_, outputs) = channels.remove(receiver_id).context(format!(
                 r#"
@@ -411,15 +411,15 @@ The channels for the Outputs of Connector Receiver < {} > were not created.
         use crate::runners::connectors::ZenohConnectorSender;
 
         let mut runners = HashMap::new();
-        let assigned_nodes = match record.mapping.get(&self.runtime_id) {
+        let assigned_nodes = match record.mapping().get(&self.runtime_id) {
             Some(nodes) => nodes,
             None => return Ok(HashMap::default()),
         };
 
         for (sender_id, sender) in record
-            .senders
+            .senders()
             .iter()
-            .filter(|(_, sender)| assigned_nodes.contains(&sender.id))
+            .filter(|(_, sender)| assigned_nodes.contains(&sender.id()))
         {
             let (inputs, _) = channels.remove(sender_id).context(format!(
                 r#"

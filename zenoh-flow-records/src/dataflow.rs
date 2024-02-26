@@ -35,13 +35,13 @@ const RECEIVER_SUFFIX: &str = "__zenoh_flow_receiver";
 pub struct DataFlowRecord {
     pub(crate) id: InstanceId,
     pub(crate) name: Arc<str>,
-    pub sources: HashMap<NodeId, FlattenedSourceDescriptor>,
-    pub operators: HashMap<NodeId, FlattenedOperatorDescriptor>,
-    pub sinks: HashMap<NodeId, FlattenedSinkDescriptor>,
-    pub senders: HashMap<NodeId, SenderRecord>,
-    pub receivers: HashMap<NodeId, ReceiverRecord>,
-    pub links: Vec<LinkDescriptor>,
-    pub mapping: HashMap<RuntimeId, HashSet<NodeId>>,
+    pub(crate) sources: HashMap<NodeId, FlattenedSourceDescriptor>,
+    pub(crate) operators: HashMap<NodeId, FlattenedOperatorDescriptor>,
+    pub(crate) sinks: HashMap<NodeId, FlattenedSinkDescriptor>,
+    pub(crate) senders: HashMap<NodeId, SenderRecord>,
+    pub(crate) receivers: HashMap<NodeId, ReceiverRecord>,
+    pub(crate) links: Vec<LinkDescriptor>,
+    pub(crate) mapping: HashMap<RuntimeId, HashSet<NodeId>>,
 }
 
 impl DataFlowRecord {
@@ -243,6 +243,55 @@ Caused by:
     /// Returns the name of the data flow from which this [`DataFlowRecord`] was generated.
     pub fn name(&self) -> &Arc<str> {
         &self.name
+    }
+
+    /// Returns the mapping of the data flow: which Zenoh-Flow runtime manages which set of nodes.
+    pub fn mapping(&self) -> &HashMap<RuntimeId, HashSet<NodeId>> {
+        &self.mapping
+    }
+
+    /// Returns the set of [Senders](SenderRecord) of the data flow.
+    ///
+    /// A [Sender](SenderRecord) sends data, through a publication on Zenoh, to [Receiver(s)](ReceiverRecord).
+    pub fn senders(&self) -> &HashMap<NodeId, SenderRecord> {
+        &self.senders
+    }
+
+    /// Returns the set of [Receivers](ReceiverRecord) of the data flow.
+    ///
+    /// A [Receiver](ReceiverRecord) receives data, through a subscription on Zenoh, from [Sender(s)](SenderRecord).
+    pub fn receivers(&self) -> &HashMap<NodeId, ReceiverRecord> {
+        &self.receivers
+    }
+
+    /// Returns the set of links of the data flow: how the nodes are connected.
+    ///
+    /// Compared to links found in a [FlattenedDataFlowDescriptor], the links in a [DataFlowRecord] have been updated to
+    /// take into account the [Sender](SenderRecord) and [Receiver](ReceiverRecord) connecting the Zenoh-Flow runtimes.
+    pub fn links(&self) -> &[LinkDescriptor] {
+        &self.links
+    }
+
+    /// Returns the set of [Source(s)](FlattenedSourceDescriptor) of the data flow.
+    ///
+    /// A `Source` will feed external data in the data flow to be processed by downstream nodes.
+    pub fn sources(&self) -> &HashMap<NodeId, FlattenedSourceDescriptor> {
+        &self.sources
+    }
+
+    /// Returns the set of [Operator(s)](FlattenedOperatorDescriptor) of the data flow.
+    ///
+    /// An `Operator` performs computation on the data it receives, either modifying it or producing new data that it
+    /// forwards to downstream nodes.
+    pub fn operators(&self) -> &HashMap<NodeId, FlattenedOperatorDescriptor> {
+        &self.operators
+    }
+
+    /// Returns the set of [Sink(s)](FlattenedSinkDescriptor) of the data flow.
+    ///
+    /// A `Sink` exposes the result of the data flow pipeline, such that it can be ingested by external components.
+    pub fn sinks(&self) -> &HashMap<NodeId, FlattenedSinkDescriptor> {
+        &self.sinks
     }
 }
 

@@ -27,7 +27,7 @@ pub(crate) fn abort(runtime: Arc<Runtime>, origin: Origin, instance_id: Instance
                 query_abort(
                     &runtime.session(),
                     record
-                        .mapping
+                        .mapping()
                         .keys()
                         .filter(|&runtime_id| runtime_id != runtime.id()),
                     &instance_id,

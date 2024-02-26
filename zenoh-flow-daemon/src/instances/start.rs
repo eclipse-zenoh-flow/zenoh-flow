@@ -79,7 +79,7 @@ Caused by:
                 query_start(
                     &runtime.session(),
                     record
-                        .mapping
+                        .mapping()
                         .keys()
                         .filter(|&runtime_id| runtime_id != runtime.id()),
                     &instance_id,
@@ -90,7 +90,7 @@ Caused by:
             );
         }
 
-        if record.mapping.contains_key(runtime.id()) {
+        if record.mapping().contains_key(runtime.id()) {
             return_if_err!(
                 runtime.try_start_instance(&instance_id).await,
                 "Failed to start instance < {} >",

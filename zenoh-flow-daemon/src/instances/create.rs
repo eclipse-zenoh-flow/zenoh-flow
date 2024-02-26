@@ -55,7 +55,7 @@ pub(crate) fn create_instance(
         let instance_id = record.instance_id().clone();
         let current_runtime_id = runtime.id().clone();
         let involved_runtimes = record
-            .mapping
+            .mapping()
             .keys()
             .filter(|&runtime_id| runtime_id != &current_runtime_id)
             .cloned()
@@ -63,7 +63,7 @@ pub(crate) fn create_instance(
 
         // We start with the current Zenoh-Flow runtime such that, if there is an error, we don't need to go through
         // the network to rollback everything.
-        if record.mapping.contains_key(&current_runtime_id) {
+        if record.mapping().contains_key(&current_runtime_id) {
             if let Err(e) = runtime.try_load_data_flow(record.clone()).await {
                 tracing::error!("Failed to load data flow < {} >: {:?}", instance_id, e);
                 return;
@@ -101,7 +101,7 @@ Caused by:
                             &instance_id
                         ).await;
 
-                        if record.mapping.contains_key(&current_runtime_id) {
+                        if record.mapping().contains_key(&current_runtime_id) {
                             if let Err(e) = runtime.try_delete_instance(&instance_id).await {
                                 tracing::error!(
                                     "Failed to delete instance < {} > while cleaning up after failed creation
