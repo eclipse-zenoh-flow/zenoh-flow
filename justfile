@@ -30,6 +30,7 @@ test-standalone-runtime: standalone-runtime--bg
     @sleep 3
     diff {{ OUT_FILE }} tests/expected-standalone-runtime.txt
     killall zenoh-flow-standalone-runtime
+    rm {{ OUT_FILE }}
 
 [macos]
 standalone-runtime--bg: build-runtime build-examples
