@@ -31,5 +31,9 @@ proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2", features = ["full"] }
 
+[dev-dependencies]
+async-trait = { workspace = true }
+zenoh-flow-nodes = { workspace = true }
+
 [lib]
 proc-macro = true
