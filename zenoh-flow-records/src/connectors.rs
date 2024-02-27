@@ -31,8 +31,8 @@ pub struct SenderRecord {
 }
 
 impl Display for SenderRecord {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Sender < {} > publishing on: {}", self.id, self.resource)
     }
 }
 
@@ -60,8 +60,12 @@ pub struct ReceiverRecord {
 }
 
 impl Display for ReceiverRecord {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Receiver < {} > subscribed on: {}",
+            self.id, self.resource
+        )
     }
 }
 
