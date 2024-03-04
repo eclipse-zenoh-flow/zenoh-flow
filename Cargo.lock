@@ -3415,9 +3415,11 @@ dependencies = [
 name = "zenoh-flow-derive"
 version = "0.6.0-dev"
 dependencies = [
+ "async-trait",
  "proc-macro2",
  "quote",
  "syn 2.0.33",
+ "zenoh-flow-nodes",
 ]
 
 [[package]]

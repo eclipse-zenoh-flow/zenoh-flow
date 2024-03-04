@@ -12,41 +12,45 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+//! This crate exposes three procedural macros (one for each type of node) to facilitate exposing the symbols required
+//! by Zenoh-Flow in order to dynamically load nodes.
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
-/// The `export_source` attribute macro is provided to allow the users
-/// in exporting their source.
+/// Expose the symbols Zenoh-Flow needs to instantiate and start a Source.
+///
+/// In addition to exposing a specific symbol that will not be mangled by the compiler, this macro records the version
+/// of the rust compiler used as well as the version of Zenoh-Flow. These additional information are here to (try) limit
+/// possible surprises due to the lack of stable ABI in Rust.
 ///
 /// ## Example
 ///
-/// ```no_compile
-/// use async_trait::async_trait;
-/// use std::sync::Arc;
-/// use zenoh_flow::prelude::*;
-///
+/// ```
+/// # use async_trait::async_trait;
+/// # use zenoh_flow_nodes::prelude::*;
 /// #[export_source]
-/// pub struct MySource;
-///
-/// #[async_trait]
-/// impl Source for MySource{
-///   async fn new(
-///       context: Context,
-///       configuration: Configuration,
-///       outputs: Outputs,
-///   ) -> Result<Self> {
-///         todo!()
-///     }
+/// pub struct MySource {
+///     // Your logic goes here.
 /// }
+/// # #[async_trait]
+/// # impl Source for MySource{
+/// #   async fn new(
+/// #       context: Context,
+/// #       configuration: Configuration,
+/// #       outputs: Outputs,
+/// #   ) -> Result<Self> {
+/// #         todo!()
+/// #     }
+/// # }
 ///
-/// #[async_trait]
-/// impl Node for MySource {
-///     async fn iteration(&self) -> Result<()> {
-///         todo!()
-///     }
-/// }
-///
+/// # #[async_trait]
+/// # impl Node for MySource {
+/// #     async fn iteration(&self) -> Result<()> {
+/// #         todo!()
+/// #     }
+/// # }
 /// ```
 #[proc_macro_attribute]
 pub fn export_source(_: TokenStream, input: TokenStream) -> TokenStream {
@@ -79,37 +83,38 @@ pub fn export_source(_: TokenStream, input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-/// The `export_sink` attribute macro is provided to allow the users
-/// in exporting their sink.
+/// Expose the symbols Zenoh-Flow needs to instantiate and start a Sink.
+///
+/// In addition to exposing a specific symbol that will not be mangled by the compiler, this macro records the version
+/// of the rust compiler used as well as the version of Zenoh-Flow. These additional information are here to (try) limit
+/// possible surprises due to the lack of stable ABI in Rust.
 ///
 /// ## Example
 ///
-/// ```no_compile
-/// use async_trait::async_trait;
-/// use std::sync::Arc;
-/// use zenoh_flow::prelude::*;
-///
+/// ```
+/// # use async_trait::async_trait;
+/// # use zenoh_flow_nodes::prelude::*;
 /// #[export_sink]
-/// pub struct MySink;
-///
-/// #[async_trait]
-/// impl Sink for MySink {
-///   async fn new(
-///       context: Context,
-///       configuration: Configuration,
-///       inputs: Inputs,
-///   ) -> Result<Self> {
-///         todo!()
-///     }
+/// pub struct MySink {
+///     // Your logic goes here.
 /// }
+/// # #[async_trait]
+/// # impl Sink for MySink {
+/// #   async fn new(
+/// #       context: Context,
+/// #       configuration: Configuration,
+/// #       inputs: Inputs,
+/// #   ) -> Result<Self> {
+/// #         todo!()
+/// #     }
+/// # }
 ///
-/// #[async_trait]
-/// impl Node for MySink {
-///     async fn iteration(&self) -> Result<()> {
-///         todo!()
-///     }
-/// }
-///
+/// # #[async_trait]
+/// # impl Node for MySink {
+/// #     async fn iteration(&self) -> Result<()> {
+/// #         todo!()
+/// #     }
+/// # }
 /// ```
 #[proc_macro_attribute]
 pub fn export_sink(_: TokenStream, input: TokenStream) -> TokenStream {
@@ -148,40 +153,41 @@ pub fn export_sink(_: TokenStream, input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-/// The `export_operator` attribute macro is provided to allow the users
-/// in exporting their operator.
+/// Expose the symbols Zenoh-Flow needs to instantiate and start a Operator.
+///
+/// In addition to exposing a specific symbol that will not be mangled by the compiler, this macro records the version
+/// of the rust compiler used as well as the version of Zenoh-Flow. These additional information are here to (try) limit
+/// possible surprises due to the lack of stable ABI in Rust.
 ///
 /// ## Example
 ///
-/// ```no_compile
-/// use async_trait::async_trait;
-/// use std::sync::Arc;
-/// use zenoh_flow::prelude::*;
-///
+/// ```
+/// # use async_trait::async_trait;
+/// # use zenoh_flow_nodes::prelude::*;
 /// #[export_operator]
-/// struct MyOperator;
-///
-/// #[async_trait]
-/// impl Operator for MyOperator {
-///     fn new(
-///         context: Context,
-///         configuration: Configuration,
-///         inputs: Inputs,
-///         outputs: Outputs,
-/// ) -> Result<Self>
-///    where
-///    Self: Sized {
-///         todo!()
-///     }
+/// pub struct MyOperator {
+///     // Your logic code goes here.
 /// }
+/// # #[async_trait]
+/// # impl Operator for MyOperator {
+/// #     async fn new(
+/// #         context: Context,
+/// #         configuration: Configuration,
+/// #         inputs: Inputs,
+/// #         outputs: Outputs,
+/// #     ) -> Result<Self>
+/// #     where
+/// #     Self: Sized {
+/// #         todo!()
+/// #     }
+/// # }
 ///
-/// #[async_trait]
-/// impl Node for MyOperator {
-///     async fn iteration(&self) -> Result<()> {
-///         todo!()
-///     }
-/// }
-///
+/// # #[async_trait]
+/// # impl Node for MyOperator {
+/// #     async fn iteration(&self) -> Result<()> {
+/// #         todo!()
+/// #     }
+/// # }
 /// ```
 #[proc_macro_attribute]
 pub fn export_operator(_: TokenStream, input: TokenStream) -> TokenStream {
