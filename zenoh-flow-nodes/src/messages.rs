@@ -19,8 +19,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::{cmp::Ordering, fmt::Debug};
 use uhlc::Timestamp;
-use uuid::Uuid;
-use zenoh_flow_commons::{NodeId, PortId, Result};
+use zenoh_flow_commons::Result;
 
 /// `SerializerFn` is a type-erased version of the serializer function provided by node developer.
 ///
@@ -174,33 +173,6 @@ impl DataMessage {
     pub fn get_timestamp(&self) -> &Timestamp {
         &self.timestamp
     }
-}
-
-/// Metadata stored in Zenoh's time series storages.
-/// It contains information about the recording.
-/// Multiple [`RecordingMetadata`](`RecordingMetadata`) can be used
-/// to synchronize the recording from different Ports.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RecordingMetadata {
-    pub(crate) timestamp: Timestamp,
-    pub(crate) port_id: PortId,
-    pub(crate) node_id: NodeId,
-    pub(crate) flow_id: Uuid,
-    pub(crate) instance_id: Uuid,
-}
-
-/// Zenoh Flow control messages.
-/// It contains the control messages used within Zenoh Flow.
-/// For the time being only the `RecordingStart` and `RecordingStop` messages
-/// have been defined,
-/// *Note*: Most of messages are not yet defined.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ControlMessage {
-    // These messages are not yet defined, those are some ideas
-    // ReadyToMigrate,
-    // ChangeMode(u8, u128),
-    RecordingStart(RecordingMetadata),
-    RecordingStop(Timestamp),
 }
 
 /// The Zenoh-Flow message that is sent across `Link` and across Zenoh.
