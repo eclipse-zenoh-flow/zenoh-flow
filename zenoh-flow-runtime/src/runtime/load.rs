@@ -38,8 +38,8 @@ use libloading::Library;
 use url::Url;
 use zenoh_flow_commons::{NodeId, Result};
 use zenoh_flow_descriptors::{SinkVariant, SourceVariant};
-use zenoh_flow_nodes::prelude::{Inputs, Outputs};
-use zenoh_flow_nodes::{Context, OperatorFn, SinkFn, SourceFn};
+use zenoh_flow_nodes::prelude::{Context, Inputs, Outputs};
+use zenoh_flow_nodes::{OperatorFn, SinkFn, SourceFn};
 use zenoh_flow_records::DataFlowRecord;
 
 pub(crate) type Channels = HashMap<NodeId, (Inputs, Outputs)>;
