@@ -264,48 +264,6 @@ impl LinkMessage {
         }
     }
 
-    /// Serializes the [LinkMessage] using [bincode] into the given `shm_buffer` shared memory
-    /// buffer.
-    ///
-    /// The `inner_buffer` is used to serialize (if need be) the [Payload] contained inside the
-    /// [LinkMessage].
-    ///
-    /// # Performance
-    ///
-    /// The provided `inner_buffer` is reused and cleared between calls, so once its capacity
-    /// stabilizes no (re)allocation is performed.
-    ///
-    /// # Errors
-    ///
-    /// An error variant is returned in case of:
-    /// - fails to serialize
-    /// - there is not enough space in the slice
-    pub fn serialize_bincode_into_shm(
-        &self,
-        shm_buffer: &mut [u8],
-        payload_buffer: &mut Vec<u8>,
-    ) -> Result<()> {
-        payload_buffer.clear(); // empty the buffer but keep the allocated capacity
-
-        match &self {
-            LinkMessage::Data(data_message) => match &data_message.data {
-                Payload::Bytes(_) => bincode::serialize_into(shm_buffer, &self)
-                    .context("Failed to serialize `Payload::Bytes`"),
-                Payload::Typed(_) => {
-                    data_message.try_as_bytes_into(payload_buffer)?;
-                    let serialized_message = LinkMessage::Data(DataMessage::new_serialized(
-                        payload_buffer.clone(),
-                        data_message.timestamp,
-                    ));
-                    bincode::serialize_into(shm_buffer, &serialized_message)
-                        .context("Failed to serialize `Payload::Typed`")
-                }
-            },
-            _ => bincode::serialize_into(shm_buffer, &self)
-                .context("Failed to serialize `LinkMessage::Watermark`"),
-        }
-    }
-
     /// Returns the `Timestamp` associated with the message.
     pub fn get_timestamp(&self) -> Timestamp {
         match self {
