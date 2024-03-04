@@ -12,15 +12,12 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::prelude::{Context, Inputs, Node, Outputs};
+
 use std::{pin::Pin, sync::Arc};
 
 use futures::Future;
 use zenoh_flow_commons::{Configuration, Result};
-
-use crate::{
-    prelude::{Inputs, Node, Outputs},
-    Context,
-};
 
 /// Constant used to check if a node is compatible with the currently running Zenoh Flow daemon.
 /// As nodes are dynamically loaded, this is to prevent (possibly cryptic) runtime error due to

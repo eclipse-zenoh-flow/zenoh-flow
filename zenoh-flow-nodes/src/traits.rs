@@ -12,8 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use crate::context::Context;
 use crate::io::{Inputs, Outputs};
-use crate::Context;
 use async_trait::async_trait;
 use std::any::Any;
 use zenoh_flow_commons::{Configuration, Result};
