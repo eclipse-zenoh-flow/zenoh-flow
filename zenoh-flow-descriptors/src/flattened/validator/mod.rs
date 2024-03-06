@@ -137,7 +137,26 @@ Does it declare an input named < {} >?
                     link.to.input
                 );
             }
-            unused_inputs.remove(&(&link.to.node, &link.to.input));
+
+            // Contrary to outputs, there cannot be multiple incoming links pointing to a single input.
+            if !unused_inputs.remove(&(&link.to.node, &link.to.input)) {
+                let links = data_flow
+                    .links
+                    .iter()
+                    .filter(|&l| l.to == link.to)
+                    .collect::<Vec<_>>();
+
+                bail!(
+                    r#"
+An Input can only receive data from a single Output.
+We have detected several links that point the same Input < {} >:
+
+{:?}
+"#,
+                    link.to,
+                    links
+                )
+            }
         }
 
         if !unused_inputs.is_empty() {

@@ -846,3 +846,87 @@ links:
     assert!(format!("{:?}", res).contains("- operator-0: in-1"));
     assert!(format!("{:?}", res).contains("- sink-0: in-1"));
 }
+
+#[test]
+fn test_input_connected_multiple_times() {
+    let yaml_input_connected_multiple_times = r#"
+name: input connected multiple time
+
+sources:
+  - id: source-0
+    description: my source
+    library: file:///home/zenoh-flow/source.so
+    outputs:
+      - out
+
+operators:
+  - id: operator-0
+    description: my operator
+    library: file:///home/zenoh-flow/operator.so
+    inputs:
+      - in
+    outputs:
+      - out
+
+  - id: operator-1
+    description: my operator
+    library: file:///home/zenoh-flow/operator.so
+    inputs:
+      - in
+    outputs:
+      - out
+
+sinks:
+  - id: sink-0
+    description: my sink
+    library: file:///home/zenoh-flow/sink.so
+    inputs:
+      - in
+
+links:
+  - from:
+      node: source-0
+      output: out
+    to:
+      node: operator-0
+      input: in
+
+  - from:
+      node: source-0
+      output: out
+    to:
+      node: operator-1
+      input: in
+
+  - from:
+      node: source-0
+      output: out
+    to:
+      node: sink-0
+      input: in
+
+  - from:
+      node: operator-0
+      output: out
+    to:
+      node: sink-0
+      input: in
+
+  - from:
+      node: operator-1
+      output: out
+    to:
+      node: sink-0
+      input: in
+"#;
+
+    let res = FlattenedDataFlowDescriptor::try_flatten(
+        serde_yaml::from_str(yaml_input_connected_multiple_times).unwrap(),
+        Vars::default(),
+    );
+
+    assert!(res.is_err());
+    assert!(format!("{:?}", res).contains("An Input can only receive data from a single Output."));
+    assert!(format!("{:?}", res)
+        .contains("We have detected several links that point the same Input < sink-0.in >:"));
+}

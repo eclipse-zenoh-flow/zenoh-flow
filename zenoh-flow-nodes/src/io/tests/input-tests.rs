@@ -48,7 +48,7 @@ fn test_typed_input<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'stat
 
     let input_raw = InputRaw {
         port_id: "test-id".into(),
-        receivers: vec![rx],
+        receiver: rx,
     };
 
     let input = Input {
@@ -62,7 +62,10 @@ fn test_typed_input<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'stat
     );
     tx.send(message).expect("Failed to send message");
 
-    let (data, _) = input.try_recv().expect("Message (serialized) was not sent");
+    let (data, _) = input
+        .try_recv()
+        .expect("Message (serialized) was not sent")
+        .expect("No message was received");
     if let Message::Data(data) = data {
         assert_eq!(expected_data, *data);
     }
@@ -79,7 +82,8 @@ fn test_typed_input<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'stat
 
     let (data, _) = input
         .try_recv()
-        .expect("Message (dyn SendSyncAny) was not sent");
+        .expect("Message (dyn SendSyncAny) was not sent")
+        .expect("No message was received");
     if let Message::Data(data) = data {
         assert_eq!(expected_data, *data);
     }
