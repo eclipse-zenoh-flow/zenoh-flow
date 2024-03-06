@@ -192,7 +192,7 @@ impl Runtime {
 
         let mut instance_guard = instance.write().await;
 
-        instance_guard.abort().await?;
+        instance_guard.abort().await;
 
         tracing::info!("aborted");
 
@@ -226,7 +226,7 @@ impl Runtime {
             }
         };
 
-        instance.abort().await?;
+        instance.abort().await;
 
         drop(instance); // Forcefully drop the instance so we can check if we can free up some Libraries.
         self.loader.lock().await.remove_unused_libraries();
