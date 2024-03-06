@@ -18,10 +18,7 @@ use flume::Sender;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc,
-};
+use std::sync::Arc;
 use uhlc::{Timestamp, HLC};
 use zenoh_flow_commons::{PortId, Result};
 
@@ -105,9 +102,6 @@ impl Outputs {
                 port_id: port_id.as_ref().into(),
                 senders,
                 hlc: Arc::clone(&self.hlc),
-                last_watermark: Arc::new(AtomicU64::new(
-                    self.hlc.new_timestamp().get_time().as_u64(),
-                )),
             })
     }
 }
@@ -127,7 +121,6 @@ pub struct OutputBuilder {
     pub(crate) port_id: PortId,
     pub(crate) senders: Vec<flume::Sender<LinkMessage>>,
     pub(crate) hlc: Arc<HLC>,
-    pub(crate) last_watermark: Arc<AtomicU64>,
 }
 
 impl OutputBuilder {
@@ -159,7 +152,6 @@ impl OutputBuilder {
             port_id: self.port_id,
             senders: self.senders,
             hlc: self.hlc,
-            last_watermark: self.last_watermark,
         }
     }
 
@@ -219,10 +211,15 @@ pub struct OutputRaw {
     pub(crate) port_id: PortId,
     pub(crate) senders: Vec<flume::Sender<LinkMessage>>,
     pub(crate) hlc: Arc<HLC>,
-    pub(crate) last_watermark: Arc<AtomicU64>,
 }
 
 impl OutputRaw {
+    fn make_timestamp(&self, timestamp: Option<u64>) -> Timestamp {
+        timestamp
+            .map(|ts| Timestamp::new(uhlc::NTP64(ts), *self.hlc.get_id()))
+            .unwrap_or_else(|| self.hlc.new_timestamp())
+    }
+
     /// Returns the port id associated with this Output.
     pub fn port_id(&self) -> &PortId {
         &self.port_id
@@ -231,31 +228,6 @@ impl OutputRaw {
     /// Returns the number of channels associated with this Output.
     pub fn channels_count(&self) -> usize {
         self.senders.len()
-    }
-
-    /// If a timestamp is provided, check that it is not inferior to the latest watermark.
-    ///
-    /// If no timestamp is provided, a new one is generated from the [HLC](uhlc::HLC).
-    pub(crate) fn check_timestamp(&self, timestamp: Option<u64>) -> Result<Timestamp> {
-        let ts = match timestamp {
-            Some(ts_u64) => Timestamp::new(uhlc::NTP64(ts_u64), *self.hlc.get_id()),
-            None => self.hlc.new_timestamp(),
-        };
-
-        if ts.get_time().0 < self.last_watermark.load(Ordering::Relaxed) {
-            tracing::error!(
-                r#"
-Provided timestamp is older (lower) than the latest watermark:
-- watermark = {}
-- timestamp = {}
-"#,
-                self.last_watermark.load(Ordering::Relaxed),
-                ts.get_time().0
-            );
-            bail!("")
-        }
-
-        Ok(ts)
     }
 
     /// Attempt to forward, *synchronously*, the message to the downstream Nodes.
@@ -311,32 +283,12 @@ Provided timestamp is older (lower) than the latest watermark:
     ///
     /// If an error occurs while sending the watermark on a channel, Zenoh-Flow still tries to send
     /// it on the remaining channels. For each failing channel, an error is logged and counted for.
-    pub fn try_send(&self, data: impl Into<Payload>, timestamp: Option<u64>) -> Result<()> {
-        let ts = self.check_timestamp(timestamp)?;
-        let message = LinkMessage::from_payload(data.into(), ts);
+    pub fn try_send(&self, payload: impl Into<Payload>, timestamp: Option<u64>) -> Result<()> {
+        let message = LinkMessage {
+            payload: payload.into(),
+            timestamp: self.make_timestamp(timestamp),
+        };
 
-        self.try_forward(message)
-    }
-
-    /// Attempt to send, *synchronously*, the watermark on all channels to the downstream Nodes.
-    ///
-    /// If no `timestamp` is provided, the current timestamp (as per the [HLC](uhlc::HLC) used by
-    /// the Zenoh-Flow daemon running this Node) is taken.
-    ///
-    /// # Asynchronous alternative: `send_watermark`
-    ///
-    /// This method is a synchronous fail-fast alternative to it's asynchronous counterpart: `send`.
-    /// Although synchronous, this method will not block the thread on which it is executed.
-    ///
-    /// # Errors
-    ///
-    /// If an error occurs while sending the watermark on a channel, Zenoh-Flow still tries to send
-    /// it on the remaining channels. For each failing channel, an error is logged and counted for.
-    pub fn try_send_watermark(&self, timestamp: Option<u64>) -> Result<()> {
-        let ts = self.check_timestamp(timestamp)?;
-        self.last_watermark
-            .store(ts.get_time().0, Ordering::Relaxed);
-        let message = LinkMessage::Watermark(ts);
         self.try_forward(message)
     }
 
@@ -387,33 +339,12 @@ Provided timestamp is older (lower) than the latest watermark:
     ///
     /// If an error occurs while sending the watermark on a channel, Zenoh-Flow still tries to send
     /// it on the remaining channels. For each failing channel, an error is logged and counted for.
-    pub async fn send(&self, data: impl Into<Payload>, timestamp: Option<u64>) -> Result<()> {
-        let ts = self.check_timestamp(timestamp)?;
-        let message = LinkMessage::from_payload(data.into(), ts);
+    pub async fn send(&self, payload: impl Into<Payload>, timestamp: Option<u64>) -> Result<()> {
+        let message = LinkMessage {
+            payload: payload.into(),
+            timestamp: self.make_timestamp(timestamp),
+        };
 
-        self.forward(message).await
-    }
-
-    /// Send, *asynchronously*, a [Watermark](LinkMessage::Watermark) on all channels.
-    ///
-    /// If no `timestamp` is provided, the current timestamp (as per the [HLC](uhlc::HLC) used by
-    /// the Zenoh-Flow daemon running this Node) is taken.
-    ///
-    /// # Watermarks
-    ///
-    /// A [Watermark](LinkMessage::Watermark) is a special kind of message whose purpose is to
-    /// signal and guarantee the fact that no message with a lower [Timestamp] will be send
-    /// afterwards.
-    ///
-    /// # Errors
-    ///
-    /// If an error occurs while sending the watermark on a channel, Zenoh-Flow still tries to send
-    /// it on the remaining channels. For each failing channel, an error is logged and counted for.
-    pub async fn send_watermark(&self, timestamp: Option<u64>) -> Result<()> {
-        let ts = self.check_timestamp(timestamp)?;
-        self.last_watermark
-            .store(ts.get_time().0, Ordering::Relaxed);
-        let message = LinkMessage::Watermark(ts);
         self.forward(message).await
     }
 }
@@ -446,9 +377,11 @@ impl<T: Send + Sync + 'static> Output<T> {
         data: impl Into<Data<T>>,
         timestamp: Option<u64>,
     ) -> Result<LinkMessage> {
-        let ts = self.check_timestamp(timestamp)?;
         let payload = Payload::from_data(data.into(), Arc::clone(&self.serializer));
-        Ok(LinkMessage::from_payload(payload, ts))
+        Ok(LinkMessage {
+            payload,
+            timestamp: self.make_timestamp(timestamp),
+        })
     }
 
     /// Send, *asynchronously*, the provided `data` to all downstream Nodes.

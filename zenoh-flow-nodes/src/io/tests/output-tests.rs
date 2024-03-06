@@ -68,22 +68,19 @@ fn test_typed_output<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'sta
         .expect("Failed to send the message");
 
     let message = rx.recv().expect("Received no message");
-    match message {
-        LinkMessage::Data(data) => match &*data {
-            Payload::Bytes(_) => panic!("Unexpected bytes payload"),
-            Payload::Typed((dyn_data, serializer)) => {
-                let mut dyn_serialized = Vec::new();
-                (serializer)(&mut dyn_serialized, dyn_data.clone()).expect("Failed to serialize");
-                assert_eq!(expected_serialized, dyn_serialized);
+    match message.payload {
+        Payload::Bytes(_) => panic!("Unexpected bytes payload"),
+        Payload::Typed((dyn_data, serializer)) => {
+            let mut dyn_serialized = Vec::new();
+            (serializer)(&mut dyn_serialized, dyn_data.clone()).expect("Failed to serialize");
+            assert_eq!(expected_serialized, dyn_serialized);
 
-                let data = (**dyn_data)
-                    .as_any()
-                    .downcast_ref::<T>()
-                    .expect("Failed to downcast");
-                assert_eq!(expected_data, *data);
-            }
-        },
-        LinkMessage::Watermark(_) => panic!("Unexpected watermark message"),
+            let data = (*dyn_data)
+                .as_any()
+                .downcast_ref::<T>()
+                .expect("Failed to downcast");
+            assert_eq!(expected_data, *data);
+        }
     }
 }
 

@@ -155,7 +155,7 @@ impl<'a> Node for ZenohSink<'a> {
         let (key_expr, input, publisher) = self.get(&id);
 
         match message {
-            Ok(LinkMessage::Data(data)) => {
+            Ok(data) => {
                 // NOTE: In most of cases sending through the shared memory should suffice.
                 //
                 // This holds true EVEN IF THERE IS NO SHARED MEMORY. Zenoh will, by default, automatically fallback to
@@ -210,7 +210,6 @@ Caused by:
                         .map_err(|e| anyhow!("{:?}", e))?
                 }
             }
-            Ok(_) => (), // Not the right message, ignore it.
             Err(e) => tracing::error!(
                 "[built-in zenoh sink: {}][port: {}] Channel returned an error: {e:?}",
                 self.id,

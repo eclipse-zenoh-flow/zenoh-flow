@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use super::{Input, InputRaw};
 use crate::{
-    messages::{LinkMessage, Message, Payload},
+    messages::{LinkMessage, Payload},
     traits::SendSyncAny,
 };
 
@@ -56,7 +56,7 @@ fn test_typed_input<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'stat
         deserializer: Arc::new(deserializer),
     };
 
-    let message = LinkMessage::from_payload(
+    let message = LinkMessage::new(
         Payload::Bytes(Arc::new(expected_serialized)),
         hlc.new_timestamp(),
     );
@@ -66,11 +66,10 @@ fn test_typed_input<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'stat
         .try_recv()
         .expect("Message (serialized) was not sent")
         .expect("No message was received");
-    if let Message::Data(data) = data {
-        assert_eq!(expected_data, *data);
-    }
 
-    let message = LinkMessage::from_payload(
+    assert_eq!(expected_data, *data);
+
+    let message = LinkMessage::new(
         Payload::Typed((
             Arc::new(expected_data.clone()) as Arc<dyn SendSyncAny>,
             // The serializer should never be called, hence the panic.
@@ -84,9 +83,7 @@ fn test_typed_input<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'stat
         .try_recv()
         .expect("Message (dyn SendSyncAny) was not sent")
         .expect("No message was received");
-    if let Message::Data(data) = data {
-        assert_eq!(expected_data, *data);
-    }
+    assert_eq!(expected_data, *data);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
