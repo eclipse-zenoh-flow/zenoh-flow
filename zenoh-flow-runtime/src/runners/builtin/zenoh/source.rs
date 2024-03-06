@@ -122,11 +122,9 @@ Caused by:
     // This action is motivated by two factors:
     // 1. It prevents receiving publications that happened while the Zenoh Source was not active.
     // 2. It prevents impacting the other subscribers / publishers on the same resource.
-    async fn on_abort(&self) -> Result<()> {
+    async fn on_abort(&self) {
         let mut subscribers = self.subscribers.lock().await;
         subscribers.clear();
-
-        Ok(())
     }
 
     // The iteration of a Zenoh Source polls, concurrently, the subscribers and forwards the first publication received

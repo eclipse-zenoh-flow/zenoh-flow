@@ -124,15 +124,10 @@ impl Runner {
     /// What this also means is that there is a possibility to leave the node in an **inconsistent state**. For
     /// instance, modified values that are not saved between several `.await` points would be lost if the node is
     /// aborted.
-    pub(crate) async fn abort(&mut self) -> Result<()> {
+    pub(crate) async fn abort(&mut self) {
         if let Some(handle) = self.handle.take() {
             handle.cancel().await;
-            self.node
-                .on_abort()
-                .await
-                .with_context(|| format!("{}: call to `on_abort` failed", self.id))?;
+            self.node.on_abort().await;
         }
-
-        Ok(())
     }
 }

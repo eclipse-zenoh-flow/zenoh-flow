@@ -57,9 +57,7 @@ pub trait Node: Send + Sync {
         Ok(())
     }
 
-    async fn on_abort(&self) -> Result<()> {
-        Ok(())
-    }
+    async fn on_abort(&self) {}
 }
 
 /// The `Source` trait represents a Source of data in Zenoh Flow. Sources only possess `Outputs` and

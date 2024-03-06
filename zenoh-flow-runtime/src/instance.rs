@@ -77,14 +77,13 @@ impl DataFlowInstance {
         Ok(())
     }
 
-    pub async fn abort(&mut self) -> Result<()> {
+    pub async fn abort(&mut self) {
         for (node_id, runner) in self.runners.iter_mut() {
-            runner.abort().await?;
+            runner.abort().await;
             tracing::trace!("Aborted node < {} >", node_id);
         }
 
         self.state = InstanceState::Aborted;
-        Ok(())
     }
 
     pub fn state(&self) -> &InstanceState {
