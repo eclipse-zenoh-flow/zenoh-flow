@@ -134,7 +134,7 @@ impl From<&[u8]> for Payload {
 
 impl From<DataMessage> for Payload {
     fn from(data_message: DataMessage) -> Self {
-        data_message.data
+        data_message.payload
     }
 }
 
@@ -144,7 +144,7 @@ impl From<DataMessage> for Payload {
 /// deadline misses and loop contexts.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataMessage {
-    pub(crate) data: Payload,
+    pub(crate) payload: Payload,
     pub(crate) timestamp: Timestamp,
 }
 
@@ -152,17 +152,17 @@ impl Deref for DataMessage {
     type Target = Payload;
 
     fn deref(&self) -> &Self::Target {
-        &self.data
+        &self.payload
     }
 }
 
 impl DataMessage {
-    /// Creates a new message from serialized data.
+    /// Creates a new message from serialised data.
     ///
     /// This is used when the message is coming from Zenoh or from a non-rust node.
     pub fn new_serialized(data: Vec<u8>, timestamp: Timestamp) -> Self {
         Self {
-            data: Payload::Bytes(Arc::new(data)),
+            payload: Payload::Bytes(Arc::new(data)),
             timestamp,
         }
     }
@@ -189,7 +189,7 @@ impl LinkMessage {
     /// Creates a `LinkMessage::Data` from a [`Payload`](`Payload`).
     pub fn from_payload(output: Payload, timestamp: Timestamp) -> Self {
         Self::Data(DataMessage {
-            data: output,
+            payload: output,
             timestamp,
         })
     }
@@ -217,13 +217,13 @@ impl LinkMessage {
         message_buffer.clear();
 
         match &self {
-            LinkMessage::Data(data_message) => match &data_message.data {
+            LinkMessage::Data(data_message) => match &data_message.payload {
                 Payload::Bytes(_) => bincode::serialize_into(message_buffer, &self)
                     .context("Failed to serialize `Payload::Bytes``"),
                 Payload::Typed((data, serializer)) => {
                     (serializer)(payload_buffer, Arc::clone(data))?;
                     let serialized_message = LinkMessage::Data(DataMessage {
-                        data: Payload::Bytes(Arc::new(payload_buffer.clone())),
+                        payload: Payload::Bytes(Arc::new(payload_buffer.clone())),
                         timestamp: data_message.timestamp,
                     });
 
