@@ -320,8 +320,8 @@ impl<T: Send + Sync + 'static> Input<T> {
     /// - Zenoh-Flow failed at interpreting the received data as an instance of `T`.
     pub async fn recv(&self) -> Result<(Message<T>, Timestamp)> {
         match self.input_raw.recv().await? {
-            LinkMessage::Data(DataMessage { data, timestamp }) => Ok((
-                Message::Data(Data::try_from_payload(data, self.deserializer.clone())?),
+            LinkMessage::Data(DataMessage { payload, timestamp }) => Ok((
+                Message::Data(Data::try_from_payload(payload, self.deserializer.clone())?),
                 timestamp,
             )),
             LinkMessage::Watermark(timestamp) => Ok((Message::Watermark, timestamp)),
@@ -345,8 +345,8 @@ impl<T: Send + Sync + 'static> Input<T> {
     /// Note that if some channels are disconnected, for each of such channel an error is logged.
     pub fn try_recv(&self) -> Result<(Message<T>, Timestamp)> {
         match self.input_raw.try_recv()? {
-            LinkMessage::Data(DataMessage { data, timestamp }) => Ok((
-                Message::Data(Data::try_from_payload(data, self.deserializer.clone())?),
+            LinkMessage::Data(DataMessage { payload, timestamp }) => Ok((
+                Message::Data(Data::try_from_payload(payload, self.deserializer.clone())?),
                 timestamp,
             )),
             LinkMessage::Watermark(ts) => Ok((Message::Watermark, ts)),
