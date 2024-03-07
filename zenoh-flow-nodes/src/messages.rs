@@ -15,6 +15,7 @@
 use crate::traits::SendSyncAny;
 use anyhow::{bail, Context};
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -144,6 +145,26 @@ pub struct LinkMessage {
     pub(crate) payload: Payload,
     pub(crate) timestamp: Timestamp,
 }
+
+impl Ord for LinkMessage {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.get_timestamp().cmp(other.get_timestamp())
+    }
+}
+
+impl PartialOrd for LinkMessage {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for LinkMessage {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_timestamp() == other.get_timestamp()
+    }
+}
+
+impl Eq for LinkMessage {}
 
 impl Deref for LinkMessage {
     type Target = Payload;
