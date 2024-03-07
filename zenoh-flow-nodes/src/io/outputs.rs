@@ -22,23 +22,22 @@ use std::sync::Arc;
 use uhlc::{Timestamp, HLC};
 use zenoh_flow_commons::{PortId, Result};
 
-/// The [Outputs] structure contains all the outputs created for a [Source](crate::prelude::Source)
-/// or an [Operator](crate::prelude::Operator).
+/// The [Outputs] structure contains all the outputs created for a [Source](crate::prelude::Source) or an
+/// [Operator](crate::prelude::Operator).
 ///
-/// Each output is indexed by its **port identifier**: the name that was indicated in the descriptor
-/// of the node. These names are _case sensitive_ and should be an exact match to what was written
-/// in the descriptor.
+/// Each output is indexed by its **port identifier**: the name that was indicated in the descriptor of the node. These
+/// names are _case sensitive_ and should be an exact match to what was written in the descriptor.
 ///
-/// Zenoh-Flow provides two flavors of output: [OutputRaw] and [`Output<T>`]. An [`Output<T>`]
-/// conveniently accepts instances of `T` while an [OutputRaw] operates at the message level,
-/// potentially disregarding the data it contains.
+/// Zenoh-Flow provides two flavours of output: [OutputRaw] and [`Output<T>`](Output). An [`Output<T>`](Output) conveniently
+/// accepts instances of `T` while an [OutputRaw] operates at the message level, potentially disregarding the data it
+/// contains.
+#[derive(Default)]
 pub struct Outputs {
     pub(crate) hmap: HashMap<PortId, Vec<flume::Sender<LinkMessage>>>,
     pub(crate) hlc: Arc<HLC>,
 }
 
-// Dereferencing on the internal [`HashMap`](`Hashmap`) allows users to call all the methods
-// implemented on it: `keys()` for one.
+// Dereferencing on the internal [HashMap] allows users to call all the methods implemented on it: `keys()` for one.
 impl Deref for Outputs {
     type Target = HashMap<PortId, Vec<flume::Sender<LinkMessage>>>;
 
@@ -61,35 +60,40 @@ impl Outputs {
         self.hmap.entry(port_id).or_insert_with(Vec::new).push(tx)
     }
 
-    /// Returns an [OutputBuilder] for the provided `port_id`, if an output was declared with this
-    /// exact name in the descriptor of the node, otherwise returns `None`.
+    /// Returns an Output builder for the provided `port_id`, if an output was declared with this exact name in the
+    /// descriptor of the node, otherwise returns `None`.
     ///
     /// # Usage
     ///
-    /// This builder can either produce a, typed, [`Output<T>`] or an [OutputRaw]. The main difference
-    /// between both is the type of data they accept: an [`Output<T>`] accepts anything that is
-    /// `Into<T>` while an [OutputRaw] accepts a [LinkMessage] or anything that is
-    /// `Into<`[Payload]`>`.
+    /// This builder can either produce a, typed, [Output] or an [OutputRaw]. The main difference between both is the
+    /// type of data they accept: an [Output] accepts anything that is `Into<T>` while an [OutputRaw] accepts a
+    /// [LinkMessage] or an array / slice of bytes (i.e. a [Payload]).
     ///
-    /// As long as data are produced or manipulated, a typed [`Output<T>`] should be favored.
+    /// As long as data are produced or manipulated, a typed [Output] should be favoured.
     ///
     /// ## Typed
     ///
-    /// To obtain an [`Output<T>`] one must call `typed` and provide a serializer function. In
-    /// the example below we rely on the `serde_json` crate to do the serialization.
+    /// To obtain an [Output] one must call `typed` and provide a serialiser function. In the example below we rely
+    /// on the `serde_json` crate to do the serialisation.
     ///
-    /// ```ignore
-    /// let output_typed: Output<u64> = outputs
+    /// ```no_run
+    /// # use zenoh_flow_nodes::prelude::*;
+    /// # let mut outputs = Outputs::default();
+    /// let output: Output<u64> = outputs
     ///     .take("test")
     ///     .expect("No key named 'test' found")
-    ///     .typed(|data: &u64| serde_json::to_vec(data).map_err(|e| anyhow::anyhow!(e)));
+    ///     .typed(|buffer: &mut Vec<u8>, data: &u64| {
+    ///         serde_json::to_writer(buffer, data).map_err(|e| anyhow!(e))
+    ///     });
     /// ```
     ///
     /// ## Raw
     ///
     /// To obtain an [OutputRaw] one must call `raw`.
     ///
-    /// ```ignore
+    /// ```no_run
+    /// # use zenoh_flow_nodes::prelude::*;
+    /// # let mut outputs = Outputs::default();
     /// let output_raw = outputs
     ///     .take("test")
     ///     .expect("No key named 'test' found")
@@ -106,17 +110,15 @@ impl Outputs {
     }
 }
 
-/// An [OutputBuilder] is the intermediate structure to obtain either an [`Output<T>`] or an
-/// [OutputRaw].
+/// An Output builder is the intermediate structure to obtain either a typed [`Output<T>`](Output) or an [OutputRaw].
 ///
-/// The main difference between both is the type of data they accept: an [`Output<T>`] accepts
-/// anything that is `Into<T>` while an [OutputRaw] accepts a [LinkMessage] or anything that is
-/// `Into<`[Payload]`>`.
+/// The main difference between both is the type of data they accept: an [Output] accepts anything that is `Into<T>`
+/// while an [OutputRaw] accepts a [LinkMessage] or anything that is `Into<Payload>`.
 ///
 /// # Planned evolution
 ///
-/// Zenoh-Flow will allow tweaking the behaviour of the underlying channels. For now, the `senders`
-/// channels are _unbounded_ and do not implement a dropping policy, which could lead to issues.
+/// Zenoh-Flow will allow tweaking the behaviour of the underlying channels. For now, the `senders` channels are
+/// _unbounded_ and do not implement a dropping policy, which could lead to issues.
 pub struct OutputBuilder {
     pub(crate) port_id: PortId,
     pub(crate) senders: Vec<flume::Sender<LinkMessage>>,
@@ -126,22 +128,23 @@ pub struct OutputBuilder {
 impl OutputBuilder {
     /// Consume this `OutputBuilder` to produce an [OutputRaw].
     ///
-    /// An [OutputRaw] sends [LinkMessage]s (through `forward`) or anything that is
-    /// `Into<`[Payload]`>` (through `send` and `try_send`) to downstream nodes.
+    /// An [OutputRaw] sends [LinkMessage]s (through `forward`) or anything that is `Into<Payload>` (through `send` and
+    /// `try_send`) to downstream nodes.
     ///
-    /// The [OutputRaw] was designed for use cases such as load-balancing or rate-limiting. In this
-    /// scenarios, the node does not need to access the underlying data and the message can simply
-    /// be forwarded downstream.
+    /// The [OutputRaw] was designed for use cases such as load-balancing or rate-limiting. In this scenarios, the node
+    /// does not need to access the underlying data and the message can simply be forwarded downstream.
     ///
     /// # `OutputRaw` vs `Output<T>`
     ///
-    /// If the node produces instances of `T` as a result of computations, an [`Output<T>`] should be
-    /// favored as it sends anything that is `Into<T>`. Thus, contrary to an [OutputRaw], there is
-    /// no need to encapsulate `T` inside a [Payload].
+    /// If the node produces instances of `T` as a result of computations, an [Output] should be favoured as it sends
+    /// anything that is `Into<T>`. Thus, contrary to an [OutputRaw], there is no need to encapsulate `T` inside a
+    /// Payload.
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
+    /// # use zenoh_flow_nodes::prelude::*;
+    /// # let mut outputs = Outputs::default();
     /// let output_raw = outputs
     ///     .take("test")
     ///     .expect("No key named 'test' found")
@@ -155,30 +158,32 @@ impl OutputBuilder {
         }
     }
 
-    /// Consume this `OutputBuilder` to produce an [`Output<T>`].
+    /// Consume this `OutputBuilder` to produce an [`Output<T>`](Output).
     ///
-    /// An [`Output<T>`] sends anything that is `Into<T>` (through `send` and `try_send`) to
-    /// downstream nodes.
+    /// An [`Output<T>`](Output) sends anything that is `Into<T>` (through `send` and `try_send`) to downstream nodes.
     ///
-    /// An [`Output<T>`] requires knowing how to serialize `T`. Data is only serialized when it is (a)
-    /// transmitted to a node located on another process or (b) transmitted to a node written in a
-    /// programming language other than Rust.
+    /// An [`Output<T>`](Output) requires knowing how to serialise `T`. Data is only serialised when it is (a) transmitted
+    /// to a node located on another process or (b) transmitted to a node written in a programming language other than
+    /// Rust.
     ///
-    /// The serialization will automatically be performed by Zenoh-Flow and only when needed.
+    /// The serialisation will automatically be performed by Zenoh-Flow and only when needed.
     ///
     /// # `Output<T>` vs `OutputRaw`
     ///
-    /// If the node does not process any data and only has access to a [LinkMessage], an [OutputRaw]
-    /// would be better suited as it does not require to downcast it into an object that
-    /// implements `Into<T>`.
+    /// If the node does not process any data and only has access to a [LinkMessage], an [OutputRaw] would be better
+    /// suited as it does not require to downcast it into an object that implements `Into<T>`.
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// let output_typed: Output<u64> = outputs
+    /// ```no_run
+    /// # use zenoh_flow_nodes::prelude::*;
+    /// # let mut outputs = Outputs::default();
+    /// let output: Output<u64> = outputs
     ///     .take("test")
     ///     .expect("No key named 'test' found")
-    ///     .typed(|data: &u64| serde_json::to_vec(data).map_err(|e| anyhow::anyhow!(e)));
+    ///     .typed(|buffer: &mut Vec<u8>, data: &u64| {
+    ///         serde_json::to_writer(buffer, data).map_err(|e| anyhow!(e))
+    ///     });
     /// ```
     pub fn typed<T: Send + Sync + 'static>(
         self,
@@ -201,7 +206,7 @@ impl OutputBuilder {
     }
 }
 
-/// An [OutputRaw] sends [LinkMessage] or `Into<`[Payload]`>` to downstream Nodes.
+/// An [OutputRaw] sends [LinkMessage] or [`Into<Payload>`](crate::prelude::Payload) to downstream nodes.
 ///
 /// Its primary purpose is to ensure optimal performance: any message received on an input can
 /// transparently be sent downstream, without requiring (a potentially expensive) access to the data
@@ -296,8 +301,8 @@ impl OutputRaw {
     ///
     /// # Errors
     ///
-    /// If an error occurs while sending the message on a channel, Zenoh-Flow still tries to send
-    /// it on the remaining channels. For each failing channel, an error is logged and counted for.
+    /// If an error occurs while sending the message on a channel, Zenoh-Flow still tries to send it on the remaining
+    /// channels. For each failing channel, an error is logged and counted for.
     pub async fn forward(&self, message: LinkMessage) -> Result<()> {
         // FIXME Feels like a cheap hack counting the number of errors. To improve.
         let mut err = 0;
@@ -305,13 +310,13 @@ impl OutputRaw {
             .senders
             .iter()
             .map(|sender| sender.send_async(message.clone()));
-        // [`join_all`](`futures::future::join_all`) executes all futures in parallel.
+        // `join_all` executes all futures concurrently.
         let res = futures::future::join_all(fut_senders).await;
 
         res.iter().for_each(|res| {
             if let Err(e) = res {
                 tracing::error!(
-                    "[Output: {}] Error occured while sending to downstream node(s): {:?}",
+                    "[Output: {}] Error occurred while sending to downstream node(s): {:?}",
                     self.port_id(),
                     e
                 );
@@ -349,10 +354,10 @@ impl OutputRaw {
     }
 }
 
-/// An [`Output<T>`] sends instances of `T` to downstream Nodes.
+/// An `Output<T>` (only) sends instances of `T` to downstream nodes.
 ///
-/// It's primary purpose is to ensure type guarantees: only types that implement `Into<T>` can be
-/// sent to downstream Nodes.
+/// It's primary purpose is to enforce type guarantees: only types that implement `Into<T>` can be sent to downstream
+/// nodes.
 #[derive(Clone)]
 pub struct Output<T> {
     _phantom: PhantomData<T>,
@@ -360,8 +365,7 @@ pub struct Output<T> {
     pub(crate) serializer: Arc<SerializerFn>,
 }
 
-// Dereferencing to the [`OutputRaw`](`OutputRaw`) allows to directly call methods on it with a
-// typed [`Output`](`Output`).
+// Dereferencing to the [OutputRaw] allows to directly call methods on it with a typed [`Output<T>`](Output).
 impl<T> Deref for Output<T> {
     type Target = OutputRaw;
 
@@ -384,42 +388,36 @@ impl<T: Send + Sync + 'static> Output<T> {
         })
     }
 
-    /// Send, *asynchronously*, the provided `data` to all downstream Nodes.
+    /// Send, *asynchronously*, the provided `data` to downstream node(s).
     ///
-    /// If no `timestamp` is provided, the current timestamp (as per the [HLC](uhlc::HLC) used by
-    /// the Zenoh-Flow daemon running this Node) is taken.
+    /// If no `timestamp` is provided, the current timestamp (as per the [HLC](uhlc::HLC) used by the Zenoh-Flow runtime
+    /// managing this node) is taken.
     ///
-    /// # Constraint `Into<Data<T>>`
+    /// # Synchronous alternative: `try_send`
     ///
-    /// Both `T` and `Data<T>` implement this constraint. Hence, in practice, any type that
-    /// implements `Into<T>` can be sent (provided that `Into::<T>::into(u)` is called first).
+    /// This method is an asynchronous alternative to its fail-fast synchronous counterpart `try_send`.
     ///
     /// # Errors
     ///
-    /// If an error occurs while sending the message on a channel, Zenoh-Flow still tries to send it
-    /// on the remaining channels. For each failing channel, an error is logged and counted for. The
-    /// total number of encountered errors is returned.
+    /// An error is returned if the send operation failed.
     pub async fn send(&self, data: impl Into<Data<T>>, timestamp: Option<u64>) -> Result<()> {
         self.output_raw
             .forward(self.construct_message(data, timestamp)?)
             .await
     }
 
-    /// Tries to send the provided `data` to all downstream Nodes.
+    /// Send, *synchronously*, the provided `data` to downstream node(s).
     ///
-    /// If no `timestamp` is provided, the current timestamp (as per the [HLC](uhlc::HLC) used by
-    /// the Zenoh-Flow daemon running this Node) is taken.
+    /// If no `timestamp` is provided, the current timestamp (as per the [HLC](uhlc::HLC) used by the Zenoh-Flow runtime
+    /// running this node) is taken.
     ///
-    /// # Constraint `Into<Data<T>>`
+    /// # Asynchronous alternative: `send`
     ///
-    /// Both `T` and `Data<T>` implement this constraint. Hence, in practice, any type that
-    /// implements `Into<T>` can be sent (provided that `Into::<T>::into(u)` is called first).
+    /// This method is a fail-fast synchronous alternative to its asynchronous counterpart `send`.
     ///
     /// # Errors
     ///
-    /// If an error occurs while sending the message on a channel, Zenoh-Flow still tries to send it
-    /// on the remaining channels. For each failing channel, an error is logged and counted for. The
-    /// total number of encountered errors is returned.
+    /// An error is returned if sending on a channel failed.
     pub fn try_send(&self, data: impl Into<Data<T>>, timestamp: Option<u64>) -> Result<()> {
         self.output_raw
             .try_forward(self.construct_message(data, timestamp)?)

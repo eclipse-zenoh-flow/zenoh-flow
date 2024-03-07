@@ -20,21 +20,21 @@ use zenoh_flow_commons::PortId;
 use super::Outputs;
 use crate::messages::{LinkMessage, Payload};
 
-/// Test that the Output behaves as expected for the provided data and serializer:
-/// 1. the `serializer` is correctly type-erased yet still produces the correct output,
-/// 2. the `expected_data` is not eagerly serialized and can correctly be downcasted.
+/// Test that the Output behaves as expected for the provided data and serialiser:
+/// 1. the `serialiser` is correctly type-erased yet still produces the correct output,
+/// 2. the `expected_data` is not eagerly serialised and can correctly be downcast.
 ///
 /// ## Scenario tested
 ///
 /// A bogus output is generated — see the call to `outputs.take`. We go through the `Outputs`
-/// structure such that the transformation on the serializer is performed (i.e. the type is erased).
+/// structure such that the transformation on the serialiser is performed (i.e. the type is erased).
 ///
 /// The provided `expected_data` is sent on the output.
 ///
 /// A receiver channel ensures that:
 /// 1. it is a `Payload::Typed`,
 /// 2. we can still downcast it to `T`,
-/// 3. the result of the serialization is correct.
+/// 3. the result of the serialisation is correct.
 ///
 /// ## Traits on T
 ///
@@ -72,7 +72,7 @@ fn test_typed_output<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'sta
         Payload::Bytes(_) => panic!("Unexpected bytes payload"),
         Payload::Typed((dyn_data, serializer)) => {
             let mut dyn_serialized = Vec::new();
-            (serializer)(&mut dyn_serialized, dyn_data.clone()).expect("Failed to serialize");
+            (serializer)(&mut dyn_serialized, dyn_data.clone()).expect("Failed to serialise");
             assert_eq!(expected_serialized, dyn_serialized);
 
             let data = (*dyn_data)
@@ -103,7 +103,7 @@ fn test_serde_json() {
     };
 
     let expected_serialized =
-        serde_json::ser::to_vec(&expected_data).expect("serde_json failed to serialize");
+        serde_json::ser::to_vec(&expected_data).expect("serde_json failed to serialise");
 
     let serializer = |buffer: &mut Vec<u8>, data: &TestData| {
         serde_json::ser::to_writer(buffer, data).map_err(|e| anyhow::anyhow!(e))
