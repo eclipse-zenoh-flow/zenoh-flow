@@ -13,7 +13,7 @@
 //
 
 use crate::messages::{Data, DataMessage, DeserializerFn, LinkMessage, Message};
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use flume::TryRecvError;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -48,13 +48,12 @@ use zenoh_flow_commons::{PortId, Result};
 /// ```
 #[derive(Default)]
 pub struct Inputs {
-    pub(crate) hmap: HashMap<PortId, Vec<flume::Receiver<LinkMessage>>>,
+    pub(crate) hmap: HashMap<PortId, flume::Receiver<LinkMessage>>,
 }
 
-// Dereferencing on the internal `Hashmap` allows users to call all the methods implemented on it:
-// `keys()` for one.
+// Dereferencing on the internal `HashMap` allows users to call all the methods implemented on it: `keys()` for one.
 impl Deref for Inputs {
-    type Target = HashMap<PortId, Vec<flume::Receiver<LinkMessage>>>;
+    type Target = HashMap<PortId, flume::Receiver<LinkMessage>>;
 
     fn deref(&self) -> &Self::Target {
         &self.hmap
@@ -62,13 +61,9 @@ impl Deref for Inputs {
 }
 
 impl Inputs {
-    /// Insert the `flume::Receiver` in the [Inputs], creating the entry if needed in the internal
-    /// `HashMap`.
+    /// Insert the `flume::Receiver` in the [Inputs], creating the entry if needed in the internal `HashMap`.
     pub fn insert(&mut self, port_id: PortId, rx: flume::Receiver<LinkMessage>) {
-        self.hmap
-            .entry(port_id)
-            .or_insert_with(Vec::default)
-            .push(rx)
+        self.hmap.entry(port_id).or_insert(rx);
     }
 
     /// Returns an [InputBuilder] for the provided `port_id`, if an input was declared with this
@@ -110,9 +105,9 @@ impl Inputs {
     pub fn take(&mut self, port_id: impl AsRef<str>) -> Option<InputBuilder> {
         self.hmap
             .remove(&port_id.as_ref().into())
-            .map(|receivers| InputBuilder {
+            .map(|receiver| InputBuilder {
                 port_id: port_id.as_ref().into(),
-                receivers,
+                receiver,
             })
     }
 }
@@ -131,7 +126,7 @@ impl Inputs {
 /// issues.
 pub struct InputBuilder {
     pub(crate) port_id: PortId,
-    pub(crate) receivers: Vec<flume::Receiver<LinkMessage>>,
+    pub(crate) receiver: flume::Receiver<LinkMessage>,
 }
 
 impl InputBuilder {
@@ -159,7 +154,7 @@ impl InputBuilder {
     pub fn raw(self) -> InputRaw {
         InputRaw {
             port_id: self.port_id,
-            receivers: self.receivers,
+            receiver: self.receiver,
         }
     }
 
@@ -202,7 +197,7 @@ impl InputBuilder {
 #[derive(Clone, Debug)]
 pub struct InputRaw {
     pub(crate) port_id: PortId,
-    pub(crate) receivers: Vec<flume::Receiver<LinkMessage>>,
+    pub(crate) receiver: flume::Receiver<LinkMessage>,
 }
 
 impl InputRaw {
@@ -212,11 +207,10 @@ impl InputRaw {
 
     /// Returns the number of channels associated with this Input.
     pub fn channels_count(&self) -> usize {
-        self.receivers.len()
+        self.receiver.len()
     }
 
-    /// Returns the first [LinkMessage] that was received on any of the channels associated with
-    /// this Input, or an `Empty` error if there were no messages.
+    /// Returns the first queued [LinkMessage] or [None] if there is no queued message.
     ///
     /// # Asynchronous alternative: `recv`
     ///
@@ -226,22 +220,18 @@ impl InputRaw {
     ///
     /// # Error
     ///
-    /// If no message was received, an `Empty` error is returned. Note that if some channels are
-    /// disconnected, for each of such channel an error is logged.
-    pub fn try_recv(&self) -> Result<LinkMessage> {
-        for receiver in &self.receivers {
-            match receiver.try_recv() {
-                Ok(message) => return Ok(message),
-                Err(e) => {
-                    if matches!(e, TryRecvError::Disconnected) {
-                        tracing::error!("[Input: {}] Channel disconnected", self.port_id);
-                    }
+    /// An error is returned if the associated channel is disconnected.
+    pub fn try_recv(&self) -> Result<Option<LinkMessage>> {
+        match self.receiver.try_recv() {
+            Ok(message) => Ok(Some(message)),
+            Err(e) => match e {
+                TryRecvError::Empty => Ok(None),
+                TryRecvError::Disconnected => {
+                    tracing::error!("Link disconnected: {}", self.port_id);
+                    bail!("Disconnected");
                 }
-            }
+            },
         }
-
-        // We went through all channels, no message, Empty error.
-        bail!("[Input: {}] No message", self.port_id)
     }
 
     /// Returns the first [LinkMessage] that was received, *asynchronously*, on any of the channels
@@ -254,26 +244,10 @@ impl InputRaw {
     /// An error is returned if *all* channels are disconnected. For each disconnected channel, an
     /// error is separately logged.
     pub async fn recv(&self) -> Result<LinkMessage> {
-        let mut recv_futures = self
-            .receivers
-            .iter()
-            .map(|link| link.recv_async())
-            .collect::<Vec<_>>();
-
-        loop {
-            let (res, _, remaining) = futures::future::select_all(recv_futures).await;
-            match res {
-                Ok(message) => return Ok(message),
-                Err(_disconnected) => {
-                    tracing::error!("[Input: {}] Channel disconnected", self.port_id);
-                    if remaining.is_empty() {
-                        bail!("[Input: {}] All channels are disconnected", self.port_id);
-                    }
-
-                    recv_futures = remaining;
-                }
-            }
-        }
+        self.receiver.recv_async().await.map_err(|_| {
+            tracing::error!("Link disconnected: {}", self.port_id);
+            anyhow!("Disconnected")
+        })
     }
 }
 
@@ -343,14 +317,20 @@ impl<T: Send + Sync + 'static> Input<T> {
     /// - Zenoh-Flow failed at interpreting the received data as an instance of `T`.
     ///
     /// Note that if some channels are disconnected, for each of such channel an error is logged.
-    pub fn try_recv(&self) -> Result<(Message<T>, Timestamp)> {
-        match self.input_raw.try_recv()? {
-            LinkMessage::Data(DataMessage { payload, timestamp }) => Ok((
-                Message::Data(Data::try_from_payload(payload, self.deserializer.clone())?),
-                timestamp,
-            )),
-            LinkMessage::Watermark(ts) => Ok((Message::Watermark, ts)),
+    pub fn try_recv(&self) -> Result<Option<(Message<T>, Timestamp)>> {
+        if let Some(message) = self.input_raw.try_recv()? {
+            match message {
+                LinkMessage::Data(DataMessage { payload, timestamp }) => {
+                    return Ok(Some((
+                        Message::Data(Data::try_from_payload(payload, self.deserializer.clone())?),
+                        timestamp,
+                    )))
+                }
+                LinkMessage::Watermark(ts) => return Ok(Some((Message::Watermark, ts))),
+            }
         }
+
+        Ok(None)
     }
 }
 
