@@ -15,9 +15,10 @@
 use crate::traits::SendSyncAny;
 use anyhow::{bail, Context};
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::Arc;
-use std::{cmp::Ordering, fmt::Debug};
 use uhlc::Timestamp;
 use zenoh_flow_commons::Result;
 
@@ -132,23 +133,40 @@ impl From<&[u8]> for Payload {
     }
 }
 
-impl From<DataMessage> for Payload {
-    fn from(data_message: DataMessage) -> Self {
+impl From<LinkMessage> for Payload {
+    fn from(data_message: LinkMessage) -> Self {
         data_message.payload
     }
 }
 
-/// Zenoh-Flow data message.
-///
-/// It contains the actual data, the timestamp associated, the end to end deadline, the end to end
-/// deadline misses and loop contexts.
+/// A message send on a Zenoh-Flow link: a [Payload] and a [Timestamp].
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DataMessage {
+pub struct LinkMessage {
     pub(crate) payload: Payload,
     pub(crate) timestamp: Timestamp,
 }
 
-impl Deref for DataMessage {
+impl Ord for LinkMessage {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.get_timestamp().cmp(other.get_timestamp())
+    }
+}
+
+impl PartialOrd for LinkMessage {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for LinkMessage {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_timestamp() == other.get_timestamp()
+    }
+}
+
+impl Eq for LinkMessage {}
+
+impl Deref for LinkMessage {
     type Target = Payload;
 
     fn deref(&self) -> &Self::Target {
@@ -156,7 +174,11 @@ impl Deref for DataMessage {
     }
 }
 
-impl DataMessage {
+impl LinkMessage {
+    pub fn new(payload: Payload, timestamp: Timestamp) -> Self {
+        Self { payload, timestamp }
+    }
+
     /// Creates a new message from serialised data.
     ///
     /// This is used when the message is coming from Zenoh or from a non-rust node.
@@ -167,31 +189,11 @@ impl DataMessage {
         }
     }
 
-    /// Return the [Timestamp] associated with this [DataMessage].
+    /// Return the [Timestamp] associated with this message.
     //
     // NOTE: This method is used by, at least, our Python API.
     pub fn get_timestamp(&self) -> &Timestamp {
         &self.timestamp
-    }
-}
-
-/// The Zenoh-Flow message that is sent across `Link` and across Zenoh.
-///
-/// It contains either a [`DataMessage`](`DataMessage`) or a [`Timestamp`](`uhlc::Timestamp`),
-/// in such case the `LinkMessage` variant is `Watermark`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum LinkMessage {
-    Data(DataMessage),
-    Watermark(Timestamp),
-}
-
-impl LinkMessage {
-    /// Creates a `LinkMessage::Data` from a [`Payload`](`Payload`).
-    pub fn from_payload(output: Payload, timestamp: Timestamp) -> Self {
-        Self::Data(DataMessage {
-            payload: output,
-            timestamp,
-        })
     }
 
     /// Serializes the [LinkMessage] using [bincode] into the given `buffer`.
@@ -216,69 +218,21 @@ impl LinkMessage {
         payload_buffer.clear(); // empty the buffers but keep their allocated capacity
         message_buffer.clear();
 
-        match &self {
-            LinkMessage::Data(data_message) => match &data_message.payload {
-                Payload::Bytes(_) => bincode::serialize_into(message_buffer, &self)
-                    .context("Failed to serialize `Payload::Bytes``"),
-                Payload::Typed((data, serializer)) => {
-                    (serializer)(payload_buffer, Arc::clone(data))?;
-                    let serialized_message = LinkMessage::Data(DataMessage {
-                        payload: Payload::Bytes(Arc::new(payload_buffer.clone())),
-                        timestamp: data_message.timestamp,
-                    });
+        match &self.payload {
+            Payload::Bytes(_) => bincode::serialize_into(message_buffer, &self)
+                .context("Failed to serialize `Payload::Bytes``"),
+            Payload::Typed((data, serializer)) => {
+                (serializer)(payload_buffer, Arc::clone(data))?;
+                let serialized_message = Self {
+                    payload: Payload::Bytes(Arc::new(payload_buffer.clone())),
+                    timestamp: self.timestamp,
+                };
 
-                    bincode::serialize_into(message_buffer, &serialized_message)
-                        .context("Failed to serialize `Payload::Typed`")
-                }
-            },
-            _ => bincode::serialize_into(message_buffer, &self)
-                .context("Failed to serialize `LinkMessage::Watermark`"),
+                bincode::serialize_into(message_buffer, &serialized_message)
+                    .context("Failed to serialize `Payload::Typed`")
+            }
         }
     }
-
-    /// Returns the `Timestamp` associated with the message.
-    pub fn get_timestamp(&self) -> Timestamp {
-        match self {
-            Self::Data(data) => data.timestamp,
-            Self::Watermark(ref ts) => *ts,
-            // Self::Control(ref ctrl) => match ctrl {
-            //     ControlMessage::RecordingStart(ref rs) => rs.timestamp,
-            //     ControlMessage::RecordingStop(ref ts) => *ts,
-            // },
-            // _ => Err(ErrorKind::Unsupported),
-        }
-    }
-}
-
-// Manual Ord implementation for message ordering when replay
-impl Ord for LinkMessage {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.get_timestamp().cmp(&other.get_timestamp())
-    }
-}
-
-impl PartialOrd for LinkMessage {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl PartialEq for LinkMessage {
-    fn eq(&self, other: &Self) -> bool {
-        self.get_timestamp() == other.get_timestamp()
-    }
-}
-
-impl Eq for LinkMessage {}
-
-/// A `Message<T>` is what is received on an `Input<T>`, typically after a call to `try_recv` or
-/// `recv`.
-///
-/// A `Message<T>` can either contain [`Data<T>`](`Data`), or signal a _Watermark_.
-#[derive(Debug)]
-pub enum Message<T> {
-    Data(Data<T>),
-    Watermark,
 }
 
 /// A `Data<T>` is a convenience wrapper around `T`.

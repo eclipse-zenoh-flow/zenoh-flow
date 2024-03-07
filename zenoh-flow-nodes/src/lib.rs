@@ -23,7 +23,7 @@ pub(crate) mod traits;
 pub mod prelude {
     pub use crate::context::Context;
     pub use crate::io::{Input, InputRaw, Inputs, Output, OutputRaw, Outputs};
-    pub use crate::messages::{Data, DataMessage, LinkMessage, Message};
+    pub use crate::messages::{Data, LinkMessage};
     pub use crate::traits::{Node, Operator, SendSyncAny, Sink, Source};
     pub use anyhow::{anyhow, bail};
     pub use zenoh_flow_commons::{Configuration, Result};

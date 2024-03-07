@@ -45,20 +45,16 @@ impl Operator for GreetingsMaker {
 #[async_trait::async_trait]
 impl Node for GreetingsMaker {
     async fn iteration(&self) -> Result<()> {
-        let (message, _) = self.input.recv().await?;
-        if let Message::Data(characters) = message {
-            let name = characters.trim_end();
+        let (characters, _) = self.input.recv().await?;
+        let name = characters.trim_end();
 
-            let greetings = match name {
-                "Sofia" | "Leonardo" => format!("Ciao, {}!\n", name),
-                "Lucia" | "Martin" => format!("¡Hola, {}!\n", name),
-                "Jade" | "Gabriel" => format!("Bonjour, {} !\n", name),
-                _ => format!("Hello, {}!\n", name),
-            };
+        let greetings = match name {
+            "Sofia" | "Leonardo" => format!("Ciao, {}!\n", name),
+            "Lucia" | "Martin" => format!("¡Hola, {}!\n", name),
+            "Jade" | "Gabriel" => format!("Bonjour, {} !\n", name),
+            _ => format!("Hello, {}!\n", name),
+        };
 
-            return self.output.send(greetings, None).await;
-        }
-
-        Ok(())
+        self.output.send(greetings, None).await
     }
 }

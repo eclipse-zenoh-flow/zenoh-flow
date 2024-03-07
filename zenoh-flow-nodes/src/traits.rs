@@ -173,15 +173,12 @@ pub trait Source: Node + Send + Sync {
 ///         })
 ///     }
 /// }
+///
 /// #[async_trait]
 /// impl Node for NoOp {
 ///     async fn iteration(&self) -> Result<()> {
 ///         let (message, _timestamp) = self.input.recv().await?;
-///         match message {
-///             Message::Data(t) => self.output.send(*t, None).await?,
-///             Message::Watermark => println!("Watermark"),
-///         }
-///         Ok(())
+///         self.output.send(*message, None).await
 ///     }
 /// }
 /// ```
@@ -249,10 +246,7 @@ pub trait Operator: Node + Send + Sync {
 /// impl Node for GenericSink {
 ///     async fn iteration(&self) -> Result<()> {
 ///         let (message, _timestamp) = self.input.recv().await?;
-///         match message {
-///             Message::Data(t) => println!("{}", *t),
-///             Message::Watermark => println!("Watermark"),
-///         }
+///         println!("{}", *message);
 ///
 ///         Ok(())
 ///     }

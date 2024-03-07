@@ -87,30 +87,28 @@ impl Node for PeriodMissDetector {
 
         let run = async {
             let (message, _) = self.input.recv().await.expect("input channel disconnected");
-            if let Message::Data(data) = message {
-                if let Ok(number) = data.trim_end().parse::<f64>() {
-                    self.output
-                        .send(format!("Received: {number}\n"), None)
-                        .await
-                        .expect("output channel disconnected");
+            if let Ok(number) = message.trim_end().parse::<f64>() {
+                self.output
+                    .send(format!("Received: {number}\n"), None)
+                    .await
+                    .expect("output channel disconnected");
 
-                    // We just sent a value, if we are within a period (i.e. `next_period` is less
-                    // than `period_duration` away) we can safely increase the value of
-                    // `next_period` by a single period.
-                    let mut next_period = self.next_period.lock().await;
-                    let now = Instant::now();
-                    if let Some(interval) = next_period.checked_duration_since(now) {
-                        if interval < self.period_duration {
-                            *next_period = next_period.checked_add(self.period_duration).unwrap();
-                        }
-                    } else {
-                        // This else clause is an edge case: we sent the value riiiiiight before the
-                        // end. So by the time we are reaching this code, `now` is later than
-                        // `next_period`. Considering that we are executing this code, we still
-                        // received data before reaching the next period so we can also safely
-                        // increase by one period.
+                // We just sent a value, if we are within a period (i.e. `next_period` is less
+                // than `period_duration` away) we can safely increase the value of
+                // `next_period` by a single period.
+                let mut next_period = self.next_period.lock().await;
+                let now = Instant::now();
+                if let Some(interval) = next_period.checked_duration_since(now) {
+                    if interval < self.period_duration {
                         *next_period = next_period.checked_add(self.period_duration).unwrap();
                     }
+                } else {
+                    // This else clause is an edge case: we sent the value riiiiiight before the
+                    // end. So by the time we are reaching this code, `now` is later than
+                    // `next_period`. Considering that we are executing this code, we still
+                    // received data before reaching the next period so we can also safely
+                    // increase by one period.
+                    *next_period = next_period.checked_add(self.period_duration).unwrap();
                 }
             }
         };

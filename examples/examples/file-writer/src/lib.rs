@@ -25,17 +25,14 @@ pub struct FileWriter {
 #[async_trait::async_trait]
 impl Node for FileWriter {
     async fn iteration(&self) -> Result<()> {
-        let (message, _) = self.input.recv().await?;
+        let (greeting, _) = self.input.recv().await?;
 
-        if let Message::Data(greeting) = message {
-            let mut file = self.file.lock().await;
-            file.write_all(greeting.as_bytes())
-                .await
-                .map_err(|e| anyhow!("{:?}", e))?;
-            return file.flush().await.map_err(|e| anyhow!("{:?}", e));
-        }
+        let mut file = self.file.lock().await;
+        file.write_all(greeting.as_bytes())
+            .await
+            .map_err(|e| anyhow!("{:?}", e))?;
 
-        Ok(())
+        file.flush().await.map_err(|e| anyhow!("{:?}", e))
     }
 }
 

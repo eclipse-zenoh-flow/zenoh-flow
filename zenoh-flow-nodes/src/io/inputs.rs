@@ -12,12 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::messages::{Data, DataMessage, DeserializerFn, LinkMessage, Message};
-use anyhow::{anyhow, bail};
-use flume::TryRecvError;
+use crate::messages::{Data, DeserializerFn, LinkMessage};
+
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
+
+use anyhow::{anyhow, bail};
+use flume::TryRecvError;
 use uhlc::Timestamp;
 use zenoh_flow_commons::{PortId, Result};
 
@@ -292,14 +294,12 @@ impl<T: Send + Sync + 'static> Input<T> {
     /// Several errors can occur:
     /// - all the channels are disconnected,
     /// - Zenoh-Flow failed at interpreting the received data as an instance of `T`.
-    pub async fn recv(&self) -> Result<(Message<T>, Timestamp)> {
-        match self.input_raw.recv().await? {
-            LinkMessage::Data(DataMessage { payload, timestamp }) => Ok((
-                Message::Data(Data::try_from_payload(payload, self.deserializer.clone())?),
-                timestamp,
-            )),
-            LinkMessage::Watermark(timestamp) => Ok((Message::Watermark, timestamp)),
-        }
+    pub async fn recv(&self) -> Result<(Data<T>, Timestamp)> {
+        let LinkMessage { payload, timestamp } = self.input_raw.recv().await?;
+        Ok((
+            Data::try_from_payload(payload, self.deserializer.clone())?,
+            timestamp,
+        ))
     }
 
     /// Returns the first [`Message<T>`] that was received on any of the channels associated with this
@@ -317,17 +317,12 @@ impl<T: Send + Sync + 'static> Input<T> {
     /// - Zenoh-Flow failed at interpreting the received data as an instance of `T`.
     ///
     /// Note that if some channels are disconnected, for each of such channel an error is logged.
-    pub fn try_recv(&self) -> Result<Option<(Message<T>, Timestamp)>> {
-        if let Some(message) = self.input_raw.try_recv()? {
-            match message {
-                LinkMessage::Data(DataMessage { payload, timestamp }) => {
-                    return Ok(Some((
-                        Message::Data(Data::try_from_payload(payload, self.deserializer.clone())?),
-                        timestamp,
-                    )))
-                }
-                LinkMessage::Watermark(ts) => return Ok(Some((Message::Watermark, ts))),
-            }
+    pub fn try_recv(&self) -> Result<Option<(Data<T>, Timestamp)>> {
+        if let Some(LinkMessage { payload, timestamp }) = self.input_raw.try_recv()? {
+            return Ok(Some((
+                Data::try_from_payload(payload, self.deserializer.clone())?,
+                timestamp,
+            )));
         }
 
         Ok(None)
