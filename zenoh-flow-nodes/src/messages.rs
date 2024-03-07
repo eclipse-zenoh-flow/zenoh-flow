@@ -189,7 +189,7 @@ impl LinkMessage {
         }
     }
 
-    /// Return the [Timestamp] associated with this [DataMessage].
+    /// Return the [Timestamp] associated with this message.
     //
     // NOTE: This method is used by, at least, our Python API.
     pub fn get_timestamp(&self) -> &Timestamp {
