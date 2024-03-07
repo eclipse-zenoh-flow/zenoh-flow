@@ -22,17 +22,17 @@ use crate::{
     traits::SendSyncAny,
 };
 
-/// Test that the Input behaves as expected for the provided data and deserializer:
-/// 1. when a Payload::Bytes is received the deserializer is called and produces the correct output,
-/// 2. when a Payload::Typed is received the data can correctly be downcasted.
+/// Test that the Input behaves as expected for the provided data and deserialiser:
+/// 1. when a Payload::Bytes is received the deserialiser is called and produces the correct output,
+/// 2. when a Payload::Typed is received the data can correctly be downcast.
 ///
 /// ## Scenario tested
 ///
 /// A typed input is created.
 ///
 /// We send on the associated channel:
-/// 1. a Payload::Bytes (the `expected_serialized`),
-/// 2. a Payload::Typed (the `expected_data` upcasted to `dyn SendSyncAny`).
+/// 1. a Payload::Bytes (the `expected_serialised`),
+/// 2. a Payload::Typed (the `expected_data` upcast to `dyn SendSyncAny`).
 ///
 /// ## Traits bound on T
 ///
@@ -64,7 +64,7 @@ fn test_typed_input<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'stat
 
     let (data, _) = input
         .try_recv()
-        .expect("Message (serialized) was not sent")
+        .expect("Message (serialised) was not sent")
         .expect("No message was received");
 
     assert_eq!(expected_data, *data);
@@ -72,8 +72,8 @@ fn test_typed_input<T: Send + Sync + Clone + std::fmt::Debug + PartialEq + 'stat
     let message = LinkMessage::new(
         Payload::Typed((
             Arc::new(expected_data.clone()) as Arc<dyn SendSyncAny>,
-            // The serializer should never be called, hence the panic.
-            Arc::new(|_buffer, _data| panic!("Unexpected call to serialize the data")),
+            // The serialiser should never be called, hence the panic.
+            Arc::new(|_buffer, _data| panic!("Unexpected call to serialise the data")),
         )),
         hlc.new_timestamp(),
     );
@@ -105,7 +105,7 @@ fn test_serde_json() {
     };
 
     let expected_serialized =
-        serde_json::ser::to_vec(&expected_data).expect("serde_json failed to serialize");
+        serde_json::ser::to_vec(&expected_data).expect("serde_json failed to serialise");
 
     test_typed_input(expected_data, expected_serialized, |bytes| {
         serde_json::de::from_slice::<TestData>(bytes).map_err(|e| anyhow::anyhow!(e))
@@ -137,7 +137,7 @@ fn test_protobuf_prost() {
         field3: 0.2f64,
     };
 
-    // First test, send data serialized.
+    // First test, send data serialised.
     let expected_serialized = expected_data.encode_to_vec();
 
     test_typed_input(expected_data, expected_serialized, |bytes| {

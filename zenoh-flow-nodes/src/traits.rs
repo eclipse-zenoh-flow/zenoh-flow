@@ -18,12 +18,12 @@ use async_trait::async_trait;
 use std::any::Any;
 use zenoh_flow_commons::{Configuration, Result};
 
-/// The `SendSyncAny` trait allows Zenoh-Flow to send data between nodes running in the same process
-/// without serializing.
+/// The `SendSyncAny` trait allows Zenoh-Flow to send data between nodes running in the same process without
+/// serialising.
 ///
-/// This trait is implemented for any type that has the `static` lifetime and implements `Send` and
-/// `Sync`. These constraints are the same than for the typed `Input` and `Output` which means that
-/// there is absolutely no need to manually implement it.
+/// This trait is implemented for any type that has the `static` lifetime and implements [Send] and [Sync]. These
+/// constraints are the same than for the typed [Input](crate::prelude::Input) and typed
+/// [Output](crate::prelude::Output) which means that there should be no need to manually implement it.
 pub trait SendSyncAny: Send + Sync {
     fn as_any(&self) -> &dyn Any;
 
@@ -40,19 +40,48 @@ impl<T: 'static + Send + Sync> SendSyncAny for T {
     }
 }
 
-/// A `Node` is defined by its `iteration` that is repeatedly called by Zenoh-Flow.
+/// The `Node` trait, shared among all node types, dictates how a node *runs*.
 ///
-/// This trait takes an immutable reference to `self` so as to not impact performance. To keep a state and to mutate it,
-/// the interior mutability pattern is necessary.
+/// # `Iteration`
 ///
-/// A structure implementing the Node trait typically needs to keep a reference to the `Input`(s) and `Output`(s) it
-/// needs.
+/// The central method, for which there is no default implementation, is [iteration](Node::iteration()). This method
+/// is called, in a loop, by the Zenoh-Flow runtime managing the node.
 ///
-/// For usage examples see: [`Operator`](`Operator`), [`Source`](`Source`) or [`Sink`](`Sink`) traits.
+/// Method in this trait takes an immutable reference to `self` so as to not impact performance. To keep a state and to
+/// mutate it, the [interior mutability](https://doc.rust-lang.org/reference/interior-mutability.html) pattern is
+/// necessary.
+///
+/// For usage examples see the [Operator](crate::prelude::Operator), [Source](crate::prelude::Source) or
+/// [Sink](crate::prelude::Sink) traits.
+///
+/// # Additional hooks: `on_resume`, `on_abort`
+///
+/// It is possible to define specific code that the Zenoh-Flow runtime should run *before* the node is aborted and
+/// *before* it is resumed.
+///
+/// Note that the `on_resume` hook is only run once the node has been aborted. It is not run when it is created.
+///
+/// A default blank implementation is provided.
 #[async_trait]
 pub trait Node: Send + Sync {
+    /// The code a Zenoh-Flow runtime will execute in a loop.
+    ///
+    /// A typical workflow would be to wait for all or a subset of the [Input(s)](crate::prelude::Input) to be ready,
+    /// perform some computation and finally forward the result(s) downstream on the
+    /// [Output(s)](crate::prelude::Output).
     async fn iteration(&self) -> Result<()>;
 
+    /// Custom code that Zenoh-Flow will run *before* re-starting a node that was previously aborted.
+    ///
+    /// The code to correctly manage the state of a node should go there. This hook is for instance leveraged within
+    /// the implementation of the Zenoh Source built-in node.
+    ///
+    /// The blanket implementation defaults to returning `Ok(())`.
+    ///
+    /// # Performance
+    ///
+    /// This method is only called when the node is restarted. Hence, its impact is limited and does not affect the
+    /// normal execution of a node.
     async fn on_resume(&self) -> Result<()> {
         Ok(())
     }
@@ -60,14 +89,12 @@ pub trait Node: Send + Sync {
     async fn on_abort(&self) {}
 }
 
-/// The `Source` trait represents a Source of data in Zenoh Flow. Sources only possess `Outputs` and
-/// their purpose is to fetch data from the external world.
+/// A `Source` feeds data into a data flow.
 ///
-/// This trait takes an immutable reference to `self` so as to not impact performance. To keep a
-/// state and to mutate it, the interior mutability pattern is necessary.
+/// A `Source` only possesses `Output` (either [typed](crate::prelude::Output) or [raw](crate::prelude::OutputRaw)) as
+/// it does not receive any data from upstream nodes but from "outside" the data flow.
 ///
-/// A struct implementing the Source trait typically needs to keep a reference to the `Output` it
-/// needs.
+/// A structure implementing the `Source` trait typically needs to keep a reference to the `Output`.
 ///
 /// ## Example
 ///
@@ -94,7 +121,7 @@ pub trait Node: Send + Sync {
 ///         let output = outputs
 ///             .take("out")
 ///             .expect("No output called 'out' found")
-///             .typed(|buffer, data| todo!("Provide your serializer here"));
+///             .typed(|buffer, data| todo!("Provide your serialiser here"));
 ///
 ///         Ok(Self { output })
 ///     }
@@ -107,8 +134,8 @@ pub trait Node: Send + Sync {
 ///         //
 ///         // let state = self.state.lock().await;
 ///         //
-///         // The state is a way for the Source to read information from the external world, i.e.,
-///         // interacting with I/O devices. We mimick an asynchronous iteraction with a sleep.
+///         // The state is a way for the Source to read information from the external world, i.e., interacting with
+///         // I/O devices.
 ///
 ///         self.output.send(10usize, None).await
 ///     }
@@ -116,28 +143,21 @@ pub trait Node: Send + Sync {
 /// ```
 #[async_trait]
 pub trait Source: Node + Send + Sync {
-    /// For a `Context`, a `Configuration` and a set of `Outputs`, produce a new *Source*.
+    /// For a [Context], a [Configuration] and a set of [Outputs], produce a new [Source].
     ///
-    /// Sources only possess `Outputs` and their purpose is to fetch data from the external world.
-    ///
-    /// Sources are **started last** when initiating a data flow. This is to prevent data loss: if a
-    /// Source is started before its downstream nodes then the data it would send before said
-    /// downstream nodes are up would be lost.
+    /// Sources only possess `Outputs` as their purpose is to fetch data from the external world.
     async fn new(context: Context, configuration: Configuration, outputs: Outputs) -> Result<Self>
     where
         Self: Sized;
 }
 
-/// The `Operator` trait represents an Operator inside Zenoh-Flow.
+/// An `Operator` is a node performing transformation over the data it receives, outputting the end result to downstream
+/// node(s).
 ///
-/// Operators are at the heart of a data flow, they carry out computations on the data they receive
-/// before sending them out to the next downstream node.
+/// An `Operator` possesses both `Input` (either [typed](crate::prelude::Input) or [raw](crate::prelude::InputRaw)) and
+/// `Output` (either [typed](crate::prelude::Output) or [raw](crate::prelude::OutputRaw)).
 ///
-/// This trait takes an immutable reference to `self` so as to not impact performance. To keep a
-/// state and to mutate it, the interior mutability pattern is necessary.
-///
-/// A struct implementing the Operator trait typically needs to keep a reference to the `Input` and
-/// `Output` it needs.
+/// A structure implementing the `Operator` trait typically needs to keep a reference to its `Input`(s) and `Output`(s).
 ///
 /// ## Example
 ///
@@ -165,11 +185,11 @@ pub trait Source: Node + Send + Sync {
 ///             input: inputs
 ///                 .take("in")
 ///                 .expect("No input called 'in' found")
-///                 .typed(|bytes| todo!("Provide your deserializer here")),
+///                 .typed(|bytes| todo!("Provide your deserialiser here")),
 ///             output: outputs
 ///                 .take("out")
 ///                 .expect("No output called 'out' found")
-///                 .typed(|buffer, data| todo!("Provide your serializer here")),
+///                 .typed(|buffer, data| todo!("Provide your serialiser here")),
 ///         })
 ///     }
 /// }
@@ -184,14 +204,10 @@ pub trait Source: Node + Send + Sync {
 /// ```
 #[async_trait]
 pub trait Operator: Node + Send + Sync {
-    /// For a `Context`, a `Configuration`, a set of `Inputs` and `Outputs`, produce a new
-    /// **Operator**.
+    /// For a [Context], a [Configuration], a set of [Inputs] and [Outputs], produce a new [Operator].
     ///
     /// Operators are at the heart of a data flow, they carry out computations on the data they
     /// receive before sending them out to the next downstream node.
-    ///
-    /// The Operators are started *before the Sources* such that they are active before the first
-    /// data are produced.
     async fn new(
         context: Context,
         configuration: Configuration,
@@ -202,16 +218,12 @@ pub trait Operator: Node + Send + Sync {
         Self: Sized;
 }
 
-/// The `Sink` trait represents a Sink of data in Zenoh Flow.
+/// A `Sink` exposes the outcome of the data flow processing.
 ///
-/// Sinks only possess `Inputs`, their objective is to send the result of the computations to the
-/// external world.
+/// A `Sink` only possesses `Input` (either [typed](crate::prelude::Input) or [raw](crate::prelude::InputRaw)) as its
+/// purpose is to communicate with entities outside of the data flow.
 ///
-/// This trait takes an immutable reference to `self` so as to not impact performance. To keep a
-/// state and to mutate it, the interior mutability pattern is necessary.
-///
-/// A struct implementing the Sink trait typically needs to keep a reference to the `Input` it
-/// needs.
+/// A structure implementing the `Sink` trait typically needs to keep a reference to its `Input`(s).
 ///
 /// ## Example
 ///
@@ -254,13 +266,9 @@ pub trait Operator: Node + Send + Sync {
 /// ```
 #[async_trait]
 pub trait Sink: Node + Send + Sync {
-    /// For a `Context`, a `Configuration` and a set of `Inputs`, produce a new **Sink**.
+    /// For a [Context], a [Configuration] and [Inputs], produce a new [Sink].
     ///
-    /// Sinks only possess `Inputs`, their objective is to send the result of the computations to the
-    /// external world.
-    ///
-    /// Sinks are **started first** when initiating a data flow. As they are at the end of the chain of
-    /// computations. By starting them first we ensure that no data is lost.
+    /// Sinks only possess `Inputs`, their objective is to send the result of the computations to the external world.
     async fn new(context: Context, configuration: Configuration, inputs: Inputs) -> Result<Self>
     where
         Self: Sized;

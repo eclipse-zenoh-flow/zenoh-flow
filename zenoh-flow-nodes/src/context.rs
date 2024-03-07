@@ -19,9 +19,9 @@ use zenoh_flow_commons::{InstanceId, RuntimeId};
 /// The `Context` structure provides information about the data flow and the Zenoh-Flow runtime.
 ///
 /// In particular, it allows accessing:
-/// - [name](Context::name()) of the data flow,
-/// - [instance id](Context::instance_id()) of this instance of the data flow,
-/// - [runtime id](Context::runtime_id()) of the Zenoh-Flow runtime managing the **node**.
+/// - the [name](Context::name()) of the data flow,
+/// - the [instance id](Context::instance_id()) of this instance of the data flow,
+/// - the [runtime id](Context::runtime_id()) of the Zenoh-Flow runtime managing the **node**.
 #[derive(Clone, Debug)]
 pub struct Context {
     pub(crate) flow_name: Arc<str>,
@@ -30,6 +30,7 @@ pub struct Context {
 }
 
 impl Context {
+    /// Creates a new node `Context`.
     pub fn new(flow_name: Arc<str>, instance_id: InstanceId, runtime_id: RuntimeId) -> Self {
         Self {
             flow_name,

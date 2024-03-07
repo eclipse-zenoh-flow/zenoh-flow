@@ -22,33 +22,33 @@ use std::sync::Arc;
 use uhlc::Timestamp;
 use zenoh_flow_commons::Result;
 
-/// `SerializerFn` is a type-erased version of the serializer function provided by node developer.
+/// `SerializerFn` is a type-erased version of the serialiser function provided by node developer.
 ///
-/// It is passed to downstream nodes (residing on the same process) in case they need to serialize
+/// It is passed to downstream nodes (residing on the same process) in case they need to serialise
 /// the data they receive typed.
-/// Passing around the function allows us to serialize only when needed and without requiring prior
+/// Passing around the function allows us to serialise only when needed and without requiring prior
 /// knowledge.
 pub(crate) type SerializerFn =
     dyn Fn(&mut Vec<u8>, Arc<dyn SendSyncAny>) -> Result<()> + Send + Sync;
 
-/// This function is what Zenoh-Flow will use to deserialize the data received on the `Input`.
+/// This function is what Zenoh-Flow will use to deserialise the data received on the `Input`.
 ///
-/// It will be called for instance when data is received serialized (i.e. from an upstream node that
+/// It will be called for instance when data is received serialised (i.e. from an upstream node that
 /// is either not implemented in Rust or on a different process) before it is given to the user's
 /// code.
 pub(crate) type DeserializerFn<T> = dyn Fn(&[u8]) -> Result<T> + Send + Sync;
 
 /// A `Payload` is Zenoh-Flow's lowest message container.
 ///
-/// It either contains serialized data, i.e. `Bytes` (if received from the network, or from nodes
+/// It either contains serialised data, i.e. `Bytes` (if received from the network, or from nodes
 /// not written in Rust), or `Typed` data as a tuple `(`[Any](`std::any::Any`)`, SerializerFn)`.
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Payload {
-    /// Serialized data, coming either from Zenoh of from non-Rust node.
+    /// Serialised data, coming either from Zenoh of from non-Rust node.
     Bytes(Arc<Vec<u8>>),
     #[serde(skip_serializing, skip_deserializing)]
-    /// Data coming from another Rust node located on the same process that can either be downcasted
-    /// (provided that its actual type is known) or serialized.
+    /// Data coming from another Rust node located on the same Zenoh-Flow runtime that can either be downcast or
+    /// serialised.
     Typed((Arc<dyn SendSyncAny>, Arc<SerializerFn>)),
 }
 
@@ -78,10 +78,10 @@ impl Payload {
     ///
     /// # Performance
     ///
-    /// This method will serialize the [Payload] if it is `Typed`. Otherwise, the bytes
+    /// This method will serialise the [Payload] if it is `Typed`. Otherwise, the bytes
     /// representation is simply cloned.
     ///
-    /// The provided `buffer` is reused and cleared between calls, so once its capacity stabilizes
+    /// The provided `buffer` is reused and cleared between calls, so once its capacity stabilises
     /// no more allocation is performed.
     pub fn try_as_bytes_into(&self, buffer: &mut Vec<u8>) -> Result<()> {
         buffer.clear(); // remove previous data but keep the allocated capacity
@@ -101,7 +101,7 @@ impl Payload {
     ///
     /// # Performance
     ///
-    /// This method will only serialize (and thus allocate) the [Payload] if it is typed. Otherwise
+    /// This method will only serialise (and thus allocate) the [Payload] if it is typed. Otherwise
     /// the [Arc] is cloned.
     //
     // NOTE: This method is used by, at least, our Python API.
@@ -196,20 +196,20 @@ impl LinkMessage {
         &self.timestamp
     }
 
-    /// Serializes the [LinkMessage] using [bincode] into the given `buffer`.
+    /// Serialises the [LinkMessage] using [bincode] into the given `buffer`.
     ///
-    /// The `inner_buffer` is used to serialize (if need be) the [Payload] contained inside the
+    /// The `inner_buffer` is used to serialise (if need be) the [Payload] contained inside the
     /// [LinkMessage].
     ///
     /// # Performance
     ///
     /// The provided `buffer` and `inner_buffer` are reused and cleared between calls, so once their
-    /// capacity stabilizes no (re)allocation is performed.
+    /// capacity stabilises no (re)allocation is performed.
     ///
     /// # Errors
     ///
     /// An error variant is returned in case of:
-    /// - fails to serialize
+    /// - fails to serialise
     pub fn serialize_bincode_into(
         &self,
         message_buffer: &mut Vec<u8>,
@@ -220,7 +220,7 @@ impl LinkMessage {
 
         match &self.payload {
             Payload::Bytes(_) => bincode::serialize_into(message_buffer, &self)
-                .context("Failed to serialize `Payload::Bytes``"),
+                .context("Failed to serialise `Payload::Bytes``"),
             Payload::Typed((data, serializer)) => {
                 (serializer)(payload_buffer, Arc::clone(data))?;
                 let serialized_message = Self {
@@ -229,20 +229,23 @@ impl LinkMessage {
                 };
 
                 bincode::serialize_into(message_buffer, &serialized_message)
-                    .context("Failed to serialize `Payload::Typed`")
+                    .context("Failed to serialise `Payload::Typed`")
             }
         }
     }
 }
 
-/// A `Data<T>` is a convenience wrapper around `T`.
+/// A `Data<T>` is a wrapper around `T` given by a typed [`Input<T>`](crate::prelude::Input).
 ///
-/// Upon reception, it transparently deserializes to `T` when the message is received serialized. It
-/// downcasts it to a `&T` when the data is passed "typed" through a channel.
+/// A `Data<T>` automatically dereferences to a `&T`.
 ///
-/// ## Performance
+/// # Performance
 ///
-/// When deserializing, an allocation is performed.
+/// If the upstream node does not reside on the same Zenoh-Flow runtime, dereferencing to `&T` incurs some additional
+/// operations: the received [Payload] will then necessarily be serialised and must first be deserialised.
+///
+/// To perform the deserialisation, the [deserialiser](crate::io::InputBuilder::typed()) function passed to the
+/// [`Input<T>`](crate::prelude::Input) will be called.
 #[derive(Debug)]
 pub struct Data<T> {
     inner: DataInner<T>,
@@ -283,20 +286,18 @@ impl<T: Send + Sync + 'static> From<T> for Data<T> {
 //
 // ## SAFETY
 //
-// Despite the presence of `expect` and `panic!`, we should never end up in these situations in
-// normal circumstances.
+// Despite the presence of `expect` and `panic!`, we should never end up in these situations in normal circumstances.
 //
 // Let us reason here as to why this is "safe".
 //
-// The call to `expect` happens when the inner data is a [`Typed`](`Payload::Typed`) payload and the
-// downcasts to `T` fails. This should not happen because of the way a [`Data`](`Data`) is created:
-// upon creation we first perform a check that the provided typed payload can actually be downcasted
-// to `T` — see the method `Data::try_from_payload`.
+// The call to `expect` happens when the inner data is a [Typed](Payload::Typed) payload and the downcast to `T`
+// fails. This should not happen because of the way a [Data] is created: upon creation we first perform a check that the
+// provided typed payload can actually be downcast to `T` — see the method `Data::try_from_payload`.
 //
-// The call to `panic!` happens when the inner data is a [`Bytes`](`Payload::Bytes`) payload and the
-// `data` field is `None`. Again, this should not happen because of the way a [`Data`](`Data`) is
-// created: upon creation, if the data is received as bytes, we first deserialize it and set the
-// `data` field to `Some(T)` — see the method `Data::try_from_payload`.
+// The call to `panic!` happens when the inner data is a [Bytes](Payload::Bytes) payload and the `data` field is
+// `None`. Again, this should not happen because of the way a [`Data`](`Data`) is created: upon creation, if the data is
+// received as bytes, we first deserialise it and set the `data` field to `Some(T)` — see the method
+// `Data::try_from_payload`.
 impl<T: 'static> Deref for Data<T> {
     type Target = T;
 
@@ -308,7 +309,7 @@ impl<T: 'static> Deref for Data<T> {
                 } else if let Payload::Typed((typed, _)) = payload {
                     (**typed).as_any().downcast_ref::<T>().expect(
                         r#"You probably managed to find a very nasty flaw in Zenoh-Flow’s code as we
-believed this situation would never happen (unless explicitely triggered — "explicitely" being an
+believed this situation would never happen (unless explicitly triggered — "explicitly" being an
 understatement here, we feel it’s more like you really, really, wanted to see that message — in
 which case, congratulations!).
 
@@ -326,7 +327,7 @@ Feel free to contact us at < zenoh@zettascale.tech >.
                 } else {
                     panic!(
                         r#"You probably managed to find a very nasty flaw in Zenoh-Flow's code as we
-believed this situation would never happen (unless explicitely triggered — "explicitely" being an
+believed this situation would never happen (unless explicitly triggered — "explicitly" being an
 understatement here, we feel it's more like you really, really, wanted to see that message — in
 which case, congratulations!).
 
@@ -351,14 +352,14 @@ impl<T: 'static> Data<T> {
     /// Try to create a new [`Data<T>`](`Data`) based on a [`Payload`](`Payload`).
     ///
     /// Depending on the variant of [`Payload`](`Payload`) different steps are performed:
-    /// - if `Payload::Bytes` then Zenoh-Flow tries to deserialize to an instance of `T` (performing
+    /// - if `Payload::Bytes` then Zenoh-Flow tries to deserialise to an instance of `T` (performing
     ///   an allocation),
     /// - if `Payload::Typed` then Zenoh-Flow checks that the underlying type matches `T` (relying
     ///   on [`Any`](`Any`)).
     ///
     /// ## Errors
     ///
-    /// An error will be returned if the Payload does not match `T`, i.e. if the deserialization or
+    /// An error will be returned if the Payload does not match `T`, i.e. if the deserialisation or
     /// the downcast failed.
     pub(crate) fn try_from_payload(
         payload: Payload,
