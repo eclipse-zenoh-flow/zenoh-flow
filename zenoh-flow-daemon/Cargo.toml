@@ -49,3 +49,4 @@ plugin = []
 
 [dev-dependencies]
 serde_yaml = { workspace = true }
+zenoh-flow-runtime = { workspace = true, features = ["test-utils"] }

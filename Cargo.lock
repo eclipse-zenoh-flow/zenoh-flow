@@ -3503,6 +3503,7 @@ dependencies = [
  "zenoh-flow-descriptors",
  "zenoh-flow-nodes",
  "zenoh-flow-records",
+ "zenoh-flow-runtime",
 ]
 
 [[package]]
