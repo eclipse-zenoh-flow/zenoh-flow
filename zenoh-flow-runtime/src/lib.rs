@@ -12,6 +12,16 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+//! This crate exposes the structures driving the execution of a data flow: the [Runtime] and the [DataFlowInstance].
+//!
+//! If the feature `zenoh` is enabled (it is by default), this crate additionally re-exports the structures from
+//! [Zenoh](zenoh) that allow opening a [Session](zenoh::Session) *asynchronously*.
+//!
+//! Users interested in exposing a Zenoh-Flow runtime should start with the [Runtime] and [Loader] structures.
+//!
+//! Users interested in fetching the state of a data flow instance should look into the [DataFlowInstance],
+//! [InstanceState] and [InstanceStatus] structures. These structures are leveraged by the `zfctl` command line tool.
+
 mod instance;
 pub use instance::{DataFlowInstance, InstanceState, InstanceStatus};
 
@@ -26,6 +36,7 @@ mod runners;
 mod runtime;
 pub use runtime::{DataFlowErr, Runtime, RuntimeBuilder};
 
+/// A re-export of the Zenoh structures needed to open a [Session](zenoh::Session) asynchronously.
 #[cfg(feature = "zenoh")]
 pub mod zenoh {
     pub use zenoh::config::{client, empty, peer};

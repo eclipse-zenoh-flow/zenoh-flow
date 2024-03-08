@@ -140,14 +140,14 @@ impl Runtime {
         Err(DataFlowErr::NotFound)
     }
 
-    /// Returns the [status](InstanceStatus) of the provided data flow instance or `None` if this runtime does not
+    /// Returns the [state](InstanceState) of the provided data flow instance or [None] if this runtime does not
     /// manage this instance.
     ///
     /// The possible values are:
-    /// - [Loaded](InstanceStatus::Loaded) when all the nodes that this runtime manages have been successfully
+    /// - [Loaded](InstanceState::Loaded) when all the nodes that this runtime manages have been successfully
     ///   loaded. In particular, this means that each node has successfully called its constructor.
-    /// - [Running](InstanceStatus::Running) when the nodes that this runtime manages are running.
-    /// - [Aborted](InstanceStatus::Aborted) when the nodes were previously running and their execution was aborted.
+    /// - [Running](InstanceState::Running) when the nodes that this runtime manages are running.
+    /// - [Aborted](InstanceState::Aborted) when the nodes were previously running and their execution was aborted.
     pub async fn get_instance_status(&self, id: &InstanceId) -> Option<InstanceStatus> {
         if let Some(instance) = self.flows.read().await.get(id) {
             return Some(instance.read().await.status(&self.runtime_id));

@@ -27,7 +27,16 @@ use serde::{Deserialize, Deserializer};
 use zenoh_flow_commons::Result;
 use zenoh_flow_nodes::{OperatorFn, SinkFn, SourceFn};
 
-// Convenient shortcut.
+/// Additionally supported file extensions for node implementation.
+///
+/// Zenoh-Flow only supports node implementation in the form of [shared libraries]. To support additional implementation
+/// --- for instance [Python scripts] --- a Zenoh-Flow runtime needs to be informed on (i) which shared libraries it
+/// should load and (ii) how it should make these shared libraries "load" the node implementation.
+///
+/// This structure associates file extension(s) to these information.
+///
+/// [shared libraries]: std::env::consts::DLL_EXTENSION
+/// [Python scripts]: https://github.com/eclipse-zenoh/zenoh-flow-python
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Extensions(
@@ -79,7 +88,7 @@ impl Extensions {
     /// This method will return an error if any of the library:
     /// - does not expose the correct symbol (see these macros: [1], [2], [3]),
     /// - was not compiled with the same Rust version,
-    /// - was not using the same Zenoh-Flow version as this Zenoh-Flow [runtime](crate::Runtime).
+    /// - was not using the same version of Zenoh-Flow as this [runtime](crate::Runtime).
     ///
     /// [1]: zenoh_flow_nodes::prelude::export_source
     /// [2]: zenoh_flow_nodes::prelude::export_operator
@@ -104,6 +113,8 @@ impl Extensions {
     }
 }
 
+// NOTE: We separate the libraries in its own dedicated structure to have that same textual representation (YAML/JSON).
+//       There is no real need to do so.
 #[derive(Debug, Clone, Deserialize, Hash, PartialEq, Eq)]
 pub struct Extension {
     pub(crate) file_extension: Arc<str>,

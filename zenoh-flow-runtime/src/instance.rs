@@ -13,23 +13,51 @@
 //
 
 use crate::runners::Runner;
-use serde::{Deserialize, Serialize};
+
 use std::{collections::HashMap, fmt::Display, ops::Deref};
+
+use serde::{Deserialize, Serialize};
 use uhlc::{Timestamp, HLC};
 use zenoh_flow_commons::{NodeId, Result, RuntimeId};
 use zenoh_flow_records::DataFlowRecord;
 
+/// A `DataFlowInstance` is the ready-to-run (possibly running) instance of a [data flow](DataFlowRecord).
+///
+/// A Zenoh-Flow [runtime](crate::Runtime) will provide access to each instance in a concurrency safe manner:
+/// considering the distributed nature of Zenoh-Flow, concurrent requests on the same instance can be made.
 pub struct DataFlowInstance {
     pub(crate) state: InstanceState,
     pub(crate) record: DataFlowRecord,
     pub(crate) runners: HashMap<NodeId, Runner>,
 }
 
+/// The different states of a [DataFlowInstance].
+///
+/// Note that *a state is tied to a Zenoh-Flow [runtime]*: if a data flow is distributed across multiple Zenoh-Flow
+/// runtimes, their respective state for the same instance could be different (but should eventually converge).
+///
+/// [runtime]: crate::Runtime
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub enum InstanceState {
     Creating(Timestamp),
+    /// A [runtime] listing a [DataFlowInstance] in the `Loaded` state successfully instantiated all the nodes it manages
+    /// and is ready to start them.
+    ///
+    /// A `Loaded` data flow can be started or deleted.
+    ///
+    /// [runtime]: crate::Runtime
     Loaded(Timestamp),
+    /// A [runtime] listing a [DataFlowInstance] in the `Running` state has (re)started all the nodes it manages.
+    ///
+    /// A `Running` data flow can be aborted or deleted.
+    ///
+    /// [runtime]: crate::Runtime
     Running(Timestamp),
+    /// A [runtime] listing a [DataFlowInstance] in the `Aborted` state has abruptly stopped all the nodes it manages.
+    ///
+    /// An `Aborted` data flow can be restarted or deleted.
+    ///
+    /// [runtime]: crate::Runtime
     Aborted(Timestamp),
     Failed((Timestamp, String)),
 }
