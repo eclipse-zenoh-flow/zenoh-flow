@@ -47,6 +47,8 @@ zenoh-flow-records = { workspace = true }
 default = ["zenoh"]
 zenoh = ["dep:zenoh"]
 shared-memory = ["zenoh"]
+test-utils = []
 
 [dev-dependencies]
 serde_yaml = { workspace = true }
+zenoh-flow-runtime = { path = ".", features = ["test-utils"] }

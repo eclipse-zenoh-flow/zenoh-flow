@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::NodeSymbol;
+use super::{validate_library, NodeSymbol};
 
 use std::{
     collections::HashMap,
@@ -21,7 +21,11 @@ use std::{
     sync::Arc,
 };
 
+use anyhow::Context;
+use libloading::Library;
 use serde::{Deserialize, Deserializer};
+use zenoh_flow_commons::Result;
+use zenoh_flow_nodes::{OperatorFn, SinkFn, SourceFn};
 
 // Convenient shortcut.
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq)]
@@ -56,8 +60,34 @@ pub(crate) struct ExtensionLibraries {
     pub(crate) operator: PathBuf,
 }
 
+impl ExtensionLibraries {
+    /// Validates that all the libraries expose the correct symbols and were compiled with the same Rust and Zenoh-Flow
+    /// versions.
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if any of the library:
+    /// - does not expose the correct symbol,
+    /// - was not compiled with the same Rust version,
+    /// - was not using the same Zenoh-Flow version as this Zenoh-Flow [runtime](crate::Runtime).
+    pub(crate) fn validate(&self) -> Result<()> {
+        unsafe {
+            validate_library::<SourceFn>(&Library::new(&self.source)?, &NodeSymbol::Source)
+                .with_context(|| format!("{}", self.source.display()))?;
+            validate_library::<OperatorFn>(&Library::new(&self.operator)?, &NodeSymbol::Operator)
+                .with_context(|| format!("{}", self.operator.display()))?;
+            validate_library::<SinkFn>(&Library::new(&self.sink)?, &NodeSymbol::Sink)
+                .with_context(|| format!("{}", self.sink.display()))?;
+        }
+
+        Ok(())
+    }
+}
+
 impl Extensions {
-    /// TODO@J-Loudet
+    /// Returns the [PathBuf] of the library to load for the provided [NodeSymbol].
+    ///
+    /// This function is used in a generic context where we don't actually know which type of node we are manipulating.
     pub(crate) fn get_library_path(
         &self,
         file_extension: &str,
@@ -70,30 +100,53 @@ impl Extensions {
         })
     }
 
-    pub fn add_extension(
+    /// Attempts to add an extension to this Zenoh-Flow [runtime](crate::Runtime).
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if any of the library:
+    /// - does not expose the correct symbol (see these macros: [1], [2], [3]),
+    /// - was not compiled with the same Rust version,
+    /// - was not using the same Zenoh-Flow version as this Zenoh-Flow [runtime](crate::Runtime).
+    ///
+    /// [1]: zenoh_flow_nodes::prelude::export_source
+    /// [2]: zenoh_flow_nodes::prelude::export_operator
+    /// [3]: zenoh_flow_nodes::prelude::export_sink
+    pub fn try_add_extension(
         mut self,
         file_extension: impl AsRef<str>,
         source: PathBuf,
         operator: PathBuf,
         sink: PathBuf,
-    ) -> Self {
+    ) -> Result<Self> {
         let file_ext: Arc<str> = file_extension.as_ref().into();
+        let libraries = ExtensionLibraries {
+            source,
+            sink,
+            operator,
+        };
+
+        libraries.validate()?;
+
         self.insert(
             file_ext.clone(),
             Extension {
                 file_extension: file_ext,
-                libraries: ExtensionLibraries {
-                    source,
-                    sink,
-                    operator,
-                },
+                libraries,
             },
         );
 
-        self
+        Ok(self)
     }
 }
 
+/// Attempts to deserialise a set of [Extension] from the provided string.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - the string cannot be deserialised into a vector of [Extension],
+/// - any [Extension] does not provide valid libraries.
 pub fn deserialize_extensions<'de, D>(
     deserializer: D,
 ) -> std::result::Result<HashMap<Arc<str>, Extension>, D::Error>
@@ -101,11 +154,24 @@ where
     D: Deserializer<'de>,
 {
     let extensions: Vec<Extension> = serde::de::Deserialize::deserialize(deserializer)?;
-
-    Ok(extensions
+    let extensions_map = extensions
         .into_iter()
         .map(|extension| (extension.file_extension.clone(), extension))
-        .collect::<HashMap<_, _>>())
+        .collect::<HashMap<_, _>>();
+
+    #[cfg(not(feature = "test-utils"))]
+    {
+        for extension in extensions_map.values() {
+            extension.libraries.validate().map_err(|e| {
+                serde::de::Error::custom(format!(
+                    "Failed to validate the libraries for extension < {} >: {:?}",
+                    extension.file_extension, e
+                ))
+            })?;
+        }
+    }
+
+    Ok(extensions_map)
 }
 
 #[cfg(test)]

@@ -51,6 +51,70 @@ impl NodeSymbol {
     }
 }
 
+/// Validates that the library exposes the correct symbols for the provided constructor.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - the provided `node_symbol` is not found in the shared library,
+/// - the version of the rust compiler used to compile the node is not the same as the one used to compile the
+///   Zenoh-Flow runtime,
+/// - the version of Zenoh-Flow used to compile the node is not the same as the one used in the Zenoh-Flow runtime.
+pub(crate) fn validate_library<N>(library: &Library, node_symbol: &NodeSymbol) -> Result<()> {
+    let decl = unsafe {
+        library
+            .get::<*mut NodeDeclaration<N>>(node_symbol.to_bytes())?
+            .read()
+    };
+
+    // version checks to prevent accidental ABI incompatibilities
+    if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
+        if decl.rustc_version != RUSTC_VERSION {
+            bail!(
+                r#"
+It appears that the node was not compiled with the same version of the Rust compiler than Zenoh-Flow:
+- (expected, Zenoh-Flow): {}
+- (found, Node): {}
+"#,
+                RUSTC_VERSION,
+                decl.rustc_version,
+            )
+        }
+
+        bail!(
+            r#"
+It appears that the node was not compiled with the same version of Zenoh-Flow than that of this Zenoh-Flow runtime:
+- (expected, this Zenoh-Flow runtime): {}
+- (found, Node): {}
+"#,
+            CORE_VERSION,
+            decl.core_version,
+        )
+    }
+
+    Ok(())
+}
+
+/// Tries to get the node constructor from the shared library.
+///
+/// # Errors
+///
+/// This function will return an error if the shared library did not pass our validation check, see [validate_library].
+pub(crate) fn try_get_constructor<N>(
+    library: Arc<Library>,
+    node_symbol: &NodeSymbol,
+) -> Result<(N, Arc<Library>)> {
+    validate_library::<N>(&library, node_symbol)?;
+
+    let decl = unsafe {
+        library
+            .get::<*mut NodeDeclaration<N>>(node_symbol.to_bytes())?
+            .read()
+    };
+
+    Ok((decl.constructor, library))
+}
+
 /// The dynamic library loader.
 /// Before loading it verifies if the versions are compatible
 /// and if the symbols are presents.
@@ -105,7 +169,7 @@ impl Loader {
         node_symbol: &NodeSymbol,
     ) -> Result<(C, Arc<Library>)> {
         if let Some(library) = self.libraries.get(url) {
-            return self.try_get_constructor(library.clone(), node_symbol);
+            return try_get_constructor(library.clone(), node_symbol);
         }
 
         let library = Arc::new(match url.scheme() {
@@ -119,7 +183,7 @@ impl Loader {
             ),
         });
 
-        let (constructor, library) = self.try_get_constructor::<C>(library, node_symbol)?;
+        let (constructor, library) = try_get_constructor::<C>(library, node_symbol)?;
         self.libraries.insert(url.clone(), library.clone());
 
         Ok((constructor, library))
@@ -168,45 +232,5 @@ impl Loader {
                 library_path.display()
             ))?
         })
-    }
-
-    /// TODO@J-Loudet
-    fn try_get_constructor<N>(
-        &self,
-        library: Arc<Library>,
-        node_symbol: &NodeSymbol,
-    ) -> Result<(N, Arc<Library>)> {
-        let decl = unsafe {
-            library
-                .get::<*mut NodeDeclaration<N>>(node_symbol.to_bytes())?
-                .read()
-        };
-
-        // version checks to prevent accidental ABI incompatibilities
-        if decl.rustc_version != RUSTC_VERSION || decl.core_version != CORE_VERSION {
-            if decl.rustc_version != RUSTC_VERSION {
-                bail!(
-                    r#"
-It appears that the node was not compiled with the same version of the Rust compiler than Zenoh-Flow:
-- (expected, Zenoh-Flow): {}
-- (found, Node): {}
-"#,
-                    RUSTC_VERSION,
-                    decl.rustc_version,
-                )
-            }
-
-            bail!(
-                r#"
-It appears that the node was not compiled with the same version of Zenoh-Flow than that of this Zenoh-Flow runtime:
-- (expected, this Zenoh-Flow runtime): {}
-- (found, Node): {}
-"#,
-                CORE_VERSION,
-                decl.core_version,
-            )
-        }
-
-        Ok((decl.constructor, library))
     }
 }

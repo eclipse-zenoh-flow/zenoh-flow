@@ -86,19 +86,15 @@ extensions:
                     "Failed to parse ZenohFlowConfiguration with Zenoh inline + Extensions inline",
                 );
 
-        let expected_configuration = ZenohFlowConfiguration {
-            name: "My test daemon".into(),
-            extensions: Some(ExtensionsConfiguration::Extensions(
-                Extensions::default().add_extension(
-                    "py",
-                    "/home/zenoh-flow/extension/libpython_source.so".into(),
-                    "/home/zenoh-flow/extension/libpython_operator.so".into(),
-                    "/home/zenoh-flow/extension/libpython_sink.so".into(),
-                ),
-            )),
-        };
-
         assert_eq!(expected_configuration.name, config.name);
-        assert_eq!(expected_configuration.extensions, config.extensions);
+        assert!(config.extensions.is_some());
+        let config_extensions = config.extensions.unwrap();
+        assert!(matches!(
+            config_extensions,
+            ExtensionsConfiguration::Extensions(_)
+        ));
+        if let ExtensionsConfiguration::Extensions(extensions) = config_extensions {
+            assert!(extensions.get("py").is_some());
+        }
     }
 }
