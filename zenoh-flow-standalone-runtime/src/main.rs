@@ -62,7 +62,7 @@ async fn main() {
         None => Extensions::default(),
     };
 
-    let loader = Loader::new(extensions);
+    let loader = Loader::with_extensions(extensions);
 
     let vars = match cli.vars {
         Some(v) => Vars::from(v),

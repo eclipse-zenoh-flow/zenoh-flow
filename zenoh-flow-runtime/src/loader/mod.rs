@@ -13,7 +13,7 @@
 //
 
 mod extensions;
-pub use extensions::Extensions;
+pub use extensions::{Extension, Extensions};
 
 use anyhow::{anyhow, bail, Context};
 use libloading::Library;
@@ -133,11 +133,58 @@ pub struct Loader {
 
 impl Loader {
     /// Creates a new `Loader` with the given `Extensions`.
-    pub fn new(extensions: Extensions) -> Self {
+    pub fn new() -> Self {
+        Self {
+            extensions: Extensions::default(),
+            libraries: HashMap::default(),
+        }
+    }
+
+    pub fn with_extensions(extensions: Extensions) -> Self {
         Self {
             extensions,
             libraries: HashMap::default(),
         }
+    }
+
+    /// Attempts to add an extension to this Zenoh-Flow [runtime](crate::Runtime).
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if any of the library:
+    /// - does not expose the correct symbol (see these macros: [1], [2], [3]),
+    /// - was not compiled with the same Rust version,
+    /// - was not using the same Zenoh-Flow version as this Zenoh-Flow [runtime](crate::Runtime).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use zenoh_flow_runtime::Loader;
+    /// let mut loader = Loader::default();
+    /// loader.try_add_extension(
+    ///     "py",
+    ///     "/home/zenoh-flow/libpy_source.so",
+    ///     "/home/zenoh-flow/libpy_operator.so",
+    ///     "/home/zenoh-flow/libpy_sink.so",
+    /// ).unwrap();
+    /// ```
+    ///
+    /// [1]: zenoh_flow_nodes::prelude::export_source
+    /// [2]: zenoh_flow_nodes::prelude::export_operator
+    /// [3]: zenoh_flow_nodes::prelude::export_sink
+    pub fn try_add_extension(
+        &mut self,
+        file_extension: impl Into<String>,
+        source: impl Into<PathBuf>,
+        operator: impl Into<PathBuf>,
+        sink: impl Into<PathBuf>,
+    ) -> Result<Option<Extension>> {
+        self.extensions.try_add_extension(
+            file_extension,
+            source.into(),
+            operator.into(),
+            sink.into(),
+        )
     }
 
     pub fn remove_unused_libraries(&mut self) {

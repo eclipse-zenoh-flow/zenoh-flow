@@ -47,43 +47,6 @@ impl DerefMut for Extensions {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Hash, PartialEq, Eq)]
-pub struct Extension {
-    pub(crate) file_extension: Arc<str>,
-    pub(crate) libraries: ExtensionLibraries,
-}
-
-#[derive(Debug, Clone, Deserialize, Hash, PartialEq, Eq)]
-pub(crate) struct ExtensionLibraries {
-    pub(crate) source: PathBuf,
-    pub(crate) sink: PathBuf,
-    pub(crate) operator: PathBuf,
-}
-
-impl ExtensionLibraries {
-    /// Validates that all the libraries expose the correct symbols and were compiled with the same Rust and Zenoh-Flow
-    /// versions.
-    ///
-    /// # Errors
-    ///
-    /// This method will return an error if any of the library:
-    /// - does not expose the correct symbol,
-    /// - was not compiled with the same Rust version,
-    /// - was not using the same Zenoh-Flow version as this Zenoh-Flow [runtime](crate::Runtime).
-    pub(crate) fn validate(&self) -> Result<()> {
-        unsafe {
-            validate_library::<SourceFn>(&Library::new(&self.source)?, &NodeSymbol::Source)
-                .with_context(|| format!("{}", self.source.display()))?;
-            validate_library::<OperatorFn>(&Library::new(&self.operator)?, &NodeSymbol::Operator)
-                .with_context(|| format!("{}", self.operator.display()))?;
-            validate_library::<SinkFn>(&Library::new(&self.sink)?, &NodeSymbol::Sink)
-                .with_context(|| format!("{}", self.sink.display()))?;
-        }
-
-        Ok(())
-    }
-}
-
 impl Extensions {
     /// Returns the [PathBuf] of the library to load for the provided [NodeSymbol].
     ///
@@ -102,6 +65,8 @@ impl Extensions {
 
     /// Attempts to add an extension to this Zenoh-Flow [runtime](crate::Runtime).
     ///
+    /// Note that if a previous entry was added for the same file extension, the previous entry will be returned.
+    ///
     /// # Errors
     ///
     /// This method will return an error if any of the library:
@@ -113,14 +78,72 @@ impl Extensions {
     /// [2]: zenoh_flow_nodes::prelude::export_operator
     /// [3]: zenoh_flow_nodes::prelude::export_sink
     pub fn try_add_extension(
-        mut self,
-        file_extension: impl AsRef<str>,
+        &mut self,
+        file_extension: impl Into<String>,
         source: PathBuf,
         operator: PathBuf,
         sink: PathBuf,
-    ) -> Result<Self> {
-        let file_ext: Arc<str> = file_extension.as_ref().into();
-        let libraries = ExtensionLibraries {
+    ) -> Result<Option<Extension>> {
+        let file_ext: Arc<str> = file_extension.into().into();
+        let libraries = ExtensionLibraries::new(source, sink, operator)?;
+
+        Ok(self.insert(
+            file_ext.clone(),
+            Extension {
+                file_extension: file_ext,
+                libraries,
+            },
+        ))
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Hash, PartialEq, Eq)]
+pub struct Extension {
+    pub(crate) file_extension: Arc<str>,
+    pub(crate) libraries: ExtensionLibraries,
+}
+
+impl Extension {
+    /// Returns the file extension associated with this extension.
+    pub fn file_extension(&self) -> &str {
+        &self.file_extension
+    }
+
+    /// Returns the [path](PathBuf) of the shared library responsible for loading Source nodes for this file extension.
+    pub fn source(&self) -> &PathBuf {
+        &self.libraries.source
+    }
+
+    /// Returns the [path](PathBuf) of the shared library responsible for loading Operator nodes for this file
+    /// extension.
+    pub fn operator(&self) -> &PathBuf {
+        &self.libraries.operator
+    }
+
+    /// Returns the [path](PathBuf) of the shared library responsible for loading Sink nodes for this file extension.
+    pub fn sink(&self) -> &PathBuf {
+        &self.libraries.sink
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Hash, PartialEq, Eq)]
+pub(crate) struct ExtensionLibraries {
+    pub(crate) source: PathBuf,
+    pub(crate) sink: PathBuf,
+    pub(crate) operator: PathBuf,
+}
+
+impl ExtensionLibraries {
+    /// Return a new set of extension libraries after validating them.
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if any of the library:
+    /// - does not expose the correct symbol,
+    /// - was not compiled with the same Rust version,
+    /// - was not using the same Zenoh-Flow version as this Zenoh-Flow [runtime](crate::Runtime).
+    pub(crate) fn new(source: PathBuf, operator: PathBuf, sink: PathBuf) -> Result<Self> {
+        let libraries = Self {
             source,
             sink,
             operator,
@@ -128,15 +151,32 @@ impl Extensions {
 
         libraries.validate()?;
 
-        self.insert(
-            file_ext.clone(),
-            Extension {
-                file_extension: file_ext,
-                libraries,
-            },
-        );
+        Ok(libraries)
+    }
 
-        Ok(self)
+    /// Validates that all the libraries expose the correct symbols and were compiled with the same Rust and Zenoh-Flow
+    /// versions.
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if any of the library:
+    /// - does not expose the correct symbol,
+    /// - was not compiled with the same Rust version,
+    /// - was not using the same Zenoh-Flow version as this Zenoh-Flow [runtime](crate::Runtime).
+    //
+    // NOTE: We are separating this method from the `new` method because, when we deserialise this structure, we need to
+    // call `validate` after creating it.
+    pub(crate) fn validate(&self) -> Result<()> {
+        unsafe {
+            validate_library::<SourceFn>(&Library::new(&self.source)?, &NodeSymbol::Source)
+                .with_context(|| format!("{}", self.source.display()))?;
+            validate_library::<OperatorFn>(&Library::new(&self.operator)?, &NodeSymbol::Operator)
+                .with_context(|| format!("{}", self.operator.display()))?;
+            validate_library::<SinkFn>(&Library::new(&self.sink)?, &NodeSymbol::Sink)
+                .with_context(|| format!("{}", self.sink.display()))?;
+        }
+
+        Ok(())
     }
 }
 
@@ -147,7 +187,7 @@ impl Extensions {
 /// This function will return an error if:
 /// - the string cannot be deserialised into a vector of [Extension],
 /// - any [Extension] does not provide valid libraries.
-pub fn deserialize_extensions<'de, D>(
+pub(crate) fn deserialize_extensions<'de, D>(
     deserializer: D,
 ) -> std::result::Result<HashMap<Arc<str>, Extension>, D::Error>
 where

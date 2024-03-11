@@ -28,11 +28,11 @@ pub mod runtime;
 use anyhow::{anyhow, bail};
 use flume::{Receiver, Sender};
 use serde::Deserialize;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use uhlc::HLC;
 use zenoh::{prelude::r#async::*, queryable::Query};
 use zenoh_flow_commons::{try_parse_from_file, Result, Vars};
-use zenoh_flow_runtime::{Extensions, Loader, Runtime};
+use zenoh_flow_runtime::{Extension, Extensions, Loader, Runtime};
 
 use crate::configuration::ExtensionsConfiguration;
 
@@ -56,7 +56,7 @@ pub struct DaemonBuilder {
     zenoh_session: Arc<Session>,
     hlc: Arc<HLC>,
     name: Arc<str>,
-    extensions: Extensions,
+    loader: Loader,
 }
 
 impl DaemonBuilder {
@@ -80,16 +80,22 @@ impl DaemonBuilder {
             zenoh_session,
             hlc,
             name,
-            extensions: Extensions::default(),
+            loader: Loader::default(),
         }
     }
 
     /// TODO
     ///
     /// To provide a set of supported extensions.
-    pub fn extensions(mut self, extensions: Extensions) -> Self {
-        self.extensions = extensions;
-        self
+    pub fn try_add_extension(
+        &mut self,
+        file_extension: impl Into<String>,
+        source: impl Into<PathBuf>,
+        operator: impl Into<PathBuf>,
+        sink: impl Into<PathBuf>,
+    ) -> Result<Option<Extension>> {
+        self.loader
+            .try_add_extension(file_extension, source, operator, sink)
     }
 
     /// TODO
@@ -107,7 +113,7 @@ impl DaemonBuilder {
         let zenoh_flow_runtime = Arc::new(Runtime::new(
             runtime_id,
             self.name,
-            Loader::new(self.extensions),
+            self.loader,
             self.hlc,
             self.zenoh_session.clone(),
         ));
@@ -192,7 +198,7 @@ impl Daemon {
             zenoh_session,
             hlc: Arc::new(HLC::default()),
             name: configuration.name,
-            extensions,
+            loader: Loader::with_extensions(extensions),
         })
     }
 
