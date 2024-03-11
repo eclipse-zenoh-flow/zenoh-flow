@@ -16,7 +16,7 @@ mod instance;
 pub use instance::{DataFlowInstance, InstanceState, InstanceStatus};
 
 mod loader;
-pub use loader::{Extensions, Loader};
+pub use loader::{Extension, Extensions, Loader};
 
 #[cfg(feature = "shared-memory")]
 mod shared_memory;
