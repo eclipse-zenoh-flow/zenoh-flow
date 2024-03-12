@@ -15,31 +15,36 @@
 use crate::runners::Runner;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, ops::Deref};
+use uhlc::{Timestamp, HLC};
 use zenoh_flow_commons::{NodeId, Result, RuntimeId};
 use zenoh_flow_records::DataFlowRecord;
 
 pub struct DataFlowInstance {
-    state: InstanceState,
+    pub(crate) state: InstanceState,
     pub(crate) record: DataFlowRecord,
     pub(crate) runners: HashMap<NodeId, Runner>,
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize, Debug)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 pub enum InstanceState {
-    Loaded,
-    Running,
-    Aborted,
+    Creating(Timestamp),
+    Loaded(Timestamp),
+    Running(Timestamp),
+    Aborted(Timestamp),
+    Failed((Timestamp, String)),
 }
 
 impl Display for InstanceState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let repr = match self {
-            InstanceState::Loaded => "Loaded",
-            InstanceState::Running => "Running",
-            InstanceState::Aborted => "Aborted",
-        };
-
-        write!(f, "{}", repr)
+        match self {
+            InstanceState::Creating(ts) => write!(f, "Creation started on {}", ts.get_time()),
+            InstanceState::Loaded(ts) => write!(f, "Loaded on {}", ts.get_time()),
+            InstanceState::Running(ts) => write!(f, "Running since {}", ts.get_time()),
+            InstanceState::Aborted(ts) => write!(f, "Aborted on {}", ts.get_time()),
+            InstanceState::Failed((ts, reason)) => {
+                write!(f, "Failed on {} with:\n{}", ts.get_time(), reason)
+            }
+        }
     }
 }
 
@@ -59,31 +64,31 @@ impl Deref for DataFlowInstance {
 }
 
 impl DataFlowInstance {
-    pub fn new(record: DataFlowRecord) -> Self {
+    pub fn new(record: DataFlowRecord, hlc: &HLC) -> Self {
         Self {
-            state: InstanceState::Loaded,
+            state: InstanceState::Creating(hlc.new_timestamp()),
             record,
             runners: HashMap::default(),
         }
     }
 
-    pub async fn start(&mut self) -> Result<()> {
+    pub async fn start(&mut self, hlc: &HLC) -> Result<()> {
         for (node_id, runner) in self.runners.iter_mut() {
             runner.start().await?;
             tracing::trace!("Started node < {} >", node_id);
         }
 
-        self.state = InstanceState::Running;
+        self.state = InstanceState::Running(hlc.new_timestamp());
         Ok(())
     }
 
-    pub async fn abort(&mut self) {
+    pub async fn abort(&mut self, hlc: &HLC) {
         for (node_id, runner) in self.runners.iter_mut() {
             runner.abort().await;
             tracing::trace!("Aborted node < {} >", node_id);
         }
 
-        self.state = InstanceState::Aborted;
+        self.state = InstanceState::Aborted(hlc.new_timestamp());
     }
 
     pub fn state(&self) -> &InstanceState {
@@ -93,21 +98,16 @@ impl DataFlowInstance {
     pub fn status(&self, runtime_id: &RuntimeId) -> InstanceStatus {
         InstanceStatus {
             runtime_id: runtime_id.clone(),
-            state: self.state,
+            state: self.state.clone(),
             nodes: self
-                .mapping()
-                .get(runtime_id)
-                .map(|node_ids| {
-                    node_ids
-                        .iter()
-                        .filter(|&node_id| {
-                            !(self.senders().contains_key(node_id)
-                                || self.receivers().contains_key(node_id))
-                        })
-                        .cloned()
-                        .collect()
+                .runners
+                .keys()
+                .filter(|&node_id| {
+                    !(self.senders().contains_key(node_id)
+                        || self.receivers().contains_key(node_id))
                 })
-                .unwrap_or_default(),
+                .cloned()
+                .collect(),
         }
     }
 }

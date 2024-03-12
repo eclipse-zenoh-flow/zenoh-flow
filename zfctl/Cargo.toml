@@ -34,6 +34,7 @@ comfy-table = "7.1.0"
 derive_more = "0.99.10"
 dirs = "5.0"
 git-version = { workspace = true }
+itertools = "0.12"
 log = { workspace = true }
 rand = "0.8.3"
 semver = { version = "1.0.4", features = ["serde"] }

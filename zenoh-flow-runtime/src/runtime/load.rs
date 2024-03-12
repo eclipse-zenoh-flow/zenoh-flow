@@ -27,6 +27,7 @@ use super::Runtime;
 use crate::loader::NodeSymbol;
 use crate::runners::builtin::zenoh::sink::ZenohSink;
 use crate::runners::builtin::zenoh::source::ZenohSource;
+use crate::InstanceState;
 use crate::{instance::DataFlowInstance, runners::Runner};
 
 use std::collections::HashMap;
@@ -59,7 +60,7 @@ impl Runtime {
         // To achieve 2. when we want to load an instance we insert in `self.flows` a **locked** lock of the instance
         // we are trying to create.
         let instance_id = data_flow.instance_id().clone();
-        let instance = Arc::new(RwLock::new(DataFlowInstance::new(data_flow)));
+        let instance = Arc::new(RwLock::new(DataFlowInstance::new(data_flow, &self.hlc)));
         let mut instance_guard = instance.write().await;
 
         let mut flows_guard = self.flows.write().await;
@@ -88,34 +89,78 @@ impl Runtime {
         let mut runners = HashMap::<NodeId, Runner>::default();
         let data_flow = &instance_guard.record;
 
-        let mut channels = self.create_channels(data_flow)?;
+        // NOTE: By wrapping all the calls in a named block we avoid having to separately call `map_err` and set the
+        // data flow instance in a failed state.
+        //
+        // We process the `load_result` once at the end of the block.
+        let load_result = 'load: {
+            let mut channels = match self.create_channels(data_flow) {
+                Ok(channels) => channels,
+                Err(e) => break 'load Err(e),
+            };
 
-        let context = Context::new(
-            data_flow.name().clone(),
-            data_flow.instance_id().clone(),
-            self.runtime_id.clone(),
-        );
+            let context = Context::new(
+                data_flow.name().clone(),
+                data_flow.instance_id().clone(),
+                self.runtime_id.clone(),
+            );
 
-        runners.extend(
-            self.try_load_operators(data_flow, &mut channels, context.clone())
-                .await?,
-        );
-        runners.extend(
-            self.try_load_sources(data_flow, &mut channels, context.clone())
-                .await?,
-        );
-        runners.extend(
-            self.try_load_sinks(data_flow, &mut channels, context.clone())
-                .await?,
-        );
+            runners.extend(
+                match self
+                    .try_load_operators(data_flow, &mut channels, context.clone())
+                    .await
+                {
+                    Ok(operators) => operators,
+                    Err(e) => break 'load Err(e),
+                },
+            );
 
-        #[cfg(feature = "zenoh")]
-        {
-            runners.extend(self.try_load_receivers(data_flow, &mut channels).await?);
-            runners.extend(self.try_load_senders(data_flow, &mut channels)?);
+            runners.extend(
+                match self
+                    .try_load_sources(data_flow, &mut channels, context.clone())
+                    .await
+                {
+                    Ok(sources) => sources,
+                    Err(e) => break 'load Err(e),
+                },
+            );
+
+            runners.extend(
+                match self
+                    .try_load_sinks(data_flow, &mut channels, context.clone())
+                    .await
+                {
+                    Ok(sinks) => sinks,
+                    Err(e) => break 'load Err(e),
+                },
+            );
+
+            #[cfg(feature = "zenoh")]
+            {
+                runners.extend(
+                    match self.try_load_receivers(data_flow, &mut channels).await {
+                        Ok(receivers) => receivers,
+                        Err(e) => break 'load Err(e),
+                    },
+                );
+                runners.extend(match self.try_load_senders(data_flow, &mut channels) {
+                    Ok(senders) => senders,
+                    Err(e) => break 'load Err(e),
+                });
+            }
+
+            Ok(())
+        };
+
+        if let Err(e) = load_result {
+            instance_guard.state =
+                InstanceState::Failed((self.hlc.new_timestamp(), format!("{e:?}")));
+            return Err(e);
         }
 
         instance_guard.runners = runners;
+        instance_guard.state = InstanceState::Loaded(self.hlc.new_timestamp());
+
         Ok(())
     }
 

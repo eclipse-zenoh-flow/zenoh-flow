@@ -33,6 +33,7 @@ flume = { workspace = true }
 futures = { workspace = true }
 libloading = "0.8"
 serde = { workspace = true }
+thiserror = "1"
 tracing = { workspace = true }
 uhlc = { workspace = true }
 url = { workspace = true }

@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{InstanceId, RuntimeId};
-use zenoh_flow_runtime::Runtime;
+use zenoh_flow_runtime::{DataFlowErr, Runtime};
 
 /// Query all the runtimes to delete the provided data flow instance.
 pub(crate) async fn query_delete(
@@ -71,16 +71,22 @@ pub(crate) async fn query_delete(
 pub(crate) fn delete_instance(runtime: Arc<Runtime>, origin: Origin, instance_id: InstanceId) {
     async_std::task::spawn(async move {
         if matches!(origin, Origin::Client) {
-            if let Some(record) = runtime.get_record(&instance_id).await {
-                query_delete(
-                    &runtime.session(),
-                    record
-                        .mapping()
-                        .keys()
-                        .filter(|&runtime_id| runtime_id != runtime.id()),
-                    &instance_id,
-                )
-                .await;
+            match runtime.try_get_record(&instance_id).await {
+                Ok(record) => {
+                    query_delete(
+                        &runtime.session(),
+                        record
+                            .mapping()
+                            .keys()
+                            .filter(|&runtime_id| runtime_id != runtime.id()),
+                        &instance_id,
+                    )
+                    .await
+                }
+                Err(DataFlowErr::NotFound) => return,
+                // NOTE: If the data flow is in a failed state we still want to process the delete request but only on
+                // this runtime.
+                Err(DataFlowErr::FailedState) => {}
             }
         }
 

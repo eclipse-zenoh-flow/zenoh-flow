@@ -28,6 +28,7 @@ use std::{
 
 use anyhow::{anyhow, bail};
 use async_std::sync::{Mutex, RwLock};
+use thiserror::Error;
 use uhlc::HLC;
 #[cfg(feature = "zenoh")]
 use zenoh::Session;
@@ -46,6 +47,14 @@ pub struct Runtime {
     pub(crate) shared_memory: SharedMemoryConfiguration,
     pub(crate) loader: Mutex<Loader>,
     flows: RwLock<HashMap<InstanceId, Arc<RwLock<DataFlowInstance>>>>,
+}
+
+#[derive(Error, Debug)]
+pub enum DataFlowErr {
+    #[error("found no data flow with the provided id")]
+    NotFound,
+    #[error("the data flow is in a failed state, unable to process the request")]
+    FailedState,
 }
 
 impl Debug for Runtime {
@@ -87,7 +96,7 @@ impl Runtime {
             let instance = instance_lck.read().await;
             states.insert(
                 instance_id.clone(),
-                (instance.name().clone(), *instance.state()),
+                (instance.name().clone(), instance.state().clone()),
             );
         }
 
@@ -133,14 +142,28 @@ impl Runtime {
         }
     }
 
-    /// Returns the [DataFlowRecord] associated with the provided instance.
-    pub async fn get_record(&self, id: &InstanceId) -> Option<DataFlowRecord> {
+    /// Returns the [DataFlowRecord] associated with the provided instance, *if that instance is not in a failed state*.
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if:
+    /// - this runtime does not manage a data flow with the provided id,
+    /// - the data flow is in an failed state.
+    pub async fn try_get_record(
+        &self,
+        id: &InstanceId,
+    ) -> std::result::Result<DataFlowRecord, DataFlowErr> {
         let flows = self.flows.read().await;
         if let Some(instance) = flows.get(id) {
-            return Some(instance.read().await.record.clone());
+            let instance_guard = instance.read().await;
+            if !matches!(instance_guard.state, InstanceState::Failed(_)) {
+                return Ok(instance_guard.record.clone());
+            }
+
+            return Err(DataFlowErr::FailedState);
         }
 
-        None
+        Err(DataFlowErr::NotFound)
     }
 
     /// Returns the [status](InstanceStatus) of the provided data flow instance or `None` if this runtime does not
@@ -159,12 +182,28 @@ impl Runtime {
         None
     }
 
-    async fn try_get_instance(&self, id: &InstanceId) -> Result<Arc<RwLock<DataFlowInstance>>> {
+    /// Tries to retrieve the [DataFlowInstance] matching the provided [id](InstanceId) from the Zenoh-Flow runtime.
+    ///
+    /// # Errors
+    ///
+    /// This method will fail if:
+    /// - this runtime manages no data flow with the provided instance id,
+    /// - the data flow is in a failed state.
+    ///
+    /// Data Flow that are in a failed state cannot be started or aborted. They can provide their status or be deleted.
+    async fn try_get_instance(
+        &self,
+        id: &InstanceId,
+    ) -> std::result::Result<Arc<RwLock<DataFlowInstance>>, DataFlowErr> {
         let flows_guard = self.flows.read().await;
-        flows_guard
-            .get(id)
-            .cloned()
-            .ok_or_else(|| anyhow!("Found no Data Flow with id < {} >", id))
+
+        let instance = flows_guard.get(id).cloned().ok_or(DataFlowErr::NotFound)?;
+
+        if matches!(instance.read().await.state, InstanceState::Failed(_)) {
+            return Err(DataFlowErr::FailedState);
+        }
+
+        Ok(instance)
     }
 
     #[tracing::instrument(name = "start", skip(self, id), fields(instance = %id))]
@@ -172,7 +211,7 @@ impl Runtime {
         let instance = self.try_get_instance(id).await?;
         let mut instance_guard = instance.write().await;
 
-        instance_guard.start().await?;
+        instance_guard.start(&self.hlc).await?;
 
         tracing::info!("started");
 
@@ -186,13 +225,13 @@ impl Runtime {
     pub async fn try_abort_instance(&self, id: &InstanceId) -> Result<()> {
         let instance = self.try_get_instance(id).await?;
 
-        if !matches!(instance.read().await.state(), &InstanceState::Running) {
+        if !matches!(instance.read().await.state(), &InstanceState::Running(_)) {
             return Ok(());
         }
 
         let mut instance_guard = instance.write().await;
 
-        instance_guard.abort().await;
+        instance_guard.abort(&self.hlc).await;
 
         tracing::info!("aborted");
 
@@ -226,7 +265,7 @@ impl Runtime {
             }
         };
 
-        instance.abort().await;
+        instance.abort(&self.hlc).await;
 
         drop(instance); // Forcefully drop the instance so we can check if we can free up some Libraries.
         self.loader.lock().await.remove_unused_libraries();

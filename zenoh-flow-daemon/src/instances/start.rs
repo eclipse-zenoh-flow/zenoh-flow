@@ -66,11 +66,8 @@ Caused by:
         // -------------------------------------------------------------------------------------------------------------
 
         let record = return_if_err!(
-            runtime
-                .get_record(&instance_id)
-                .await
-                .ok_or(anyhow::anyhow!("Not found")),
-            "Found no data flow with id: {}",
+            runtime.try_get_record(&instance_id).await,
+            "Could not get record associated with < {} >",
             instance_id
         );
 

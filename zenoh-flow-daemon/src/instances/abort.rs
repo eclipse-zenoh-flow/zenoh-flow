@@ -23,22 +23,25 @@ use zenoh_flow_runtime::Runtime;
 pub(crate) fn abort(runtime: Arc<Runtime>, origin: Origin, instance_id: InstanceId) {
     async_std::task::spawn(async move {
         if matches!(origin, Origin::Client) {
-            if let Some(record) = runtime.get_record(&instance_id).await {
-                query_abort(
-                    &runtime.session(),
-                    record
-                        .mapping()
-                        .keys()
-                        .filter(|&runtime_id| runtime_id != runtime.id()),
-                    &instance_id,
-                )
-                .await;
-            } else {
-                tracing::error!(
-                    "No data flow instance with id < {} > was found",
-                    instance_id
-                );
-                return;
+            match runtime.try_get_record(&instance_id).await {
+                Ok(record) => {
+                    query_abort(
+                        &runtime.session(),
+                        record
+                            .mapping()
+                            .keys()
+                            .filter(|&runtime_id| runtime_id != runtime.id()),
+                        &instance_id,
+                    )
+                    .await
+                }
+                Err(e) => {
+                    tracing::error!(
+                        "Could not get record of data flow < {} >: {e:?}",
+                        instance_id
+                    );
+                    return;
+                }
             }
         }
 
