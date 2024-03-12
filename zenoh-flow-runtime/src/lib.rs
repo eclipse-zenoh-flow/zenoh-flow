@@ -24,7 +24,7 @@ mod shared_memory;
 mod runners;
 
 mod runtime;
-pub use runtime::Runtime;
+pub use runtime::{DataFlowErr, Runtime};
 
 #[cfg(feature = "zenoh")]
 pub mod zenoh {

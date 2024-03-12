@@ -21,6 +21,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, bail};
 use clap::Subcommand;
 use comfy_table::Table;
+use itertools::Itertools;
 use uuid::Uuid;
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{parse_vars, Result, RuntimeId, Vars};
@@ -182,17 +183,12 @@ Caused by:
                             match serde_json::from_slice::<InstanceStatus>(
                                 &sample.value.payload.contiguous(),
                             ) {
-                                Ok(mut status) => {
-                                    if let Some(node_id) = status.nodes.pop() {
-                                        table.add_row(row!(
-                                            status.runtime_id,
-                                            status.state,
-                                            node_id
-                                        ));
-                                        status.nodes.iter().for_each(|node_id| {
-                                            table.add_row(row!("", "", node_id));
-                                        });
-                                    }
+                                Ok(status) => {
+                                    table.add_row(row!(
+                                        status.runtime_id,
+                                        status.state,
+                                        status.nodes.iter().join(", ")
+                                    ));
                                 }
                                 Err(e) => tracing::error!(
                                     "Failed to parse 'status' reply from < {} >: {:?}",
