@@ -21,10 +21,12 @@ use uhlc::{Timestamp, HLC};
 use zenoh_flow_commons::{NodeId, Result, RuntimeId};
 use zenoh_flow_records::DataFlowRecord;
 
-/// A `DataFlowInstance` is the ready-to-run (possibly running) instance of a [data flow](DataFlowRecord).
+/// A `DataFlowInstance` keeps track of the parts of a data flow managed by the Zenoh-Flow runtime.
 ///
-/// A Zenoh-Flow [runtime](crate::Runtime) will provide access to each instance in a concurrency safe manner:
-/// considering the distributed nature of Zenoh-Flow, concurrent requests on the same instance can be made.
+/// A `DataFlowInstance` structure is thus *local* to a Zenoh-Flow runtime. For a data flow that spawns on multiple
+/// runtimes, there will be one such structure at each runtime.
+///
+/// All instances will share the same [record](DataFlowRecord) but their internal state will differ.
 pub struct DataFlowInstance {
     pub(crate) state: InstanceState,
     pub(crate) record: DataFlowRecord,
@@ -39,6 +41,10 @@ pub struct DataFlowInstance {
 /// [runtime]: crate::Runtime
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub enum InstanceState {
+    /// A [runtime] listing a [DataFlowInstance] in the `Creating` state is in the process of loading all the nodes it
+    /// manages.
+    ///
+    /// [runtime]: crate::Runtime
     Creating(Timestamp),
     /// A [runtime] listing a [DataFlowInstance] in the `Loaded` state successfully instantiated all the nodes it manages
     /// and is ready to start them.
@@ -59,6 +65,12 @@ pub enum InstanceState {
     ///
     /// [runtime]: crate::Runtime
     Aborted(Timestamp),
+    /// A [runtime] listing a [DataFlowInstance] in the `Failed` state failed to load at least one of the nodes of this
+    /// instance it manages.
+    ///
+    /// A data flow in the `Failed` state can only be deleted.
+    ///
+    /// [runtime]: crate::Runtime
     Failed((Timestamp, String)),
 }
 
@@ -76,10 +88,22 @@ impl Display for InstanceState {
     }
 }
 
+/// The `InstanceStatus` provides information about the data flow instance.
+///
+/// It details:
+/// - from which runtime this information comes from (through its [identifier](RuntimeId)),
+/// - the [state](InstanceState) of the data flow instance,
+/// - the list of nodes (through their [identifier](NodeId)) the runtime manages --- and thus for which the state
+///   applies.
+///
+/// This information is what is displayed by the `zfctl` tool when requesting the status of a data flow instance.
 #[derive(Deserialize, Serialize, Debug)]
 pub struct InstanceStatus {
+    /// The identifier of the [runtime](crate::Runtime) this information comes from.
     pub runtime_id: RuntimeId,
+    /// The state of the data flow instance --- on this runtime.
     pub state: InstanceState,
+    /// The nodes managed by this runtime, for which the state applies.
     pub nodes: Vec<NodeId>,
 }
 
@@ -92,7 +116,8 @@ impl Deref for DataFlowInstance {
 }
 
 impl DataFlowInstance {
-    pub fn new(record: DataFlowRecord, hlc: &HLC) -> Self {
+    /// Creates a new `DataFlowInstance`, setting its state to [Creating](InstanceState::Creating).
+    pub(crate) fn new(record: DataFlowRecord, hlc: &HLC) -> Self {
         Self {
             state: InstanceState::Creating(hlc.new_timestamp()),
             record,
@@ -100,6 +125,16 @@ impl DataFlowInstance {
         }
     }
 
+    /// (re-)Starts the `DataFlowInstance`.
+    ///
+    /// The [hlc](HLC) is required to keep track of when this call was made.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail when attempting to re-start: when re-starting a data flow, the method
+    /// [on_resume] is called for each node and is faillible.
+    ///
+    /// [on_resume]: zenoh_flow_nodes::prelude::Node::on_resume()
     pub async fn start(&mut self, hlc: &HLC) -> Result<()> {
         for (node_id, runner) in self.runners.iter_mut() {
             runner.start().await?;
@@ -110,6 +145,9 @@ impl DataFlowInstance {
         Ok(())
     }
 
+    /// Aborts the `DataFlowInstance`.
+    ///
+    /// The [hlc](HLC) is required to keep track of when this call was made.
     pub async fn abort(&mut self, hlc: &HLC) {
         for (node_id, runner) in self.runners.iter_mut() {
             runner.abort().await;
@@ -119,10 +157,15 @@ impl DataFlowInstance {
         self.state = InstanceState::Aborted(hlc.new_timestamp());
     }
 
+    /// Returns the [state](InstanceState) of this `DataFlowInstance`.
     pub fn state(&self) -> &InstanceState {
         &self.state
     }
 
+    /// Returns the [status](InstanceStatus) of this `DataFlowInstance`.
+    ///
+    /// This structure was intended as a way to retrieve and display information about the instance. This is what the
+    /// `zfctl` tool leverages for its `instance status` command.
     pub fn status(&self, runtime_id: &RuntimeId) -> InstanceStatus {
         InstanceStatus {
             runtime_id: runtime_id.clone(),

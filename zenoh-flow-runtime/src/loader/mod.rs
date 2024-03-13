@@ -117,15 +117,28 @@ pub(crate) fn try_get_constructor<N>(
 }
 
 /// The dynamic library loader.
-/// Before loading it verifies if the versions are compatible
-/// and if the symbols are presents.
-/// It loads the files in different way depending on the operating system.
-/// In particular the scope of the symbols is different between Unix and
-/// Windows.
-/// In Unix system the symbols are loaded with the flags:
 ///
-/// - `RTLD_NOW` load all the symbols when loading the library.
-/// - `RTLD_LOCAL` keep all the symbols local.
+/// This structure is responsible for:
+/// 1. loading the shared libraries containing the implementation of the nodes,
+/// 2. keeping track of these libraries to avoid loading several times the same one,
+/// 3. leveraging the [Extension]s to load "non-standard" node implementation.
+///
+/// Note that "non-standard" libraries are libraries that have an extension that is different than
+/// [DLL_EXTENSION](std::env::consts::DLL_EXTENSION) --- e.g. different than `.so` on Linux-based systems.
+///
+/// Before calling the constructor of any node, the loader will perform the following checks:
+/// - it will check that the node implementation was compiled with the same version of the Rust compiler than the
+///   Zenoh-Flow runtime it belongs to,
+/// - it will check that the node implementation was using the same version of the Zenoh-Flow library than the
+///   Zenoh-Flow runtime it belongs to.
+///
+/// To do these checks, the loader is expecting to find specific symbols (different for each type of node). These
+/// symbols are automatically exported via the respective procedural macros: [export_source], [export_operator],
+/// [export_sink].
+///
+/// [export_source]: zenoh_flow_nodes::prelude::export_source
+/// [export_operator]: zenoh_flow_nodes::prelude::export_operator
+/// [export_sink]: zenoh_flow_nodes::prelude::export_sink
 #[derive(Default)]
 pub(crate) struct Loader {
     pub(crate) extensions: Extensions,
@@ -166,14 +179,15 @@ impl Loader {
         operator: impl Into<PathBuf>,
         sink: impl Into<PathBuf>,
     ) -> Result<Option<Extension>> {
-        self.extensions.try_add_extension(
-            file_extension,
-            source.into(),
-            operator.into(),
-            sink.into(),
-        )
+        self.extensions
+            .try_add_extension(file_extension, source, operator, sink)
     }
 
+    /// This method will free the shared libraries that are no longer being used.
+    ///
+    /// Every time a data flow is created, each node will receive an `Arc<Library>` of the shared library it
+    /// depends. Once a data flow is deleted, the `strong_count` of all the libraries used is diminished by one and this
+    /// method is called after to see if any count has reached 1. If so, that library can be safely dropped.
     pub(crate) fn remove_unused_libraries(&mut self) {
         let number_libraries = self.libraries.len();
         self.libraries
@@ -184,6 +198,21 @@ impl Loader {
         );
     }
 
+    /// Given a [Url] and a [NodeSymbol], attempt to load the node constructor.
+    ///
+    /// This method will first look into its cache of shared libraries and check if it does not already know of a
+    /// library with the same Url.
+    ///
+    /// If it does then it will reuse this library.
+    ///
+    /// If not, it will attempt to load it and check its compatibility.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail for the following reasons:
+    /// - the provided Url specifies a scheme that we do not support (for now only "file://" is supported),
+    /// - we failed to load the library from the provided Url (e.g. file not found),
+    /// - the library does not expose the correct symbol or is not compatible with this Zenoh-Flow runtime.
     pub(crate) fn try_load_constructor<C>(
         &mut self,
         url: &Url,
@@ -210,7 +239,16 @@ impl Loader {
         Ok((constructor, library))
     }
 
-    /// TODO@J-Loudet
+    /// Given the string representation of a path, attempts to load a library.
+    ///
+    /// This method will look at the file extension to determine if it should leverage the [Extensions] or not.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if:
+    /// - the extension of the path is not supported (i.e. not [DLL_EXTENSION] and not in the [Extensions]),
+    /// - there is no file in the provided path,
+    /// - the libloading crate failed to create a `Library` using the provided path.
     pub(crate) fn try_load_library_from_uri(
         &self,
         path: &str,

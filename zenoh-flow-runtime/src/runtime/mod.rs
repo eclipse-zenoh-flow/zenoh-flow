@@ -40,6 +40,14 @@ use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{InstanceId, Result, RuntimeId};
 use zenoh_flow_records::DataFlowRecord;
 
+/// A Zenoh-Flow runtime manages the nodes of [DataFlowInstance]\(s\).
+///
+/// In order to start a data flow, a Zenoh-Flow runtime should first be created and then tasked with loading and
+/// starting the nodes *it is responsible for*.
+///
+/// It is important to note here that, on its own, a Zenoh-Flow runtime will not contact other runtimes to coordinate
+/// the start of a data flow. If a data flow spawns on multiple runtimes, one needs to start each separately. Otherwise,
+/// the Zenoh-Flow daemon structure has been especially designed to address this use-case.
 pub struct Runtime {
     pub(crate) name: Arc<str>,
     pub(crate) runtime_id: RuntimeId,
@@ -52,10 +60,12 @@ pub struct Runtime {
     flows: RwLock<HashMap<InstanceId, Arc<RwLock<DataFlowInstance>>>>,
 }
 
+/// This enumeration defines the errors one can face when trying to access a [DataFlowInstance].
 #[derive(Error, Debug)]
 pub enum DataFlowErr {
     #[error("found no data flow with the provided id")]
     NotFound,
+    /// A [DataFlowInstance] in a failed state cannot be manipulated, only deleted.
     #[error("the data flow is in a failed state, unable to process the request")]
     FailedState,
 }
@@ -93,9 +103,7 @@ impl Runtime {
         self.hlc.clone()
     }
 
-    /// Returns information regarding the data flows that are running on this Zenoh-Flow runtime.
-    ///
-    /// For each instance of a data flow, returns its unique identifier, its name and its state.
+    /// Returns the [InstanceState] of the [DataFlowInstance]\(s\) managed by this Zenoh-Flow runtime.
     pub async fn instances_state(&self) -> HashMap<InstanceId, (Arc<str>, InstanceState)> {
         let flows = self.flows.read().await;
         let mut states = HashMap::with_capacity(flows.len());
