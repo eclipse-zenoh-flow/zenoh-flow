@@ -17,7 +17,7 @@
 //! If the feature `zenoh` is enabled (it is by default), this crate additionally re-exports the structures from
 //! [Zenoh](zenoh) that allow opening a [Session](zenoh::Session) *asynchronously*.
 //!
-//! Users interested in exposing a Zenoh-Flow runtime should start with the [Runtime] and [Loader] structures.
+//! Users interested in exposing a Zenoh-Flow runtime should find everything in the [Runtime] and [RuntimeBuilder].
 //!
 //! Users interested in fetching the state of a data flow instance should look into the [DataFlowInstance],
 //! [InstanceState] and [InstanceStatus] structures. These structures are leveraged by the `zfctl` command line tool.

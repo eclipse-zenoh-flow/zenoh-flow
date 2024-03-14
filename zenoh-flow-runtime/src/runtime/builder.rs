@@ -120,7 +120,7 @@ impl RuntimeBuilder {
         Ok(self)
     }
 
-    /// Attempts to add a single [Extension] to the list of extensions supported by this Runtime.
+    /// Attempts to add a single [Extension](crate::Extension) to the list of extensions supported by this Runtime.
     ///
     /// If a previous extension was already declared for the same file extension, the newly added extension will
     /// override the previous value.

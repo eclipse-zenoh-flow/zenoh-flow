@@ -135,7 +135,7 @@ impl Extensions {
 /// should load and (ii) how it should make these shared libraries "load" the node implementation.
 ///
 /// To support an extension on a Zenoh-Flow runtime, one can either detail them in the configuration file of the runtime
-/// or through the dedicated [method](crate::Loader::try_add_extension()).
+/// or through the dedicated [method](crate::RuntimeBuilder::add_extension()).
 ///
 /// # Example configuration
 ///
