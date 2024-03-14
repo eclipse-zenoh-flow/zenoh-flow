@@ -40,6 +40,14 @@ use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{InstanceId, Result, RuntimeId};
 use zenoh_flow_records::DataFlowRecord;
 
+/// A Zenoh-Flow runtime manages a subset of the nodes of [DataFlowInstance]\(s\).
+///
+/// In order to start a data flow, a Zenoh-Flow runtime should first be created and then tasked with loading and
+/// starting the nodes *it is responsible for*.
+///
+/// It is important to note here that, on its own, a Zenoh-Flow runtime will not contact other runtimes to coordinate
+/// the start of a data flow. If a data flow spawns on multiple runtimes, one needs to start each separately. Otherwise,
+/// the Zenoh-Flow daemon structure has been especially designed to address this use-case.
 pub struct Runtime {
     pub(crate) name: Arc<str>,
     pub(crate) runtime_id: RuntimeId,
@@ -52,10 +60,12 @@ pub struct Runtime {
     flows: RwLock<HashMap<InstanceId, Arc<RwLock<DataFlowInstance>>>>,
 }
 
+/// This enumeration defines the errors one can face when trying to access a [DataFlowInstance].
 #[derive(Error, Debug)]
 pub enum DataFlowErr {
     #[error("found no data flow with the provided id")]
     NotFound,
+    /// A [DataFlowInstance] in a failed state cannot be manipulated, only deleted.
     #[error("the data flow is in a failed state, unable to process the request")]
     FailedState,
 }
@@ -73,6 +83,19 @@ impl Display for Runtime {
 }
 
 impl Runtime {
+    /// Create a new builder in order to construct a `Runtime`.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use zenoh_flow_runtime::Runtime;
+    /// # async_std::task::block_on(async {
+    /// let runtime = Runtime::builder("demo")
+    ///     .build()
+    ///     .await
+    ///     .expect("Failed to build the Runtime");
+    /// # });
+    /// ```
     pub fn builder(name: impl Into<String>) -> RuntimeBuilder {
         RuntimeBuilder::new(name)
     }
@@ -89,13 +112,12 @@ impl Runtime {
         self.name.clone()
     }
 
+    /// Returns a shared pointer over the [HLC] used by this Runtime.
     pub fn hlc(&self) -> Arc<HLC> {
         self.hlc.clone()
     }
 
-    /// Returns information regarding the data flows that are running on this Zenoh-Flow runtime.
-    ///
-    /// For each instance of a data flow, returns its unique identifier, its name and its state.
+    /// Returns the [InstanceState] of the [DataFlowInstance]\(s\) managed by this Zenoh-Flow runtime.
     pub async fn instances_state(&self) -> HashMap<InstanceId, (Arc<str>, InstanceState)> {
         let flows = self.flows.read().await;
         let mut states = HashMap::with_capacity(flows.len());
@@ -110,13 +132,13 @@ impl Runtime {
         states
     }
 
-    /// Returns an atomically counted reference over the Zenoh session this Zenoh-Flow runtime leverages.
+    /// Returns a shared pointer over the Zenoh [session](Session) used by this Runtime.
     #[cfg(feature = "zenoh")]
     pub fn session(&self) -> Arc<Session> {
         self.session.clone()
     }
 
-    /// Returns the [DataFlowRecord] associated with the provided instance, *if that instance is not in a failed state*.
+    /// Returns the [DataFlowRecord] associated with the provided instance.
     ///
     /// # Errors
     ///
@@ -140,14 +162,8 @@ impl Runtime {
         Err(DataFlowErr::NotFound)
     }
 
-    /// Returns the [status](InstanceStatus) of the provided data flow instance or `None` if this runtime does not
+    /// Returns the [status](InstanceStatus) of the provided data flow instance or [None] if this runtime does not
     /// manage this instance.
-    ///
-    /// The possible values are:
-    /// - [Loaded](InstanceStatus::Loaded) when all the nodes that this runtime manages have been successfully
-    ///   loaded. In particular, this means that each node has successfully called its constructor.
-    /// - [Running](InstanceStatus::Running) when the nodes that this runtime manages are running.
-    /// - [Aborted](InstanceStatus::Aborted) when the nodes were previously running and their execution was aborted.
     pub async fn get_instance_status(&self, id: &InstanceId) -> Option<InstanceStatus> {
         if let Some(instance) = self.flows.read().await.get(id) {
             return Some(instance.read().await.status(&self.runtime_id));
@@ -164,7 +180,7 @@ impl Runtime {
     /// - this runtime manages no data flow with the provided instance id,
     /// - the data flow is in a failed state.
     ///
-    /// Data Flow that are in a failed state cannot be started or aborted. They can provide their status or be deleted.
+    /// Data Flows that are in a failed state cannot be started or aborted. They can provide their status or be deleted.
     async fn try_get_instance(
         &self,
         id: &InstanceId,
@@ -180,6 +196,18 @@ impl Runtime {
         Ok(instance)
     }
 
+    /// Attempts to (re-)start the [DataFlowInstance] identified by the provided `id`.
+    ///
+    /// Note that this method is idempotent: calling it on an already running data flow will do nothing.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail for the following reason:
+    /// - no data flow with the provided id was found,
+    /// - the data flow is in a failed state,
+    /// - the data flow is restarted and the [on_resume] method of one of the nodes (managed by the runtime) failed.
+    ///
+    /// [on_resume]: zenoh_flow_nodes::prelude::Node::on_resume()
     #[tracing::instrument(name = "start", skip(self, id), fields(instance = %id))]
     pub async fn try_start_instance(&self, id: &InstanceId) -> Result<()> {
         let instance = self.try_get_instance(id).await?;
@@ -192,9 +220,15 @@ impl Runtime {
         Ok(())
     }
 
-    /// TODO@J-Loudet
+    /// Attempts to abort the [DataFlowInstance] identified by the provided `id`.
     ///
-    /// - abort all nodes
+    /// Note that this method is idempotent: calling it on an already aborted data flow will do nothing.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail for the following reasons:
+    /// - no data flow with the provided id was found,
+    /// - the data flow is in a failed state.
     #[tracing::instrument(name = "abort", skip(self, id), fields(instance = %id))]
     pub async fn try_abort_instance(&self, id: &InstanceId) -> Result<()> {
         let instance = self.try_get_instance(id).await?;
@@ -212,6 +246,13 @@ impl Runtime {
         Ok(())
     }
 
+    /// Attempts to delete the [DataFlowInstance] identified by the provided `id`.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail for the following reasons:
+    /// - no data flow with the provided id was found,
+    /// - another action is currently being performed on the data flow.
     #[tracing::instrument(name = "delete", skip(self, id), fields(instance = %id))]
     pub async fn try_delete_instance(&self, id: &InstanceId) -> Result<()> {
         let instance = {

@@ -72,7 +72,7 @@ impl<'a> ZenohSource<'a> {
             futs: Arc::new(Mutex::new(Vec::with_capacity(key_exprs.len()))),
         };
 
-        // NOTE: Calling this function avoids repeating code initializing the `futs` and `subscribers`.
+        // NOTE: Calling this function avoids repeating code initialising the `futs` and `subscribers`.
         zenoh_source.on_resume().await?;
 
         Ok(zenoh_source)

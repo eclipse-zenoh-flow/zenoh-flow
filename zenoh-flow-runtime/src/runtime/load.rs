@@ -46,11 +46,25 @@ use zenoh_flow_records::DataFlowRecord;
 pub(crate) type Channels = HashMap<NodeId, (Inputs, Outputs)>;
 
 impl Runtime {
-    /// TODO@J-Loudet
+    /// Attempts to load the provided [DataFlowRecord], creating a new [DataFlowInstance] in this `Runtime`.
+    ///
+    /// Upon creation the [DataFlowInstance] will be put in the [Creating](InstanceState::Creating) state. Once all the
+    /// nodes managed by this Runtime have been successfully loaded, the instance will be put in the
+    /// [Loaded](InstanceState::Loaded) state.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail for the following reasons:
+    /// - the data flow was not valid; more specifically, at least one link was connecting two nodes that are running on
+    ///   different runtimes (the current one and another),
+    /// - the runtime failed to load: an operator, a source, a sink,
+    /// - the runtime encountered an internal error:
+    ///   - a channel was not created for a node,
+    ///   - a Zenoh built-in source failed to declare its subscriber.
     pub async fn try_load_data_flow(&self, data_flow: DataFlowRecord) -> Result<()> {
         // -----------------------------------
         // The following code tries to do two things:
-        // 1. minimizing the amount of time `self.flows` is locked,
+        // 1. minimising the amount of time `self.flows` is locked,
         // 2. ensuring that which ever thread accesses a data flow from `self.flows` will access it **after** it was
         //    fully loaded.
         //
@@ -169,7 +183,7 @@ impl Runtime {
     /// # Errors
     ///
     /// The only scenario in which this method fails is if we did not correctly processed the data flow descriptor and
-    /// ended up having a link with nodes on two different runtime.
+    /// ended up having a link with nodes on two different runtimes.
     fn create_channels(&self, record: &DataFlowRecord) -> Result<Channels> {
         let nodes_runtime = match record.mapping().get(&self.runtime_id) {
             Some(nodes) => nodes,
@@ -232,7 +246,17 @@ The problematic link is:
         Ok(channels)
     }
 
-    /// TODO@J-Loudet
+    /// Attempts to load the Operators from the provided [DataFlowRecord], returning a list of [Runners].
+    ///
+    /// This method will first filter the Operators from the [DataFlowRecord], keeping only those assigned to the
+    /// current runtime.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail for the following reasons:
+    /// - a channel was not created for one of the Operators managed by this runtime,
+    /// - the call to `try_load_constructor` failed,
+    /// - the call to the actual constructor failed.
     async fn try_load_operators(
         &self,
         record: &DataFlowRecord,
@@ -277,7 +301,18 @@ The channels for the Inputs and Outputs of Operator < {} > were not created.
         Ok(runners)
     }
 
-    /// TODO@J-Loudet
+    /// Attempts to load the Sources from the provided [DataFlowRecord], returning a list of [Runners].
+    ///
+    /// This method will first filter the Sources from the [DataFlowRecord], keeping only those assigned to the
+    /// current runtime.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail for the following reasons:
+    /// - a channel was not created for one of the Sources managed by this runtime,
+    /// - the call to create a Zenoh built-in Source failed,
+    /// - the call to `try_load_constructor` failed,
+    /// - the call to the actual constructor failed.
     async fn try_load_sources(
         &self,
         record: &DataFlowRecord,
@@ -338,7 +373,18 @@ Maybe change the features in the Cargo.toml?
         Ok(runners)
     }
 
-    /// TODO@J-Loudet
+    /// Attempts to load the Sinks from the provided [DataFlowRecord], returning a list of [Runners].
+    ///
+    /// This method will first filter the Sinks from the [DataFlowRecord], keeping only those assigned to the
+    /// current runtime.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail for the following reasons:
+    /// - a channel was not created for one of the Sinks managed by this runtime,
+    /// - the call to create a Zenoh built-in Sink failed,
+    /// - the call to `try_load_constructor` failed,
+    /// - the call to the actual constructor failed.
     async fn try_load_sinks(
         &self,
         record: &DataFlowRecord,
@@ -405,7 +451,16 @@ Maybe change the features in the Cargo.toml?
         Ok(runners)
     }
 
-    /// TODO@J-Loudet
+    /// Attempts to load the Zenoh Receivers from the provided [DataFlowRecord], returning a list of [Runners].
+    ///
+    /// This method will first filter the Receivers from the [DataFlowRecord], keeping only those assigned to the
+    /// current runtime.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail for the following reasons:
+    /// - a channel was not created for one of the Receivers managed by this runtime,
+    /// - the creation of a Receiver failed.
     #[cfg(feature = "zenoh")]
     async fn try_load_receivers(
         &self,
@@ -446,7 +501,16 @@ The channels for the Outputs of Connector Receiver < {} > were not created.
         Ok(runners)
     }
 
-    /// TODO@J-Loudet
+    /// Attempts to load the Zenoh Senders from the provided [DataFlowRecord], returning a list of [Runners].
+    ///
+    /// This method will first filter the Senders from the [DataFlowRecord], keeping only those assigned to the
+    /// current runtime.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail for the following reasons:
+    /// - a channel was not created for one of the Senders managed by this runtime,
+    /// - the creation of a Receiver failed.
     #[cfg(feature = "zenoh")]
     fn try_load_senders(
         &self,
@@ -491,6 +555,14 @@ The channels for the Inputs of Connector Sender < {} > were not created.
         Ok(runners)
     }
 
+    /// Attempts to load the constructor of the node implementation located at [Url].
+    ///
+    /// This method is a convenience wrapper that automates locking and releasing the lock over the internal Loader
+    /// --- that actually loads the constructor.
+    ///
+    /// # Errors
+    ///
+    /// This method can fail if the Loader failed to load the constructor.
     async fn try_load_constructor<C>(
         &self,
         url: &Url,

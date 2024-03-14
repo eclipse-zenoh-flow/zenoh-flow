@@ -27,7 +27,28 @@ use serde::{Deserialize, Deserializer};
 use zenoh_flow_commons::Result;
 use zenoh_flow_nodes::{OperatorFn, SinkFn, SourceFn};
 
-// Convenient shortcut.
+/// A convenient wrapper for a set of [Extension].
+///
+/// The main purpose of this structure is to facilitate parsing.
+///
+/// # Example configuration
+///
+/// ```
+/// # use zenoh_flow_runtime::Extensions;
+/// # let yaml = r#"
+/// - file_extension: py
+///   libraries:
+///     source: /home/zenoh-flow/extension/libpy_source.so
+///     operator: /home/zenoh-flow/extension/libpy_operator.so
+///     sink: /home/zenoh-flow/extension/libpy_sink.so
+///
+/// - file_extension: js
+///   libraries:
+///     source: /home/zenoh-flow/extension/libwasm_source.so
+///     operator: /home/zenoh-flow/extension/libwasm_operator.so
+///     sink: /home/zenoh-flow/extension/libwasm_sink.so
+/// # "#;
+/// # serde_yaml::from_str::<Extensions>(yaml).unwrap();
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Extensions(
@@ -79,7 +100,7 @@ impl Extensions {
     /// This method will return an error if any of the library:
     /// - does not expose the correct symbol (see these macros: [1], [2], [3]),
     /// - was not compiled with the same Rust version,
-    /// - was not using the same Zenoh-Flow version as this Zenoh-Flow [runtime](crate::Runtime).
+    /// - was not using the same version of Zenoh-Flow as this [runtime](crate::Runtime).
     ///
     /// [1]: zenoh_flow_nodes::prelude::export_source
     /// [2]: zenoh_flow_nodes::prelude::export_operator
@@ -104,6 +125,38 @@ impl Extensions {
     }
 }
 
+/// An `Extension` associates a file extension (e.g. `.py`) to a set of shared libraries.
+///
+/// This details how a Zenoh-Flow runtime should load nodes that have the [url](url::Url) of their implementation with
+/// this extension.
+///
+/// Zenoh-Flow only supports node implementation in the form of [shared libraries]. To support additional implementation
+/// --- for instance [Python scripts] --- a Zenoh-Flow runtime needs to be informed on (i) which shared libraries it
+/// should load and (ii) how it should make these shared libraries "load" the node implementation.
+///
+/// To support an extension on a Zenoh-Flow runtime, one can either detail them in the configuration file of the runtime
+/// or through the dedicated [method](crate::RuntimeBuilder::add_extension()).
+///
+/// # Example configuration
+///
+/// (Yaml)
+///
+/// ```
+/// # use zenoh_flow_runtime::Extension;
+/// # let yaml = r#"
+/// file_extension: py
+/// libraries:
+///   source: /home/zenoh-flow/libpy_source.so
+///   operator: /home/zenoh-flow/libpy_operator.so
+///   sink: /home/zenoh-flow/libpy_sink.so
+/// # "#;
+/// # serde_yaml::from_str::<Extension>(yaml).unwrap();
+/// ```
+///
+/// [shared libraries]: std::env::consts::DLL_EXTENSION
+/// [Python scripts]: https://github.com/eclipse-zenoh/zenoh-flow-python
+// NOTE: We separate the libraries in its own dedicated structure to have that same textual representation (YAML/JSON).
+//       There is no real need to do so.
 #[derive(Debug, Clone, Deserialize, Hash, PartialEq, Eq)]
 pub struct Extension {
     pub(crate) file_extension: Arc<str>,
@@ -112,22 +165,82 @@ pub struct Extension {
 
 impl Extension {
     /// Returns the file extension associated with this extension.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zenoh_flow_runtime::Extension;
+    /// # let yaml = r#"
+    /// # file_extension: py
+    /// # libraries:
+    /// #   source: /home/zenoh-flow/libpy_source.so
+    /// #   operator: /home/zenoh-flow/libpy_operator.so
+    /// #   sink: /home/zenoh-flow/libpy_sink.so
+    /// # "#;
+    /// # let extension = serde_yaml::from_str::<Extension>(yaml).unwrap();
+    /// assert_eq!(extension.file_extension(), "py");
+    /// ```
     pub fn file_extension(&self) -> &str {
         &self.file_extension
     }
 
     /// Returns the [path](PathBuf) of the shared library responsible for loading Source nodes for this file extension.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zenoh_flow_runtime::Extension;
+    /// # let yaml = r#"
+    /// # file_extension: py
+    /// # libraries:
+    /// #   source: /home/zenoh-flow/libpy_source.so
+    /// #   operator: /home/zenoh-flow/libpy_operator.so
+    /// #   sink: /home/zenoh-flow/libpy_sink.so
+    /// # "#;
+    /// # let extension = serde_yaml::from_str::<Extension>(yaml).unwrap();
+    /// assert_eq!(extension.source().to_str(), Some("/home/zenoh-flow/libpy_source.so"));
+    /// ```
     pub fn source(&self) -> &PathBuf {
         &self.libraries.source
     }
 
     /// Returns the [path](PathBuf) of the shared library responsible for loading Operator nodes for this file
     /// extension.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zenoh_flow_runtime::Extension;
+    /// # let yaml = r#"
+    /// # file_extension: py
+    /// # libraries:
+    /// #   source: /home/zenoh-flow/libpy_source.so
+    /// #   operator: /home/zenoh-flow/libpy_operator.so
+    /// #   sink: /home/zenoh-flow/libpy_sink.so
+    /// # "#;
+    /// # let extension = serde_yaml::from_str::<Extension>(yaml).unwrap();
+    /// assert_eq!(extension.operator().to_str(), Some("/home/zenoh-flow/libpy_operator.so"));
+    /// ```
     pub fn operator(&self) -> &PathBuf {
         &self.libraries.operator
     }
 
     /// Returns the [path](PathBuf) of the shared library responsible for loading Sink nodes for this file extension.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zenoh_flow_runtime::Extension;
+    /// # let yaml = r#"
+    /// # file_extension: py
+    /// # libraries:
+    /// #   source: /home/zenoh-flow/libpy_source.so
+    /// #   operator: /home/zenoh-flow/libpy_operator.so
+    /// #   sink: /home/zenoh-flow/libpy_sink.so
+    /// # "#;
+    /// # let extension = serde_yaml::from_str::<Extension>(yaml).unwrap();
+    /// assert_eq!(extension.sink().to_str(), Some("/home/zenoh-flow/libpy_sink.so"));
+    /// ```
     pub fn sink(&self) -> &PathBuf {
         &self.libraries.sink
     }
