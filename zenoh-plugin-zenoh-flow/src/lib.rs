@@ -58,15 +58,13 @@ impl Plugin for ZenohFlowPlugin {
                     }
                 };
 
-            let daemon = match Daemon::from_config(zenoh_session, zenoh_flow_config).await {
+            let daemon = match Daemon::spawn_from_config(zenoh_session, zenoh_flow_config).await {
                 Ok(daemon) => daemon,
                 Err(e) => {
-                    tracing::error!("Failed to build Daemon from configuration: {e:?}");
+                    tracing::error!("Failed to spawn the Daemon from a configuration: {e:?}");
                     return;
                 }
             };
-
-            let daemon = daemon.start().await;
 
             if let Err(e) = abort_rx.recv_async().await {
                 tracing::error!("Abort channel failed with: {e:?}");

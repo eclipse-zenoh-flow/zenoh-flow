@@ -12,23 +12,22 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 use async_std::stream::StreamExt;
 use clap::Parser;
 use signal_hook::consts::{SIGINT, SIGQUIT, SIGTERM};
 use signal_hook_async_std::Signals;
-use uhlc::HLC;
-use zenoh::prelude::r#async::*;
-use zenoh_flow_daemon::DaemonBuilder;
+use zenoh_flow_commons::RuntimeId;
+use zenoh_flow_daemon::{Daemon, Runtime};
 
 #[derive(Parser)]
 struct Cli {
-    name: Arc<str>,
+    name: String,
     #[clap(short, long)]
     configuration: Option<PathBuf>,
     #[clap(short, long)]
-    runtime_id: Option<ZenohId>,
+    runtime_id: Option<RuntimeId>,
 }
 
 #[async_std::main]
@@ -37,28 +36,22 @@ async fn main() {
 
     let cli = Cli::parse();
 
-    let mut zenoh_config = zenoh::config::peer();
+    let mut runtime_builder = Runtime::builder(cli.name);
+
     if let Some(runtime_id) = cli.runtime_id {
-        if zenoh_config.set_id(runtime_id).is_err() {
-            tracing::error!(
-                "Failed to set id of the Zenoh session: (desired) {}, (current) {}",
-                runtime_id,
-                zenoh_config.id()
-            );
-        }
+        runtime_builder = runtime_builder
+            .runtime_id(runtime_id)
+            .expect("Failed to set the identifier of the Runtime");
     }
 
-    let zenoh_session = zenoh::open(zenoh_config)
-        .res()
+    let runtime = runtime_builder
+        .build()
         .await
-        .expect("Failed to open Zenoh session in PEER mode.")
-        .into_arc();
+        .expect("Failed to build the Zenoh-Flow Runtime");
 
-    let hlc = Arc::new(HLC::default());
-
-    let builder = DaemonBuilder::new(zenoh_session, hlc, cli.name);
-
-    let daemon = builder.start().await;
+    let daemon = Daemon::spawn(runtime)
+        .await
+        .expect("Failed to spawn the Zenoh-Flow Daemon");
 
     async_std::task::spawn(async move {
         let mut signals = Signals::new([SIGTERM, SIGINT, SIGQUIT])

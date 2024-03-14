@@ -12,14 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 use serde::Deserialize;
 use zenoh_flow_runtime::Extensions;
 
 #[derive(Deserialize, Debug)]
 pub struct ZenohFlowConfiguration {
-    pub name: Arc<str>,
+    pub name: String,
     pub extensions: Option<ExtensionsConfiguration>,
     #[cfg(not(feature = "plugin"))]
     pub zenoh: ZenohConfiguration,
