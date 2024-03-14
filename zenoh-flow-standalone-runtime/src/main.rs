@@ -15,14 +15,11 @@
 use anyhow::Context;
 use async_std::io::ReadExt;
 use clap::Parser;
-use std::{path::PathBuf, sync::Arc};
-use zenoh_flow_commons::{parse_vars, RuntimeId, Vars};
+use std::path::PathBuf;
+use zenoh_flow_commons::{parse_vars, Vars};
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
 use zenoh_flow_records::DataFlowRecord;
-use zenoh_flow_runtime::{
-    zenoh::{self, AsyncResolve},
-    Extensions, Loader, Runtime,
-};
+use zenoh_flow_runtime::{Extensions, Runtime};
 
 #[derive(Parser)]
 struct Cli {
@@ -62,8 +59,6 @@ async fn main() {
         None => Extensions::default(),
     };
 
-    let loader = Loader::with_extensions(extensions);
-
     let vars = match cli.vars {
         Some(v) => Vars::from(v),
         None => Vars::default(),
@@ -84,16 +79,12 @@ async fn main() {
         ))
         .unwrap();
 
-    let hlc = Arc::new(uhlc::HLC::default());
-
-    let session = zenoh::open(zenoh::peer()).res().await.unwrap().into_arc();
-    let runtime = Runtime::new(
-        RuntimeId::rand(),
-        "zenoh-flow-standalone-runtime".into(),
-        loader,
-        hlc,
-        session,
-    );
+    let runtime = Runtime::builder("zenoh-flow-standalone-runtime")
+        .add_extensions(extensions)
+        .expect("Failed to add extensions")
+        .build()
+        .await
+        .expect("Failed to build the Zenoh-Flow runtime");
 
     let record = DataFlowRecord::try_new(&flattened_flow, runtime.id())
         .context("Failed to create a Record from the flattened data flow descriptor")
