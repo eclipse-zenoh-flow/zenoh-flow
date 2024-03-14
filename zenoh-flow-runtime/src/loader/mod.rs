@@ -17,14 +17,9 @@ pub use extensions::{Extension, Extensions};
 
 use anyhow::{anyhow, bail, Context};
 use libloading::Library;
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    str::FromStr,
-    sync::Arc,
-};
+use std::{collections::HashMap, path::PathBuf, str::FromStr, sync::Arc};
 use url::Url;
-use zenoh_flow_commons::{Result, Vars};
+use zenoh_flow_commons::Result;
 use zenoh_flow_nodes::{NodeDeclaration, CORE_VERSION, RUSTC_VERSION};
 
 /// NodeSymbol groups the symbol we must find in the shared library we load.
@@ -195,19 +190,6 @@ impl Loader {
             "Removed {} unused libraries.",
             number_libraries - self.libraries.len()
         );
-    }
-
-    /// TODO@J-Loudet
-    pub fn try_from_file(extensions_path: impl AsRef<Path>) -> Result<Self> {
-        let (extensions, _) = zenoh_flow_commons::try_parse_from_file::<Extensions>(
-            extensions_path,
-            Vars::default(),
-        )?;
-
-        Ok(Self {
-            extensions,
-            libraries: HashMap::default(),
-        })
     }
 
     pub(crate) fn try_load_constructor<C>(
