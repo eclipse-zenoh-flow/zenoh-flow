@@ -84,7 +84,7 @@ impl Extensions {
     /// [1]: zenoh_flow_nodes::prelude::export_source
     /// [2]: zenoh_flow_nodes::prelude::export_operator
     /// [3]: zenoh_flow_nodes::prelude::export_sink
-    pub fn try_add_extension(
+    pub(crate) fn try_add_extension(
         &mut self,
         file_extension: impl Into<String>,
         source: impl Into<PathBuf>,
