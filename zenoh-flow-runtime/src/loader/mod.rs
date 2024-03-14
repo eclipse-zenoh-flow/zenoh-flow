@@ -127,7 +127,7 @@ pub(crate) fn try_get_constructor<N>(
 /// - `RTLD_NOW` load all the symbols when loading the library.
 /// - `RTLD_LOCAL` keep all the symbols local.
 #[derive(Default)]
-pub struct Loader {
+pub(crate) struct Loader {
     pub(crate) extensions: Extensions,
     pub(crate) libraries: HashMap<Url, Arc<Library>>,
 }
@@ -147,21 +147,6 @@ impl DerefMut for Loader {
 }
 
 impl Loader {
-    /// Creates a new `Loader` with the given `Extensions`.
-    pub fn new() -> Self {
-        Self {
-            extensions: Extensions::default(),
-            libraries: HashMap::default(),
-        }
-    }
-
-    pub fn with_extensions(extensions: Extensions) -> Self {
-        Self {
-            extensions,
-            libraries: HashMap::default(),
-        }
-    }
-
     /// Attempts to add an extension to this Zenoh-Flow [runtime](crate::Runtime).
     ///
     /// # Errors
@@ -171,23 +156,10 @@ impl Loader {
     /// - was not compiled with the same Rust version,
     /// - was not using the same Zenoh-Flow version as this Zenoh-Flow [runtime](crate::Runtime).
     ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # use zenoh_flow_runtime::Loader;
-    /// let mut loader = Loader::default();
-    /// loader.try_add_extension(
-    ///     "py",
-    ///     "/home/zenoh-flow/libpy_source.so",
-    ///     "/home/zenoh-flow/libpy_operator.so",
-    ///     "/home/zenoh-flow/libpy_sink.so",
-    /// ).unwrap();
-    /// ```
-    ///
     /// [1]: zenoh_flow_nodes::prelude::export_source
     /// [2]: zenoh_flow_nodes::prelude::export_operator
     /// [3]: zenoh_flow_nodes::prelude::export_sink
-    pub fn try_add_extension(
+    pub(crate) fn try_add_extension(
         &mut self,
         file_extension: impl Into<String>,
         source: impl Into<PathBuf>,
@@ -202,7 +174,7 @@ impl Loader {
         )
     }
 
-    pub fn remove_unused_libraries(&mut self) {
+    pub(crate) fn remove_unused_libraries(&mut self) {
         let number_libraries = self.libraries.len();
         self.libraries
             .retain(|_, library| Arc::strong_count(library) > 1);
