@@ -12,6 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+mod builder;
+pub use builder::RuntimeBuilder;
+
 mod load;
 
 use crate::{
@@ -70,6 +73,10 @@ impl Display for Runtime {
 }
 
 impl Runtime {
+    pub fn builder(name: impl Into<String>) -> RuntimeBuilder {
+        RuntimeBuilder::new(name)
+    }
+
     /// Returns the unique identifier of this Zenoh-Flow runtime.
     pub fn id(&self) -> &RuntimeId {
         &self.runtime_id
