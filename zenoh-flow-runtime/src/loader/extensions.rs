@@ -29,6 +29,7 @@ use zenoh_flow_nodes::{OperatorFn, SinkFn, SourceFn};
 
 // Convenient shortcut.
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq)]
+#[repr(transparent)]
 pub struct Extensions(
     #[serde(deserialize_with = "deserialize_extensions")] HashMap<Arc<str>, Extension>,
 );
@@ -44,6 +45,12 @@ impl Deref for Extensions {
 impl DerefMut for Extensions {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl From<Extensions> for HashMap<Arc<str>, Extension> {
+    fn from(value: Extensions) -> Self {
+        value.0
     }
 }
 
@@ -80,12 +87,12 @@ impl Extensions {
     pub fn try_add_extension(
         &mut self,
         file_extension: impl Into<String>,
-        source: PathBuf,
-        operator: PathBuf,
-        sink: PathBuf,
+        source: impl Into<PathBuf>,
+        operator: impl Into<PathBuf>,
+        sink: impl Into<PathBuf>,
     ) -> Result<Option<Extension>> {
         let file_ext: Arc<str> = file_extension.into().into();
-        let libraries = ExtensionLibraries::new(source, sink, operator)?;
+        let libraries = ExtensionLibraries::new(source.into(), sink.into(), operator.into())?;
 
         Ok(self.insert(
             file_ext.clone(),
