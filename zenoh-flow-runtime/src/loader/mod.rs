@@ -17,7 +17,13 @@ pub use extensions::{Extension, Extensions};
 
 use anyhow::{anyhow, bail, Context};
 use libloading::Library;
-use std::{collections::HashMap, path::PathBuf, str::FromStr, sync::Arc};
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+    str::FromStr,
+    sync::Arc,
+};
 use url::Url;
 use zenoh_flow_commons::Result;
 use zenoh_flow_nodes::{NodeDeclaration, CORE_VERSION, RUSTC_VERSION};
@@ -124,6 +130,20 @@ pub(crate) fn try_get_constructor<N>(
 pub struct Loader {
     pub(crate) extensions: Extensions,
     pub(crate) libraries: HashMap<Url, Arc<Library>>,
+}
+
+impl Deref for Loader {
+    type Target = HashMap<Arc<str>, Extension>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.extensions
+    }
+}
+
+impl DerefMut for Loader {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.extensions
+    }
 }
 
 impl Loader {
