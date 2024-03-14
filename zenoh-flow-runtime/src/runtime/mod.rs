@@ -116,39 +116,6 @@ impl Runtime {
         self.session.clone()
     }
 
-    /// TODO@J-Loudet
-    ///
-    /// Creates a new Zenoh-Flow runtime.
-    ///
-    /// Runtime manages data flows:
-    /// - node management,
-    /// - library management
-    ///
-    /// # Features
-    ///
-    /// - "zenoh": requires a Zenoh session to be able to communicate with other Zenoh nodes
-    /// - "shared-memory": enables the Zenoh shared-memory transport (experimental)
-    pub fn new(
-        id: RuntimeId,
-        name: Arc<str>,
-        loader: Loader,
-        hlc: Arc<HLC>,
-        #[cfg(feature = "zenoh")] session: Arc<Session>,
-        #[cfg(feature = "shared-memory")] shared_memory: SharedMemoryConfiguration,
-    ) -> Self {
-        Self {
-            name,
-            runtime_id: id,
-            #[cfg(feature = "zenoh")]
-            session,
-            hlc,
-            loader: Mutex::new(loader),
-            #[cfg(feature = "shared-memory")]
-            shared_memory,
-            flows: RwLock::new(HashMap::default()),
-        }
-    }
-
     /// Returns the [DataFlowRecord] associated with the provided instance, *if that instance is not in a failed state*.
     ///
     /// # Errors

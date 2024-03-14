@@ -12,27 +12,23 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+pub mod configuration;
 mod instances;
+pub mod runtime;
+pub mod selectors;
 #[cfg(not(feature = "plugin"))]
 use configuration::ZenohConfiguration;
 use configuration::ZenohFlowConfiguration;
 pub use instances::{InstancesQuery, Origin};
-pub use zenoh_flow_runtime::{InstanceState, InstanceStatus};
-
-pub mod configuration;
-
-pub mod selectors;
-
-pub mod runtime;
+pub use zenoh_flow_runtime::{InstanceState, InstanceStatus, Runtime};
 
 use anyhow::{anyhow, bail};
 use flume::{Receiver, Sender};
 use serde::Deserialize;
-use std::{path::PathBuf, sync::Arc};
-use uhlc::HLC;
+use std::sync::Arc;
 use zenoh::{prelude::r#async::*, queryable::Query};
 use zenoh_flow_commons::{try_parse_from_file, Result, Vars};
-use zenoh_flow_runtime::{Extension, Extensions, Loader, Runtime};
+use zenoh_flow_runtime::Extensions;
 
 use crate::configuration::ExtensionsConfiguration;
 
@@ -42,132 +38,16 @@ use crate::configuration::ExtensionsConfiguration;
 const NUMBER_QUERYABLES: usize = 2;
 
 pub struct Daemon {
-    _runtime: Arc<Runtime>,
     abort_tx: Sender<()>,
     abort_ack_rx: Receiver<()>,
 }
 
-/// TODO Documentation
-///
-/// - builder pattern to provide default arguments
-/// - needs to be `start`ed for the Daemon to actually start serving queries
-#[must_use = "A Daemon will not serve queries unless you `start` it"]
-pub struct DaemonBuilder {
-    zenoh_session: Arc<Session>,
-    hlc: Arc<HLC>,
-    name: Arc<str>,
-    loader: Loader,
-}
-
-impl DaemonBuilder {
-    /// TODO
-    ///
-    /// Parameters:
-    /// - `zenoh_session`: to communicate with other Zenoh-Flow daemon in the same network
-    /// - `hlc`: to associate timestamps (with a total ordering) in Zenoh-Flow messages,
-    /// - `name`: a human readable description of this runtime.
-    ///
-    /// Builder because:
-    /// - creates a new Zenoh-Flow daemon builder with no [Extensions] (i.e. only Rust nodes are supported) and a random
-    ///   `runtime_id`
-    /// - call method `extensions` to add supported extensions,
-    /// - call method `runtime_id` to set a different runtime id,
-    ///
-    /// To build:
-    /// - call method `start` to "build" and start a Zenoh-Flow daemon
-    pub fn new(zenoh_session: Arc<Session>, hlc: Arc<HLC>, name: Arc<str>) -> Self {
-        Self {
-            zenoh_session,
-            hlc,
-            name,
-            loader: Loader::default(),
-        }
-    }
-
-    /// TODO
-    ///
-    /// To provide a set of supported extensions.
-    pub fn try_add_extension(
-        &mut self,
-        file_extension: impl Into<String>,
-        source: impl Into<PathBuf>,
-        operator: impl Into<PathBuf>,
-        sink: impl Into<PathBuf>,
-    ) -> Result<Option<Extension>> {
-        self.loader
-            .try_add_extension(file_extension, source, operator, sink)
-    }
-
-    /// TODO
-    ///
-    /// Starts a Zenoh-Flow daemon based on the the builder
-    ///
-    /// - creates a Zenoh-Flow runtime,
-    /// - spawns 2 queryables to serve external requests on the runtime:
-    ///    1. `zenoh-flow/<uuid>/runtime`: for everything that relates to the runtime.
-    ///    2. `zenoh-flow/<uuid>/instances`: for everything that relates to the data flow instances.
-    pub async fn start(self) -> Daemon {
-        let runtime_id = self.zenoh_session.zid().into();
-        tracing::info!("Zenoh-Flow daemon < {} > has id: {}", self.name, runtime_id);
-
-        let zenoh_flow_runtime = Arc::new(Runtime::new(
-            runtime_id,
-            self.name,
-            self.loader,
-            self.hlc,
-            self.zenoh_session.clone(),
-        ));
-
-        // Channels to gracefully stop the Zenoh-Flow daemon:
-        // - `abort_?x` to tell the queryables that they have to stop,
-        // - `abort_ack_?x` for the queryables to inform the runtime that they did stop.
-        let (abort_tx, abort_rx) = flume::bounded::<()>(NUMBER_QUERYABLES);
-        let (abort_ack_tx, abort_ack_rx) = flume::bounded::<()>(NUMBER_QUERYABLES);
-
-        let session = self.zenoh_session.clone();
-        let abort = abort_rx.clone();
-        let abort_ack = abort_ack_tx.clone();
-
-        if let Err(e) =
-            runtime::spawn_runtime_queryable(session, zenoh_flow_runtime.clone(), abort, abort_ack)
-                .await
-        {
-            tracing::error!(
-                "The Zenoh-Flow daemon encountered a fatal error:\n{:?}\nAborting",
-                e
-            );
-            // TODO: Clean everything up before aborting.
-        }
-
-        if let Err(e) = instances::spawn_instances_queryable(
-            self.zenoh_session,
-            zenoh_flow_runtime.clone(),
-            abort_rx,
-            abort_ack_tx,
-        )
-        .await
-        {
-            tracing::error!(
-                "The Zenoh-Flow daemon encountered a fatal error:\n{:?}\nAborting",
-                e
-            );
-            // TODO: Clean everything up before aborting.
-        }
-
-        Daemon {
-            abort_tx,
-            abort_ack_rx,
-            _runtime: zenoh_flow_runtime,
-        }
-    }
-}
-
 impl Daemon {
     /// TODO Documentation
-    pub async fn from_config(
+    pub async fn spawn_from_config(
         #[cfg(feature = "plugin")] zenoh_session: Arc<Session>,
         configuration: ZenohFlowConfiguration,
-    ) -> Result<DaemonBuilder> {
+    ) -> Result<Self> {
         #[cfg(not(feature = "plugin"))]
         let zenoh_config = match configuration.zenoh {
             ZenohConfiguration::File(path) => {
@@ -194,11 +74,59 @@ impl Daemon {
             Extensions::default()
         };
 
-        Ok(DaemonBuilder {
-            zenoh_session,
-            hlc: Arc::new(HLC::default()),
-            name: configuration.name,
-            loader: Loader::with_extensions(extensions),
+        let runtime = Runtime::builder(configuration.name)
+            .add_extensions(extensions)?
+            .session(zenoh_session)
+            .build()
+            .await?;
+
+        Daemon::spawn(runtime).await
+    }
+
+    /// Starts the Zenoh-Flow daemon.
+    ///
+    /// - creates a Zenoh-Flow runtime,
+    /// - spawns 2 queryables to serve external requests on the runtime:
+    ///    1. `zenoh-flow/<uuid>/runtime`: for everything that relates to the runtime.
+    ///    2. `zenoh-flow/<uuid>/instances`: for everything that relates to the data flow instances.
+    pub async fn spawn(runtime: Runtime) -> Result<Self> {
+        // Channels to gracefully stop the Zenoh-Flow daemon:
+        // - `abort_?x` to tell the queryables that they have to stop,
+        // - `abort_ack_?x` for the queryables to inform the runtime that they did stop.
+        let (abort_tx, abort_rx) = flume::bounded::<()>(NUMBER_QUERYABLES);
+        let (abort_ack_tx, abort_ack_rx) = flume::bounded::<()>(NUMBER_QUERYABLES);
+
+        let runtime = Arc::new(runtime);
+
+        let session = runtime.session();
+        let abort = abort_rx.clone();
+        let abort_ack = abort_ack_tx.clone();
+
+        if let Err(e) =
+            runtime::spawn_runtime_queryable(session.clone(), runtime.clone(), abort, abort_ack)
+                .await
+        {
+            tracing::error!(
+                "The Zenoh-Flow daemon encountered a fatal error:\n{:?}\nAborting",
+                e
+            );
+            // TODO: Clean everything up before aborting.
+        }
+
+        if let Err(e) =
+            instances::spawn_instances_queryable(session, runtime.clone(), abort_rx, abort_ack_tx)
+                .await
+        {
+            tracing::error!(
+                "The Zenoh-Flow daemon encountered a fatal error:\n{:?}\nAborting",
+                e
+            );
+            // TODO: Clean everything up before aborting.
+        }
+
+        Ok(Daemon {
+            abort_tx,
+            abort_ack_rx,
         })
     }
 
