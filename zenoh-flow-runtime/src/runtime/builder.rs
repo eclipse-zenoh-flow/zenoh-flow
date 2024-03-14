@@ -28,6 +28,7 @@ use zenoh_flow_commons::{Result, RuntimeId};
 ///
 /// Most of the internals of the Runtime can left to their default values. Leveraging a builder pattern thus simplifies
 /// the creation of a Runtime.
+#[must_use = "The Runtime will not be generated unless you `build()` it"]
 pub struct RuntimeBuilder {
     name: Arc<str>,
     hlc: Option<HLC>,
@@ -63,6 +64,16 @@ impl RuntimeBuilder {
     ///
     /// ⚠️ *If the runtime identifier is set first and a Session is provided after, the runtime identifier will be
     /// overwritten by the identifier of the Zenoh session*.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use zenoh_flow_runtime::Runtime;
+    /// use zenoh_flow_commons::RuntimeId;
+    ///
+    /// let builder = Runtime::builder("demo")
+    ///     .runtime_id(RuntimeId::rand());
+    /// ```
     pub fn runtime_id(mut self, runtime_id: impl Into<RuntimeId>) -> Result<Self> {
         self.runtime_id = Some(runtime_id.into());
 
@@ -87,6 +98,23 @@ impl RuntimeBuilder {
     /// # Runtime identifier
     ///
     /// If a [Session] is provided, the Zenoh-Flow runtime will re-use the identifier of the Session as its identifier.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use zenoh_flow_runtime::Runtime;
+    /// use zenoh_flow_runtime::{zenoh, zenoh::AsyncResolve};
+    /// # async_std::task::block_on(async {
+    ///
+    /// let zenoh_session = zenoh::open(zenoh::peer())
+    ///     .res_async()
+    ///     .await
+    ///     .expect("Failed to open Session")
+    ///     .into_arc();
+    /// let builder = Runtime::builder("demo")
+    ///     .session(zenoh_session);
+    /// # });
+    /// ```
     #[cfg(feature = "zenoh")]
     pub fn session(mut self, session: Arc<Session>) -> Self {
         self.session = Some(session);
@@ -94,6 +122,16 @@ impl RuntimeBuilder {
     }
 
     /// Forces the hybrid logical clock the Runtime should use.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use zenoh_flow_runtime::Runtime;
+    /// use uhlc::HLC;
+    ///
+    /// let builder = Runtime::builder("demo")
+    ///     .hlc(HLC::default());
+    /// ```
     pub fn hlc(mut self, hlc: HLC) -> Self {
         self.hlc = Some(hlc);
         self
@@ -106,10 +144,27 @@ impl RuntimeBuilder {
     ///
     /// # Errors
     ///
-    /// This method will fail if any of the extension is not valid. See [here](Extensions::try_add_extension) for a
+    /// This method will fail if any of the extension is not valid. See [here](RuntimeBuilder::add_extension) for a
     /// complete list of error cases.
     ///
     /// Note that the extensions are added *after* checking them all.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use zenoh_flow_runtime::{Extensions, Runtime};
+    /// use zenoh_flow_commons::{try_parse_from_file, Vars};
+    ///
+    /// let (extensions, _) = try_parse_from_file::<Extensions>(
+    ///         "/home/zenoh-flow/extensions.ext",
+    ///         Vars::default()
+    ///     )
+    ///     .expect("Failed to parse Extensions");
+    ///
+    /// let builder = Runtime::builder("demo")
+    ///     .add_extensions(extensions)
+    ///     .expect("Failed to add set of extensions");
+    /// ```
     pub fn add_extensions(mut self, extensions: Extensions) -> Result<Self> {
         for extension in extensions.values() {
             extension.libraries.validate()?;
@@ -127,8 +182,28 @@ impl RuntimeBuilder {
     ///
     /// # Errors
     ///
-    /// This method will fail if the extension is not valid. See [here](Extensions::try_add_extension) for a complete
-    /// list of error cases.
+    /// This method will return an error if any of the library:
+    /// - does not expose the correct symbol (see these macros: [1], [2], [3]),
+    /// - was not compiled with the same Rust version,
+    /// - was not using the same version of Zenoh-Flow as this [runtime](crate::Runtime).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use zenoh_flow_runtime::Runtime;
+    /// let builder = Runtime::builder("demo")
+    ///     .add_extension(
+    ///         "py",
+    ///         "/home/zenoh-flow/libpy_source.so",
+    ///         "/home/zenoh-flow/libpy_operator.so",
+    ///         "/home/zenoh-flow/libpy_sink.so",
+    ///     )
+    ///     .expect("Failed to add 'py' extension");
+    /// ```
+    ///
+    /// [1]: zenoh_flow_nodes::prelude::export_source
+    /// [2]: zenoh_flow_nodes::prelude::export_operator
+    /// [3]: zenoh_flow_nodes::prelude::export_sink
     pub fn add_extension(
         mut self,
         file_extension: impl Into<String>,
@@ -147,6 +222,18 @@ impl RuntimeBuilder {
     ///
     /// This method can fail if the `zenoh` feature is enabled (it is by default), no [Session] was provided to the
     /// builder and the creation of a Session failed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # async_std::task::block_on(async {
+    /// use zenoh_flow_runtime::Runtime;
+    /// let runtime = Runtime::builder("demo")
+    ///     .build()
+    ///     .await
+    ///     .expect("Failed to build Zenoh-Flow runtime");
+    /// # });
+    /// ```
     pub async fn build(self) -> Result<Runtime> {
         #[cfg(feature = "zenoh")]
         let session = match self.session {
