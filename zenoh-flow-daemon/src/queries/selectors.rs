@@ -59,8 +59,6 @@ pub fn selector_instances(runtime_id: &RuntimeId) -> OwnedKeyExpr {
 /// Helper function to generate an [OwnedKeyExpr] to query the data flow instances managed by all the reachable
 /// Zenoh-Flow runtimes.
 ///
-/// The generated key expression has the following structure: `zenoh-flow/*/instances`
-///
 /// # Performance
 ///
 /// As this selector will attempt to reach all the Zenoh-Flow runtime, it is possible that the query will take
@@ -76,7 +74,7 @@ pub fn selector_all_instances() -> OwnedKeyExpr {
 
 /// Helper function to generate an [OwnedKeyExpr] to query the provided runtime.
 ///
-/// The generated key expression has the following structure: " zenoh-flow/<runtime id>/runtime "
+/// The generated key expression has the following structure: `zenoh-flow/{runtime id}/runtime`.
 ///
 /// where `{runtime id}` corresponds to the unique identifier of the chosen runtime.
 ///
@@ -89,8 +87,6 @@ pub fn selector_runtimes(runtime_id: &RuntimeId) -> OwnedKeyExpr {
 }
 
 /// Helper function to generate an [OwnedKeyExpr] to query all the reachable Zenoh-Flow runtimes.
-///
-/// The generated key expression has the following structure: " zenoh-flow/*/runtime "
 ///
 /// # Performance
 ///
