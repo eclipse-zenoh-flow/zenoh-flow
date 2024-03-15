@@ -38,7 +38,7 @@ pub(crate) async fn get_all_runtimes(session: &Session) -> Result<Vec<RuntimeInf
     })?;
 
     let runtime_replies = session
-        .get(zenoh_flow_daemon::selectors::selector_all_runtimes().unwrap())
+        .get(zenoh_flow_daemon::selectors::selector_all_runtimes())
         .with_value(value)
         // We want to address all the Zenoh-Flow runtimes that are reachable on the Zenoh network.
         .consolidation(ConsolidationMode::None)
@@ -107,9 +107,7 @@ impl RuntimeCommand {
             }
 
             RuntimeCommand::Status { runtime_id } => {
-                let selector = selector_runtimes(&runtime_id).map_err(|e| {
-                    anyhow!("Failed to generate a valid selector for runtime {runtime_id}: {e:?}")
-                })?;
+                let selector = selector_runtimes(&runtime_id);
 
                 let value = serde_json::to_vec(&RuntimesQuery::Status).map_err(|e| {
                     tracing::error!(

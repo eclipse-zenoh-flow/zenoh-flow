@@ -34,17 +34,7 @@ pub(crate) async fn query_delete(
     .expect("serde_json failed to serialize InstancesQuery::Delete");
 
     for runtime_id in runtimes {
-        let selector = match selectors::selector_instances(runtime_id) {
-            Ok(selector) => selector,
-            Err(e) => {
-                tracing::error!(
-                    "Generating selector 'instances' for runtime < {} > failed: {:?}",
-                    runtime_id,
-                    e
-                );
-                continue;
-            }
-        };
+        let selector = selectors::selector_instances(runtime_id);
 
         // NOTE: No need to process the request, as, even if the query failed, this is not something we want to recover
         // from.

@@ -129,11 +129,7 @@ Query:
         );
 
         for runtime_id in involved_runtimes {
-            let selector = rollback_if_err!(
-                selectors::selector_instances(&runtime_id),
-                r#"Failed to generate 'instances' selector for runtime < {} >"#,
-                &runtime_id
-            );
+            let selector = selectors::selector_instances(&runtime_id);
 
             let receiver_reply = rollback_if_err!(
                 runtime
