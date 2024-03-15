@@ -74,14 +74,7 @@ pub(crate) enum InstanceCommand {
 
 impl InstanceCommand {
     pub async fn run(self, session: Session, orchestrator_id: RuntimeId) -> Result<()> {
-        let mut selector = selectors::selector_instances(&orchestrator_id).map_err(|e| {
-            tracing::error!(
-                "Failed to generate a valid Zenoh key expression for runtime with id < {} >:\n{:?}",
-                &orchestrator_id,
-                e
-            );
-            anyhow!(ZENOH_FLOW_INTERNAL_ERROR)
-        })?;
+        let mut selector = selectors::selector_instances(&orchestrator_id);
         let query = match self {
             InstanceCommand::Create { flow, vars } => {
                 let vars = match vars {
@@ -114,7 +107,7 @@ impl InstanceCommand {
             InstanceCommand::List => InstancesQuery::List,
 
             InstanceCommand::Status { instance_id } => {
-                selector = selectors::selector_all_instances().unwrap();
+                selector = selectors::selector_all_instances();
                 InstancesQuery::Status(instance_id.into())
             }
             InstanceCommand::Start { instance_id } => InstancesQuery::Start {

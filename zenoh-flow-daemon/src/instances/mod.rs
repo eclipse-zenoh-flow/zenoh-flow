@@ -45,7 +45,7 @@ pub(crate) async fn spawn_instances_queryable(
     abort_rx: Receiver<()>,
     abort_ack_tx: Sender<()>,
 ) -> Result<()> {
-    let ke_instances = selectors::selector_instances(runtime.id())?;
+    let ke_instances = selectors::selector_instances(runtime.id());
     let queryable = match zenoh_session
         .declare_queryable(ke_instances.clone())
         .res()

@@ -166,11 +166,7 @@ Caused by:
     // -----------------------------------------------------------------------------------------------------------------
 
     for runtime_id in runtimes {
-        let selector = rollback_if_err!(
-            selectors::selector_instances(runtime_id),
-            "Failed to generate selector 'instances' for runtime < {} >",
-            runtime_id
-        );
+        let selector = selectors::selector_instances(runtime_id);
 
         rollback_if_err!(
             session

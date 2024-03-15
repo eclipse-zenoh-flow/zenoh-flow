@@ -71,17 +71,7 @@ pub(crate) async fn query_abort(
     };
 
     for runtime_id in runtimes {
-        let selector = match selectors::selector_instances(runtime_id) {
-            Ok(selector) => selector,
-            Err(e) => {
-                tracing::error!(
-                    "Generation of selector 'instances' for runtime < {} > failed: {:?}",
-                    runtime_id,
-                    e
-                );
-                continue;
-            }
-        };
+        let selector = selectors::selector_instances(runtime_id);
 
         if let Err(e) = session
             .get(selector)

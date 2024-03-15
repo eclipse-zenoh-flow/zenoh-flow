@@ -109,12 +109,7 @@ pub(crate) async fn spawn_runtime_queryable(
     abort_rx: Receiver<()>,
     abort_ack_tx: Sender<()>,
 ) -> Result<()> {
-    let ke_runtime = match selector_runtimes(runtime.id()) {
-        Ok(ke) => ke,
-        Err(e) => {
-            bail!("Failed to create 'runtimes' selector: {:?}", e);
-        }
-    };
+    let ke_runtime = selector_runtimes(runtime.id());
 
     let queryable = match zenoh_session
         .declare_queryable(ke_runtime.clone())
