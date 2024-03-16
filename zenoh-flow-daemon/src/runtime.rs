@@ -24,7 +24,7 @@ use zenoh::queryable::Query;
 use zenoh_flow_commons::{InstanceId, Result, RuntimeId};
 use zenoh_flow_runtime::{InstanceState, Runtime};
 
-use crate::{selectors::selector_runtimes, validate_query};
+use crate::{daemon::validate_query, selectors::selector_runtimes};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum RuntimesQuery {

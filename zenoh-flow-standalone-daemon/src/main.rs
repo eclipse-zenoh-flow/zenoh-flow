@@ -19,7 +19,7 @@ use clap::Parser;
 use signal_hook::consts::{SIGINT, SIGQUIT, SIGTERM};
 use signal_hook_async_std::Signals;
 use zenoh_flow_commons::RuntimeId;
-use zenoh_flow_daemon::{Daemon, Runtime};
+use zenoh_flow_daemon::daemon::*;
 
 #[derive(Parser)]
 struct Cli {
