@@ -25,7 +25,7 @@ use itertools::Itertools;
 use uuid::Uuid;
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{parse_vars, Result, RuntimeId, Vars};
-use zenoh_flow_daemon::{selectors, InstanceStatus, InstancesQuery, Origin};
+use zenoh_flow_daemon::queries::*;
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
 
 #[derive(Subcommand)]
@@ -74,7 +74,7 @@ pub(crate) enum InstanceCommand {
 
 impl InstanceCommand {
     pub async fn run(self, session: Session, orchestrator_id: RuntimeId) -> Result<()> {
-        let mut selector = selectors::selector_instances(&orchestrator_id);
+        let mut selector = selector_instances(&orchestrator_id);
         let query = match self {
             InstanceCommand::Create { flow, vars } => {
                 let vars = match vars {
@@ -107,7 +107,7 @@ impl InstanceCommand {
             InstanceCommand::List => InstancesQuery::List,
 
             InstanceCommand::Status { instance_id } => {
-                selector = selectors::selector_all_instances();
+                selector = selector_all_instances();
                 InstancesQuery::Status(instance_id.into())
             }
             InstanceCommand::Start { instance_id } => InstancesQuery::Start {

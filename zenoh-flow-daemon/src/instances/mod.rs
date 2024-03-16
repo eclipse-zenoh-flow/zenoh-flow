@@ -13,7 +13,8 @@
 //
 
 mod queries;
-use crate::{selectors, validate_query};
+use crate::daemon::validate_query;
+use crate::selectors;
 
 pub use self::queries::InstancesQuery;
 

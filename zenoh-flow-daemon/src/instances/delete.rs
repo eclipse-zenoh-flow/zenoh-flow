@@ -12,8 +12,8 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::InstancesQuery;
-use crate::{selectors, Origin};
+use super::{InstancesQuery, Origin};
+use crate::selectors;
 
 use std::sync::Arc;
 

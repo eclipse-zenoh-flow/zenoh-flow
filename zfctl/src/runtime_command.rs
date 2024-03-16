@@ -21,10 +21,7 @@ use clap::Subcommand;
 use comfy_table::{Row, Table};
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{Result, RuntimeId};
-use zenoh_flow_daemon::{
-    runtime::{RuntimeInfo, RuntimeStatus, RuntimesQuery},
-    selectors::selector_runtimes,
-};
+use zenoh_flow_daemon::queries::*;
 
 use crate::ZENOH_FLOW_INTERNAL_ERROR;
 
@@ -38,7 +35,7 @@ pub(crate) async fn get_all_runtimes(session: &Session) -> Result<Vec<RuntimeInf
     })?;
 
     let runtime_replies = session
-        .get(zenoh_flow_daemon::selectors::selector_all_runtimes())
+        .get(selector_all_runtimes())
         .with_value(value)
         // We want to address all the Zenoh-Flow runtimes that are reachable on the Zenoh network.
         .consolidation(ConsolidationMode::None)

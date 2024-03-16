@@ -19,7 +19,7 @@ use zenoh::{
     plugins::{RunningPluginTrait, ZenohPlugin},
     prelude::r#async::*,
 };
-use zenoh_flow_daemon::{configuration::ZenohFlowConfiguration, Daemon};
+use zenoh_flow_daemon::daemon::*;
 use zenoh_plugin_trait::Plugin;
 use zenoh_result::{bail, zerror};
 
