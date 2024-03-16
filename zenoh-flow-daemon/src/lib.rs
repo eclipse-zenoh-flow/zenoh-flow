@@ -13,10 +13,11 @@
 //
 
 pub(crate) mod configuration;
-pub mod daemon;
 pub(crate) mod instances;
 pub(crate) mod runtime;
 pub(crate) mod selectors;
+
+pub mod daemon;
 
 pub mod queries {
     pub use crate::instances::{InstancesQuery, Origin};
