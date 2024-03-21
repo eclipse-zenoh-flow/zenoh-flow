@@ -12,6 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+//! The Zenoh-Flow Daemon and re-exports needed to create one.
+//!
+//! A Zenoh-Flow Daemon wraps a Zenoh-Flow [runtime] and exposes queryables to remotely interact and manage it. This
+//! module thus additionally re-exports the necessary structures from the Zenoh-Flow runtime crate needed to create a
+//! [runtime].
+//!
+//! [runtime]: zenoh_flow_runtime::Runtime
+
 mod configuration;
 mod queryables;
 
