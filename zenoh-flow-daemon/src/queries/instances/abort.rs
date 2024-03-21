@@ -13,7 +13,7 @@
 //
 
 use super::{InstancesQuery, Origin};
-use crate::selectors;
+use crate::queries::selectors;
 
 use std::sync::Arc;
 

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021 - 2024 ZettaScale Technology
+// Copyright (c) 2021 - 2023 ZettaScale Technology
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
@@ -12,8 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::{abort, create, delete, start};
-use crate::instances::Origin;
+mod abort;
+mod create;
+mod delete;
+mod start;
 
 use std::{fmt::Debug, sync::Arc};
 
@@ -24,6 +26,12 @@ use zenoh_flow_commons::{InstanceId, Result};
 use zenoh_flow_descriptors::FlattenedDataFlowDescriptor;
 use zenoh_flow_records::DataFlowRecord;
 use zenoh_flow_runtime::Runtime;
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum Origin {
+    Client,
+    Daemon,
+}
 
 async fn reply<T: Serialize + Debug>(query: Query, data: Result<T>) -> Result<()> {
     let sample = match data {

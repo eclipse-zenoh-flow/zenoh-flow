@@ -12,11 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::sync::Arc;
-
-use crate::selectors;
-
 use super::InstancesQuery;
+use crate::queries::selectors;
+
+use std::sync::Arc;
 
 use anyhow::Context;
 use zenoh::prelude::r#async::*;

@@ -12,20 +12,18 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+mod configuration;
+mod queryables;
+
 #[cfg(not(feature = "plugin"))]
-pub use crate::configuration::ZenohConfiguration;
-pub use crate::configuration::{ExtensionsConfiguration, ZenohFlowConfiguration};
-pub use zenoh_flow_runtime::Runtime;
+pub use configuration::ZenohConfiguration;
+pub use configuration::{ExtensionsConfiguration, ZenohFlowConfiguration};
+pub use zenoh_flow_runtime::{Extension, Extensions, Runtime};
 
-use crate::{instances, runtime};
-
-use anyhow::{anyhow, bail};
 use flume::{Receiver, Sender};
-use serde::Deserialize;
 use std::sync::Arc;
-use zenoh::{prelude::r#async::*, queryable::Query};
+use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{try_parse_from_file, Result, Vars};
-use zenoh_flow_runtime::Extensions;
 
 /// A Zenoh-Flow daemon declares 2 queryables:
 /// 1. `zenoh-flow/<uuid>/runtime`
@@ -115,7 +113,7 @@ impl Daemon {
         let abort_ack = abort_ack_tx.clone();
 
         if let Err(e) =
-            runtime::spawn_runtime_queryable(session.clone(), runtime.clone(), abort, abort_ack)
+            queryables::spawn_runtime_queryable(session.clone(), runtime.clone(), abort, abort_ack)
                 .await
         {
             tracing::error!(
@@ -126,7 +124,7 @@ impl Daemon {
         }
 
         if let Err(e) =
-            instances::spawn_instances_queryable(session, runtime.clone(), abort_rx, abort_ack_tx)
+            queryables::spawn_instances_queryable(session, runtime.clone(), abort_rx, abort_ack_tx)
                 .await
         {
             tracing::error!(
@@ -186,35 +184,4 @@ impl Daemon {
             );
         }
     }
-}
-
-/// Validate a query and try to deserialize into an instance of `T`.
-///
-/// This function checks that the query is correct:
-/// - it has a payload,
-/// - the encoding is "correct",
-/// - the payload can be deserialized into an instance of `T`.
-///
-/// If any check fails, an error message is logged and the query is dropped.
-///
-/// After these checks, the method `process` is called on the variant of `InstancesQuery`.
-pub(crate) async fn validate_query<T: for<'a> Deserialize<'a>>(query: &Query) -> Result<T> {
-    let value = match query.value() {
-        Some(value) => value,
-        None => {
-            bail!("Received empty payload");
-        }
-    };
-
-    if ![
-        Encoding::APP_OCTET_STREAM,
-        Encoding::APP_JSON,
-        Encoding::TEXT_JSON,
-    ]
-    .contains(&value.encoding)
-    {
-        bail!("Encoding < {} > is not supported", value.encoding);
-    }
-
-    serde_json::from_slice::<T>(&value.payload.contiguous()).map_err(|e| anyhow!("{:?}", e))
 }

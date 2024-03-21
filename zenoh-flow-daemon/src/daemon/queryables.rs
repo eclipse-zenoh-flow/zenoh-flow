@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2021 - 2023 ZettaScale Technology
+// Copyright (c) 2021 - 2024 ZettaScale Technology
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License 2.0 which is available at
@@ -12,32 +12,19 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-mod queries;
-use crate::daemon::validate_query;
-use crate::selectors;
-
-pub use self::queries::InstancesQuery;
-
-mod abort;
-mod create;
-mod delete;
-mod start;
+use crate::queries::instances::InstancesQuery;
+use crate::queries::runtime::RuntimesQuery;
+use crate::queries::selectors;
+use crate::queries::validate_query;
 
 use std::sync::Arc;
 
 use anyhow::bail;
 use flume::{Receiver, Sender};
 use futures::select;
-use serde::{Deserialize, Serialize};
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::Result;
 use zenoh_flow_runtime::Runtime;
-
-#[derive(Debug, Deserialize, Serialize)]
-pub enum Origin {
-    Client,
-    Daemon,
-}
 
 /// Spawns an async task to answer queries received on `zenoh-flow/{runtime_id}/instances`.
 pub(crate) async fn spawn_instances_queryable(
@@ -96,6 +83,69 @@ pub(crate) async fn spawn_instances_queryable(
 
         abort_ack_tx.send_async(()).await.unwrap_or_else(|e| {
             tracing::error!("Queryable 'instances' failed to acknowledge abort: {:?}", e);
+        });
+    });
+
+    Ok(())
+}
+
+pub(crate) async fn spawn_runtime_queryable(
+    zenoh_session: Arc<Session>,
+    runtime: Arc<Runtime>,
+    abort_rx: Receiver<()>,
+    abort_ack_tx: Sender<()>,
+) -> Result<()> {
+    let ke_runtime = selectors::selector_runtimes(runtime.id());
+
+    let queryable = match zenoh_session
+        .declare_queryable(ke_runtime.clone())
+        .res()
+        .await
+    {
+        Ok(queryable) => {
+            tracing::trace!("declared queryable < {} >", ke_runtime);
+            queryable
+        }
+        Err(e) => {
+            bail!("Failed to declare Zenoh queryable 'runtimes': {:?}", e)
+        }
+    };
+
+    async_std::task::spawn(async move {
+        loop {
+            select!(
+                _ = abort_rx.recv_async() => {
+                    tracing::trace!("Received abort signal");
+                    break;
+                }
+
+                query = queryable.recv_async() => {
+                    match query {
+                        Ok(query) => {
+                            let runtime_query: RuntimesQuery = match validate_query(&query).await {
+                                Ok(runtime_query) => runtime_query,
+                                Err(e) => {
+                                    tracing::error!("Unable to parse `RuntimesQuery`: {:?}", e);
+                                    return;
+                                }
+                            };
+
+                            let runtime = runtime.clone();
+                            async_std::task::spawn(async move {
+                                runtime_query.process(query, runtime).await;
+                            });
+                        }
+                        Err(e) => {
+                            tracing::error!("Queryable 'runtimes' dropped: {:?}", e);
+                            return;
+                        }
+                    }
+                }
+            )
+        }
+
+        abort_ack_tx.send_async(()).await.unwrap_or_else(|e| {
+            tracing::error!("Queryable 'runtime' failed to acknowledge abort: {:?}", e);
         });
     });
 
