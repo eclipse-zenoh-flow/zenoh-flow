@@ -12,16 +12,5 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-pub(crate) mod configuration;
-pub(crate) mod instances;
-pub(crate) mod runtime;
-pub(crate) mod selectors;
-
 pub mod daemon;
-
-pub mod queries {
-    pub use crate::instances::{InstancesQuery, Origin};
-    pub use crate::runtime::{RuntimeInfo, RuntimeStatus, RuntimesQuery};
-    pub use crate::selectors::*;
-    pub use zenoh_flow_runtime::InstanceStatus;
-}
+pub mod queries;
