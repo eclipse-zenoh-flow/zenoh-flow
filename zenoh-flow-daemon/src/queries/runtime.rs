@@ -21,18 +21,41 @@ use zenoh::queryable::Query;
 use zenoh_flow_commons::{InstanceId, RuntimeId};
 use zenoh_flow_runtime::{InstanceState, Runtime};
 
+/// The available interactions with Zenoh-Flow Daemon(s).
 #[derive(Debug, Deserialize, Serialize)]
 pub enum RuntimesQuery {
+    /// To list all the reachable Zenoh-Flow Daemon(s).
+    ///
+    /// This query will display the name and [unique identifier](RuntimeId) of each Zenoh-Flow Daemon. See the
+    /// corresponding structure, [RuntimeInfo], for usage within your code.
     List,
+    /// To obtain detailed information about a Zenoh-Flow Daemon and its host.
+    ///
+    /// This query will display:
+    /// - the name of the Zenoh-Flow Daemon,
+    /// - the number of CPUs of the host,
+    /// - the quantity of RAM of the host,
+    /// - the hostname of the host,
+    /// - the CPU architecture of the host,
+    /// - the operating system of the host,
+    /// - the status of all the data flows managed by the Zenoh-Flow Daemon.
+    ///
+    /// See the corresponding structure, [RuntimeStatus], for usage within your code.
     Status,
 }
 
+/// The answer to a [List] query.
+///
+/// [List]: RuntimesQuery::List
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RuntimeInfo {
     pub id: RuntimeId,
     pub name: Arc<str>,
 }
 
+/// The answer to a [Status] query.
+///
+/// [Status]: RuntimesQuery::Status
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RuntimeStatus {
     pub name: Arc<str>,

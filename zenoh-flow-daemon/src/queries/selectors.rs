@@ -56,8 +56,7 @@ pub fn selector_instances(runtime_id: &RuntimeId) -> OwnedKeyExpr {
     autocanonize(format!("{ZENOH_FLOW}/{runtime_id}/{INSTANCES}"))
 }
 
-/// Helper function to generate an [OwnedKeyExpr] to query the data flow instances managed by all the reachable
-/// Zenoh-Flow runtimes.
+/// Helper function to generate an [OwnedKeyExpr] to query the data flow instances managed by a Zenoh-Flow Daemon.
 ///
 /// # Performance
 ///

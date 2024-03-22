@@ -12,6 +12,15 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+//! Queries and their response to interact with a Zenoh-Flow [Daemon].
+//!
+//! This module exposes the available queries to manage data flow instances and interact with other Zenoh-Flow Daemons.
+//! The queries are divided into two sets:
+//! - [instances](InstancesQuery)
+//! - [runtime](RuntimesQuery)
+//!
+//! [Daemon]: crate::daemon::Daemon
+
 pub(crate) mod instances;
 pub(crate) mod runtime;
 pub(crate) mod selectors;

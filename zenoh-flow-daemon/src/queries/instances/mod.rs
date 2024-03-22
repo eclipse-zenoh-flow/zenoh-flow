@@ -27,9 +27,23 @@ use zenoh_flow_descriptors::FlattenedDataFlowDescriptor;
 use zenoh_flow_records::DataFlowRecord;
 use zenoh_flow_runtime::Runtime;
 
+/// Where the query originated.
+///
+/// This is internally used to know if the query should be propagated to the other Zenoh-Flow Daemon(s) involved in the
+/// execution of the data flow instance.
+// NOTE: Maybe we could rename it to `Recursive`? Or something that carries the same meaning. Because we are using the
+// `Origin::Client` variant when stopping a Daemon while, technically, it is not the case but it is the behaviour that
+// we are expecting.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum Origin {
+    /// A query originating from a Client will be propagated to the Zenoh-Flow Daemon(s) involved in the execution of
+    /// the data flow instance.
     Client,
+    /// A query originating from a Daemon will **not** be propagated to the Zenoh-Flow Daemon(s) involved in the
+    /// execution of the data flow instance.
+    ///
+    /// A Zenoh-Flow Daemon seeing this origin will assume that the query came from the Zenoh-Flow Daemon that is
+    /// orchestrating (i.e. that was contacted by the Client).
     Daemon,
 }
 
@@ -50,6 +64,7 @@ async fn reply<T: Serialize + Debug>(query: Query, data: Result<T>) -> Result<()
         .map_err(|e| anyhow!("Failed to send reply: {:?}", e))
 }
 
+/// The available interactions to manipulate a data flow instance.
 #[derive(Debug, Deserialize, Serialize)]
 pub enum InstancesQuery {
     /// Requests the runtime to create a new data flow instance based on the [FlattenedDataFlowDescriptor].

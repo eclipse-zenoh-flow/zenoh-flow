@@ -22,7 +22,7 @@ use zenoh_flow_runtime::Extensions;
 pub struct ZenohFlowConfiguration {
     /// A human-readable name for this Daemon and its embedded Runtime.
     pub name: String,
-    /// Additional supported extensions.
+    /// Additionally supported [Extensions].
     pub extensions: Option<ExtensionsConfiguration>,
     /// The configuration to connect to Zenoh.
     #[cfg(not(feature = "plugin"))]

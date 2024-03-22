@@ -162,8 +162,11 @@ impl Daemon {
 
     /// Stop the Zenoh-Flow daemon.
     ///
-    /// This method will first stop the queryables this daemon declared (to not process new requests) and then abort all
-    /// the data flow instances that are running.
+    /// This method will first stop the queryables this daemon declared (to not process new requests) and then delete
+    /// all the data flow instances it manages.
+    ///
+    /// ⚠️ If a data flow is spanning over multiple Daemons, stopping a single Daemon will delete the data flow instance
+    /// on all the Daemons.
     pub async fn stop(&self) {
         for iteration in 0..NUMBER_QUERYABLES {
             tracing::trace!(
