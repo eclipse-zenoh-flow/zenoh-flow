@@ -12,10 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-mod abort;
-mod create;
-mod delete;
-mod start;
+pub(crate) mod abort;
+pub(crate) mod create;
+pub(crate) mod delete;
+pub(crate) mod start;
 
 use std::{fmt::Debug, sync::Arc};
 
@@ -121,7 +121,9 @@ impl InstancesQuery {
             InstancesQuery::Delete {
                 origin,
                 instance_id,
-            } => delete::delete_instance(runtime, origin, instance_id),
+            } => {
+                delete::delete_instance(runtime, origin, instance_id);
+            }
 
             InstancesQuery::Status(instance_id) => {
                 if let Err(e) = reply(
