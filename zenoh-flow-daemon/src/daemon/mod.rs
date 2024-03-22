@@ -20,6 +20,8 @@ pub use configuration::ZenohConfiguration;
 pub use configuration::{ExtensionsConfiguration, ZenohFlowConfiguration};
 pub use zenoh_flow_runtime::{Extension, Extensions, Runtime};
 
+use crate::queries::{instances::delete::delete_instance, Origin};
+
 use flume::{Receiver, Sender};
 use std::sync::Arc;
 use zenoh::prelude::r#async::*;
@@ -33,6 +35,7 @@ const NUMBER_QUERYABLES: usize = 2;
 pub struct Daemon {
     abort_tx: Sender<()>,
     abort_ack_rx: Receiver<()>,
+    runtime: Arc<Runtime>,
 }
 
 impl Daemon {
@@ -137,6 +140,7 @@ impl Daemon {
         Ok(Daemon {
             abort_tx,
             abort_ack_rx,
+            runtime,
         })
     }
 
@@ -161,8 +165,12 @@ impl Daemon {
             });
         }
 
-        // TODO: Abort all the operations on the runtime.
-        // self._runtime.abort();
+        let data_flows = self.runtime.instances_state().await;
+        let delete_requests = data_flows
+            .into_keys()
+            .map(|instance_id| delete_instance(self.runtime.clone(), Origin::Client, instance_id));
+
+        futures::future::join_all(delete_requests).await;
 
         // TODO Introduce a timer: if, for whatever reason, a queryable fails to send an acknowledgment we should not
         // block the stopping procedure.

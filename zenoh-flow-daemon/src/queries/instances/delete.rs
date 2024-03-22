@@ -17,6 +17,7 @@ use crate::queries::selectors;
 
 use std::sync::Arc;
 
+use async_std::task::JoinHandle;
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{InstanceId, RuntimeId};
 use zenoh_flow_runtime::{DataFlowErr, Runtime};
@@ -58,7 +59,11 @@ pub(crate) async fn query_delete(
 ///
 /// If the query comes from a [Client](Origin::Client) then this daemon will query all the runtimes involved in this
 /// instance to make them also delete the data flow instance.
-pub(crate) fn delete_instance(runtime: Arc<Runtime>, origin: Origin, instance_id: InstanceId) {
+pub(crate) fn delete_instance(
+    runtime: Arc<Runtime>,
+    origin: Origin,
+    instance_id: InstanceId,
+) -> JoinHandle<()> {
     async_std::task::spawn(async move {
         if matches!(origin, Origin::Client) {
             match runtime.try_get_record(&instance_id).await {
@@ -83,5 +88,5 @@ pub(crate) fn delete_instance(runtime: Arc<Runtime>, origin: Origin, instance_id
         if let Err(e) = runtime.try_delete_instance(&instance_id).await {
             tracing::error!("Failed to delete instance < {} >: {:?}", instance_id, e);
         }
-    });
+    })
 }
