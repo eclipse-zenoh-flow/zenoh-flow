@@ -25,7 +25,9 @@
 
 use super::Runtime;
 use crate::loader::NodeSymbol;
+#[cfg(feature = "zenoh")]
 use crate::runners::builtin::zenoh::sink::ZenohSink;
+#[cfg(feature = "zenoh")]
 use crate::runners::builtin::zenoh::source::ZenohSource;
 use crate::InstanceState;
 use crate::{instance::DataFlowInstance, runners::Runner};
