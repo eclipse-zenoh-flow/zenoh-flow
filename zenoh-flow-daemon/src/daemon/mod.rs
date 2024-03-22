@@ -15,8 +15,7 @@
 //! The Zenoh-Flow Daemon and re-exports needed to create one.
 //!
 //! A Zenoh-Flow Daemon wraps a Zenoh-Flow [runtime] and exposes queryables to remotely interact and manage it. This
-//! module thus additionally re-exports the necessary structures from the Zenoh-Flow runtime crate needed to create a
-//! [runtime].
+//! module thus additionally re-exports the structures needed to create one.
 //!
 //! [runtime]: zenoh_flow_runtime::Runtime
 
@@ -40,6 +39,9 @@ use zenoh_flow_commons::{try_parse_from_file, Result, Vars};
 /// 2. `zenoh-flow/<uuid>/instances`
 const NUMBER_QUERYABLES: usize = 2;
 
+/// The Zenoh-Flow `Daemon`, a wrapper around a Zenoh-Flow [Runtime].
+///
+/// A Zenoh-Flow `Daemon` is able to coordinate with other Zenoh-Flow Daemon(s) to manage data flows.
 pub struct Daemon {
     abort_tx: Sender<()>,
     abort_ack_rx: Receiver<()>,
@@ -47,7 +49,7 @@ pub struct Daemon {
 }
 
 impl Daemon {
-    /// Spawn a new Zenoh-Flow Daemon with its [runtime] configured via a [configuration].
+    /// Spawn a new Zenoh-Flow Daemon with its [runtime] configured via the provided [configuration].
     ///
     /// Note that this configuration can be parsed from a file. This function is for instance leveraged by the Zenoh
     /// plugin for Zenoh-Flow: the configuration of Zenoh-Flow is parsed from Zenoh's configuration file.
@@ -55,12 +57,16 @@ impl Daemon {
     /// # Errors
     ///
     /// This function can fail for the following reasons:
+    /// - if the feature `plugin` is disabled (*it is disabled by default*):
+    ///   - the configuration of Zenoh is invalid,
+    ///   - the configuration of Zenoh is provided in a separate file and the parsing of that file failed,
+    ///   - a Zenoh Session could not be created,
     /// - the [extensions] section in the configuration points to a file and that file is not a valid declaration of
     ///   [extensions],
     /// - the [extensions] could not be added to the Runtime (see the list of potential reasons
     ///   [here](zenoh_flow_runtime::RuntimeBuilder::add_extensions())),
-    /// - if the feature `plugin` is disabled (it is by default):
-    ///   - the Zenoh
+    /// - the Zenoh queryables -- one to manage the `instances` and another to manage the `runtime` itself -- could not
+    ///   be created.
     ///
     /// [extensions]: Extensions
     /// [runtime]: Runtime
@@ -104,12 +110,14 @@ impl Daemon {
         Daemon::spawn(runtime).await
     }
 
-    /// Starts the Zenoh-Flow daemon.
+    /// Spawn a new Zenoh-Flow Daemon wrapping the provided [runtime].
     ///
-    /// - creates a Zenoh-Flow runtime,
-    /// - spawns 2 queryables to serve external requests on the runtime:
-    ///    1. `zenoh-flow/<uuid>/runtime`: for everything that relates to the runtime.
-    ///    2. `zenoh-flow/<uuid>/instances`: for everything that relates to the data flow instances.
+    /// # Errors
+    ///
+    /// This function will fail if the Zenoh queryables -- one to manage the `instances` and another to manage the
+    /// `runtime` itself -- could not be created.
+    ///
+    /// [runtime]: Runtime
     pub async fn spawn(runtime: Runtime) -> Result<Self> {
         // Channels to gracefully stop the Zenoh-Flow daemon:
         // - `abort_?x` to tell the queryables that they have to stop,
@@ -152,9 +160,9 @@ impl Daemon {
         })
     }
 
-    /// Gracefully stops the Zenoh-Flow daemon.
+    /// Stop the Zenoh-Flow daemon.
     ///
-    /// This method will first stop the queryables this daemon declared (to not process new requests) and then stop all
+    /// This method will first stop the queryables this daemon declared (to not process new requests) and then abort all
     /// the data flow instances that are running.
     pub async fn stop(&self) {
         for iteration in 0..NUMBER_QUERYABLES {
@@ -180,21 +188,21 @@ impl Daemon {
 
         futures::future::join_all(delete_requests).await;
 
-        // TODO Introduce a timer: if, for whatever reason, a queryable fails to send an acknowledgment we should not
+        // TODO Introduce a timer: if, for whatever reason, a queryable fails to send an acknowledgement we should not
         // block the stopping procedure.
         //
         // Maybe wait for 60 seconds maximum?
         for iteration in 0..NUMBER_QUERYABLES {
             self.abort_ack_rx.recv_async().await.unwrap_or_else(|e| {
                 tracing::error!(
-                    "Failed to receive abort acknowledgment ({}/{}): {:?}",
+                    "Failed to receive abort acknowledgement ({}/{}): {:?}",
                     iteration + 1,
                     NUMBER_QUERYABLES,
                     e
                 );
             });
             tracing::trace!(
-                "Received abort acknowledgment {}/{}",
+                "Received abort acknowledgement {}/{}",
                 iteration + 1,
                 NUMBER_QUERYABLES
             );

@@ -17,14 +17,23 @@ use std::path::PathBuf;
 use serde::Deserialize;
 use zenoh_flow_runtime::Extensions;
 
+/// The configuration of a Zenoh-Flow Daemon.
 #[derive(Deserialize, Debug)]
 pub struct ZenohFlowConfiguration {
+    /// A human-readable name for this Daemon and its embedded Runtime.
     pub name: String,
+    /// Additional supported extensions.
     pub extensions: Option<ExtensionsConfiguration>,
+    /// The configuration to connect to Zenoh.
     #[cfg(not(feature = "plugin"))]
     pub zenoh: ZenohConfiguration,
 }
 
+/// Enumeration to facilitate defining the [Extensions] supported by the wrapped Zenoh-Flow [Runtime].
+///
+/// This enumeration allows either having the definition in the same configuration file or in a separate one.
+///
+/// [Runtime]: zenoh_flow_runtime::Runtime
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum ExtensionsConfiguration {
@@ -32,6 +41,9 @@ pub enum ExtensionsConfiguration {
     Extensions(Extensions),
 }
 
+/// Enumeration to facilitate defining the Zenoh configuration.
+///
+/// This enumeration allows either having the definition in the same configuration file or in a separate one.
 #[cfg(not(feature = "plugin"))]
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]

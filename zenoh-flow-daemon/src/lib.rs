@@ -18,7 +18,7 @@
 //! In particular, a Zenoh-Flow Daemon is able to coordinate with other Zenoh-Flow Daemon(s) to manage data flows ---
 //! provided that they can reach each other through Zenoh.
 //!
-//! Hence, instantiating a data flow only requires a single communication with one Daemon: it will automatically request
+//! Therefore, instantiating a data flow only requires communicating with a single Daemon: it will automatically request
 //! the other Daemons involved in the deployment to manage their respective nodes.
 //!
 //! Users interested in integrating a [Daemon] in their system should look into the [spawn()] and [spawn_from_config()]
