@@ -61,7 +61,7 @@ impl Daemon {
         #[cfg(not(feature = "plugin"))]
         let zenoh_config = match configuration.zenoh {
             ZenohConfiguration::File(path) => {
-                zenoh::prelude::Config::from_file(path).map_err(|e| anyhow!("{e:?}"))
+                zenoh::prelude::Config::from_file(path).map_err(|e| anyhow::anyhow!("{e:?}"))
             }
             ZenohConfiguration::Configuration(config) => Ok(config),
         }?;
@@ -71,7 +71,7 @@ impl Daemon {
             .res()
             .await
             .map(|session| session.into_arc())
-            .map_err(|e| anyhow!("{e:?}"))?;
+            .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
         let extensions = if let Some(extensions) = configuration.extensions {
             match extensions {
