@@ -38,8 +38,3 @@ crate-type = ["cdylib"]
 name = "file-writer"
 path = "examples/file-writer/src/lib.rs"
 crate-type = ["cdylib"]
-
-[[example]]
-name = "period-miss-detector"
-path = "examples/period-miss-detector/src/lib.rs"
-crate-type = ["cdylib"]
