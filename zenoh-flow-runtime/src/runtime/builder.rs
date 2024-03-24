@@ -16,9 +16,9 @@ use crate::{loader::Loader, Extensions, Runtime};
 
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use anyhow::{anyhow, bail};
 use async_std::sync::{Mutex, RwLock};
 use uhlc::HLC;
+#[cfg(feature = "zenoh")]
 use zenoh::prelude::r#async::*;
 #[cfg(feature = "shared-memory")]
 use zenoh_flow_commons::SharedMemoryConfiguration;
@@ -79,7 +79,7 @@ impl RuntimeBuilder {
 
         #[cfg(feature = "zenoh")]
         if self.session.is_some() {
-            bail!(
+            anyhow::bail!(
                 "Cannot set the identifier of this runtime, a Zenoh session was already provided"
             );
         }
@@ -249,7 +249,9 @@ impl RuntimeBuilder {
                 zenoh::open(zenoh_config)
                     .res_async()
                     .await
-                    .map_err(|e| anyhow!("Failed to open a Zenoh session in peer mode:\n{e:?}"))?
+                    .map_err(|e| {
+                        anyhow::anyhow!("Failed to open a Zenoh session in peer mode:\n{e:?}")
+                    })?
                     .into_arc()
             }
         };
