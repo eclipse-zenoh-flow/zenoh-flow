@@ -13,10 +13,11 @@
 //
 
 use super::row;
+use crate::utils::{get_all_runtimes, get_runtime_by_name};
 
 use std::time::Duration;
 
-use anyhow::{anyhow, bail};
+use anyhow::anyhow;
 use clap::Subcommand;
 use comfy_table::{Row, Table};
 use zenoh::prelude::r#async::*;
@@ -24,49 +25,6 @@ use zenoh_flow_commons::{Result, RuntimeId};
 use zenoh_flow_daemon::queries::*;
 
 use crate::ZENOH_FLOW_INTERNAL_ERROR;
-
-pub(crate) async fn get_all_runtimes(session: &Session) -> Result<Vec<RuntimeInfo>> {
-    let value = serde_json::to_vec(&RuntimesQuery::List).map_err(|e| {
-        tracing::error!(
-            "`serde_json` failed to serialize `RuntimeQuery::List`: {:?}",
-            e
-        );
-        anyhow!(ZENOH_FLOW_INTERNAL_ERROR)
-    })?;
-
-    let runtime_replies = session
-        .get(selector_all_runtimes())
-        .with_value(value)
-        // We want to address all the Zenoh-Flow runtimes that are reachable on the Zenoh network.
-        .consolidation(ConsolidationMode::None)
-        // .target(QueryTarget::All)
-        .res()
-        .await
-        .map_err(|e| anyhow!("Failed to query available runtimes:\n{:?}", e))?;
-
-    let mut runtimes = Vec::new();
-    while let Ok(reply) = runtime_replies.recv_async().await {
-        match reply.sample {
-            Ok(sample) => {
-                match serde_json::from_slice::<RuntimeInfo>(&sample.value.payload.contiguous()) {
-                    Ok(runtime_info) => runtimes.push(runtime_info),
-                    Err(e) => {
-                        tracing::error!("Failed to parse a reply as a `RuntimeId`:\n{:?}", e)
-                    }
-                }
-            }
-
-            Err(e) => tracing::warn!("A reply returned an error:\n{:?}", e),
-        }
-    }
-
-    if runtimes.is_empty() {
-        tracing::error!("No Zenoh-Flow runtime were detected. Have you checked if (i) they are up and (ii) reachable through Zenoh?");
-        bail!("zfctl encountered a fatal error, aborting.");
-    }
-
-    Ok(runtimes)
-}
 
 #[derive(Subcommand)]
 pub(crate) enum RuntimeCommand {
@@ -84,14 +42,27 @@ pub(crate) enum RuntimeCommand {
     ///   - its name,
     ///   - its status.
     #[command(verbatim_doc_comment)]
-    Status { runtime_id: RuntimeId },
+    #[group(required = true, multiple = false)]
+    Status {
+        /// The unique identifier of the Zenoh-Flow runtime to contact.
+        /// If no identifier is provided, a random Zenoh-Flow runtime is
+        /// selected among those reachable.
+        #[arg(short = 'i', long = "id", group = "runtime")]
+        runtime_id: Option<RuntimeId>,
+        /// The name of the Zenoh-Flow runtime to contact.
+        ///
+        /// Note that if several runtimes share the same name, the first to
+        /// answer will be selected.
+        #[arg(short = 'n', long = "name", group = "runtime")]
+        runtime_name: Option<String>,
+    },
 }
 
 impl RuntimeCommand {
     pub async fn run(self, session: &Session) -> Result<()> {
         match self {
             RuntimeCommand::List => {
-                let runtimes = get_all_runtimes(session).await?;
+                let runtimes = get_all_runtimes(session).await;
 
                 let mut table = Table::new();
                 table.set_width(80);
@@ -103,7 +74,26 @@ impl RuntimeCommand {
                 println!("{table}");
             }
 
-            RuntimeCommand::Status { runtime_id } => {
+            RuntimeCommand::Status {
+                runtime_id,
+                runtime_name,
+            } => {
+                let runtime_id = match (runtime_id, runtime_name) {
+                    (Some(id), _) => id,
+                    (None, Some(name)) => get_runtime_by_name(session, &name).await,
+                    (None, None) => {
+                        // This code is indeed unreachable because:
+                        // (1) The `group` macro has `required = true` which indicates that clap requires an entry for
+                        //     any group.
+                        // (2) The `group` macro has `multiple = false` which indicates that only a single entry for
+                        //     any group is accepted.
+                        // (3) The `runtime_id` and `runtime_name` fields belong to the same group "runtime".
+                        //
+                        // => A single entry for the group "runtime" is required (and mandatory).
+                        unreachable!()
+                    }
+                };
+
                 let selector = selector_runtimes(&runtime_id);
 
                 let value = serde_json::to_vec(&RuntimesQuery::Status).map_err(|e| {

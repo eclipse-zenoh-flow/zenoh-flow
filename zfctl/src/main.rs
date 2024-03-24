@@ -13,13 +13,16 @@
 //
 
 mod instance_command;
+use instance_command::InstanceCommand;
+
 mod runtime_command;
+use runtime_command::RuntimeCommand;
+
+mod utils;
+use utils::{get_random_runtime, get_runtime_by_name};
 
 use anyhow::anyhow;
 use clap::{Parser, Subcommand};
-use instance_command::InstanceCommand;
-use rand::Rng;
-use runtime_command::{get_all_runtimes, RuntimeCommand};
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{Result, RuntimeId};
 
@@ -50,14 +53,22 @@ struct Zfctl {
 #[derive(Subcommand)]
 enum Command {
     /// To manage a data flow instance.
+    ///
+    /// This command accepts an optional `name` or `id` of a Zenoh-Flow Runtime
+    /// to contact. If no name or id is provided, one is randomly selected.
+    #[group(required = false, multiple = false)]
     Instance {
         #[command(subcommand)]
         command: InstanceCommand,
         /// The unique identifier of the Zenoh-Flow runtime to contact.
-        /// If no identifier is provided, a random Zenoh-Flow runtime is
-        /// selected among those reachable.
-        #[arg(short, long, verbatim_doc_comment)]
-        runtime: Option<RuntimeId>,
+        #[arg(short = 'i', long = "id", verbatim_doc_comment, group = "runtime")]
+        runtime_id: Option<RuntimeId>,
+        /// The name of the Zenoh-Flow runtime to contact.
+        ///
+        /// If several runtimes share the same name, `zfctl` will abort
+        /// its execution asking you to instead use their `id`.
+        #[arg(short = 'n', long = "name", verbatim_doc_comment, group = "runtime")]
+        runtime_name: Option<String>,
     },
 
     /// To interact with a Zenoh-Flow runtime.
@@ -81,25 +92,19 @@ async fn main() -> Result<()> {
         .map_err(|e| anyhow!("Failed to open Zenoh session:\n{:?}", e))?;
 
     match zfctl.command {
-        Command::Instance { command, runtime } => {
-            let orchestrator_id = match runtime {
-                Some(id) => id,
-                None => {
-                    let mut runtimes = get_all_runtimes(&session).await?;
-                    let orchestrator =
-                        runtimes.remove(rand::thread_rng().gen_range(0..runtimes.len()));
-                    tracing::trace!(
-                        "Orchestrator: < {} > (id: {})",
-                        orchestrator.name,
-                        orchestrator.id
-                    );
-
-                    orchestrator.id
-                }
+        Command::Instance {
+            command,
+            runtime_id,
+            runtime_name,
+        } => {
+            let orchestrator_id = match (runtime_id, runtime_name) {
+                (Some(id), _) => id,
+                (None, Some(name)) => get_runtime_by_name(&session, &name).await,
+                (None, None) => get_random_runtime(&session).await,
             };
 
             command.run(session, orchestrator_id).await
         }
-        Command::Runtime(r) => r.run(&session).await,
+        Command::Runtime(command) => command.run(&session).await,
     }
 }
