@@ -13,8 +13,6 @@
 //
 
 mod instance_command;
-use std::path::PathBuf;
-
 use instance_command::InstanceCommand;
 
 mod runtime_command;
@@ -22,6 +20,8 @@ use runtime_command::RuntimeCommand;
 
 mod utils;
 use utils::{get_random_runtime, get_runtime_by_name};
+
+use std::path::PathBuf;
 
 use anyhow::anyhow;
 use clap::{Parser, Subcommand};
