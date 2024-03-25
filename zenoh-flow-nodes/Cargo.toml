@@ -34,7 +34,7 @@ tracing = { workspace = true }
 uhlc = { workspace = true }
 uuid = { workspace = true }
 zenoh-flow-commons = { workspace = true }
-zenoh-flow-derive = { path = "../zenoh-flow-derive" }
+zenoh-flow-derive = { workspace = true }
 
 [dev-dependencies]
 prost = "0.12"

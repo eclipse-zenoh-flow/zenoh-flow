@@ -112,9 +112,7 @@ async fn main() {
                     break;
                 }
 
-                _ => {
-                    unreachable!()
-                }
+                _ => {}
             }
         }
     })

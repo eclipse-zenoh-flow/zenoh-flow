@@ -101,9 +101,7 @@ impl DataFlowRecord {
                 }
             }
 
-            let runtime_entry = mapping
-                .entry(default_runtime.clone())
-                .or_insert_with(HashSet::default);
+            let runtime_entry = mapping.entry(default_runtime.clone()).or_default();
             runtime_entry.insert(node_id.clone());
         };
 
@@ -206,7 +204,7 @@ Caused by:
                 );
                 additional_mappings
                     .entry(runtime_from.clone())
-                    .or_insert_with(HashSet::default)
+                    .or_default()
                     .insert(sender_id);
 
                 receivers.insert(
@@ -218,7 +216,7 @@ Caused by:
                 );
                 additional_mappings
                     .entry(runtime_to.clone())
-                    .or_insert_with(HashSet::default)
+                    .or_default()
                     .insert(receiver_id);
             }
         }
@@ -227,10 +225,7 @@ Caused by:
         additional_mappings
             .into_iter()
             .for_each(|(runtime_id, nodes)| {
-                mapping
-                    .entry(runtime_id)
-                    .or_insert_with(HashSet::default)
-                    .extend(nodes);
+                mapping.entry(runtime_id).or_default().extend(nodes);
             });
 
         Ok(Self {
