@@ -21,7 +21,6 @@ code-checks:
     cargo build -p zenoh-flow-runtime --no-default-features
     cargo build -p zenoh-flow-runtime --no-default-features --features zenoh
     cargo build -p zenoh-flow-daemon
-    cargo build -p zenoh-flow-daemon --features plugin
     cargo nextest run
     cargo test --doc
     cargo clippy --all-targets -- --deny warnings
