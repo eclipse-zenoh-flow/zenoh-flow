@@ -25,8 +25,8 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-async-std = { workspace = true, features = ["attributes"] }
 anyhow = { workspace = true }
+async-std = { workspace = true, features = ["attributes"] }
 base64 = { workspace = true }
 bytesize = { workspace = true }
 clap = { workspace = true, features = ["derive", "wrap_help"] }
@@ -47,6 +47,6 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 uuid = { workspace = true, features = ["serde", "v4"] }
 zenoh = { workspace = true }
 zenoh-flow-commons = { workspace = true }
-zenoh-flow-descriptors = { workspace = true }
 zenoh-flow-daemon = { workspace = true }
+zenoh-flow-descriptors = { workspace = true }
 zenoh-util = { workspace = true }
