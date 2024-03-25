@@ -18,16 +18,30 @@ use async_std::stream::StreamExt;
 use clap::Parser;
 use signal_hook::consts::{SIGINT, SIGQUIT, SIGTERM};
 use signal_hook_async_std::Signals;
-use zenoh_flow_commons::RuntimeId;
+use zenoh::prelude::r#async::AsyncResolve;
+use zenoh_flow_commons::{try_parse_from_file, Vars};
 use zenoh_flow_daemon::daemon::*;
 
 #[derive(Parser)]
 struct Cli {
-    name: String,
-    #[clap(short, long)]
+    /// The human-readable name to give the Zenoh-Flow Runtime wrapped by this
+    /// Daemon.
+    ///
+    /// To start a Zenoh-Flow Daemon, at least a name is required.
+    name: Option<String>,
+    /// The path of the configuration of the Zenoh-Flow Daemon.
+    ///
+    /// This configuration allows setting extensions supported by the Runtime
+    /// and its name.
+    #[arg(short, long, verbatim_doc_comment)]
     configuration: Option<PathBuf>,
-    #[clap(short, long)]
-    runtime_id: Option<RuntimeId>,
+    /// The path to a Zenoh configuration to manage the connection to the Zenoh
+    /// network.
+    ///
+    /// If no configuration is provided, the Daemon will default to connecting as
+    /// a peer with multicast scouting enabled.
+    #[arg(short = 'z', long, verbatim_doc_comment)]
+    zenoh_configuration: Option<PathBuf>,
 }
 
 #[async_std::main]
@@ -36,15 +50,48 @@ async fn main() {
 
     let cli = Cli::parse();
 
-    let mut runtime_builder = Runtime::builder(cli.name);
-
-    if let Some(runtime_id) = cli.runtime_id {
-        runtime_builder = runtime_builder
-            .runtime_id(runtime_id)
-            .expect("Failed to set the identifier of the Runtime");
+    if cli.configuration.is_some() && cli.name.is_some() {
+        tracing::error!("Please either specify a <NAME> or a <CONFIGURATION>, not both.");
+        return;
+    } else if cli.configuration.is_none() && cli.name.is_none() {
+        tracing::error!("Please provide at least a <NAME> for this Zenoh-Flow Runtime.");
+        return;
     }
 
+    let runtime_builder = match cli.configuration {
+        Some(path) => {
+            let (zenoh_flow_configuration, _) =
+                try_parse_from_file::<ZenohFlowConfiguration>(&path, Vars::default())
+                    .unwrap_or_else(|e| {
+                        panic!(
+                            "Failed to parse a Zenoh-Flow Configuration from < {} >:\n{e:?}",
+                            path.display()
+                        )
+                    });
+
+            Runtime::builder(zenoh_flow_configuration.name)
+        }
+        None => Runtime::builder(cli.name.unwrap()),
+    };
+
+    let zenoh_config = match cli.zenoh_configuration {
+        Some(path) => zenoh::prelude::Config::from_file(path.clone()).unwrap_or_else(|e| {
+            panic!(
+                "Failed to parse the Zenoh configuration from < {} >:\n{e:?}",
+                path.display()
+            )
+        }),
+        None => zenoh::config::peer(),
+    };
+
+    let zenoh_session = zenoh::open(zenoh_config)
+        .res_async()
+        .await
+        .unwrap_or_else(|e| panic!("Failed to open Zenoh session:\n{e:?}"))
+        .into_arc();
+
     let runtime = runtime_builder
+        .session(zenoh_session)
         .build()
         .await
         .expect("Failed to build the Zenoh-Flow Runtime");
