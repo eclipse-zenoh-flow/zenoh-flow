@@ -24,10 +24,6 @@
 //! Users interested in integrating a [Daemon] in their system should look into the [spawn()] and [spawn_from_config()]
 //! methods.
 //!
-//! # Feature: "plugin"
-//!
-//! This create defines the feature `plugin` for when the Daemon is embedded as a plugin on a Zenoh router.
-//!
 //! [Daemon]: crate::daemon::Daemon
 //! [Runtime]: crate::daemon::Runtime
 //! [spawn()]: crate::daemon::Daemon::spawn()

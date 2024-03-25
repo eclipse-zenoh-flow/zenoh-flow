@@ -22,8 +22,6 @@
 mod configuration;
 mod queryables;
 
-#[cfg(not(feature = "plugin"))]
-pub use configuration::ZenohConfiguration;
 pub use configuration::{ExtensionsConfiguration, ZenohFlowConfiguration};
 pub use zenoh_flow_runtime::{Extension, Extensions, Runtime};
 
@@ -72,24 +70,9 @@ impl Daemon {
     /// [runtime]: Runtime
     /// [configuration]: ZenohFlowConfiguration
     pub async fn spawn_from_config(
-        #[cfg(feature = "plugin")] zenoh_session: Arc<Session>,
+        zenoh_session: Arc<Session>,
         configuration: ZenohFlowConfiguration,
     ) -> Result<Self> {
-        #[cfg(not(feature = "plugin"))]
-        let zenoh_config = match configuration.zenoh {
-            ZenohConfiguration::File(path) => {
-                zenoh::prelude::Config::from_file(path).map_err(|e| anyhow::anyhow!("{e:?}"))
-            }
-            ZenohConfiguration::Configuration(config) => Ok(config),
-        }?;
-
-        #[cfg(not(feature = "plugin"))]
-        let zenoh_session = zenoh::open(zenoh_config)
-            .res()
-            .await
-            .map(|session| session.into_arc())
-            .map_err(|e| anyhow::anyhow!("{e:?}"))?;
-
         let extensions = if let Some(extensions) = configuration.extensions {
             match extensions {
                 ExtensionsConfiguration::File(path) => {

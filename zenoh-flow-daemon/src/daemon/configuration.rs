@@ -24,9 +24,6 @@ pub struct ZenohFlowConfiguration {
     pub name: String,
     /// Additionally supported [Extensions].
     pub extensions: Option<ExtensionsConfiguration>,
-    /// The configuration to connect to Zenoh.
-    #[cfg(not(feature = "plugin"))]
-    pub zenoh: ZenohConfiguration,
 }
 
 /// Enumeration to facilitate defining the [Extensions] supported by the wrapped Zenoh-Flow [Runtime].
@@ -39,17 +36,6 @@ pub struct ZenohFlowConfiguration {
 pub enum ExtensionsConfiguration {
     File(PathBuf),
     Extensions(Extensions),
-}
-
-/// Enumeration to facilitate defining the Zenoh configuration.
-///
-/// This enumeration allows either having the definition in the same configuration file or in a separate one.
-#[cfg(not(feature = "plugin"))]
-#[derive(Deserialize, Debug)]
-#[serde(untagged)]
-pub enum ZenohConfiguration {
-    File(PathBuf),
-    Configuration(zenoh::prelude::Config),
 }
 
 #[cfg(test)]
