@@ -19,12 +19,19 @@ use std::path::PathBuf;
 use zenoh_flow_commons::{parse_vars, Vars};
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
 use zenoh_flow_records::DataFlowRecord;
-use zenoh_flow_runtime::{Extensions, Runtime};
+use zenoh_flow_runtime::{zenoh::AsyncResolve, Extensions, Runtime};
 
 #[derive(Parser)]
 struct Cli {
     /// The data flow to execute.
     flow: PathBuf,
+    /// The path to a Zenoh configuration to manage the connection to the Zenoh
+    /// network.
+    ///
+    /// If no configuration is provided, `zfctl` will default to connecting as
+    /// a peer with multicast scouting enabled.
+    #[arg(short = 'z', long, verbatim_doc_comment)]
+    zenoh_configuration: Option<PathBuf>,
     /// The, optional, location of the configuration to load nodes implemented not in Rust.
     #[arg(short, long, value_name = "path")]
     extensions: Option<PathBuf>,
@@ -79,9 +86,28 @@ async fn main() {
         ))
         .unwrap();
 
-    let runtime = Runtime::builder("zenoh-flow-standalone-runtime")
+    let mut runtime_builder = Runtime::builder("zenoh-flow-standalone-runtime")
         .add_extensions(extensions)
-        .expect("Failed to add extensions")
+        .expect("Failed to add extensions");
+
+    if let Some(path) = cli.zenoh_configuration {
+        let zenoh_config = zenoh_flow_runtime::zenoh::Config::from_file(path.clone())
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to parse the Zenoh configuration from < {} >:\n{e:?}",
+                    path.display()
+                )
+            });
+        let zenoh_session = zenoh_flow_runtime::zenoh::open(zenoh_config)
+            .res_async()
+            .await
+            .unwrap_or_else(|e| panic!("Failed to open a Zenoh session: {e:?}"))
+            .into_arc();
+
+        runtime_builder = runtime_builder.session(zenoh_session);
+    }
+
+    let runtime = runtime_builder
         .build()
         .await
         .expect("Failed to build the Zenoh-Flow runtime");
