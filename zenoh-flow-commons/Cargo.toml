@@ -26,11 +26,11 @@ version = { workspace = true }
 [dependencies]
 anyhow = { workspace = true }
 bytesize = { workspace = true }
-humantime = "2.1"
-uuid = { workspace = true }
 handlebars = "5.1.0"
+humantime = "2.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+uuid = { workspace = true }
 zenoh-keyexpr = { workspace = true }
 zenoh-protocol = { workspace = true }
