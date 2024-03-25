@@ -21,13 +21,17 @@ use serde::Deserializer;
 use std::{str::FromStr, sync::Arc};
 use zenoh_keyexpr::OwnedKeyExpr;
 
-/// Deserialise, from a [String], an `Arc<str>` that is guaranteed to be a valid Zenoh-Flow [NodeId](crate::NodeId) or
+/// Deserialise, from a String, an `Arc<str>` that is guaranteed to be a valid Zenoh-Flow [NodeId](crate::NodeId) or
 /// [PortId](crate::PortId).
 ///
-/// To be valid, the following properties must be upheld:
-/// - the String does not contain any of the symbols: * # $ ? >
-/// - the String is a valid Zenoh key expression in its canonical form (see
-///   [autocanonize](zenoh_keyexpr::OwnedKeyExpr::autocanonize)).
+/// # Errors
+///
+/// The deserialisation will fail if:
+/// - the String is empty,
+/// - the String contains any of the symbols: * # $ ? >
+/// - the String is not a valid Zenoh key expression in its canonical form (see [autocanonize]).
+///
+/// [autocanonize]: zenoh_keyexpr::OwnedKeyExpr::autocanonize
 pub fn deserialize_id<'de, D>(deserializer: D) -> std::result::Result<Arc<str>, D::Error>
 where
     D: Deserializer<'de>,
@@ -68,6 +72,10 @@ Caused by:
 /// Deserialise a bytes size leveraging the [bytesize] crate.
 ///
 /// This allows parsing, for instance, "1Ko" into "1024" bytes. For more example, see the [bytesize] crate.
+///
+/// # Errors
+///
+/// See the [bytesize] documentation.
 pub fn deserialize_size<'de, D>(deserializer: D) -> std::result::Result<usize, D::Error>
 where
     D: Deserializer<'de>,
@@ -91,6 +99,10 @@ where
 /// Deserialise a duration in *microseconds* leveraging the [humantime] crate.
 ///
 /// This allows parsing, for instance, "1ms" as 1000 microseconds.
+///
+/// # Errors
+///
+/// See the [humantime] documentation.
 pub fn deserialize_time<'de, D>(deserializer: D) -> std::result::Result<u64, D::Error>
 where
     D: Deserializer<'de>,

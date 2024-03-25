@@ -34,41 +34,41 @@ use std::{ops::Deref, sync::Arc};
 /// When two configuration keys collide, the configuration with the highest order is kept. The priorities are (from
 /// highest to lowest):
 /// - the configuration in a node within a data flow descriptor,
-/// - the configuration in a data flow descriptor,
-/// - the configuration in a node within a composite operator,
-/// - the configuration in a composite operator,
+/// - the configuration at the top-level of a data flow descriptor,
+/// - the configuration in a node within a composite operator descriptor,
+/// - the configuration at the top-level of a composite operator descriptor,
 /// - the configuration in a dedicated file of a node.
 ///
 /// Hence, configuration at the data flow level are propagating to all nodes, possibly overwriting default values. The
 /// same rules apply at the composite operator level. If a node should have a slightly different setting compared to all
-/// others, then these priorities allow setting a global value and tweaking only the node that differs (either in the
-/// data flow or in the composite operator).
+/// others, then, thanks to these priorities, only that node needs to be tweaked (either in the data flow or in the
+/// composite operator).
 ///
 /// # Examples
 ///
-/// ## YAML
+/// - YAML
 ///
-/// ```yaml
-/// configuration:
-///   name: "John Doe",
-///   age: 43,
-///   phones:
-///     - "+44 1234567"
-///     - "+44 2345678"
-/// ```
+///   ```yaml
+///   configuration:
+///     name: "John Doe",
+///     age: 43,
+///     phones:
+///       - "+44 1234567"
+///       - "+44 2345678"
+///   ```
 ///
-/// ## JSON
+/// - JSON
 ///
-/// ```json
-/// "configuration": {
-///   "name": "John Doe",
-///   "age": 43,
-///   "phones": [
-///       "+44 1234567",
-///       "+44 2345678"
-///   ]
-/// }
-/// ```
+///   ```json
+///   "configuration": {
+///     "name": "John Doe",
+///     "age": 43,
+///     "phones": [
+///         "+44 1234567",
+///         "+44 2345678"
+///     ]
+///   }
+///   ```
 //
 // NOTE: we take the `serde_json` representation because:
 // - JSON is the most supported representation when going online,
