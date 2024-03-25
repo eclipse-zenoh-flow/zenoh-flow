@@ -21,6 +21,8 @@ use runtime_command::RuntimeCommand;
 mod utils;
 use utils::{get_random_runtime, get_runtime_by_name};
 
+use std::path::PathBuf;
+
 use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use zenoh::prelude::r#async::*;
@@ -46,6 +48,13 @@ macro_rules! row {
 
 #[derive(Parser)]
 struct Zfctl {
+    /// The path to a Zenoh configuration to manage the connection to the Zenoh
+    /// network.
+    ///
+    /// If no configuration is provided, `zfctl` will default to connecting as
+    /// a peer with multicast scouting enabled.
+    #[arg(short = 'z', long, verbatim_doc_comment)]
+    zenoh_configuration: Option<PathBuf>,
     #[command(subcommand)]
     command: Command,
 }
@@ -86,7 +95,17 @@ async fn main() -> Result<()> {
 
     let zfctl = Zfctl::parse();
 
-    let session = zenoh::open(zenoh::config::peer())
+    let zenoh_config = match zfctl.zenoh_configuration {
+        Some(path) => zenoh::prelude::Config::from_file(path.clone()).map_err(|e| {
+            anyhow!(
+                "Failed to parse the Zenoh configuration from < {} >:\n{e:?}",
+                path.display()
+            )
+        })?,
+        None => zenoh::config::peer(),
+    };
+
+    let session = zenoh::open(zenoh_config)
         .res()
         .await
         .map_err(|e| anyhow!("Failed to open Zenoh session:\n{:?}", e))?;
