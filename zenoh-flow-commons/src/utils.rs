@@ -19,6 +19,16 @@ use serde::Deserialize;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+/// Given the [Path] of a file, return the function we should call to deserialize an instance of `N`.
+///
+/// This function will look at the extension of the [Path] to decide on a deserializer.
+///
+/// # Errors
+///
+/// This function will fail if the extension of the [Path] is not supported. For now, the only supported extensions are:
+/// - ".yml"
+/// - ".yaml"
+/// - ".json"
 pub(crate) fn deserializer<N>(path: &PathBuf) -> Result<fn(&str) -> Result<N>>
 where
     N: for<'a> Deserialize<'a>,
@@ -57,7 +67,18 @@ Currently supported file extensions are:
 /// - JSON (`.json` file extension)
 /// - YAML (`.yaml` or `.yml` extensions)
 ///
-/// This function does not impose writing *all* descriptor file, within the same data flow, in the same format.
+/// This function does not impose writing *all* descriptor file(s), within the same data flow, in the same format.
+///
+/// # Errors
+///
+/// The parsing can fail for several reasons (listed in sequential order):
+/// - the OS failed to [canonicalize](std::fs::canonicalize()) the path of the file,
+/// - the OS failed to open (in read mode) the file,
+/// - the extension of the file is not supported by Zenoh-Flow (i.e. it's neither a YAML file or a JSON file),
+/// - parsing the [Vars] section failed (if there is one),
+/// - expanding the variables located in the [Vars] section failed (if there are any) --- see the documentation
+///   [handlebars] for a more complete list of reasons,
+/// - parsing an instance of `N` failed.
 pub fn try_parse_from_file<N>(path: impl AsRef<Path>, vars: Vars) -> Result<(N, Vars)>
 where
     N: for<'a> Deserialize<'a>,

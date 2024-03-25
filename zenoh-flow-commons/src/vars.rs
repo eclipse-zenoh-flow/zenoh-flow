@@ -113,6 +113,13 @@ impl<T: AsRef<str>, U: AsRef<str>> From<Vec<(T, U)>> for Vars {
 }
 
 /// Parse a single [Var](Vars) from a string of the format "KEY=VALUE".
+///
+/// Note that if several "=" characters are present in the string, only the first one will be considered as a separator
+/// and the others will be treated as being part of the VALUE.
+///
+/// # Errors
+///
+/// This function will return an error if no "=" character was found.
 pub fn parse_vars<T, U>(
     s: &str,
 ) -> std::result::Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
