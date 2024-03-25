@@ -39,7 +39,7 @@ pub(crate) enum InstanceCommand {
     /// - This call returns the unique identifier before the creation is
     ///   completed. To verify the status, one can call the following:
     ///
-    ///       `zfctl instance status <uuid>`
+    ///       zfctl instance status <uuid>
     ///
     /// - This call will **not** start the data flow instance, only load on all
     ///   the involved runtimes the nodes composing the data flow.
