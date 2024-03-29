@@ -3401,7 +3401,6 @@ version = "0.6.0-dev"
 dependencies = [
  "anyhow",
  "async-std",
- "clap",
  "flume",
  "futures",
  "log",

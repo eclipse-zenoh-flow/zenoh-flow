@@ -26,7 +26,6 @@ version = { workspace = true }
 [dependencies]
 anyhow = { workspace = true }
 async-std = { workspace = true }
-clap = { workspace = true }
 flume = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
