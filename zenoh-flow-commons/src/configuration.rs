@@ -14,7 +14,7 @@
 
 use crate::merge::IMergeOverwrite;
 use serde::{Deserialize, Serialize};
-use std::{ops::Deref, sync::Arc};
+use std::{ops::Deref, ops::DerefMut};
 
 /// A `Configuration` is a recursive key-value structure that allows modifying the behaviour of a node without altering
 /// its implementation.
@@ -75,13 +75,19 @@ use std::{ops::Deref, sync::Arc};
 // - a `serde_json::Value` can be converted to a `serde_yaml::Value` whereas the opposite is not true (YAML introduces
 //   "tags" which are not supported by JSON).
 #[derive(Default, Deserialize, Debug, Serialize, Clone, PartialEq, Eq)]
-pub struct Configuration(Arc<serde_json::Value>);
+pub struct Configuration(serde_json::Value);
 
 impl Deref for Configuration {
     type Target = serde_json::Value;
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl DerefMut for Configuration {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
@@ -101,7 +107,7 @@ impl IMergeOverwrite for Configuration {
                 let mut this = this.clone();
 
                 other.append(&mut this);
-                Configuration(Arc::new(other.into()))
+                Configuration(other.into())
             }
             (_, _) => unreachable!(
                 "We are checking, when deserialising, that a Configuration is a JSON object."
@@ -112,7 +118,7 @@ impl IMergeOverwrite for Configuration {
 
 impl From<serde_json::Value> for Configuration {
     fn from(value: serde_json::Value) -> Self {
-        Self(Arc::new(value))
+        Self(value)
     }
 }
 
@@ -123,16 +129,12 @@ mod tests {
 
     #[test]
     fn test_merge_configurations() {
-        let global = Configuration(Arc::new(
-            json!({ "a": { "nested": true }, "b": ["an", "array"] }),
-        ));
-        let local = Configuration(Arc::new(json!({ "a": { "not-nested": false }, "c": 1 })));
+        let global = Configuration(json!({ "a": { "nested": true }, "b": ["an", "array"] }));
+        let local = Configuration(json!({ "a": { "not-nested": false }, "c": 1 }));
 
         assert_eq!(
             global.clone().merge_overwrite(local),
-            Configuration(Arc::new(
-                json!({ "a": { "nested": true }, "b": ["an", "array"], "c": 1 })
-            ))
+            Configuration(json!({ "a": { "nested": true }, "b": ["an", "array"], "c": 1 }))
         );
 
         assert_eq!(
