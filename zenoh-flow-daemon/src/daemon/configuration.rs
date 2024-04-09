@@ -12,8 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::path::PathBuf;
-
 use serde::Deserialize;
 use zenoh_flow_runtime::Extensions;
 
@@ -23,76 +21,5 @@ pub struct ZenohFlowConfiguration {
     /// A human-readable name for this Daemon and its embedded Runtime.
     pub name: String,
     /// Additionally supported [Extensions].
-    pub extensions: Option<ExtensionsConfiguration>,
-}
-
-/// Enumeration to facilitate defining the [Extensions] supported by the wrapped Zenoh-Flow [Runtime].
-///
-/// This enumeration allows either having the definition in the same configuration file or in a separate one.
-///
-/// [Runtime]: zenoh_flow_runtime::Runtime
-#[derive(Deserialize, Debug, PartialEq, Eq)]
-#[serde(untagged)]
-pub enum ExtensionsConfiguration {
-    File(PathBuf),
-    Extensions(Extensions),
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_deserialize() {
-        let configuration_extension_path_yaml = r#"
-name: My test daemon
-
-extensions: /home/zenoh-flow/extensions/configuration.ext
-"#;
-
-        let config = serde_yaml::from_str::<ZenohFlowConfiguration>(
-            configuration_extension_path_yaml,
-        )
-        .expect(
-            "Failed to parse ZenohFlowConfiguration with Zenoh as a PathBuf + Extensions as a PathBuf",
-        );
-
-        let expected_configuration = ZenohFlowConfiguration {
-            name: "My test daemon".into(),
-            extensions: Some(ExtensionsConfiguration::File(PathBuf::from(
-                "/home/zenoh-flow/extensions/configuration.ext",
-            ))),
-        };
-
-        assert_eq!(expected_configuration.name, config.name);
-        assert_eq!(expected_configuration.extensions, config.extensions);
-
-        let configuration_extension_inline_yaml = r#"
-name: My test daemon
-
-extensions:
-  - file_extension: py
-    libraries:
-      source: /home/zenoh-flow/extension/libpython_source.so
-      operator: /home/zenoh-flow/extension/libpython_operator.so
-      sink: /home/zenoh-flow/extension/libpython_sink.so
-"#;
-
-        let config =
-            serde_yaml::from_str::<ZenohFlowConfiguration>(configuration_extension_inline_yaml)
-                .expect(
-                    "Failed to parse ZenohFlowConfiguration with Zenoh inline + Extensions inline",
-                );
-
-        assert_eq!(expected_configuration.name, config.name);
-        assert!(config.extensions.is_some());
-        let config_extensions = config.extensions.unwrap();
-        assert!(matches!(
-            config_extensions,
-            ExtensionsConfiguration::Extensions(_)
-        ));
-        if let ExtensionsConfiguration::Extensions(extensions) = config_extensions {
-            assert!(extensions.get("py").is_some());
-        }
-    }
+    pub extensions: Option<Extensions>,
 }
