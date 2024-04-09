@@ -58,22 +58,6 @@ async fn main() {
         return;
     }
 
-    let runtime_builder = match cli.configuration {
-        Some(path) => {
-            let (zenoh_flow_configuration, _) =
-                try_parse_from_file::<ZenohFlowConfiguration>(&path, Vars::default())
-                    .unwrap_or_else(|e| {
-                        panic!(
-                            "Failed to parse a Zenoh-Flow Configuration from < {} >:\n{e:?}",
-                            path.display()
-                        )
-                    });
-
-            Runtime::builder(zenoh_flow_configuration.name)
-        }
-        None => Runtime::builder(cli.name.unwrap()),
-    };
-
     let zenoh_config = match cli.zenoh_configuration {
         Some(path) => zenoh::prelude::Config::from_file(path.clone()).unwrap_or_else(|e| {
             panic!(
@@ -90,15 +74,31 @@ async fn main() {
         .unwrap_or_else(|e| panic!("Failed to open Zenoh session:\n{e:?}"))
         .into_arc();
 
-    let runtime = runtime_builder
-        .session(zenoh_session)
-        .build()
-        .await
-        .expect("Failed to build the Zenoh-Flow Runtime");
+    let daemon = match cli.configuration {
+        Some(path) => {
+            let (zenoh_flow_configuration, _) =
+                try_parse_from_file::<ZenohFlowConfiguration>(&path, Vars::default())
+                    .unwrap_or_else(|e| {
+                        panic!(
+                            "Failed to parse a Zenoh-Flow Configuration from < {} >:\n{e:?}",
+                            path.display()
+                        )
+                    });
 
-    let daemon = Daemon::spawn(runtime)
+            Daemon::spawn_from_config(zenoh_session, zenoh_flow_configuration)
+                .await
+                .expect("Failed to spawn the Zenoh-Flow Daemon")
+        }
+        None => Daemon::spawn(
+            Runtime::builder(cli.name.unwrap())
+                .session(zenoh_session)
+                .build()
+                .await
+                .expect("Failed to build the Zenoh-Flow Runtime"),
+        )
         .await
-        .expect("Failed to spawn the Zenoh-Flow Daemon");
+        .expect("Failed to spawn the Zenoh-Flow Daemon"),
+    };
 
     async_std::task::spawn(async move {
         let mut signals = Signals::new([SIGTERM, SIGINT, SIGQUIT])
@@ -112,8 +112,8 @@ async fn main() {
                     break;
                 }
 
-                _ => {
-                    unreachable!()
+                signal => {
+                    tracing::warn!("Ignoring signal ({signal})");
                 }
             }
         }
