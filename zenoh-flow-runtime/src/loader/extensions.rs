@@ -328,6 +328,11 @@ where
                     extension.file_extension, e
                 ))
             })?;
+
+            tracing::info!(
+                "Successfully loaded extension < {} >",
+                extension.file_extension
+            );
         }
     }
 
