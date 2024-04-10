@@ -26,18 +26,12 @@ use tracing::Instrument;
 use zenoh_flow_commons::{NodeId, Result};
 use zenoh_flow_nodes::prelude::Node;
 
-enum State {
-    Uninitialized,
-    Initialized,
-}
-
 /// A `Runner` takes care of running a `Node`.
 ///
 /// Each Runner runs in a separate task.
 pub(crate) struct Runner {
     pub(crate) id: NodeId,
     node: Arc<dyn Node>,
-    state: State,
     handle: Option<JoinHandle<()>>,
     // The `_library` field is used solely for its `Arc`. We need to keep track of how many `Runners` are using the
     // `Library` such that once that number reaches 0, we drop the library.
@@ -59,7 +53,6 @@ impl Runner {
         Self {
             id,
             node,
-            state: State::Uninitialized,
             handle: None,
             _library: library,
         }
@@ -79,12 +72,10 @@ impl Runner {
             return Ok(());
         }
 
-        if matches!(self.state, State::Initialized) {
-            self.node
-                .on_resume()
-                .await
-                .with_context(|| format!("{}: call to `on_resume` failed", self.id))?;
-        }
+        self.node
+            .on_resume()
+            .await
+            .with_context(|| format!("{}: call to `on_resume` failed", self.id))?;
 
         let id = self.id.clone();
         let node = self.node.clone();
@@ -108,7 +99,6 @@ impl Runner {
             .instrument(iteration_span),
         ));
 
-        self.state = State::Initialized;
         Ok(())
     }
 
