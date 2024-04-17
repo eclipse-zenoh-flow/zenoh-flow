@@ -33,6 +33,7 @@ use crate::InstanceState;
 use crate::{instance::DataFlowInstance, runners::Runner};
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{bail, Context as _};
@@ -115,41 +116,24 @@ impl Runtime {
                 Err(e) => break 'load Err(e),
             };
 
-            let context = Context::new(
-                data_flow.name().clone(),
-                data_flow.instance_id().clone(),
-                self.runtime_id.clone(),
-            );
-
             runners.extend(
-                match self
-                    .try_load_operators(data_flow, &mut channels, context.clone())
-                    .await
-                {
+                match self.try_load_operators(data_flow, &mut channels).await {
                     Ok(operators) => operators,
                     Err(e) => break 'load Err(e),
                 },
             );
 
             runners.extend(
-                match self
-                    .try_load_sources(data_flow, &mut channels, context.clone())
-                    .await
-                {
+                match self.try_load_sources(data_flow, &mut channels).await {
                     Ok(sources) => sources,
                     Err(e) => break 'load Err(e),
                 },
             );
 
-            runners.extend(
-                match self
-                    .try_load_sinks(data_flow, &mut channels, context.clone())
-                    .await
-                {
-                    Ok(sinks) => sinks,
-                    Err(e) => break 'load Err(e),
-                },
-            );
+            runners.extend(match self.try_load_sinks(data_flow, &mut channels).await {
+                Ok(sinks) => sinks,
+                Err(e) => break 'load Err(e),
+            });
 
             #[cfg(feature = "zenoh")]
             {
@@ -263,7 +247,6 @@ The problematic link is:
         &self,
         record: &DataFlowRecord,
         channels: &mut Channels,
-        context: Context,
     ) -> Result<HashMap<NodeId, Runner>> {
         let mut runners = HashMap::default();
         let assigned_nodes = match record.mapping().get(&self.runtime_id) {
@@ -284,9 +267,17 @@ The channels for the Inputs and Outputs of Operator < {} > were not created.
                 &operator_id
             ))?;
 
-            let (constructor, library) = self
+            let (constructor, path, library) = self
                 .try_load_constructor::<OperatorFn>(&operator.library, &NodeSymbol::Operator)
                 .await?;
+
+            let context = Context::new(
+                record.name().clone(),
+                record.instance_id().clone(),
+                self.runtime_id.clone(),
+                path,
+            );
+
             let operator_node = (constructor)(
                 context.clone(),
                 operator.configuration.clone(),
@@ -319,7 +310,6 @@ The channels for the Inputs and Outputs of Operator < {} > were not created.
         &self,
         record: &DataFlowRecord,
         channels: &mut Channels,
-        context: Context,
     ) -> Result<HashMap<NodeId, Runner>> {
         let mut runners = HashMap::default();
         let assigned_nodes = match record.mapping().get(&self.runtime_id) {
@@ -342,9 +332,17 @@ The channels for the Outputs of Source < {} > were not created.
 
             let runner = match &source.source {
                 SourceVariant::Library(uri) => {
-                    let (constructor, library) = self
+                    let (constructor, path, library) = self
                         .try_load_constructor::<SourceFn>(uri, &NodeSymbol::Source)
                         .await?;
+
+                    let context = Context::new(
+                        record.name().clone(),
+                        record.instance_id().clone(),
+                        self.runtime_id.clone(),
+                        path,
+                    );
+
                     let source_node =
                         (constructor)(context.clone(), source.configuration.clone(), outputs)
                             .await?;
@@ -391,7 +389,6 @@ Maybe change the features in the Cargo.toml?
         &self,
         record: &DataFlowRecord,
         channels: &mut Channels,
-        context: Context,
     ) -> Result<HashMap<NodeId, Runner>> {
         let mut runners = HashMap::default();
         let assigned_nodes = match record.mapping().get(&self.runtime_id) {
@@ -414,9 +411,17 @@ The channels for the Inputs of Sink < {} > were not created.
 
             let runner = match &sink.sink {
                 SinkVariant::Library(uri) => {
-                    let (constructor, library) = self
+                    let (constructor, library_path, library) = self
                         .try_load_constructor::<SinkFn>(uri, &NodeSymbol::Sink)
                         .await?;
+
+                    let context = Context::new(
+                        record.name().clone(),
+                        record.instance_id().clone(),
+                        self.runtime_id.clone(),
+                        library_path,
+                    );
+
                     let sink_node =
                         (constructor)(context.clone(), sink.configuration.clone(), inputs).await?;
 
@@ -569,7 +574,7 @@ The channels for the Inputs of Connector Sender < {} > were not created.
         &self,
         url: &Url,
         node_symbol: &NodeSymbol,
-    ) -> Result<(C, Arc<Library>)> {
+    ) -> Result<(C, Arc<PathBuf>, Arc<Library>)> {
         let mut loader_write_guard = self.loader.lock().await;
         loader_write_guard.try_load_constructor::<C>(url, node_symbol)
     }

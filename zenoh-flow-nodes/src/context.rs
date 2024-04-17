@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use zenoh_flow_commons::{InstanceId, RuntimeId};
 
@@ -27,15 +27,22 @@ pub struct Context {
     pub(crate) flow_name: Arc<str>,
     pub(crate) instance_id: InstanceId,
     pub(crate) runtime_id: RuntimeId,
+    pub(crate) library_path: Arc<PathBuf>,
 }
 
 impl Context {
     /// Creates a new node `Context`.
-    pub fn new(flow_name: Arc<str>, instance_id: InstanceId, runtime_id: RuntimeId) -> Self {
+    pub fn new(
+        flow_name: Arc<str>,
+        instance_id: InstanceId,
+        runtime_id: RuntimeId,
+        library_path: Arc<PathBuf>,
+    ) -> Self {
         Self {
             flow_name,
             instance_id,
             runtime_id,
+            library_path,
         }
     }
 
@@ -57,5 +64,12 @@ impl Context {
     /// on different Zenoh-Flow runtimes.
     pub fn runtime_id(&self) -> &RuntimeId {
         &self.runtime_id
+    }
+
+    /// Returns the path of the library loaded by the Zenoh-Flow runtime.
+    ///
+    /// The path is local to the machine where the Zenoh-Flow runtime is running.
+    pub fn library_path(&self) -> &PathBuf {
+        &self.library_path
     }
 }

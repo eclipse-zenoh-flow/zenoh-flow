@@ -142,7 +142,7 @@ pub(crate) fn try_get_constructor<N>(
 #[derive(Default)]
 pub(crate) struct Loader {
     pub(crate) extensions: Extensions,
-    pub(crate) libraries: HashMap<Url, Arc<Library>>,
+    pub(crate) libraries: HashMap<Url, (Arc<PathBuf>, Arc<Library>)>,
 }
 
 impl Deref for Loader {
@@ -191,7 +191,7 @@ impl Loader {
     pub(crate) fn remove_unused_libraries(&mut self) {
         let number_libraries = self.libraries.len();
         self.libraries
-            .retain(|_, library| Arc::strong_count(library) > 1);
+            .retain(|_, (_, library)| Arc::strong_count(library) > 1);
         tracing::trace!(
             "Removed {} unused libraries.",
             number_libraries - self.libraries.len()
@@ -217,12 +217,13 @@ impl Loader {
         &mut self,
         url: &Url,
         node_symbol: &NodeSymbol,
-    ) -> Result<(C, Arc<Library>)> {
-        if let Some(library) = self.libraries.get(url) {
-            return try_get_constructor(library.clone(), node_symbol);
+    ) -> Result<(C, Arc<PathBuf>, Arc<Library>)> {
+        if let Some((path, library)) = self.libraries.get(url) {
+            let (constructor, library) = try_get_constructor::<C>(library.clone(), node_symbol)?;
+            return Ok((constructor, path.clone(), library));
         }
 
-        let library = Arc::new(match url.scheme() {
+        let (path, library) = match url.scheme() {
             "file" => self
                 .try_load_library_from_uri(url.path(), node_symbol)
                 .context(format!("Failed to load library from file:\n{}", url.path()))?,
@@ -231,12 +232,13 @@ impl Loader {
                 url.scheme(),
                 url
             ),
-        });
+        };
 
         let (constructor, library) = try_get_constructor::<C>(library, node_symbol)?;
-        self.libraries.insert(url.clone(), library.clone());
+        self.libraries
+            .insert(url.clone(), (path.clone(), library.clone()));
 
-        Ok((constructor, library))
+        Ok((constructor, path, library))
     }
 
     /// Given the string representation of a path, attempts to load a library.
@@ -253,7 +255,7 @@ impl Loader {
         &self,
         path: &str,
         node_symbol: &NodeSymbol,
-    ) -> Result<Library> {
+    ) -> Result<(Arc<PathBuf>, Arc<Library>)> {
         let path_buf = PathBuf::from_str(path)
             .context(format!("Failed to convert path to a `PathBuf`:\n{}", path))?;
 
@@ -279,17 +281,17 @@ impl Loader {
             ),
         };
 
-        let library_path = std::fs::canonicalize(library_path).context(format!(
+        let library_path = Arc::new(std::fs::canonicalize(library_path).context(format!(
             "Failed to canonicalize path (did you put an absolute path?):\n{}",
             path_buf.display()
-        ))?;
+        ))?);
 
         #[cfg(any(target_family = "unix", target_family = "windows"))]
-        Ok(unsafe {
-            Library::new(&library_path).context(format!(
+        Ok((library_path.clone(), unsafe {
+            Arc::new(Library::new(&*library_path).context(format!(
                 "libloading::Library::new failed:\n{}",
                 library_path.display()
-            ))?
-        })
+            ))?)
+        }))
     }
 }
