@@ -256,13 +256,20 @@ impl Loader {
         path: &str,
         node_symbol: &NodeSymbol,
     ) -> Result<(Arc<PathBuf>, Arc<Library>)> {
-        let path_buf = PathBuf::from_str(path)
+        let library_path = PathBuf::from_str(path)
             .context(format!("Failed to convert path to a `PathBuf`:\n{}", path))?;
 
-        let library_path = match path_buf.extension().and_then(|ext| ext.to_str()) {
+        // The `rust_library_path`, exposing the symbols Zenoh-Flow will look for, is not always the same as the
+        // `library_path`!
+        //
+        // For instance, for the Python extension:
+        // - the `library_path` points to the location of the Python script,
+        // - the `rust_library_path` points to the location of the Rust shared library that will then load the Python
+        //   script.
+        let rust_library_path = match library_path.extension().and_then(|ext| ext.to_str()) {
             Some(extension) => {
                 if extension == std::env::consts::DLL_EXTENSION {
-                    &path_buf
+                    &library_path
                 } else {
                     self.extensions
                         .get_library_path(extension, node_symbol)
@@ -270,27 +277,27 @@ impl Loader {
                             anyhow!(
                                 "Cannot load library, no extension found for files of type < {} > :\n{}",
                                 extension,
-                                path_buf.display()
+                                library_path.display()
                             )
                         })?
                 }
             }
             None => bail!(
                 "Cannot load library, missing file extension:\n{}",
-                path_buf.display()
+                library_path.display()
             ),
         };
 
-        let library_path = Arc::new(std::fs::canonicalize(library_path).context(format!(
+        let rust_library_path = std::fs::canonicalize(rust_library_path).context(format!(
             "Failed to canonicalize path (did you put an absolute path?):\n{}",
-            path_buf.display()
-        ))?);
+            library_path.display()
+        ))?;
 
         #[cfg(any(target_family = "unix", target_family = "windows"))]
-        Ok((library_path.clone(), unsafe {
-            Arc::new(Library::new(&*library_path).context(format!(
+        Ok((Arc::new(library_path), unsafe {
+            Arc::new(Library::new(&rust_library_path).context(format!(
                 "libloading::Library::new failed:\n{}",
-                library_path.display()
+                rust_library_path.display()
             ))?)
         }))
     }
