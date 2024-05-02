@@ -12,9 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::sync::Arc;
+
 use prost::Message as pMessage;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 use super::{Input, InputRaw};
 use crate::{

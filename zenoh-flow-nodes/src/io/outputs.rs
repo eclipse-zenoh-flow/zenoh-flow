@@ -12,15 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::messages::{Data, LinkMessage, Payload, SerializerFn};
+use std::{collections::HashMap, marker::PhantomData, ops::Deref, sync::Arc};
+
 use anyhow::bail;
 use flume::Sender;
-use std::collections::HashMap;
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::sync::Arc;
 use uhlc::{Timestamp, HLC};
 use zenoh_flow_commons::{PortId, Result};
+
+use crate::messages::{Data, LinkMessage, Payload, SerializerFn};
 
 /// The [Outputs] structure contains all the outputs created for a [Source](crate::prelude::Source) or an
 /// [Operator](crate::prelude::Operator).

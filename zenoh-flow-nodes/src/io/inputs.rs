@@ -12,16 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::messages::{Data, DeserializerFn, LinkMessage};
-
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::sync::Arc;
+use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 use anyhow::{anyhow, bail};
 use flume::TryRecvError;
 use uhlc::Timestamp;
 use zenoh_flow_commons::{PortId, Result};
+
+use crate::messages::{Data, DeserializerFn, LinkMessage};
 
 /// The `Inputs` structure contains all the inputs created for a [Sink](crate::prelude::Sink) or an
 /// [Operator](crate::prelude::Operator).
@@ -41,15 +39,15 @@ use zenoh_flow_commons::{PortId, Result};
 /// ```no_run
 /// # use zenoh_flow_nodes::prelude::*;
 /// # let mut inputs = Inputs::default();
-/// let input_raw = inputs.take("test raw")
+/// let input_raw = inputs
+///     .take("test raw")
 ///     .expect("No input name 'test raw' found")
 ///     .raw();
 ///
-/// let input: Input<u64> = inputs.take("test typed")
+/// let input: Input<u64> = inputs
+///     .take("test typed")
 ///     .expect("No input name 'test typed' found")
-///     .typed(
-///         |bytes| serde_json::from_slice(bytes).map_err(|e| anyhow!(e))
-///     );
+///     .typed(|bytes| serde_json::from_slice(bytes).map_err(|e| anyhow!(e)));
 /// ```
 #[derive(Default)]
 pub struct Inputs {
@@ -88,11 +86,10 @@ impl Inputs {
     /// ```no_run
     /// # use zenoh_flow_nodes::prelude::*;
     /// # let mut inputs = Inputs::default();
-    /// let input: Input<u64> = inputs.take("test typed")
+    /// let input: Input<u64> = inputs
+    ///     .take("test typed")
     ///     .expect("No input name 'test typed' found")
-    ///     .typed(
-    ///         |bytes| serde_json::from_slice(bytes).map_err(|e| anyhow!(e))
-    ///     );
+    ///     .typed(|bytes| serde_json::from_slice(bytes).map_err(|e| anyhow!(e)));
     /// ```
     ///
     /// ## Raw
@@ -102,7 +99,8 @@ impl Inputs {
     /// ```no_run
     /// # use zenoh_flow_nodes::prelude::*;
     /// # let mut inputs = Inputs::default();
-    /// let input_raw = inputs.take("test raw")
+    /// let input_raw = inputs
+    ///     .take("test raw")
     ///     .expect("No input name 'test raw' found")
     ///     .raw();
     /// ```
@@ -151,7 +149,8 @@ impl InputBuilder {
     /// ```no_run
     /// # use zenoh_flow_nodes::prelude::*;
     /// # let mut inputs = Inputs::default();
-    /// let input_raw = inputs.take("test raw")
+    /// let input_raw = inputs
+    ///     .take("test raw")
     ///     .expect("No input name 'test raw' found")
     ///     .raw();
     /// ```
@@ -178,11 +177,10 @@ impl InputBuilder {
     /// ```no_run
     /// # use zenoh_flow_nodes::prelude::*;
     /// # let mut inputs = Inputs::default();
-    /// let input: Input<u64> = inputs.take("test typed")
+    /// let input: Input<u64> = inputs
+    ///     .take("test typed")
     ///     .expect("No input name 'test typed' found")
-    ///     .typed(
-    ///         |bytes| serde_json::from_slice(bytes).map_err(|e| anyhow!(e))
-    ///     );
+    ///     .typed(|bytes| serde_json::from_slice(bytes).map_err(|e| anyhow!(e)));
     /// ```
     pub fn typed<T>(
         self,

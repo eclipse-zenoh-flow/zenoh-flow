@@ -12,11 +12,15 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::context::Context;
-use crate::io::{Inputs, Outputs};
-use async_trait::async_trait;
 use std::any::Any;
+
+use async_trait::async_trait;
 use zenoh_flow_commons::{Configuration, Result};
+
+use crate::{
+    context::Context,
+    io::{Inputs, Outputs},
+};
 
 /// The `SendSyncAny` trait allows Zenoh-Flow to send data between nodes running in the same process without
 /// serialising.

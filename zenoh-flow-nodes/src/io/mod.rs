@@ -13,7 +13,9 @@
 //
 
 mod inputs;
-pub use inputs::{Input, InputBuilder, InputRaw, Inputs};
-
 mod outputs;
-pub use outputs::{Output, OutputBuilder, OutputRaw, Outputs};
+
+pub use self::{
+    inputs::{Input, InputBuilder, InputRaw, Inputs},
+    outputs::{Output, OutputBuilder, OutputRaw, Outputs},
+};
