@@ -12,15 +12,15 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::{abort, InstancesQuery, Origin};
-use crate::queries::selectors;
-
 use std::sync::Arc;
 
 use anyhow::bail;
 use zenoh::{prelude::r#async::*, queryable::Query};
 use zenoh_flow_commons::{InstanceId, Result, RuntimeId};
 use zenoh_flow_runtime::Runtime;
+
+use super::{abort, InstancesQuery, Origin};
+use crate::queries::selectors;
 
 /// Starts the data flow instance identified by `instance_id`.
 ///

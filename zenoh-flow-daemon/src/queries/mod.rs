@@ -25,16 +25,17 @@ pub(crate) mod instances;
 pub(crate) mod runtime;
 pub(crate) mod selectors;
 
-pub use instances::{InstancesQuery, Origin};
-pub use runtime::{RuntimeInfo, RuntimeStatus, RuntimesQuery};
-pub use selectors::*;
-pub use zenoh_flow_runtime::InstanceStatus;
-
 use anyhow::{anyhow, bail};
 use serde::Deserialize;
-use zenoh::prelude::*;
-use zenoh::queryable::Query;
+use zenoh::{prelude::*, queryable::Query};
 use zenoh_flow_commons::Result;
+pub use zenoh_flow_runtime::InstanceStatus;
+
+pub use self::{
+    instances::{InstancesQuery, Origin},
+    runtime::{RuntimeInfo, RuntimeStatus, RuntimesQuery},
+    selectors::*,
+};
 
 /// Validate a query and try to deserialize into an instance of `T`.
 ///

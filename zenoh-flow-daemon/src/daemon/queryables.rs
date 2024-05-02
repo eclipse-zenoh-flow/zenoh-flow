@@ -12,11 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::queries::instances::InstancesQuery;
-use crate::queries::runtime::RuntimesQuery;
-use crate::queries::selectors;
-use crate::queries::validate_query;
-
 use std::sync::Arc;
 
 use anyhow::bail;
@@ -25,6 +20,10 @@ use futures::select;
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::Result;
 use zenoh_flow_runtime::Runtime;
+
+use crate::queries::{
+    instances::InstancesQuery, runtime::RuntimesQuery, selectors, validate_query,
+};
 
 /// Spawns an async task to answer queries received on `zenoh-flow/{runtime_id}/instances`.
 pub(crate) async fn spawn_instances_queryable(

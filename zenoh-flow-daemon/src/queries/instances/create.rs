@@ -12,9 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::InstancesQuery;
-use crate::queries::selectors;
-
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -23,6 +20,9 @@ use zenoh_flow_commons::{InstanceId, Result};
 use zenoh_flow_descriptors::FlattenedDataFlowDescriptor;
 use zenoh_flow_records::DataFlowRecord;
 use zenoh_flow_runtime::Runtime;
+
+use super::InstancesQuery;
+use crate::queries::selectors;
 
 /// Create a new instance of the data flow described by the provided (flattened) descriptor.
 ///
