@@ -12,15 +12,15 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::{InstancesQuery, Origin};
-use crate::queries::selectors;
-
 use std::sync::Arc;
 
 use async_std::task::JoinHandle;
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{InstanceId, RuntimeId};
 use zenoh_flow_runtime::{DataFlowErr, Runtime};
+
+use super::{InstancesQuery, Origin};
+use crate::queries::selectors;
 
 /// Query all the runtimes to delete the provided data flow instance.
 pub(crate) async fn query_delete(

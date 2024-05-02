@@ -22,15 +22,15 @@
 mod configuration;
 mod queryables;
 
-pub use configuration::ZenohFlowConfiguration;
-pub use zenoh_flow_runtime::{Extension, Extensions, Runtime};
-
-use crate::queries::{instances::delete::delete_instance, Origin};
+use std::sync::Arc;
 
 use flume::{Receiver, Sender};
-use std::sync::Arc;
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::Result;
+pub use zenoh_flow_runtime::{Extension, Extensions, Runtime};
+
+pub use self::configuration::ZenohFlowConfiguration;
+use crate::queries::{instances::delete::delete_instance, Origin};
 
 /// A Zenoh-Flow daemon declares 2 queryables:
 /// 1. `zenoh-flow/<uuid>/runtime`

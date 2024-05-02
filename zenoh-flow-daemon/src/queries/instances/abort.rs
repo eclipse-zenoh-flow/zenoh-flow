@@ -12,14 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::{InstancesQuery, Origin};
-use crate::queries::selectors;
-
 use std::sync::Arc;
 
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{InstanceId, RuntimeId};
 use zenoh_flow_runtime::Runtime;
+
+use super::{InstancesQuery, Origin};
+use crate::queries::selectors;
 
 pub(crate) fn abort(runtime: Arc<Runtime>, origin: Origin, instance_id: InstanceId) {
     async_std::task::spawn(async move {

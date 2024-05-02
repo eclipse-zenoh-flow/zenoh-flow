@@ -16,8 +16,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind};
-use zenoh::prelude::r#async::*;
-use zenoh::queryable::Query;
+use zenoh::{prelude::r#async::*, queryable::Query};
 use zenoh_flow_commons::{InstanceId, RuntimeId};
 use zenoh_flow_runtime::{InstanceState, Runtime};
 
