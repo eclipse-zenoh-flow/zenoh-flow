@@ -12,16 +12,18 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::nodes::operator::OperatorDescriptor;
-use crate::nodes::sink::SinkDescriptor;
-use crate::nodes::source::SourceDescriptor;
-use crate::LinkDescriptor;
-
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use serde::{Deserialize, Serialize};
 use zenoh_flow_commons::{Configuration, InstanceId, NodeId, RuntimeId};
+
+use crate::{
+    nodes::{operator::OperatorDescriptor, sink::SinkDescriptor, source::SourceDescriptor},
+    LinkDescriptor,
+};
 
 /// A `DataFlowDescriptor` describes an entire Zenoh-Flow application and is obtained after a parsing step.
 ///

@@ -12,11 +12,12 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use serde::{Deserialize, Deserializer, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
+
+use serde::{Deserialize, Deserializer, Serialize};
 use zenoh_flow_commons::PortId;
 use zenoh_keyexpr::OwnedKeyExpr;
 

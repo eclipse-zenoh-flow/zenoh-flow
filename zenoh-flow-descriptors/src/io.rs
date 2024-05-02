@@ -12,8 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use serde::{Deserialize, Serialize};
 use std::fmt;
+
+use serde::{Deserialize, Serialize};
 #[cfg(feature = "shared-memory")]
 use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{NodeId, PortId};

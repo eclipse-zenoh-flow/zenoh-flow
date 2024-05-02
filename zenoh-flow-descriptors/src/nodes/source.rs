@@ -12,12 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::RemoteNodeDescriptor;
-use crate::nodes::builtin::zenoh::ZenohSourceDescriptor;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
 use url::Url;
 use zenoh_flow_commons::{Configuration, NodeId, PortId};
+
+use super::RemoteNodeDescriptor;
+use crate::nodes::builtin::zenoh::ZenohSourceDescriptor;
 
 /// A `SourceDescriptor` uniquely identifies a Source.
 ///

@@ -17,6 +17,11 @@ use std::{
     str::FromStr,
 };
 
+use serde_json::json;
+use url::Url;
+use uuid::Uuid;
+use zenoh_flow_commons::{NodeId, RuntimeId, Vars};
+
 use crate::{
     flattened::nodes::{sink::SinkVariant, source::SourceVariant},
     uri::try_load_descriptor,
@@ -24,10 +29,6 @@ use crate::{
     FlattenedSinkDescriptor, FlattenedSourceDescriptor, InputDescriptor, LinkDescriptor,
     OutputDescriptor,
 };
-use serde_json::json;
-use url::Url;
-use uuid::Uuid;
-use zenoh_flow_commons::{NodeId, RuntimeId, Vars};
 
 const BASE_DIR: &str = "./tests/descriptors";
 const SCHEME: &str = "file://";

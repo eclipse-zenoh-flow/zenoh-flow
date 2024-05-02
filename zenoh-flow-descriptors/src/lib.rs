@@ -40,10 +40,15 @@ pub(crate) mod io;
 pub(crate) mod nodes;
 pub(crate) mod uri;
 
-pub use dataflow::DataFlowDescriptor;
-pub use flattened::dataflow::FlattenedDataFlowDescriptor;
-pub use flattened::nodes::operator::FlattenedOperatorDescriptor;
-pub use flattened::nodes::sink::{FlattenedSinkDescriptor, SinkVariant};
-pub use flattened::nodes::source::{FlattenedSourceDescriptor, SourceVariant};
-
-pub use io::{InputDescriptor, LinkDescriptor, OutputDescriptor};
+pub use self::{
+    dataflow::DataFlowDescriptor,
+    flattened::{
+        dataflow::FlattenedDataFlowDescriptor,
+        nodes::{
+            operator::FlattenedOperatorDescriptor,
+            sink::{FlattenedSinkDescriptor, SinkVariant},
+            source::{FlattenedSourceDescriptor, SourceVariant},
+        },
+    },
+    io::{InputDescriptor, LinkDescriptor, OutputDescriptor},
+};
