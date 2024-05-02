@@ -12,12 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::IMergeOverwrite;
+use std::{collections::HashMap, error::Error, ops::Deref, rc::Rc};
+
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::error::Error;
-use std::ops::Deref;
-use std::rc::Rc;
+
+use crate::IMergeOverwrite;
 
 /// `Vars` is an internal structure that we use to expand the "moustache variables" in a descriptor file.
 ///

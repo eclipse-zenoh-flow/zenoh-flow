@@ -12,9 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::merge::IMergeOverwrite;
+use std::ops::{Deref, DerefMut};
+
 use serde::{Deserialize, Serialize};
-use std::{ops::Deref, ops::DerefMut};
+
+use crate::merge::IMergeOverwrite;
 
 /// A `Configuration` is a recursive key-value structure that allows modifying the behaviour of a node without altering
 /// its implementation.
@@ -124,8 +126,9 @@ impl From<serde_json::Value> for Configuration {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn test_merge_configurations() {

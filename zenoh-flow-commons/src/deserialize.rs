@@ -17,8 +17,9 @@
 //!
 //! The external crates [bytesize] and [humantime] are leveraged for these purposes.
 
-use serde::Deserializer;
 use std::{str::FromStr, sync::Arc};
+
+use serde::Deserializer;
 use zenoh_keyexpr::OwnedKeyExpr;
 
 /// Deserialise, from a String, an `Arc<str>` that is guaranteed to be a valid Zenoh-Flow [NodeId](crate::NodeId) or

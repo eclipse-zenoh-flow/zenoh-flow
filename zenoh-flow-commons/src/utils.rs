@@ -12,12 +12,16 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{IMergeOverwrite, Result, Vars};
+use std::{
+    io::Read,
+    path::{Path, PathBuf},
+};
+
 use anyhow::{bail, Context};
 use handlebars::Handlebars;
 use serde::Deserialize;
-use std::io::Read;
-use std::path::{Path, PathBuf};
+
+use crate::{IMergeOverwrite, Result, Vars};
 
 /// Given the [Path] of a file, return the function we should call to deserialize an instance of `N`.
 ///
