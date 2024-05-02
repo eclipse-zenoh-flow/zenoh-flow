@@ -12,15 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::deserialize::deserialize_id;
-use std::ops::Deref;
-use std::sync::Arc;
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, ops::Deref, str::FromStr, sync::Arc};
 
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zenoh_protocol::core::ZenohId;
+
+use crate::deserialize::deserialize_id;
 
 /// A `NodeId` uniquely identifies a Node within a data flow.
 ///

@@ -14,8 +14,9 @@
 
 use std::fmt::Display;
 
-use crate::deserialize::{deserialize_size, deserialize_time};
 use serde::{Deserialize, Serialize};
+
+use crate::deserialize::{deserialize_size, deserialize_time};
 
 /// Structure to configure how Zenoh-Flow uses the [shared memory](https://docs.rs/zenoh-shm/0.10.1-rc/zenoh_shm/)
 /// feature provided by Zenoh.
@@ -25,8 +26,6 @@ use serde::{Deserialize, Serialize};
 /// A Zenoh-Flow runtime can be configured to always attempt to send data through shared-memory first. When this feature
 /// is enabled this structure allows tweaking two aspects: (i) the size of the shared memory buffer Zenoh should
 /// allocate and (ii) the back-off period.
-///
-///
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SharedMemoryConfiguration {
     /// Size, converted in bytes, of the entire shared memory buffer.
