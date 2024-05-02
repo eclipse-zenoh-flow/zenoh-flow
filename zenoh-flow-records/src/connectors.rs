@@ -12,8 +12,9 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+
+use serde::{Deserialize, Serialize};
 use zenoh_flow_commons::NodeId;
 use zenoh_keyexpr::OwnedKeyExpr;
 

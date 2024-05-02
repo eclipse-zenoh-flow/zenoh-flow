@@ -25,8 +25,10 @@
 //! This crate is (mostly) intended for internal usage within the
 //! [Zenoh-Flow](https://github.com/eclipse-zenoh/zenoh-flow) project.
 
-mod dataflow;
-pub use dataflow::DataFlowRecord;
-
 mod connectors;
-pub use connectors::{ReceiverRecord, SenderRecord};
+mod dataflow;
+
+pub use self::{
+    connectors::{ReceiverRecord, SenderRecord},
+    dataflow::DataFlowRecord,
+};
