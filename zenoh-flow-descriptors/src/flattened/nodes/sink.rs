@@ -12,10 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::nodes::builtin::zenoh::ZenohSinkDescriptor;
-use crate::nodes::sink::{CustomSinkDescriptor, SinkDescriptor, SinkVariants};
-use crate::uri;
-
 use std::{collections::HashMap, fmt::Display, sync::Arc};
 
 use anyhow::Context;
@@ -23,6 +19,14 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 use zenoh_flow_commons::{Configuration, IMergeOverwrite, NodeId, PortId, Result, Vars};
 use zenoh_keyexpr::OwnedKeyExpr;
+
+use crate::{
+    nodes::{
+        builtin::zenoh::ZenohSinkDescriptor,
+        sink::{CustomSinkDescriptor, SinkDescriptor, SinkVariants},
+    },
+    uri,
+};
 
 /// A `FlattenedSinkDescriptor` is a self-contained description of a Sink node.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

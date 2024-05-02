@@ -17,8 +17,9 @@ pub(crate) mod operator;
 pub(crate) mod sink;
 pub(crate) mod source;
 
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
 use url::Url;
 use zenoh_flow_commons::Configuration;
 

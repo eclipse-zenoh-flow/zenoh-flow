@@ -12,11 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::nodes::operator::OperatorDescriptor;
-use crate::{InputDescriptor, LinkDescriptor, OutputDescriptor};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
 use zenoh_flow_commons::{Configuration, NodeId, PortId};
+
+use crate::{
+    nodes::operator::OperatorDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor,
+};
 
 /// A `CompositeOutputDescriptor` exposes the [Output](OutputDescriptor) of a node.
 ///

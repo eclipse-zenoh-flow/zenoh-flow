@@ -12,10 +12,12 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::FlattenedDataFlowDescriptor;
-use anyhow::bail;
 use std::collections::HashSet;
+
+use anyhow::bail;
 use zenoh_flow_commons::{NodeId, PortId, Result};
+
+use crate::FlattenedDataFlowDescriptor;
 
 #[derive(Default)]
 pub(crate) struct Validator<'a> {

@@ -12,20 +12,21 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{
-    DataFlowDescriptor, FlattenedOperatorDescriptor, FlattenedSinkDescriptor,
-    FlattenedSourceDescriptor, LinkDescriptor,
-};
-use anyhow::Context;
-use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Display,
     sync::Arc,
 };
+
+use anyhow::Context;
+use serde::{Deserialize, Serialize};
 use zenoh_flow_commons::{Configuration, InstanceId, NodeId, Result, RuntimeId, Vars};
 
 use super::validator::Validator;
+use crate::{
+    DataFlowDescriptor, FlattenedOperatorDescriptor, FlattenedSinkDescriptor,
+    FlattenedSourceDescriptor, LinkDescriptor,
+};
 
 /// A `FlattenedDataFlowDescriptor` is a self-contained description of a data flow.
 ///

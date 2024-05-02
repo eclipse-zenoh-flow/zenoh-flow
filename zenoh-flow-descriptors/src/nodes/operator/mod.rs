@@ -14,11 +14,13 @@
 
 pub(crate) mod composite;
 
-use super::RemoteNodeDescriptor;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
 use url::Url;
 use zenoh_flow_commons::{Configuration, NodeId, PortId};
+
+use super::RemoteNodeDescriptor;
 
 /// An `OperatorDescriptor` uniquely identifies and configures an Operator.
 ///

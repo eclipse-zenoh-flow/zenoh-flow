@@ -12,23 +12,30 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-pub(crate) mod nodes;
-pub use nodes::operator::FlattenedOperatorDescriptor;
-pub use nodes::sink::FlattenedSinkDescriptor;
-pub use nodes::source::FlattenedSourceDescriptor;
-
 pub(crate) mod dataflow;
-pub use dataflow::FlattenedDataFlowDescriptor;
-
+pub(crate) mod nodes;
 pub(crate) mod validator;
 
-use crate::nodes::operator::composite::{CompositeInputDescriptor, CompositeOutputDescriptor};
-use crate::{InputDescriptor, LinkDescriptor, OutputDescriptor};
-use std::collections::HashMap;
-use std::fmt::Display;
-use std::hash::Hash;
-use std::ops::{Deref, DerefMut};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    hash::Hash,
+    ops::{Deref, DerefMut},
+};
+
 use zenoh_flow_commons::NodeId;
+
+pub use self::{
+    dataflow::FlattenedDataFlowDescriptor,
+    nodes::{
+        operator::FlattenedOperatorDescriptor, sink::FlattenedSinkDescriptor,
+        source::FlattenedSourceDescriptor,
+    },
+};
+use crate::{
+    nodes::operator::composite::{CompositeInputDescriptor, CompositeOutputDescriptor},
+    InputDescriptor, LinkDescriptor, OutputDescriptor,
+};
 
 /// TODO@J-Loudet documentation?
 pub trait ISubstituable<T: Hash + PartialEq + Eq> {
