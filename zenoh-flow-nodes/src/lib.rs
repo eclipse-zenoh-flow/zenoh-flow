@@ -29,26 +29,29 @@
 //! [Sink](crate::prelude::Sink) and possibly some [Operators](crate::prelude::Operator). See their respective
 //! documentation for examples.
 
-pub(crate) mod declaration;
-pub use declaration::{NodeDeclaration, OperatorFn, SinkFn, SourceFn, CORE_VERSION, RUSTC_VERSION};
-
 pub(crate) mod context;
-
+pub(crate) mod declaration;
 pub(crate) mod io;
-pub use io::{InputBuilder, OutputBuilder};
-
 pub(crate) mod messages;
 pub(crate) mod traits;
+
+pub use self::{
+    declaration::{NodeDeclaration, OperatorFn, SinkFn, SourceFn, CORE_VERSION, RUSTC_VERSION},
+    io::{InputBuilder, OutputBuilder},
+};
 
 /// This module expose all the structures required to implement a Zenoh-Flow node.
 ///
 /// It also re-exposes items from the [anyhow], [zenoh_flow_commons] and [zenoh_flow_derive] crates.
 pub mod prelude {
-    pub use crate::context::Context;
-    pub use crate::io::{Input, InputRaw, Inputs, Output, OutputRaw, Outputs};
-    pub use crate::messages::{Data, LinkMessage, Payload};
-    pub use crate::traits::{Node, Operator, SendSyncAny, Sink, Source};
     pub use anyhow::{anyhow, bail};
     pub use zenoh_flow_commons::{Configuration, Result};
     pub use zenoh_flow_derive::{export_operator, export_sink, export_source};
+
+    pub use crate::{
+        context::Context,
+        io::{Input, InputRaw, Inputs, Output, OutputRaw, Outputs},
+        messages::{Data, LinkMessage, Payload},
+        traits::{Node, Operator, SendSyncAny, Sink, Source},
+    };
 }

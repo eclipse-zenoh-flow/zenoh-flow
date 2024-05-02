@@ -12,15 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::traits::SendSyncAny;
+use std::{cmp::Ordering, fmt::Debug, ops::Deref, sync::Arc};
+
 use anyhow::{bail, Context};
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use std::fmt::Debug;
-use std::ops::Deref;
-use std::sync::Arc;
 use uhlc::Timestamp;
 use zenoh_flow_commons::Result;
+
+use crate::traits::SendSyncAny;
 
 /// `SerializerFn` is a type-erased version of the serialiser function provided by node developer.
 ///

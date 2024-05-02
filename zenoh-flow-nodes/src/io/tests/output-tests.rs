@@ -12,9 +12,10 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::{collections::HashMap, sync::Arc};
+
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
 use zenoh_flow_commons::PortId;
 
 use super::Outputs;
