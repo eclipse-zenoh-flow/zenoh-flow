@@ -12,13 +12,13 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::connectors::{ReceiverRecord, SenderRecord};
-use anyhow::{anyhow, bail, Context};
-use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
+
+use anyhow::{anyhow, bail, Context};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zenoh_flow_commons::{InstanceId, NodeId, Result, RuntimeId};
 use zenoh_flow_descriptors::{
@@ -26,6 +26,8 @@ use zenoh_flow_descriptors::{
     FlattenedSourceDescriptor, InputDescriptor, LinkDescriptor, OutputDescriptor,
 };
 use zenoh_keyexpr::OwnedKeyExpr;
+
+use crate::connectors::{ReceiverRecord, SenderRecord};
 
 const SENDER_SUFFIX: &str = "__zenoh_flow_sender";
 const RECEIVER_SUFFIX: &str = "__zenoh_flow_receiver";

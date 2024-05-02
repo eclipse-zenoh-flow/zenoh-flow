@@ -14,16 +14,17 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{
-    dataflow::{RECEIVER_SUFFIX, SENDER_SUFFIX},
-    DataFlowRecord, ReceiverRecord, SenderRecord,
-};
 use zenoh_flow_commons::{NodeId, RuntimeId, Vars};
 use zenoh_flow_descriptors::{
     DataFlowDescriptor, FlattenedDataFlowDescriptor, InputDescriptor, LinkDescriptor,
     OutputDescriptor,
 };
 use zenoh_keyexpr::OwnedKeyExpr;
+
+use crate::{
+    dataflow::{RECEIVER_SUFFIX, SENDER_SUFFIX},
+    DataFlowRecord, ReceiverRecord, SenderRecord,
+};
 
 #[test]
 fn test_success_no_runtime() {
