@@ -19,12 +19,11 @@ mod runtime_command;
 use runtime_command::RuntimeCommand;
 
 mod utils;
-use utils::{get_random_runtime, get_runtime_by_name};
-
 use std::path::PathBuf;
 
 use anyhow::anyhow;
 use clap::{Parser, Subcommand};
+use utils::{get_random_runtime, get_runtime_by_name};
 use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{Result, RuntimeId};
 
