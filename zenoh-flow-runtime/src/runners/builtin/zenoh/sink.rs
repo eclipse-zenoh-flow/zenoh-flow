@@ -12,17 +12,19 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-#[cfg(feature = "shared-memory")]
-use crate::shared_memory::SharedMemory;
+use std::{collections::HashMap, pin::Pin, sync::Arc};
+
 use anyhow::{anyhow, Context};
 use async_std::sync::Mutex;
 use futures::{future::select_all, Future};
-use std::{collections::HashMap, pin::Pin, sync::Arc};
 use zenoh::{prelude::r#async::*, publication::Publisher};
 #[cfg(feature = "shared-memory")]
 use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{NodeId, PortId, Result};
 use zenoh_flow_nodes::prelude::{InputRaw, Inputs, LinkMessage, Node};
+
+#[cfg(feature = "shared-memory")]
+use crate::shared_memory::SharedMemory;
 
 /// Internal type of pending futures for the ZenohSink
 type ZFInputFut = Pin<Box<dyn Future<Output = (PortId, Result<LinkMessage>)> + Send + Sync>>;

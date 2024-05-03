@@ -12,8 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::{validate_library, NodeSymbol};
-
 use std::{
     collections::HashMap,
     ops::{Deref, DerefMut},
@@ -26,6 +24,8 @@ use libloading::Library;
 use serde::{Deserialize, Deserializer};
 use zenoh_flow_commons::Result;
 use zenoh_flow_nodes::{OperatorFn, SinkFn, SourceFn};
+
+use super::{validate_library, NodeSymbol};
 
 /// A convenient wrapper for a set of [Extension].
 ///
@@ -198,7 +198,10 @@ impl Extension {
     /// #   sink: /home/zenoh-flow/libpy_sink.so
     /// # "#;
     /// # let extension = serde_yaml::from_str::<Extension>(yaml).unwrap();
-    /// assert_eq!(extension.source().to_str(), Some("/home/zenoh-flow/libpy_source.so"));
+    /// assert_eq!(
+    ///     extension.source().to_str(),
+    ///     Some("/home/zenoh-flow/libpy_source.so")
+    /// );
     /// ```
     pub fn source(&self) -> &PathBuf {
         &self.libraries.source
@@ -219,7 +222,10 @@ impl Extension {
     /// #   sink: /home/zenoh-flow/libpy_sink.so
     /// # "#;
     /// # let extension = serde_yaml::from_str::<Extension>(yaml).unwrap();
-    /// assert_eq!(extension.operator().to_str(), Some("/home/zenoh-flow/libpy_operator.so"));
+    /// assert_eq!(
+    ///     extension.operator().to_str(),
+    ///     Some("/home/zenoh-flow/libpy_operator.so")
+    /// );
     /// ```
     pub fn operator(&self) -> &PathBuf {
         &self.libraries.operator
@@ -239,7 +245,10 @@ impl Extension {
     /// #   sink: /home/zenoh-flow/libpy_sink.so
     /// # "#;
     /// # let extension = serde_yaml::from_str::<Extension>(yaml).unwrap();
-    /// assert_eq!(extension.sink().to_str(), Some("/home/zenoh-flow/libpy_sink.so"));
+    /// assert_eq!(
+    ///     extension.sink().to_str(),
+    ///     Some("/home/zenoh-flow/libpy_sink.so")
+    /// );
     /// ```
     pub fn sink(&self) -> &PathBuf {
         &self.libraries.sink

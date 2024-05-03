@@ -12,10 +12,13 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use anyhow::anyhow;
 use std::sync::Arc;
-use zenoh::shm::SharedMemoryManager;
-use zenoh::{prelude::r#async::*, shm::SharedMemoryBuf};
+
+use anyhow::anyhow;
+use zenoh::{
+    prelude::r#async::*,
+    shm::{SharedMemoryBuf, SharedMemoryManager},
+};
 use zenoh_flow_commons::{NodeId, Result, SharedMemoryConfiguration};
 use zenoh_flow_nodes::prelude::{DataMessage, LinkMessage};
 

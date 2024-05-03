@@ -23,18 +23,7 @@
 //   - load its library,
 //   - call its constructor with the correct parameters (i.e. only Inputs for a Sink, only Outputs for a Source).
 
-use super::Runtime;
-use crate::loader::NodeSymbol;
-#[cfg(feature = "zenoh")]
-use crate::runners::builtin::zenoh::sink::ZenohSink;
-#[cfg(feature = "zenoh")]
-use crate::runners::builtin::zenoh::source::ZenohSource;
-use crate::InstanceState;
-use crate::{instance::DataFlowInstance, runners::Runner};
-
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use anyhow::{bail, Context as _};
 use async_std::sync::RwLock;
@@ -42,9 +31,18 @@ use libloading::Library;
 use url::Url;
 use zenoh_flow_commons::{NodeId, Result};
 use zenoh_flow_descriptors::{SinkVariant, SourceVariant};
-use zenoh_flow_nodes::prelude::{Context, Inputs, Outputs};
-use zenoh_flow_nodes::{OperatorFn, SinkFn, SourceFn};
+use zenoh_flow_nodes::{
+    prelude::{Context, Inputs, Outputs},
+    OperatorFn, SinkFn, SourceFn,
+};
 use zenoh_flow_records::DataFlowRecord;
+
+use super::Runtime;
+#[cfg(feature = "zenoh")]
+use crate::runners::builtin::zenoh::sink::ZenohSink;
+#[cfg(feature = "zenoh")]
+use crate::runners::builtin::zenoh::source::ZenohSource;
+use crate::{instance::DataFlowInstance, loader::NodeSymbol, runners::Runner, InstanceState};
 
 pub(crate) type Channels = HashMap<NodeId, (Inputs, Outputs)>;
 

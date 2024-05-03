@@ -13,15 +13,9 @@
 //
 
 mod builder;
-pub use builder::RuntimeBuilder;
+pub use self::builder::RuntimeBuilder;
 
 mod load;
-
-use crate::{
-    instance::{DataFlowInstance, InstanceStatus},
-    loader::Loader,
-    InstanceState,
-};
 
 use std::{
     collections::HashMap,
@@ -39,6 +33,12 @@ use zenoh::Session;
 use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{InstanceId, Result, RuntimeId};
 use zenoh_flow_records::DataFlowRecord;
+
+use crate::{
+    instance::{DataFlowInstance, InstanceStatus},
+    loader::Loader,
+    InstanceState,
+};
 
 /// A Zenoh-Flow runtime manages a subset of the nodes of [DataFlowInstance]\(s\).
 ///

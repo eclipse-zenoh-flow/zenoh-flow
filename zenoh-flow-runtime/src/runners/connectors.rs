@@ -12,18 +12,19 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::sync::Arc;
+
 use anyhow::{anyhow, bail};
 use async_std::sync::Mutex;
-use std::sync::Arc;
 use zenoh::{prelude::r#async::*, subscriber::FlumeSubscriber};
+#[cfg(feature = "shared-memory")]
+use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{NodeId, Result};
 use zenoh_flow_nodes::prelude::{InputRaw, Inputs, LinkMessage, Node, OutputRaw, Outputs};
 use zenoh_flow_records::{ReceiverRecord, SenderRecord};
 
 #[cfg(feature = "shared-memory")]
 use crate::shared_memory::SharedMemory;
-#[cfg(feature = "shared-memory")]
-use zenoh_flow_commons::SharedMemoryConfiguration;
 
 pub(crate) struct ZenohConnectorSender {
     id: NodeId,
