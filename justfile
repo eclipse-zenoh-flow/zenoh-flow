@@ -24,7 +24,7 @@ code-checks:
     cargo nextest run
     cargo test --doc
     cargo clippy --all-targets -- --deny warnings
-    cargo fmt --check
+    cargo +nightly fmt --check
 
 # Test the standalone-runtime executable with the getting-started flow
 test-standalone-runtime: standalone-runtime--bg
