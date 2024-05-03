@@ -12,18 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::{collections::HashMap, pin::Pin, sync::Arc};
+
 use anyhow::{anyhow, Context as ac};
 use async_std::sync::Mutex;
-use futures::future::select_all;
-use futures::Future;
-use std::sync::Arc;
-use std::{collections::HashMap, pin::Pin};
-use zenoh::prelude::r#async::*;
-use zenoh::sample::Sample;
-use zenoh::{subscriber::FlumeSubscriber, Session};
+use futures::{future::select_all, Future};
+use zenoh::{prelude::r#async::*, sample::Sample, subscriber::FlumeSubscriber, Session};
 use zenoh_flow_commons::{NodeId, PortId, Result};
-use zenoh_flow_nodes::prelude::OutputRaw;
-use zenoh_flow_nodes::prelude::{Node, Outputs};
+use zenoh_flow_nodes::prelude::{Node, OutputRaw, Outputs};
 
 /// Internal type of pending futures for the ZenohSource
 pub(crate) type ZSubFut = Pin<Box<dyn Future<Output = (PortId, Result<Sample>)> + Send + Sync>>;

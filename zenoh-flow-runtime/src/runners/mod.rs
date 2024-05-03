@@ -17,11 +17,11 @@ pub(crate) mod builtin;
 #[cfg(feature = "zenoh")]
 pub(crate) mod connectors;
 
+use std::{sync::Arc, time::Instant};
+
 use anyhow::Context;
 use async_std::task::JoinHandle;
 use libloading::Library;
-use std::sync::Arc;
-use std::time::Instant;
 use tracing::Instrument;
 use zenoh_flow_commons::{NodeId, Result};
 use zenoh_flow_nodes::prelude::Node;

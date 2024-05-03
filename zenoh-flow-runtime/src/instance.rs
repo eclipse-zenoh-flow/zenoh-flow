@@ -12,14 +12,14 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::runners::Runner;
-
 use std::{collections::HashMap, fmt::Display, ops::Deref};
 
 use serde::{Deserialize, Serialize};
 use uhlc::{Timestamp, HLC};
 use zenoh_flow_commons::{NodeId, Result, RuntimeId};
 use zenoh_flow_records::DataFlowRecord;
+
+use crate::runners::Runner;
 
 /// A `DataFlowInstance` keeps track of the parts of a data flow managed by the Zenoh-Flow runtime.
 ///

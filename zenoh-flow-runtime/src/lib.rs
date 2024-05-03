@@ -23,10 +23,10 @@
 //! [InstanceState] and [InstanceStatus] structures. These structures are leveraged by the `zfctl` command line tool.
 
 mod instance;
-pub use instance::{DataFlowInstance, InstanceState, InstanceStatus};
+pub use self::instance::{DataFlowInstance, InstanceState, InstanceStatus};
 
 mod loader;
-pub use loader::{Extension, Extensions};
+pub use self::loader::{Extension, Extensions};
 
 #[cfg(feature = "shared-memory")]
 mod shared_memory;
@@ -39,8 +39,9 @@ pub use runtime::{DataFlowErr, Runtime, RuntimeBuilder};
 /// A re-export of the Zenoh structures needed to open a [Session](zenoh::Session) asynchronously.
 #[cfg(feature = "zenoh")]
 pub mod zenoh {
-    pub use zenoh::config::{client, empty, peer};
-    pub use zenoh::open;
-    pub use zenoh::prelude::r#async::AsyncResolve;
-    pub use zenoh::prelude::{Config, Session};
+    pub use zenoh::{
+        config::{client, empty, peer},
+        open,
+        prelude::{r#async::AsyncResolve, Config, Session},
+    };
 }

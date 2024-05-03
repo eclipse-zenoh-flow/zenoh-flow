@@ -12,8 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::{loader::Loader, Extensions, Runtime};
-
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use async_std::sync::{Mutex, RwLock};
@@ -23,6 +21,8 @@ use zenoh::prelude::r#async::*;
 #[cfg(feature = "shared-memory")]
 use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{Result, RuntimeId};
+
+use crate::{loader::Loader, Extensions, Runtime};
 
 /// Builder structure to help create a [Runtime].
 ///
@@ -68,11 +68,10 @@ impl RuntimeBuilder {
     /// # Example
     ///
     /// ```no_run
-    /// use zenoh_flow_runtime::Runtime;
     /// use zenoh_flow_commons::RuntimeId;
+    /// use zenoh_flow_runtime::Runtime;
     ///
-    /// let builder = Runtime::builder("demo")
-    ///     .runtime_id(RuntimeId::rand());
+    /// let builder = Runtime::builder("demo").runtime_id(RuntimeId::rand());
     /// ```
     pub fn runtime_id(mut self, runtime_id: impl Into<RuntimeId>) -> Result<Self> {
         self.runtime_id = Some(runtime_id.into());
@@ -102,8 +101,7 @@ impl RuntimeBuilder {
     /// # Example
     ///
     /// ```no_run
-    /// use zenoh_flow_runtime::Runtime;
-    /// use zenoh_flow_runtime::{zenoh, zenoh::AsyncResolve};
+    /// use zenoh_flow_runtime::{zenoh, zenoh::AsyncResolve, Runtime};
     /// # async_std::task::block_on(async {
     ///
     /// let zenoh_session = zenoh::open(zenoh::peer())
@@ -111,8 +109,7 @@ impl RuntimeBuilder {
     ///     .await
     ///     .expect("Failed to open Session")
     ///     .into_arc();
-    /// let builder = Runtime::builder("demo")
-    ///     .session(zenoh_session);
+    /// let builder = Runtime::builder("demo").session(zenoh_session);
     /// # });
     /// ```
     #[cfg(feature = "zenoh")]
@@ -126,11 +123,10 @@ impl RuntimeBuilder {
     /// # Example
     ///
     /// ```no_run
-    /// use zenoh_flow_runtime::Runtime;
     /// use uhlc::HLC;
+    /// use zenoh_flow_runtime::Runtime;
     ///
-    /// let builder = Runtime::builder("demo")
-    ///     .hlc(HLC::default());
+    /// let builder = Runtime::builder("demo").hlc(HLC::default());
     /// ```
     pub fn hlc(mut self, hlc: HLC) -> Self {
         self.hlc = Some(hlc);
@@ -152,14 +148,12 @@ impl RuntimeBuilder {
     /// # Example
     ///
     /// ```no_run
-    /// use zenoh_flow_runtime::{Extensions, Runtime};
     /// use zenoh_flow_commons::{try_parse_from_file, Vars};
+    /// use zenoh_flow_runtime::{Extensions, Runtime};
     ///
-    /// let (extensions, _) = try_parse_from_file::<Extensions>(
-    ///         "/home/zenoh-flow/extensions.ext",
-    ///         Vars::default()
-    ///     )
-    ///     .expect("Failed to parse Extensions");
+    /// let (extensions, _) =
+    ///     try_parse_from_file::<Extensions>("/home/zenoh-flow/extensions.ext", Vars::default())
+    ///         .expect("Failed to parse Extensions");
     ///
     /// let builder = Runtime::builder("demo")
     ///     .add_extensions(extensions)

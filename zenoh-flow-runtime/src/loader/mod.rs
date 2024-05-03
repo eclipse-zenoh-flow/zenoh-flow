@@ -13,10 +13,7 @@
 //
 
 mod extensions;
-pub use extensions::{Extension, Extensions};
 
-use anyhow::{anyhow, bail, Context};
-use libloading::Library;
 use std::{
     collections::HashMap,
     ops::{Deref, DerefMut},
@@ -24,9 +21,14 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
+
+use anyhow::{anyhow, bail, Context};
+use libloading::Library;
 use url::Url;
 use zenoh_flow_commons::Result;
 use zenoh_flow_nodes::{NodeDeclaration, CORE_VERSION, RUSTC_VERSION};
+
+pub use self::extensions::{Extension, Extensions};
 
 /// NodeSymbol groups the symbol we must find in the shared library we load.
 pub(crate) enum NodeSymbol {
