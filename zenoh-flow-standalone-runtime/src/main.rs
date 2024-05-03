@@ -12,10 +12,11 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
+use std::path::PathBuf;
+
 use anyhow::Context;
 use async_std::io::ReadExt;
 use clap::Parser;
-use std::path::PathBuf;
 use zenoh_flow_commons::{parse_vars, Vars};
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
 use zenoh_flow_records::DataFlowRecord;
