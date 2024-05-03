@@ -12,9 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use super::row;
-use crate::utils::{get_all_runtimes, get_runtime_by_name};
-
 use std::time::Duration;
 
 use anyhow::anyhow;
@@ -24,7 +21,11 @@ use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{Result, RuntimeId};
 use zenoh_flow_daemon::queries::*;
 
-use crate::ZENOH_FLOW_INTERNAL_ERROR;
+use super::row;
+use crate::{
+    utils::{get_all_runtimes, get_runtime_by_name},
+    ZENOH_FLOW_INTERNAL_ERROR,
+};
 
 #[derive(Subcommand)]
 pub(crate) enum RuntimeCommand {

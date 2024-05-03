@@ -12,10 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use crate::row;
-
-use super::ZENOH_FLOW_INTERNAL_ERROR;
-
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail};
@@ -27,6 +23,9 @@ use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{parse_vars, Result, RuntimeId, Vars};
 use zenoh_flow_daemon::queries::*;
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
+
+use super::ZENOH_FLOW_INTERNAL_ERROR;
+use crate::row;
 
 #[derive(Subcommand)]
 pub(crate) enum InstanceCommand {
