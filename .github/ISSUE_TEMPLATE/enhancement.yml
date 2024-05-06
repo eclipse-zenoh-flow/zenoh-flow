@@ -1,0 +1,36 @@
+name: Enhancement
+
+description: |
+  How the API or internal structure of Zenoh-Flow can be improved.
+
+title: "[Enhancement] "
+
+labels: ["enhancement"]
+
+body:
+  - type: textarea
+    id: current
+    attributes:
+      label: "Current behaviour and limitations"
+      description: |
+        A description of the current state / behaviour of Zenoh-Flow and how it
+        is limiting.
+      placeholder: |
+        E.g. A node does not have access to the path of its implementation on
+        the device running it. This is limiting for the bindings as for some
+        languages this information is required (i.e. Python with PyO3).
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Proposed solution?"
+      description: |
+        A description of a possible solution that would help address the
+        limitation(s) described above.
+      placeholder: |
+        E.g. The path of the implementation of a node can be passed in the
+        `Context` structure.
+    validations:
+      required: false

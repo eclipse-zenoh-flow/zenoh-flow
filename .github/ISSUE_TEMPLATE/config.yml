@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Ask a question
-    url: https://github.com/eclipse-zenoh/roadmap/discussions/categories/zenoh-flow
-    about: Open to the Zenoh Flow community. Share your feedback with the Zenoh Flow team.
+  - name: Talk with us!
+    url: https://discord.gg/WsUF9GSkUJ
+    about: The Zenoh and Zenoh-Flow Discord server.
