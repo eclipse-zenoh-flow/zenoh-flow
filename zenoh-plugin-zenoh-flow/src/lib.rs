@@ -27,6 +27,7 @@ pub struct ZenohFlowPlugin(Sender<()>);
 
 pub const GIT_VERSION: &str = git_version::git_version!(prefix = "v", cargo_prefix = "v");
 
+#[cfg(feature = "dynamic_plugin")]
 zenoh_plugin_trait::declare_plugin!(ZenohFlowPlugin);
 
 impl ZenohPlugin for ZenohFlowPlugin {}

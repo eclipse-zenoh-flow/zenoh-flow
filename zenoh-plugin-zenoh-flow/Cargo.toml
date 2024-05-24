@@ -23,6 +23,10 @@ name = "zenoh-plugin-zenoh-flow"
 repository = { workspace = true }
 version = { workspace = true }
 
+[features]
+dynamic_plugin = []
+default = ["dynamic_plugin"]
+
 [lib]
 crate-type = ["cdylib"]
 name = "zenoh_plugin_zenoh_flow"
