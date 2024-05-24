@@ -257,6 +257,8 @@ The problematic link is:
             .iter()
             .filter(|(_, operator)| assigned_nodes.contains(&operator.id))
         {
+            tracing::debug!("Loading operator: {operator_id}");
+
             let (inputs, outputs) = channels.remove(operator_id).context(format!(
                 r#"
 Zenoh-Flow encountered a fatal internal error.
@@ -320,6 +322,8 @@ The channels for the Inputs and Outputs of Operator < {} > were not created.
             .iter()
             .filter(|(_, source)| assigned_nodes.contains(&source.id))
         {
+            tracing::debug!("Loading source: {source_id}");
+
             let (_, outputs) = channels.remove(source_id).context(format!(
                 r#"
 Zenoh-Flow encountered a fatal internal error.
@@ -399,6 +403,8 @@ Maybe change the features in the Cargo.toml?
             .iter()
             .filter(|(_, sink)| assigned_nodes.contains(&sink.id))
         {
+            tracing::debug!("Loading sink: {sink_id}");
+
             let (inputs, _) = channels.remove(sink_id).context(format!(
                 r#"
 Zenoh-Flow encountered a fatal internal error.
