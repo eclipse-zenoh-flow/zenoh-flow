@@ -20,25 +20,31 @@ use zenoh::{
     prelude::r#async::*,
 };
 use zenoh_flow_daemon::daemon::*;
-use zenoh_plugin_trait::Plugin;
-use zenoh_result::{bail, zerror};
+use zenoh_plugin_trait::{plugin_long_version, plugin_version, Plugin, PluginControl};
+use zenoh_result::zerror;
 
 pub struct ZenohFlowPlugin(Sender<()>);
 
 pub const GIT_VERSION: &str = git_version::git_version!(prefix = "v", cargo_prefix = "v");
 
 zenoh_plugin_trait::declare_plugin!(ZenohFlowPlugin);
+
 impl ZenohPlugin for ZenohFlowPlugin {}
 impl Plugin for ZenohFlowPlugin {
     type StartArgs = zenoh::runtime::Runtime;
-    type RunningPlugin = zenoh::plugins::RunningPlugin;
+    type Instance = zenoh::plugins::RunningPlugin;
 
-    const STATIC_NAME: &'static str = "zenoh_flow";
+    const DEFAULT_NAME: &'static str = "zenoh-flow";
+    const PLUGIN_VERSION: &'static str = plugin_version!();
+    const PLUGIN_LONG_VERSION: &'static str = plugin_long_version!();
 
-    fn start(name: &str, zenoh_runtime: &Self::StartArgs) -> zenoh::Result<Self::RunningPlugin> {
+    fn start(
+        name: &str,
+        zenoh_runtime: &Self::StartArgs,
+    ) -> zenoh::Result<zenoh::plugins::RunningPlugin> {
         let _ = tracing_subscriber::fmt::try_init();
 
-        let zenoh_config = zenoh_runtime.config.lock();
+        let zenoh_config = zenoh_runtime.config().lock();
         let zenoh_flow_config = zenoh_config
             .plugin(name)
             .cloned()
@@ -77,11 +83,8 @@ impl Plugin for ZenohFlowPlugin {
     }
 }
 
+impl PluginControl for ZenohFlowPlugin {}
 impl RunningPluginTrait for ZenohFlowPlugin {
-    fn config_checker(&self) -> zenoh::plugins::ValidationFunction {
-        Arc::new(|_, _, _| bail!("Plugin 'zenoh-flow' does not support hot configuration changes"))
-    }
-
     fn adminspace_getter<'a>(
         &'a self,
         selector: &'a zenoh::selector::Selector<'a>,
@@ -98,12 +101,5 @@ impl RunningPluginTrait for ZenohFlowPlugin {
             ));
         }
         Ok(responses)
-    }
-}
-
-impl Drop for ZenohFlowPlugin {
-    fn drop(&mut self) {
-        let res = self.0.send(());
-        tracing::debug!("Zenoh Flow plugin, shutting down: {:?}", res);
     }
 }

@@ -1,0 +1,35 @@
+//
+// Copyright © 2024 ZettaScale Technology
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
+// which is available at https://www.apache.org/licenses/LICENSE-2.0.
+//
+// SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
+//
+// Contributors:
+//   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
+//
+
+//
+// To launch Zenoh-Flow as a Zenoh plugin, use the following command:
+//
+// zenohd \
+//     --plugin-search-dir /path/to/zenoh-flow/target/debug/ \
+//     -c /path/to/zenoh-flow/tests/zenoh-plugin-zenoh-flow.json
+//
+
+{
+  "plugins_loading": {
+    "enabled": true,
+    "search_dirs": [],
+  },
+  "plugins": {
+    "zenoh_flow": {
+      // Forces the loading of Zenoh-Flow.
+      "__required__": true,
+      "name": "zenoh-plugin-test",
+    }
+  }
+}
