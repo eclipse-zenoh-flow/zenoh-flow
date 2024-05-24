@@ -27,10 +27,6 @@ version = { workspace = true }
 crate-type = ["cdylib"]
 name = "zenoh_plugin_zenoh_flow"
 
-[features]
-default = ["no_mangle"]
-no_mangle = ["zenoh-plugin-trait/no_mangle"]
-
 [dependencies]
 async-std = { workspace = true }
 flume = { workspace = true }

@@ -60,22 +60,22 @@ tracing-subscriber = { version = "0.3" }
 uhlc = "0.6"
 url = { version = "2.2", features = ["serde"] }
 uuid = { version = "1.1", features = ["serde", "v4"] }
-zenoh = { version = "0.10.1-rc", features = ["shared-memory"] }
-zenoh-collections = { version = "0.10.1-rc" }
-zenoh-core = { version = "0.10.1-rc" }
-zenoh-ext = { version = "0.10.1-rc" }
+zenoh = { version = "0.11.0-rc.3", features = ["unstable", "plugins"] }
+zenoh-collections = { version = "0.11.0-rc.3" }
+zenoh-core = { version = "0.11.0-rc.3" }
+zenoh-ext = { version = "0.11.0-rc.3" }
 zenoh-flow-commons = { path = "./zenoh-flow-commons" }
 zenoh-flow-daemon = { path = "./zenoh-flow-daemon" }
 zenoh-flow-descriptors = { path = "./zenoh-flow-descriptors" }
 zenoh-flow-nodes = { path = "./zenoh-flow-nodes" }
 zenoh-flow-records = { path = "./zenoh-flow-records" }
 zenoh-flow-runtime = { path = "./zenoh-flow-runtime" }
-zenoh-keyexpr = { version = "0.10.1-rc" }
-zenoh-plugin-trait = { version = "0.10.1-rc", default-features = false }
-zenoh-protocol = { version = "0.10.1-rc" }
-zenoh-result = "0.10.1-rc"
-zenoh-sync = { version = "0.10.1-rc" }
-zenoh-util = { version = "0.10.1-rc" }
+zenoh-keyexpr = { version = "0.11.0-rc.3" }
+zenoh-plugin-trait = { version = "0.11.0-rc.3" }
+zenoh-protocol = { version = "0.11.0-rc.3" }
+zenoh-result = "0.11.0-rc.3"
+zenoh-sync = { version = "0.11.0-rc.3" }
+zenoh-util = { version = "0.11.0-rc.3" }
 
 [profile.dev]
 debug = true
