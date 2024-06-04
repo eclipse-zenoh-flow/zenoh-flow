@@ -273,6 +273,9 @@ impl Loader {
                 if extension == std::env::consts::DLL_EXTENSION {
                     &library_path
                 } else {
+                    tracing::debug!(
+                        "Loading wrapper for non native dynamic library extension < {extension} >"
+                    );
                     self.extensions
                         .get_library_path(extension, node_symbol)
                         .ok_or_else(|| {
@@ -292,7 +295,7 @@ impl Loader {
 
         let rust_library_path = std::fs::canonicalize(rust_library_path).context(format!(
             "Failed to canonicalize path (did you put an absolute path?):\n{}",
-            library_path.display()
+            rust_library_path.display()
         ))?;
 
         #[cfg(any(target_family = "unix", target_family = "windows"))]
