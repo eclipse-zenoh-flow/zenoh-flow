@@ -45,7 +45,8 @@ pub use self::{
 /// It also re-exposes items from the [anyhow], [zenoh_flow_commons] and [zenoh_flow_derive] crates.
 pub mod prelude {
     pub use anyhow::{anyhow, bail};
-    pub use zenoh_flow_commons::{Configuration, Result};
+    pub use uhlc::Timestamp;
+    pub use zenoh_flow_commons::{Configuration, InstanceId, NodeId, Result, RuntimeId};
     pub use zenoh_flow_derive::{export_operator, export_sink, export_source};
 
     pub use crate::{
