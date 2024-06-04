@@ -14,7 +14,7 @@
 
 use std::{path::PathBuf, sync::Arc};
 
-use zenoh_flow_commons::{InstanceId, RuntimeId};
+use zenoh_flow_commons::{InstanceId, NodeId, RuntimeId};
 
 /// The `Context` structure provides information about the data flow and the Zenoh-Flow runtime.
 ///
@@ -24,6 +24,7 @@ use zenoh_flow_commons::{InstanceId, RuntimeId};
 /// - the [runtime id](Context::runtime_id()) of the Zenoh-Flow runtime managing the **node**.
 #[derive(Clone, Debug)]
 pub struct Context {
+    pub(crate) node_id: NodeId,
     pub(crate) flow_name: Arc<str>,
     pub(crate) instance_id: InstanceId,
     pub(crate) runtime_id: RuntimeId,
@@ -37,12 +38,14 @@ impl Context {
         instance_id: InstanceId,
         runtime_id: RuntimeId,
         library_path: Arc<PathBuf>,
+        node_id: NodeId,
     ) -> Self {
         Self {
             flow_name,
             instance_id,
             runtime_id,
             library_path,
+            node_id,
         }
     }
 
@@ -71,5 +74,10 @@ impl Context {
     /// The path is local to the machine where the Zenoh-Flow runtime is running.
     pub fn library_path(&self) -> &PathBuf {
         &self.library_path
+    }
+
+    /// Returns the node unique identifier in the data flow.
+    pub fn node_id(&self) -> &NodeId {
+        &self.node_id
     }
 }

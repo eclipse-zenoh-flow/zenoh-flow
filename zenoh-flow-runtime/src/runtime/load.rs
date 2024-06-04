@@ -276,6 +276,7 @@ The channels for the Inputs and Outputs of Operator < {} > were not created.
                 record.instance_id().clone(),
                 self.runtime_id.clone(),
                 path,
+                operator_id.clone(),
             );
 
             let operator_node = (constructor)(
@@ -343,6 +344,7 @@ The channels for the Outputs of Source < {} > were not created.
                         record.instance_id().clone(),
                         self.runtime_id.clone(),
                         path,
+                        source_id.clone(),
                     );
 
                     let source_node =
@@ -424,6 +426,7 @@ The channels for the Inputs of Sink < {} > were not created.
                         record.instance_id().clone(),
                         self.runtime_id.clone(),
                         library_path,
+                        sink_id.clone(),
                     );
 
                     let sink_node =
