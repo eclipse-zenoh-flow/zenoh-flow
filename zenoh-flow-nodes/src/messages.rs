@@ -147,7 +147,7 @@ pub struct LinkMessage {
 
 impl Ord for LinkMessage {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.get_timestamp().cmp(other.get_timestamp())
+        self.timestamp().cmp(other.timestamp())
     }
 }
 
@@ -159,19 +159,11 @@ impl PartialOrd for LinkMessage {
 
 impl PartialEq for LinkMessage {
     fn eq(&self, other: &Self) -> bool {
-        self.get_timestamp() == other.get_timestamp()
+        self.timestamp() == other.timestamp()
     }
 }
 
 impl Eq for LinkMessage {}
-
-impl Deref for LinkMessage {
-    type Target = Payload;
-
-    fn deref(&self) -> &Self::Target {
-        &self.payload
-    }
-}
 
 impl LinkMessage {
     pub fn new(payload: Payload, timestamp: Timestamp) -> Self {
@@ -188,10 +180,26 @@ impl LinkMessage {
         }
     }
 
+    /// Return the [Payload] associated with this [LinkMessage].
+    //
+    // NOTE: Used by our Python API. 🐍
+    pub fn payload(&self) -> &Payload {
+        &self.payload
+    }
+
+    /// Return the [Timestamp] associated with this message.
+    #[deprecated(
+        since = "0.6.0-alpha.3",
+        note = "This method will be deprecated in the next major version of Zenoh-Flow in favour of `timestamp()`."
+    )]
+    pub fn get_timestamp(&self) -> &Timestamp {
+        &self.timestamp
+    }
+
     /// Return the [Timestamp] associated with this message.
     //
-    // NOTE: This method is used by, at least, our Python API.
-    pub fn get_timestamp(&self) -> &Timestamp {
+    // NOTE: Used by our Python API. 🐍
+    pub fn timestamp(&self) -> &Timestamp {
         &self.timestamp
     }
 

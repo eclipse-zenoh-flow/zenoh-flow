@@ -204,7 +204,7 @@ Caused by:
 
                 #[cfg(not(feature = "shared-memory"))]
                 {
-                    data.try_as_bytes_into(&mut payload_buffer)?;
+                    data.payload().try_as_bytes_into(&mut payload_buffer)?;
                     publisher
                         .put(payload_buffer)
                         .res()
