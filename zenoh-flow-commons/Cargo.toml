@@ -31,6 +31,7 @@ humantime = "2.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+tracing = { workspace = true }
 uuid = { workspace = true }
 zenoh-keyexpr = { workspace = true }
 zenoh-protocol = { workspace = true }
