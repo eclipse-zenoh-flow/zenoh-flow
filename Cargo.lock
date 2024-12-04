@@ -3404,41 +3404,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "zenoh-flow-standalone-daemon"
-version = "0.6.0-dev"
-dependencies = [
- "anyhow",
- "async-std",
- "clap",
- "serde",
- "signal-hook",
- "signal-hook-async-std",
- "tracing",
- "tracing-subscriber",
- "uhlc 0.6.3",
- "zenoh",
- "zenoh-flow-commons",
- "zenoh-flow-daemon",
-]
-
-[[package]]
-name = "zenoh-flow-standalone-runtime"
-version = "0.6.0-dev"
-dependencies = [
- "anyhow",
- "async-std",
- "clap",
- "serde",
- "tracing",
- "tracing-subscriber",
- "uhlc 0.6.3",
- "zenoh-flow-commons",
- "zenoh-flow-descriptors",
- "zenoh-flow-records",
- "zenoh-flow-runtime",
-]
-
-[[package]]
 name = "zenoh-keyexpr"
 version = "0.11.0-rc.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3862,6 +3827,8 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "serde_yaml",
+ "signal-hook",
+ "signal-hook-async-std",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -3869,5 +3836,7 @@ dependencies = [
  "zenoh-flow-commons",
  "zenoh-flow-daemon",
  "zenoh-flow-descriptors",
+ "zenoh-flow-records",
+ "zenoh-flow-runtime",
  "zenoh-util",
 ]

@@ -18,6 +18,11 @@ use instance_command::InstanceCommand;
 mod runtime_command;
 use runtime_command::RuntimeCommand;
 
+mod daemon_command;
+use daemon_command::DaemonCommand;
+
+mod run_local;
+
 mod utils;
 use std::path::PathBuf;
 
@@ -25,6 +30,7 @@ use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use utils::{get_random_runtime, get_runtime_by_name};
 use zenoh::prelude::r#async::*;
+use zenoh_flow_commons::parse_vars;
 use zenoh_flow_commons::{Result, RuntimeId};
 
 const ZENOH_FLOW_INTERNAL_ERROR: &str = r#"
@@ -82,6 +88,34 @@ enum Command {
     /// To interact with a Zenoh-Flow runtime.
     #[command(subcommand)]
     Runtime(RuntimeCommand),
+
+    /// To interact with a Zenoh-Flow daemon.
+    #[command(subcommand)]
+    Daemon(DaemonCommand),
+
+    /// Run a dataflow locally.
+    #[command(verbatim_doc_comment)]
+    RunLocal {
+        /// The data flow to execute.
+        flow: PathBuf,
+        /// The path to a Zenoh configuration to manage the connection to the Zenoh
+        /// network.
+        ///
+        /// If no configuration is provided, `zfctl` will default to connecting as
+        /// a peer with multicast scouting enabled.
+        #[arg(short = 'z', long, verbatim_doc_comment)]
+        zenoh_configuration: Option<PathBuf>,
+        /// The, optional, location of the configuration to load nodes implemented not in Rust.
+        #[arg(short, long, value_name = "path")]
+        extensions: Option<PathBuf>,
+        /// Variables to add / overwrite in the `vars` section of your data
+        /// flow, with the form `KEY=VALUE`. Can be repeated multiple times.
+        ///
+        /// Example:
+        ///     --vars HOME_DIR=/home/zenoh-flow --vars BUILD=debug
+        #[arg(long, value_parser = parse_vars::<String, String>, verbatim_doc_comment)]
+        vars: Option<Vec<(String, String)>>,
+    },
 }
 
 #[async_std::main]
@@ -123,6 +157,13 @@ async fn main() -> Result<()> {
 
             command.run(session, orchestrator_id).await
         }
-        Command::Runtime(command) => command.run(&session).await,
+        Command::Runtime(command) => command.run(session).await,
+        Command::Daemon(command) => command.run(session).await,
+        Command::RunLocal {
+            flow,
+            zenoh_configuration,
+            extensions,
+            vars,
+        } => run_local::run_locally(flow, zenoh_configuration, extensions, vars).await,
     }
 }
