@@ -60,10 +60,10 @@ pub(crate) enum RuntimeCommand {
 }
 
 impl RuntimeCommand {
-    pub async fn run(self, session: &Session) -> Result<()> {
+    pub async fn run(self, session: Session) -> Result<()> {
         match self {
             RuntimeCommand::List => {
-                let runtimes = get_all_runtimes(session).await;
+                let runtimes = get_all_runtimes(&session).await;
 
                 let mut table = Table::new();
                 table.set_width(80);
@@ -81,7 +81,7 @@ impl RuntimeCommand {
             } => {
                 let runtime_id = match (runtime_id, runtime_name) {
                     (Some(id), _) => id,
-                    (None, Some(name)) => get_runtime_by_name(session, &name).await,
+                    (None, Some(name)) => get_runtime_by_name(&session, &name).await,
                     (None, None) => {
                         // This code is indeed unreachable because:
                         // (1) The `group` macro has `required = true` which indicates that clap requires an entry for

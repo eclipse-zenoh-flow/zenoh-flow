@@ -14,18 +14,16 @@
 [workspace]
 resolver = "2"
 members = [
-  "examples",
-  "zenoh-flow-commons",
-  "zenoh-flow-daemon",
-  "zenoh-flow-derive",
-  "zenoh-flow-descriptors",
-  "zenoh-flow-nodes",
-  "zenoh-flow-records",
-  "zenoh-flow-runtime",
-  "zenoh-flow-standalone-daemon",
-  "zenoh-flow-standalone-runtime",
-  "zenoh-plugin-zenoh-flow",
-  "zfctl",
+    "examples",
+    "zenoh-flow-commons",
+    "zenoh-flow-daemon",
+    "zenoh-flow-derive",
+    "zenoh-flow-descriptors",
+    "zenoh-flow-nodes",
+    "zenoh-flow-records",
+    "zenoh-flow-runtime",
+    "zenoh-plugin-zenoh-flow",
+    "zfctl",
 ]
 
 [workspace.package]
