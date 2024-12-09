@@ -12,7 +12,7 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, bail};
 use clap::Subcommand;
@@ -20,9 +20,10 @@ use comfy_table::Table;
 use itertools::Itertools;
 use uuid::Uuid;
 use zenoh::prelude::r#async::*;
-use zenoh_flow_commons::{parse_vars, Result, RuntimeId, Vars};
+use zenoh_flow_commons::{parse_vars, InstanceId, Result, RuntimeId, Vars};
 use zenoh_flow_daemon::queries::*;
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
+use zenoh_flow_runtime::InstanceState;
 
 use super::ZENOH_FLOW_INTERNAL_ERROR;
 use crate::row;
@@ -193,6 +194,34 @@ Caused by:
                     }
                 }
 
+                println!("{table}");
+            }
+            InstancesQuery::List => {
+                let mut table = Table::new();
+                table.set_width(80);
+                table.set_header(row!("Instance Name", "Instance ID", "Instance State"));
+                while let Ok(response) = reply.recv_async().await {
+                    match response.sample {
+                        Ok(sample) => {
+                            match serde_json::from_slice::<
+                                HashMap<InstanceId, (Arc<str>, InstanceState)>,
+                            >(&sample.value.payload.contiguous())
+                            {
+                                Ok(list) => {
+                                    for (id, (name, state)) in list {
+                                        table.add_row(row!(name, id, state));
+                                    }
+                                }
+                                Err(e) => tracing::error!(
+                                    "Failed to parse 'list' reply from < {} >: {:?}",
+                                    response.replier_id,
+                                    e
+                                ),
+                            }
+                        }
+                        Err(err) => tracing::error!("{:?}", err),
+                    }
+                }
                 println!("{table}");
             }
             _ => {}
