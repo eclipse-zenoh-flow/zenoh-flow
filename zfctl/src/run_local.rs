@@ -5,7 +5,7 @@ use async_std::io::ReadExt;
 use zenoh_flow_commons::{Result, Vars};
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
 use zenoh_flow_records::DataFlowRecord;
-use zenoh_flow_runtime::{zenoh::AsyncResolve, Extensions, Runtime};
+use zenoh_flow_runtime::{Extensions, Runtime};
 
 pub async fn run_locally(
     flow: PathBuf,
@@ -63,10 +63,8 @@ pub async fn run_locally(
                 )
             });
         let zenoh_session = zenoh_flow_runtime::zenoh::open(zenoh_config)
-            .res_async()
             .await
-            .unwrap_or_else(|e| panic!("Failed to open a Zenoh session: {e:?}"))
-            .into_arc();
+            .unwrap_or_else(|e| panic!("Failed to open a Zenoh session: {e:?}"));
 
         runtime_builder = runtime_builder.session(zenoh_session);
     }

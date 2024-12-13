@@ -17,34 +17,37 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 use anyhow::{anyhow, Context as ac};
 use async_std::sync::Mutex;
 use futures::{future::select_all, Future};
-use zenoh::{prelude::r#async::*, sample::Sample, subscriber::FlumeSubscriber, Session};
+use zenoh::{
+    handlers::FifoChannelHandler, key_expr::OwnedKeyExpr, pubsub::Subscriber, sample::Sample,
+    Session,
+};
 use zenoh_flow_commons::{NodeId, PortId, Result};
 use zenoh_flow_nodes::prelude::{Node, OutputRaw, Outputs};
 
 /// Internal type of pending futures for the ZenohSource
 pub(crate) type ZSubFut = Pin<Box<dyn Future<Output = (PortId, Result<Sample>)> + Send + Sync>>;
 
-fn wait_zenoh_sub(id: PortId, sub: &FlumeSubscriber<'_>) -> ZSubFut {
-    let sub = sub.receiver.clone();
-    Box::pin(async move { (id, sub.recv_async().await.map_err(|e| e.into())) })
+fn wait_zenoh_sub(id: PortId, sub: &Subscriber<FifoChannelHandler<Sample>>) -> ZSubFut {
+    let sub = sub.handler().clone();
+    Box::pin(async move { (id, sub.recv_async().await.map_err(|e| anyhow!("{e:?}"))) })
 }
 
-pub(crate) struct ZenohSource<'a> {
+pub(crate) struct ZenohSource {
     id: NodeId,
-    session: Arc<Session>,
+    session: Session,
     outputs: HashMap<PortId, OutputRaw>,
     key_exprs: HashMap<PortId, OwnedKeyExpr>,
-    subscribers: Mutex<HashMap<PortId, FlumeSubscriber<'a>>>,
+    subscribers: Mutex<HashMap<PortId, Subscriber<FifoChannelHandler<Sample>>>>,
     futs: Arc<Mutex<Vec<ZSubFut>>>,
 }
 
-impl<'a> ZenohSource<'a> {
+impl ZenohSource {
     pub(crate) async fn try_new(
         id: &NodeId,
-        session: Arc<Session>,
+        session: Session,
         key_exprs: &HashMap<PortId, OwnedKeyExpr>,
         mut outputs: Outputs,
-    ) -> Result<ZenohSource<'a>> {
+    ) -> Result<ZenohSource> {
         let mut raw_outputs = HashMap::with_capacity(key_exprs.len());
 
         for (port, key_expr) in key_exprs.iter() {
@@ -52,9 +55,13 @@ impl<'a> ZenohSource<'a> {
                 port.clone(),
                 outputs
                     .take(port.as_ref())
-                    .with_context(||
-                        format!("{id}: fatal internal error: no channel was created for key expression < {} >", key_expr)
-                    )?
+                    .with_context(|| {
+                        format!(
+                            "{id}: fatal internal error: no channel was created for key \
+                             expression < {} >",
+                            key_expr
+                        )
+                    })?
                     .raw(),
             );
         }
@@ -73,7 +80,7 @@ impl<'a> ZenohSource<'a> {
 }
 
 #[async_trait::async_trait]
-impl<'a> Node for ZenohSource<'a> {
+impl Node for ZenohSource {
     // When we resume an aborted Zenoh Source, we have to re-subscribe to the key expressions and, possibly, recreate
     // the futures awaiting publications.
     async fn on_resume(&self) -> Result<()> {
@@ -85,7 +92,6 @@ impl<'a> Node for ZenohSource<'a> {
             let subscriber = self
                 .session
                 .declare_subscriber(key_expr)
-                .res()
                 .await
                 .map_err(|e| {
                     anyhow!(
@@ -130,15 +136,15 @@ Caused by:
 
         match result {
             Ok(sample) => {
-                let data = sample.payload.contiguous().to_vec();
-                let ke = sample.key_expr;
+                let payload = sample.payload().to_bytes();
+                let ke = sample.key_expr();
                 tracing::trace!("received subscription on {ke}");
                 let output = self.outputs.get(&id).ok_or(anyhow!(
                     "{}: internal error, unable to find output < {} >",
                     self.id,
                     id
                 ))?;
-                output.send(data, None).await?;
+                output.send(&*payload, None).await?;
             }
             Err(e) => tracing::error!("subscriber for output {id} failed with: {e:?}"),
         }

@@ -53,7 +53,7 @@ pub struct Runtime {
     pub(crate) runtime_id: RuntimeId,
     pub(crate) hlc: Arc<HLC>,
     #[cfg(feature = "zenoh")]
-    pub(crate) session: Arc<Session>,
+    pub(crate) session: Session,
     #[cfg(feature = "shared-memory")]
     pub(crate) shared_memory: SharedMemoryConfiguration,
     pub(crate) loader: Mutex<Loader>,
@@ -132,10 +132,10 @@ impl Runtime {
         states
     }
 
-    /// Returns a shared pointer over the Zenoh [session](Session) used by this Runtime.
+    /// Returns a reference over the Zenoh [session](Session) used by this Runtime.
     #[cfg(feature = "zenoh")]
-    pub fn session(&self) -> Arc<Session> {
-        self.session.clone()
+    pub fn session(&self) -> &Session {
+        &self.session
     }
 
     /// Returns the [DataFlowRecord] associated with the provided instance.

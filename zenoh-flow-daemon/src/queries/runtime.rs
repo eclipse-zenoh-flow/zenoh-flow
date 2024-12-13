@@ -16,7 +16,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 use sysinfo::{CpuRefreshKind, MemoryRefreshKind, RefreshKind};
-use zenoh::{prelude::r#async::*, queryable::Query};
+use zenoh::query::Query;
 use zenoh_flow_commons::{InstanceId, RuntimeId};
 use zenoh_flow_runtime::{InstanceState, Runtime};
 
@@ -103,12 +103,10 @@ impl RuntimesQuery {
             }
         };
 
-        let sample = match payload {
-            Ok(payload) => Ok(Sample::new(query.key_expr().clone(), payload)),
-            Err(e) => Err(Value::from(e.to_string())),
-        };
-
-        if let Err(e) = query.reply(sample).res().await {
+        if let Err(e) = match payload {
+            Ok(payload) => query.reply(query.key_expr(), payload).await,
+            Err(e) => query.reply_err(e.to_string()).await,
+        } {
             tracing::error!(
                 r#"Failed to reply to query < {} >:
 Caused by:

@@ -39,9 +39,5 @@ pub use runtime::{DataFlowErr, Runtime, RuntimeBuilder};
 /// A re-export of the Zenoh structures needed to open a [Session](zenoh::Session) asynchronously.
 #[cfg(feature = "zenoh")]
 pub mod zenoh {
-    pub use zenoh::{
-        config::{client, empty, peer},
-        open,
-        prelude::{r#async::AsyncResolve, Config, Session},
-    };
+    pub use zenoh::{open, Config, Session};
 }

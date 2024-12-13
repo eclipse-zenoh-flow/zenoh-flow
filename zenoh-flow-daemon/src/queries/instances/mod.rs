@@ -21,7 +21,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
-use zenoh::{prelude::r#async::*, queryable::Query};
+use zenoh::query::Query;
 use zenoh_flow_commons::{InstanceId, Result};
 use zenoh_flow_descriptors::FlattenedDataFlowDescriptor;
 use zenoh_flow_records::DataFlowRecord;
@@ -48,20 +48,14 @@ pub enum Origin {
 }
 
 async fn reply<T: Serialize + Debug>(query: Query, data: Result<T>) -> Result<()> {
-    let sample = match data {
-        Ok(data) => match serde_json::to_vec(&data) {
-            Ok(payload) => Ok(Sample::new(query.key_expr().clone(), payload)),
-            Err(e) => Err(Value::from(e.to_string())),
+    match data {
+        Ok(payload) => match serde_json::to_vec(&payload) {
+            Ok(payload) => query.reply(query.key_expr(), payload).await,
+            Err(e) => query.reply_err(e.to_string()).await,
         },
-
-        Err(e) => Err(Value::from(e.to_string())),
-    };
-
-    query
-        .reply(sample)
-        .res()
-        .await
-        .map_err(|e| anyhow!("Failed to send reply: {:?}", e))
+        Err(e) => query.reply_err(e.to_string()).await,
+    }
+    .map_err(|e| anyhow!("Failed to send reply: {e:?}"))
 }
 
 /// The available interactions to manipulate a data flow instance.

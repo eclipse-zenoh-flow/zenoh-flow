@@ -16,7 +16,10 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, bail};
 use async_std::sync::Mutex;
-use zenoh::{prelude::r#async::*, subscriber::FlumeSubscriber};
+use zenoh::{
+    handlers::FifoChannelHandler, key_expr::OwnedKeyExpr, pubsub::Subscriber, sample::Sample,
+    Session,
+};
 #[cfg(feature = "shared-memory")]
 use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{NodeId, Result};
@@ -30,7 +33,7 @@ pub(crate) struct ZenohConnectorSender {
     id: NodeId,
     input: InputRaw,
     key_expr: OwnedKeyExpr,
-    session: Arc<Session>,
+    session: Session,
     state: Arc<Mutex<State>>,
 }
 
@@ -43,7 +46,7 @@ struct State {
 
 impl ZenohConnectorSender {
     pub(crate) fn try_new(
-        session: Arc<Session>,
+        session: Session,
         #[cfg(feature = "shared-memory")] shm_config: &SharedMemoryConfiguration,
         record: SenderRecord,
         mut inputs: Inputs,
@@ -103,10 +106,11 @@ Caused by:
                             e
                         );
                         tracing::warn!(
-                        "[connector sender (zenoh): {}][key expr: {}] Attempting to send via a non-shared memory channel.",
-                        self.id,
-                        self.key_expr
-                    );
+                            "[connector sender (zenoh): {}][key expr: {}] Attempting to send via \
+                             a non-shared memory channel.",
+                            self.id,
+                            self.key_expr
+                        );
 
                         self.session
                             .put(&self.key_expr, message_buffer)
@@ -134,7 +138,6 @@ Caused by:
 
                     self.session
                         .put(&self.key_expr, message_buffer)
-                        .res()
                         .await
                         .map_err(|e| {
                             anyhow!(
@@ -174,25 +177,23 @@ pub(crate) struct ZenohConnectorReceiver {
     pub(crate) id: NodeId,
     pub(crate) key_expr: OwnedKeyExpr,
     pub(crate) output_raw: OutputRaw,
-    pub(crate) subscriber: FlumeSubscriber<'static>,
+    pub(crate) subscriber: Subscriber<FifoChannelHandler<Sample>>,
 }
 
 impl ZenohConnectorReceiver {
     pub(crate) async fn try_new(
-        session: Arc<Session>,
+        session: Session,
         record: ReceiverRecord,
         mut outputs: Outputs,
     ) -> Result<Self> {
         let ke = session
             .declare_keyexpr(record.resource())
-            .res()
             .await
             // TODO@J-Loudet
             .map_err(|e| anyhow!("{:?}", e))?;
 
         let subscriber = session
             .declare_subscriber(ke)
-            .res()
             .await
             // TODO@J-Loudet
             .map_err(|e| anyhow!("{:?}", e))?;
@@ -216,8 +217,8 @@ impl ZenohConnectorReceiver {
 impl Node for ZenohConnectorReceiver {
     async fn iteration(&self) -> Result<()> {
         match self.subscriber.recv_async().await {
-            Ok(message) => {
-                let de: LinkMessage = bincode::deserialize(&message.value.payload.contiguous())?;
+            Ok(sample) => {
+                let de: LinkMessage = bincode::deserialize_from(sample.payload().reader())?;
 
                 self.output_raw.forward(de).await
             }

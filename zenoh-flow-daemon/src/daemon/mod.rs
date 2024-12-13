@@ -25,7 +25,7 @@ mod queryables;
 use std::sync::Arc;
 
 use flume::{Receiver, Sender};
-use zenoh::prelude::r#async::*;
+use zenoh::Session;
 use zenoh_flow_commons::Result;
 pub use zenoh_flow_runtime::{Extension, Extensions, Runtime};
 
@@ -70,7 +70,7 @@ impl Daemon {
     /// [runtime]: Runtime
     /// [configuration]: ZenohFlowConfiguration
     pub async fn spawn_from_config(
-        zenoh_session: Arc<Session>,
+        zenoh_session: Session,
         configuration: ZenohFlowConfiguration,
     ) -> Result<Self> {
         let extensions = configuration.extensions.unwrap_or_default();
@@ -116,9 +116,13 @@ impl Daemon {
             // TODO: Clean everything up before aborting.
         }
 
-        if let Err(e) =
-            queryables::spawn_instances_queryable(session, runtime.clone(), abort_rx, abort_ack_tx)
-                .await
+        if let Err(e) = queryables::spawn_instances_queryable(
+            session.clone(),
+            runtime.clone(),
+            abort_rx,
+            abort_ack_tx,
+        )
+        .await
         {
             tracing::error!(
                 "The Zenoh-Flow daemon encountered a fatal error:\n{:?}\nAborting",

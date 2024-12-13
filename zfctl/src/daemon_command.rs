@@ -16,13 +16,11 @@ use std::path::PathBuf;
 
 use async_std::stream::StreamExt;
 use clap::{ArgGroup, Subcommand};
-
 use signal_hook::consts::{SIGINT, SIGQUIT, SIGTERM};
 use signal_hook_async_std::Signals;
-use zenoh::prelude::r#async::*;
+use zenoh::Session;
 use zenoh_flow_commons::{try_parse_from_file, Result, Vars};
 use zenoh_flow_daemon::daemon::{Daemon, ZenohFlowConfiguration};
-
 use zenoh_flow_runtime::Runtime;
 
 #[derive(Subcommand)]
@@ -66,22 +64,18 @@ impl DaemonCommand {
                 zenoh_configuration,
             } => {
                 let zenoh_config = match zenoh_configuration {
-                    Some(path) => {
-                        zenoh::prelude::Config::from_file(path.clone()).unwrap_or_else(|e| {
-                            panic!(
-                                "Failed to parse the Zenoh configuration from < {} >:\n{e:?}",
-                                path.display()
-                            )
-                        })
-                    }
-                    None => zenoh::config::peer(),
+                    Some(path) => zenoh::Config::from_file(path.clone()).unwrap_or_else(|e| {
+                        panic!(
+                            "Failed to parse the Zenoh configuration from < {} >:\n{e:?}",
+                            path.display()
+                        )
+                    }),
+                    None => zenoh::Config::default(),
                 };
 
                 let zenoh_session = zenoh::open(zenoh_config)
-                    .res_async()
                     .await
-                    .unwrap_or_else(|e| panic!("Failed to open Zenoh session:\n{e:?}"))
-                    .into_arc();
+                    .unwrap_or_else(|e| panic!("Failed to open Zenoh session:\n{e:?}"));
 
                 let daemon = match configuration {
                     Some(path) => {
@@ -89,9 +83,10 @@ impl DaemonCommand {
                             try_parse_from_file::<ZenohFlowConfiguration>(&path, Vars::default())
                                 .unwrap_or_else(|e| {
                                     panic!(
-                                "Failed to parse a Zenoh-Flow Configuration from < {} >:\n{e:?}",
-                                path.display()
-                            )
+                                        "Failed to parse a Zenoh-Flow Configuration from < {} \
+                                         >:\n{e:?}",
+                                        path.display()
+                                    )
                                 });
 
                         Daemon::spawn_from_config(zenoh_session, zenoh_flow_configuration)

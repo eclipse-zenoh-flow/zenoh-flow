@@ -17,7 +17,7 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 use anyhow::{anyhow, Context};
 use async_std::sync::Mutex;
 use futures::{future::select_all, Future};
-use zenoh::{prelude::r#async::*, publication::Publisher};
+use zenoh::{key_expr::OwnedKeyExpr, pubsub::Publisher, Session};
 #[cfg(feature = "shared-memory")]
 use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{NodeId, PortId, Result};
@@ -62,7 +62,7 @@ impl<'a> ZenohSink<'a> {
 
     pub(crate) async fn try_new(
         id: NodeId,
-        session: Arc<Session>,
+        session: Session,
         key_exprs: &HashMap<PortId, OwnedKeyExpr>,
         #[cfg(feature = "shared-memory")] shm_configuration: &SharedMemoryConfiguration,
         mut inputs: Inputs,
@@ -89,7 +89,6 @@ No Input was created for port: < {1} > (key expression: {}).
                 port.clone(),
                 session
                     .declare_publisher(key_expr.clone())
-                    .res()
                     .await
                     .map_err(|e| {
                         anyhow!(
@@ -189,10 +188,11 @@ Caused by:
                             e
                         );
                         tracing::warn!(
-                        "[built-in zenoh sink: {}][port: {}] Attempting to send via a non-shared memory channel.",
-                        self.id,
-                        key_expr
-                    );
+                            "[built-in zenoh sink: {}][port: {}] Attempting to send via a \
+                             non-shared memory channel.",
+                            self.id,
+                            key_expr
+                        );
 
                         publisher
                             .put(payload_buffer)
@@ -207,7 +207,6 @@ Caused by:
                     data.payload().try_as_bytes_into(&mut payload_buffer)?;
                     publisher
                         .put(payload_buffer)
-                        .res()
                         .await
                         .map_err(|e| anyhow!("{:?}", e))?
                 }

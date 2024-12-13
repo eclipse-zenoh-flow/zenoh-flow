@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use async_std::task::JoinHandle;
-use zenoh::prelude::r#async::*;
+use zenoh::Session;
 use zenoh_flow_commons::{InstanceId, RuntimeId};
 use zenoh_flow_runtime::{DataFlowErr, Runtime};
 
@@ -39,12 +39,7 @@ pub(crate) async fn query_delete(
 
         // NOTE: No need to process the request, as, even if the query failed, this is not something we want to recover
         // from.
-        if let Err(e) = session
-            .get(selector)
-            .with_value(delete_query.clone())
-            .res()
-            .await
-        {
+        if let Err(e) = session.get(selector).payload(delete_query.clone()).await {
             tracing::error!(
                 "Sending delete query to runtime < {} > failed with error: {:?}",
                 runtime_id,
@@ -69,7 +64,7 @@ pub(crate) fn delete_instance(
             match runtime.try_get_record(&instance_id).await {
                 Ok(record) => {
                     query_delete(
-                        &runtime.session(),
+                        runtime.session(),
                         record
                             .mapping()
                             .keys()

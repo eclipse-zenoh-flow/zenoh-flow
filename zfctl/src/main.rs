@@ -29,9 +29,7 @@ use std::path::PathBuf;
 use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use utils::{get_random_runtime, get_runtime_by_name};
-use zenoh::prelude::r#async::*;
-use zenoh_flow_commons::parse_vars;
-use zenoh_flow_commons::{Result, RuntimeId};
+use zenoh_flow_commons::{parse_vars, Result, RuntimeId};
 
 const ZENOH_FLOW_INTERNAL_ERROR: &str = r#"
 `zfctl` encountered a fatal internal error.
@@ -129,17 +127,16 @@ async fn main() -> Result<()> {
     let zfctl = Zfctl::parse();
 
     let zenoh_config = match zfctl.zenoh_configuration {
-        Some(path) => zenoh::prelude::Config::from_file(path.clone()).map_err(|e| {
+        Some(path) => zenoh::Config::from_file(path.clone()).map_err(|e| {
             anyhow!(
                 "Failed to parse the Zenoh configuration from < {} >:\n{e:?}",
                 path.display()
             )
         })?,
-        None => zenoh::config::peer(),
+        None => zenoh::Config::default(),
     };
 
     let session = zenoh::open(zenoh_config)
-        .res()
         .await
         .map_err(|e| anyhow!("Failed to open Zenoh session:\n{:?}", e))?;
 
