@@ -56,7 +56,7 @@ impl Outputs {
     /// Insert the `flume::Sender` in the [Outputs], creating the entry if needed in the internal
     /// `HashMap`.
     pub fn insert(&mut self, port_id: PortId, tx: Sender<LinkMessage>) {
-        self.hmap.entry(port_id).or_insert_with(Vec::new).push(tx)
+        self.hmap.entry(port_id).or_default().push(tx)
     }
 
     /// Returns an Output builder for the provided `port_id`, if an output was declared with this exact name in the

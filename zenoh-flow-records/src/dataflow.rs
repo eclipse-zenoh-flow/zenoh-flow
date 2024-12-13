@@ -208,7 +208,7 @@ Caused by:
                 );
                 additional_mappings
                     .entry(runtime_from.clone())
-                    .or_insert_with(HashSet::default)
+                    .or_default()
                     .insert(sender_id);
 
                 receivers.insert(
@@ -220,7 +220,7 @@ Caused by:
                 );
                 additional_mappings
                     .entry(runtime_to.clone())
-                    .or_insert_with(HashSet::default)
+                    .or_default()
                     .insert(receiver_id);
             }
         }

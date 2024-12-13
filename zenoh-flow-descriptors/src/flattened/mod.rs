@@ -25,13 +25,6 @@ use std::{
 
 use zenoh_flow_commons::NodeId;
 
-pub use self::{
-    dataflow::FlattenedDataFlowDescriptor,
-    nodes::{
-        operator::FlattenedOperatorDescriptor, sink::FlattenedSinkDescriptor,
-        source::FlattenedSourceDescriptor,
-    },
-};
 use crate::{
     nodes::operator::composite::{CompositeInputDescriptor, CompositeOutputDescriptor},
     InputDescriptor, LinkDescriptor, OutputDescriptor,
