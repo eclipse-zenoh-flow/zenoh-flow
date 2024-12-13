@@ -12,16 +12,13 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use std::sync::Arc;
-
 use flume::Sender;
-use zenoh::{
+use zenoh::internal::{
     plugins::{RunningPluginTrait, ZenohPlugin},
-    prelude::r#async::*,
+    zerror,
 };
 use zenoh_flow_daemon::daemon::*;
 use zenoh_plugin_trait::{plugin_long_version, plugin_version, Plugin, PluginControl};
-use zenoh_result::zerror;
 
 pub struct ZenohFlowPlugin(Sender<()>);
 
@@ -32,8 +29,8 @@ zenoh_plugin_trait::declare_plugin!(ZenohFlowPlugin);
 
 impl ZenohPlugin for ZenohFlowPlugin {}
 impl Plugin for ZenohFlowPlugin {
-    type StartArgs = zenoh::runtime::Runtime;
-    type Instance = zenoh::plugins::RunningPlugin;
+    type StartArgs = zenoh::internal::runtime::Runtime;
+    type Instance = zenoh::internal::plugins::RunningPlugin;
 
     const DEFAULT_NAME: &'static str = "zenoh-flow";
     const PLUGIN_VERSION: &'static str = plugin_version!();
@@ -42,7 +39,7 @@ impl Plugin for ZenohFlowPlugin {
     fn start(
         name: &str,
         zenoh_runtime: &Self::StartArgs,
-    ) -> zenoh::Result<zenoh::plugins::RunningPlugin> {
+    ) -> zenoh::Result<zenoh::internal::plugins::RunningPlugin> {
         let _ = tracing_subscriber::fmt::try_init();
 
         let zenoh_config = zenoh_runtime.config().lock();
@@ -54,7 +51,7 @@ impl Plugin for ZenohFlowPlugin {
         let (abort_tx, abort_rx) = flume::bounded(1);
         let zenoh_runtime = zenoh_runtime.clone();
         async_std::task::spawn(async move {
-            let zenoh_session = Arc::new(zenoh::init(zenoh_runtime).res().await.unwrap());
+            let zenoh_session = zenoh::session::init(zenoh_runtime).await.unwrap();
 
             let zenoh_flow_config: ZenohFlowConfiguration =
                 match serde_json::from_value(zenoh_flow_config) {
@@ -86,17 +83,17 @@ impl Plugin for ZenohFlowPlugin {
 
 impl PluginControl for ZenohFlowPlugin {}
 impl RunningPluginTrait for ZenohFlowPlugin {
-    fn adminspace_getter<'a>(
-        &'a self,
-        selector: &'a zenoh::selector::Selector<'a>,
+    fn adminspace_getter(
+        &self,
+        selector: &zenoh::key_expr::KeyExpr,
         plugin_status_key: &str,
-    ) -> zenoh_result::ZResult<Vec<zenoh::plugins::Response>> {
+    ) -> zenoh::Result<Vec<zenoh::internal::plugins::Response>> {
         let mut responses = Vec::new();
         let version_key = [plugin_status_key, "/__version__"].concat();
-        let ke = KeyExpr::new(&version_key)?;
+        let ke = zenoh::key_expr::KeyExpr::new(&version_key)?;
 
-        if selector.key_expr.intersects(&ke) {
-            responses.push(zenoh::plugins::Response::new(
+        if selector.intersects(&ke) {
+            responses.push(zenoh::internal::plugins::Response::new(
                 version_key,
                 GIT_VERSION.into(),
             ));

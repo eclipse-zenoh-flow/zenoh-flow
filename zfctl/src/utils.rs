@@ -14,7 +14,7 @@
 
 use itertools::Itertools;
 use rand::Rng;
-use zenoh::prelude::r#async::*;
+use zenoh::{query::ConsolidationMode, Session};
 use zenoh_flow_commons::RuntimeId;
 use zenoh_flow_daemon::queries::{selector_all_runtimes, RuntimeInfo, RuntimesQuery};
 
@@ -32,18 +32,17 @@ pub(crate) async fn get_all_runtimes(session: &Session) -> Vec<RuntimeInfo> {
 
     let runtime_replies = session
         .get(selector_all_runtimes())
-        .with_value(value)
+        .payload(value)
         // We want to address all the Zenoh-Flow runtimes that are reachable on the Zenoh network.
         .consolidation(ConsolidationMode::None)
-        .res()
         .await
         .unwrap_or_else(|e| panic!("Failed to query available runtimes:\n{:?}", e));
 
     let mut runtimes = Vec::new();
     while let Ok(reply) = runtime_replies.recv_async().await {
-        match reply.sample {
+        match reply.result() {
             Ok(sample) => {
-                match serde_json::from_slice::<RuntimeInfo>(&sample.value.payload.contiguous()) {
+                match serde_json::from_slice::<RuntimeInfo>(&sample.payload().to_bytes()) {
                     Ok(runtime_info) => runtimes.push(runtime_info),
                     Err(e) => {
                         tracing::error!("Failed to parse a reply as a `RuntimeId`:\n{:?}", e)
@@ -56,7 +55,10 @@ pub(crate) async fn get_all_runtimes(session: &Session) -> Vec<RuntimeInfo> {
     }
 
     if runtimes.is_empty() {
-        panic!("No Zenoh-Flow runtime were detected. Have you checked if (i) they are up and (ii) reachable through Zenoh?");
+        panic!(
+            "No Zenoh-Flow runtime were detected. Have you checked if (i) they are up and (ii) \
+             reachable through Zenoh?"
+        );
     }
 
     runtimes
@@ -84,7 +86,8 @@ pub(crate) async fn get_runtime_by_name(session: &Session, name: &str) -> Runtim
             tracing::error!("- {} - (id) {}", r_info.name, r_info.id);
         });
         panic!(
-            "There are multiple Zenoh-Flow Runtimes named < {name} >, please use their 'id' instead"
+            "There are multiple Zenoh-Flow Runtimes named < {name} >, please use their 'id' \
+             instead"
         );
     } else {
         matching_runtimes.pop().unwrap().id.clone()

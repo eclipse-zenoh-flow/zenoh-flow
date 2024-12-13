@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use zenoh::prelude::r#async::*;
 use zenoh_flow_commons::{InstanceId, Result};
 use zenoh_flow_descriptors::FlattenedDataFlowDescriptor;
 use zenoh_flow_records::DataFlowRecord;
@@ -134,8 +133,7 @@ Query:
                 runtime
                     .session()
                     .get(&selector)
-                    .with_value(payload.clone())
-                    .res()
+                    .payload(payload.clone())
                     .await,
                 r#"Zenoh query on < {} > failed"#,
                 selector
@@ -148,7 +146,7 @@ Query:
             );
 
             rollback_if_err!(
-                reply.sample,
+                reply.result(),
                 "Runtime < {} > failed to load data flow instance < {} >",
                 &runtime_id,
                 &instance_id

@@ -53,4 +53,3 @@ zenoh-flow-daemon = { workspace = true }
 zenoh-flow-runtime = { workspace = true }
 zenoh-flow-descriptors = { workspace = true }
 zenoh-flow-records = { workspace = true }
-zenoh-util = { workspace = true }

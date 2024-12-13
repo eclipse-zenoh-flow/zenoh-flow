@@ -17,7 +17,7 @@ use std::time::Duration;
 use anyhow::anyhow;
 use clap::Subcommand;
 use comfy_table::{Row, Table};
-use zenoh::prelude::r#async::*;
+use zenoh::Session;
 use zenoh_flow_commons::{Result, RuntimeId};
 use zenoh_flow_daemon::queries::*;
 
@@ -107,9 +107,8 @@ impl RuntimeCommand {
 
                 let reply = session
                     .get(selector)
-                    .with_value(value)
+                    .payload(value)
                     .timeout(Duration::from_secs(5))
-                    .res()
                     .await
                     .map_err(|e| {
                         anyhow!(
@@ -120,10 +119,10 @@ impl RuntimeCommand {
                     })?;
 
                 while let Ok(reply) = reply.recv_async().await {
-                    match reply.sample {
+                    match reply.result() {
                         Ok(sample) => {
                             match serde_json::from_slice::<RuntimeStatus>(
-                                &sample.payload.contiguous(),
+                                &sample.payload().to_bytes(),
                             ) {
                                 Ok(runtime_status) => {
                                     let mut table = Table::new();

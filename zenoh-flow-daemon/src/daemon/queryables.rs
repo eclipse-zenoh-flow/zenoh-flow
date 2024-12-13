@@ -17,7 +17,7 @@ use std::sync::Arc;
 use anyhow::bail;
 use flume::{Receiver, Sender};
 use futures::select;
-use zenoh::prelude::r#async::*;
+use zenoh::Session;
 use zenoh_flow_commons::Result;
 use zenoh_flow_runtime::Runtime;
 
@@ -27,17 +27,13 @@ use crate::queries::{
 
 /// Spawns an async task to answer queries received on `zenoh-flow/{runtime_id}/instances`.
 pub(crate) async fn spawn_instances_queryable(
-    zenoh_session: Arc<Session>,
+    zenoh_session: Session,
     runtime: Arc<Runtime>,
     abort_rx: Receiver<()>,
     abort_ack_tx: Sender<()>,
 ) -> Result<()> {
     let ke_instances = selectors::selector_instances(runtime.id());
-    let queryable = match zenoh_session
-        .declare_queryable(ke_instances.clone())
-        .res()
-        .await
-    {
+    let queryable = match zenoh_session.declare_queryable(ke_instances.clone()).await {
         Ok(queryable) => {
             tracing::trace!("declared queryable: {}", ke_instances);
             queryable
@@ -89,18 +85,14 @@ pub(crate) async fn spawn_instances_queryable(
 }
 
 pub(crate) async fn spawn_runtime_queryable(
-    zenoh_session: Arc<Session>,
+    zenoh_session: Session,
     runtime: Arc<Runtime>,
     abort_rx: Receiver<()>,
     abort_ack_tx: Sender<()>,
 ) -> Result<()> {
     let ke_runtime = selectors::selector_runtimes(runtime.id());
 
-    let queryable = match zenoh_session
-        .declare_queryable(ke_runtime.clone())
-        .res()
-        .await
-    {
+    let queryable = match zenoh_session.declare_queryable(ke_runtime.clone()).await {
         Ok(queryable) => {
             tracing::trace!("declared queryable < {} >", ke_runtime);
             queryable

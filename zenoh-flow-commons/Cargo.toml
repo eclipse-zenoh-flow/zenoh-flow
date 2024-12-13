@@ -34,4 +34,4 @@ serde_yaml = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 zenoh-keyexpr = { workspace = true }
-zenoh-protocol = { workspace = true }
+zenoh-config = { workspace = true }

@@ -27,7 +27,7 @@ pub(crate) mod selectors;
 
 use anyhow::{anyhow, bail};
 use serde::Deserialize;
-use zenoh::{prelude::*, queryable::Query};
+use zenoh::query::Query;
 use zenoh_flow_commons::Result;
 pub use zenoh_flow_runtime::InstanceStatus;
 
@@ -48,22 +48,9 @@ pub use self::{
 ///
 /// After these checks, the method `process` is called on the variant of `InstancesQuery`.
 pub(crate) async fn validate_query<T: for<'a> Deserialize<'a>>(query: &Query) -> Result<T> {
-    let value = match query.value() {
-        Some(value) => value,
-        None => {
-            bail!("Received empty payload");
-        }
+    let Some(payload) = query.payload() else {
+        bail!("Received Query with empty payload")
     };
 
-    if ![
-        Encoding::APP_OCTET_STREAM,
-        Encoding::APP_JSON,
-        Encoding::TEXT_JSON,
-    ]
-    .contains(&value.encoding)
-    {
-        bail!("Encoding < {} > is not supported", value.encoding);
-    }
-
-    serde_json::from_slice::<T>(&value.payload.contiguous()).map_err(|e| anyhow!("{:?}", e))
+    serde_json::from_slice::<T>(&payload.to_bytes()).map_err(|e| anyhow!("{:?}", e))
 }

@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use zenoh::prelude::r#async::*;
+use zenoh::Session;
 use zenoh_flow_commons::{InstanceId, RuntimeId};
 use zenoh_flow_runtime::Runtime;
 
@@ -27,7 +27,7 @@ pub(crate) fn abort(runtime: Arc<Runtime>, origin: Origin, instance_id: Instance
             match runtime.try_get_record(&instance_id).await {
                 Ok(record) => {
                     query_abort(
-                        &runtime.session(),
+                        runtime.session(),
                         record
                             .mapping()
                             .keys()
@@ -74,12 +74,7 @@ pub(crate) async fn query_abort(
     for runtime_id in runtimes {
         let selector = selectors::selector_instances(runtime_id);
 
-        if let Err(e) = session
-            .get(selector)
-            .with_value(abort_query.clone())
-            .res()
-            .await
-        {
+        if let Err(e) = session.get(selector).payload(abort_query.clone()).await {
             tracing::error!(
                 "Sending abort query to runtime < {} > failed with error: {:?}",
                 runtime_id,

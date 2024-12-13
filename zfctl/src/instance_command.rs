@@ -19,7 +19,7 @@ use clap::Subcommand;
 use comfy_table::Table;
 use itertools::Itertools;
 use uuid::Uuid;
-use zenoh::prelude::r#async::*;
+use zenoh::{query::ConsolidationMode, Session};
 use zenoh_flow_commons::{parse_vars, InstanceId, Result, RuntimeId, Vars};
 use zenoh_flow_daemon::queries::*;
 use zenoh_flow_descriptors::{DataFlowDescriptor, FlattenedDataFlowDescriptor};
@@ -135,11 +135,10 @@ Caused by:
 
         let reply = session
             .get(&selector)
-            .with_value(value)
+            .payload(value)
             // NOTE: We do not want any consolidation, each response, even if identical, is relevant as the origin
             // matters as much as the content.
             .consolidation(ConsolidationMode::None)
-            .res()
             .await
             .map_err(|e| anyhow!("Failed to send query on < {} >: {:?}", &selector, e))?;
 
@@ -147,20 +146,20 @@ Caused by:
         match query {
             InstancesQuery::Create(_) => {
                 let sample = match reply.recv_async().await {
-                    Ok(reply) => reply.sample,
+                    Ok(reply) => reply,
                     Err(e) => {
                         tracing::error!("Could not create instance: {:?}", e);
                         bail!(ZENOH_FLOW_INTERNAL_ERROR)
                     }
                 };
 
-                match sample {
+                match sample.result() {
                     Ok(sample) => {
                         tracing::info!(
-                            "If successful, the instance will have the id: {}",
-                            sample.value
+                            "If successful, the instance will have the id: {:?}",
+                            sample.payload().try_to_string()
                         );
-                        println!("{}", sample.value);
+                        println!("{:?}", sample.payload().try_to_string());
                     }
                     Err(err) => tracing::error!("Failed to create instance: {:?}", err),
                 }
@@ -171,10 +170,10 @@ Caused by:
                 table.set_header(row!("Runtime", "Instance State", "Node"));
 
                 while let Ok(response) = reply.recv_async().await {
-                    match response.sample {
+                    match response.result() {
                         Ok(sample) => {
                             match serde_json::from_slice::<InstanceStatus>(
-                                &sample.value.payload.contiguous(),
+                                &sample.payload().to_bytes(),
                             ) {
                                 Ok(status) => {
                                     table.add_row(row!(
@@ -184,8 +183,8 @@ Caused by:
                                     ));
                                 }
                                 Err(e) => tracing::error!(
-                                    "Failed to parse 'status' reply from < {} >: {:?}",
-                                    response.replier_id,
+                                    "Failed to parse 'status' reply from < {:?} >: {:?}",
+                                    response.replier_id(),
                                     e
                                 ),
                             }
@@ -201,11 +200,11 @@ Caused by:
                 table.set_width(80);
                 table.set_header(row!("Instance Name", "Instance ID", "Instance State"));
                 while let Ok(response) = reply.recv_async().await {
-                    match response.sample {
+                    match response.result() {
                         Ok(sample) => {
                             match serde_json::from_slice::<
                                 HashMap<InstanceId, (Arc<str>, InstanceState)>,
-                            >(&sample.value.payload.contiguous())
+                            >(&sample.payload().to_bytes())
                             {
                                 Ok(list) => {
                                     for (id, (name, state)) in list {
@@ -213,8 +212,8 @@ Caused by:
                                     }
                                 }
                                 Err(e) => tracing::error!(
-                                    "Failed to parse 'list' reply from < {} >: {:?}",
-                                    response.replier_id,
+                                    "Failed to parse 'list' reply from < {:?} >: {:?}",
+                                    response.replier_id(),
                                     e
                                 ),
                             }

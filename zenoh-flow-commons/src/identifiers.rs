@@ -17,7 +17,7 @@ use std::{fmt::Display, ops::Deref, str::FromStr, sync::Arc};
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use zenoh_protocol::core::ZenohId;
+use zenoh_config::ZenohId;
 
 use crate::deserialize::deserialize_id;
 
@@ -116,10 +116,9 @@ pub struct RuntimeId(ZenohId);
 
 impl RuntimeId {
     /// Generate a new random identifier, guaranteed (with a high probability) to be unique.
-    ///
-    /// This internally calls [ZenohId::rand].
     pub fn rand() -> Self {
-        Self(ZenohId::rand())
+        // NOTE: The `Default` trait implementation internally calls `rand()`.
+        Self(ZenohId::default())
     }
 }
 

@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use anyhow::bail;
-use zenoh::{prelude::r#async::*, queryable::Query};
+use zenoh::{bytes::ZBytes, query::Query, Session};
 use zenoh_flow_commons::{InstanceId, Result, RuntimeId};
 use zenoh_flow_runtime::Runtime;
 
@@ -51,7 +51,7 @@ Caused by:
                             message,
                             e
                         );
-                        if let Err(e) = query.reply(Err(Value::from(message))).res().await {
+                        if let Err(e) = query.reply_err(message).await {
                             tracing::error!(
                                 "Failed to reply (error) to query on < {} >: {:?}",
                                 query.key_expr(),
@@ -74,7 +74,7 @@ Caused by:
         if matches!(origin, Origin::Client) {
             return_if_err!(
                 query_start(
-                    &runtime.session(),
+                    runtime.session(),
                     record
                         .mapping()
                         .keys()
@@ -97,10 +97,7 @@ Caused by:
 
         tracing::trace!("Successfully started instance < {} >", instance_id);
         return_if_err!(
-            query
-                .reply(Ok(Sample::new(query.key_expr().clone(), Value::empty())))
-                .res()
-                .await,
+            query.reply(query.key_expr(), ZBytes::default()).await,
             "Failed to reply (success) to query on < {} >",
             query.key_expr()
         );
@@ -169,11 +166,7 @@ Caused by:
         let selector = selectors::selector_instances(runtime_id);
 
         rollback_if_err!(
-            session
-                .get(selector)
-                .with_value(start_query.clone())
-                .res()
-                .await,
+            session.get(selector).payload(start_query.clone()).await,
             "Query `start` on runtime < {} > failed",
             runtime_id
         );

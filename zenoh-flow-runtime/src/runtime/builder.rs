@@ -16,8 +16,8 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use async_std::sync::{Mutex, RwLock};
 use uhlc::HLC;
+use zenoh::Session;
 #[cfg(feature = "zenoh")]
-use zenoh::prelude::r#async::*;
 #[cfg(feature = "shared-memory")]
 use zenoh_flow_commons::SharedMemoryConfiguration;
 use zenoh_flow_commons::{Result, RuntimeId};
@@ -34,7 +34,7 @@ pub struct RuntimeBuilder {
     hlc: Option<HLC>,
     runtime_id: Option<RuntimeId>,
     #[cfg(feature = "zenoh")]
-    session: Option<Arc<Session>>,
+    session: Option<Session>,
     #[cfg(feature = "shared-memory")]
     shared_memory: Option<SharedMemoryConfiguration>,
     loader: Loader,
@@ -101,19 +101,17 @@ impl RuntimeBuilder {
     /// # Example
     ///
     /// ```no_run
-    /// use zenoh_flow_runtime::{zenoh, zenoh::AsyncResolve, Runtime};
+    /// use zenoh_flow_runtime::{zenoh, Runtime};
     /// # async_std::task::block_on(async {
     ///
-    /// let zenoh_session = zenoh::open(zenoh::peer())
-    ///     .res_async()
+    /// let zenoh_session = zenoh::open(zenoh::Config::default())
     ///     .await
-    ///     .expect("Failed to open Session")
-    ///     .into_arc();
+    ///     .expect("Failed to open Session");
     /// let builder = Runtime::builder("demo").session(zenoh_session);
     /// # });
     /// ```
     #[cfg(feature = "zenoh")]
-    pub fn session(mut self, session: Arc<Session>) -> Self {
+    pub fn session(mut self, session: Session) -> Self {
         self.session = Some(session);
         self
     }
@@ -233,20 +231,16 @@ impl RuntimeBuilder {
         let session = match self.session {
             Some(session) => session,
             None => {
-                let mut zenoh_config = zenoh::config::peer();
+                let mut zenoh_config = zenoh::Config::default();
                 if let Some(runtime_id) = self.runtime_id {
                     // NOTE: `set_id` will return the previous id in one was set before. We can safely ignore this
                     // result.
                     let _ = zenoh_config.set_id(*runtime_id);
                 }
 
-                zenoh::open(zenoh_config)
-                    .res_async()
-                    .await
-                    .map_err(|e| {
-                        anyhow::anyhow!("Failed to open a Zenoh session in peer mode:\n{e:?}")
-                    })?
-                    .into_arc()
+                zenoh::open(zenoh_config).await.map_err(|e| {
+                    anyhow::anyhow!("Failed to open a Zenoh session in peer mode:\n{e:?}")
+                })?
             }
         };
 
