@@ -108,7 +108,7 @@ They will thus **both** receive the same publications.
 If this is a desired behaviour, you can safely ignore this message.
 
 For more details, see:
-https://github.com/eclipse-zenoh/roadmap/blob/main/rfcs/ALL/Key%20Expressions.md#canon-forms
+https://github.com/eclipse-zenoh-flow/roadmap/blob/main/rfcs/ALL/Key%20Expressions.md#canon-forms
 "#,
                 owned_canon_ke,
                 key_expr,

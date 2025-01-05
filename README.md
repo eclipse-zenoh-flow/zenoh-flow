@@ -2,8 +2,8 @@
 
 
 [![Eclipse CI](https://ci.eclipse.org/zenoh/buildStatus/icon?job=zenoh-flow-nightly&subject=Eclipse%20CI)](https://ci.eclipse.org/zenoh/view/Zenoh%20Flow/job/zenoh-flow-nightly/)
-[![CI](https://github.com/eclipse-zenoh/zenoh-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/eclipse-zenoh/zenoh-flow/actions/workflows/ci.yml)
-[![Discussion](https://img.shields.io/badge/discussion-on%20github-blue)](https://github.com/eclipse-zenoh/roadmap/discussions)
+[![CI](https://github.com/eclipse-zenoh-flow/zenoh-flow/actions/workflows/ci.yml/badge.svg)](https://github.com/eclipse-zenoh-flow/zenoh-flow/actions/workflows/ci.yml)
+[![Discussion](https://img.shields.io/badge/discussion-on%20github-blue)](https://github.com/eclipse-zenoh-flow/roadmap/discussions)
 [![Discord](https://img.shields.io/badge/chat-on%20discord-blue)](https://discord.gg/vSDSpqnbkm)
 
 
@@ -24,17 +24,17 @@ This makes for a powerful combination as Zenoh offers flexibility and extensibil
 
 -----
 
-🧑‍💻 We are currently keeping our documentation and guides in the [Wiki](https://github.com/eclipse-zenoh/zenoh-flow/wiki) tab of this repository.
+🧑‍💻 We are currently keeping our documentation and guides in the [Wiki](https://github.com/eclipse-zenoh-flow/zenoh-flow/wiki) tab of this repository.
 
 -----
 
 ## Installation
 
-Follow our guide [here](https://github.com/eclipse-zenoh/zenoh-flow/wiki/Installation-(v0.4.0))!
+Follow our guide [here](https://github.com/eclipse-zenoh-flow/zenoh-flow/wiki/Installation-(v0.4.0))!
 
 ## Getting Started
 
-The best way to learn Zenoh-Flow is to go through our [getting started guide](https://github.com/eclipse-zenoh/zenoh-flow/wiki/Getting-started-(v0.4.0)).
+The best way to learn Zenoh-Flow is to go through our [getting started guide](https://github.com/eclipse-zenoh-flow/zenoh-flow/wiki/Getting-started-(v0.4.0)).
 
 ## Examples
 

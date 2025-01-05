@@ -36,7 +36,7 @@ const ZENOH_FLOW_INTERNAL_ERROR: &str = r#"
 
 If the above error log does not help you troubleshoot the reason, you can contact us on:
 - Discord:  https://discord.gg/CeJB5rxk9x
-- GitHub:   https://github.com/eclipse-zenoh/zenoh-flow
+- GitHub:   https://github.com/eclipse-zenoh-flow/zenoh-flow
 "#;
 
 /// Macro to facilitate the creation of a [Row](comfy_table::Row) where its contents are not of the same type.

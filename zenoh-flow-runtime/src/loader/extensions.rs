@@ -154,7 +154,7 @@ impl Extensions {
 /// ```
 ///
 /// [shared libraries]: std::env::consts::DLL_EXTENSION
-/// [Python scripts]: https://github.com/eclipse-zenoh/zenoh-flow-python
+/// [Python scripts]: https://github.com/eclipse-zenoh-flow/zenoh-flow-python
 // NOTE: We separate the libraries in its own dedicated structure to have that same textual representation (YAML/JSON).
 //       There is no real need to do so.
 #[derive(Debug, Clone, Deserialize, Hash, PartialEq, Eq)]
