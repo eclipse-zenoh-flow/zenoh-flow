@@ -38,6 +38,6 @@ The best way to learn Zenoh-Flow is to go through our [getting started guide](ht
 
 ## Examples
 
-We encourage you to look at the examples available in our [examples repository](https://github.com/ZettaScaleLabs/zenoh-flow-examples).
+We encourage you to look at the examples available in our [examples folder](./examples).
 
 🚗 If you still want more, we also ported an [Autonomous Driving Pipeline](https://github.com/ZettaScaleLabs/stunt)!
