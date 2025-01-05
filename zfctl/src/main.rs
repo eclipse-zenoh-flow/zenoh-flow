@@ -15,9 +15,6 @@
 mod instance_command;
 use instance_command::InstanceCommand;
 
-mod runtime_command;
-use runtime_command::RuntimeCommand;
-
 mod daemon_command;
 use daemon_command::DaemonCommand;
 
@@ -82,10 +79,6 @@ enum Command {
         #[arg(short = 'n', long = "name", verbatim_doc_comment, group = "runtime")]
         runtime_name: Option<String>,
     },
-
-    /// To interact with a Zenoh-Flow runtime.
-    #[command(subcommand)]
-    Runtime(RuntimeCommand),
 
     /// To interact with a Zenoh-Flow daemon.
     #[command(subcommand)]
@@ -154,7 +147,6 @@ async fn main() -> Result<()> {
 
             command.run(session, orchestrator_id).await
         }
-        Command::Runtime(command) => command.run(session).await,
         Command::Daemon(command) => command.run(session).await,
         Command::RunLocal {
             flow,
