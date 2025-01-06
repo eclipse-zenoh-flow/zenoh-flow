@@ -24,7 +24,7 @@ mod utils;
 use std::path::PathBuf;
 
 use anyhow::anyhow;
-use clap::{Parser, Subcommand};
+use clap::{ArgGroup, Parser, Subcommand};
 use utils::{get_random_runtime, get_runtime_by_name};
 use zenoh_flow_commons::{parse_vars, Result, RuntimeId};
 
@@ -55,6 +55,7 @@ struct Zfctl {
     /// a peer with multicast scouting enabled.
     #[arg(short = 'z', long, verbatim_doc_comment)]
     zenoh_configuration: Option<PathBuf>,
+
     #[command(subcommand)]
     command: Command,
 }
@@ -63,21 +64,26 @@ struct Zfctl {
 enum Command {
     /// To manage a data flow instance.
     ///
-    /// This command accepts an optional `name` or `id` of a Zenoh-Flow Runtime
+    /// This command accepts an optional `name` or `id` of a Zenoh-Flow Daemon
     /// to contact. If no name or id is provided, one is randomly selected.
-    #[group(required = false, multiple = false)]
+    #[command(group(
+        ArgGroup::new("exclusive")
+            .args(&["runtime_id", "daemon_name"])
+            .required(false)
+            .multiple(false)
+    ))]
     Instance {
         #[command(subcommand)]
         command: InstanceCommand,
-        /// The unique identifier of the Zenoh-Flow runtime to contact.
-        #[arg(short = 'i', long = "id", verbatim_doc_comment, group = "runtime")]
+        /// The unique identifier of the Zenoh-Flow daemon to contact.
+        #[arg(short = 'i', long = "id", verbatim_doc_comment)]
         runtime_id: Option<RuntimeId>,
-        /// The name of the Zenoh-Flow runtime to contact.
+        /// The name of the Zenoh-Flow daemon to contact.
         ///
-        /// If several runtimes share the same name, `zfctl` will abort
+        /// If several daemons share the same name, `zfctl` will abort
         /// its execution asking you to instead use their `id`.
-        #[arg(short = 'n', long = "name", verbatim_doc_comment, group = "runtime")]
-        runtime_name: Option<String>,
+        #[arg(short = 'n', long = "name", verbatim_doc_comment)]
+        daemon_name: Option<String>,
     },
 
     /// To interact with a Zenoh-Flow daemon.
@@ -137,9 +143,9 @@ async fn main() -> Result<()> {
         Command::Instance {
             command,
             runtime_id,
-            runtime_name,
+            daemon_name,
         } => {
-            let orchestrator_id = match (runtime_id, runtime_name) {
+            let orchestrator_id = match (runtime_id, daemon_name) {
                 (Some(id), _) => id,
                 (None, Some(name)) => get_runtime_by_name(&session, &name).await,
                 (None, None) => get_random_runtime(&session).await,

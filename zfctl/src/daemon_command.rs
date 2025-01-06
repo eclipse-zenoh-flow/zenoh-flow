@@ -36,6 +36,8 @@ use crate::{
 
 #[derive(Subcommand)]
 pub(crate) enum DaemonCommand {
+    /// List all the Zenoh-Flow daemons reachable on the Zenoh network.
+    List,
     /// Launch a Zenoh-Flow Daemon.
     #[command(verbatim_doc_comment)]
     #[command(group(
@@ -52,48 +54,38 @@ pub(crate) enum DaemonCommand {
         name: Option<String>,
         /// The path of the configuration of the Zenoh-Flow Daemon.
         ///
-        /// This configuration allows setting extensions supported by the Runtime
+        /// This configuration allows setting extensions supported by the Daemon
         /// and its name.
         #[arg(short, long, verbatim_doc_comment)]
         configuration: Option<PathBuf>,
-        /// The path to a Zenoh configuration to manage the connection to the Zenoh
-        /// network.
-        ///
-        /// If no configuration is provided, `zfctl` will default to connecting as
-        /// a peer with multicast scouting enabled.
-        #[arg(short = 'z', long, verbatim_doc_comment)]
-        zenoh_configuration: Option<PathBuf>,
     },
-    /// List all the Zenoh-Flow runtimes reachable on the Zenoh network.
-    List,
-    /// Returns the status of the provided Zenoh-Flow runtime.
+    /// Returns the status of the provided Zenoh-Flow daemon.
     ///
-    /// The status consists of general information regarding the runtime and the
+    /// The status consists of general information regarding the daemon and the
     /// machine it runs on:
-    /// - the name associated with the Zenoh-Flow runtime,
-    /// - the number of CPUs the machine running the Zenoh-Flow runtime has,
-    /// - the total amount of RAM the machine running the Zenoh-Flow runtime has,
-    /// - for each data flow the Zenoh-Flow runtime manages (partially or not):
+    /// - the name associated with the Zenoh-Flow daemon,
+    /// - the number of CPUs the machine running the Zenoh-Flow daemon has,
+    /// - the total amount of RAM the machine running the Zenoh-Flow daemon has,
+    /// - for each data flow the Zenoh-Flow daemon manages (partially or not):
     ///   - its unique identifier,
     ///   - its name,
     ///   - its status.
     #[command(verbatim_doc_comment)]
     #[command(group(
         ArgGroup::new("exclusive")
-            .args(&["runtime_id", "runtime_name"])
+            .args(&["id", "name"])
             .required(true)
             .multiple(false)
     ))]
     Status {
-        /// The unique identifier of the Zenoh-Flow runtime to contact.
-        #[arg(short = 'i', long = "id")]
-        runtime_id: Option<RuntimeId>,
-        /// The name of the Zenoh-Flow runtime to contact.
+        /// The name of the Zenoh-Flow daemon to contact.
         ///
-        /// Note that if several runtimes share the same name, the first to
+        /// Note that if several daemons share the same name, the first to
         /// answer will be selected.
-        #[arg(short = 'n', long = "name")]
-        runtime_name: Option<String>,
+        name: Option<String>,
+        /// The unique identifier of the Zenoh-Flow daemon to contact.
+        #[arg(short = 'i', long = "id")]
+        id: Option<RuntimeId>,
     },
 }
 
@@ -103,22 +95,7 @@ impl DaemonCommand {
             DaemonCommand::Start {
                 name,
                 configuration,
-                zenoh_configuration,
             } => {
-                let zenoh_config = match zenoh_configuration {
-                    Some(path) => zenoh::Config::from_file(path.clone()).unwrap_or_else(|e| {
-                        panic!(
-                            "Failed to parse the Zenoh configuration from < {} >:\n{e:?}",
-                            path.display()
-                        )
-                    }),
-                    None => zenoh::Config::default(),
-                };
-
-                let zenoh_session = zenoh::open(zenoh_config)
-                    .await
-                    .unwrap_or_else(|e| panic!("Failed to open Zenoh session:\n{e:?}"));
-
                 let daemon = match configuration {
                     Some(path) => {
                         let (zenoh_flow_configuration, _) =
@@ -131,13 +108,13 @@ impl DaemonCommand {
                                     )
                                 });
 
-                        Daemon::spawn_from_config(zenoh_session, zenoh_flow_configuration)
+                        Daemon::spawn_from_config(session, zenoh_flow_configuration)
                             .await
                             .expect("Failed to spawn the Zenoh-Flow Daemon")
                     }
                     None => Daemon::spawn(
                         Runtime::builder(name.unwrap())
-                            .session(zenoh_session)
+                            .session(session)
                             .build()
                             .await
                             .expect("Failed to build the Zenoh-Flow Runtime"),
@@ -178,11 +155,8 @@ impl DaemonCommand {
 
                 println!("{table}");
             }
-            DaemonCommand::Status {
-                runtime_id,
-                runtime_name,
-            } => {
-                let runtime_id = match (runtime_id, runtime_name) {
+            DaemonCommand::Status { id, name } => {
+                let runtime_id = match (id, name) {
                     (Some(id), _) => id,
                     (None, Some(name)) => get_runtime_by_name(&session, &name).await,
                     (None, None) => {
@@ -272,7 +246,7 @@ impl DaemonCommand {
                             }
                         }
 
-                        Err(e) => tracing::error!("Reply to runtime status failed with: {:?}", e),
+                        Err(e) => tracing::error!("Reply to daemon status failed with: {:?}", e),
                     }
                 }
             }
