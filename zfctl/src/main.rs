@@ -69,7 +69,7 @@ enum Command {
     /// to contact. If no name or id is provided, one is randomly selected.
     #[command(group(
         ArgGroup::new("exclusive")
-            .args(&["runtime_id", "daemon_name"])
+            .args(&["daemon_id", "daemon_name"])
             .required(false)
             .multiple(false)
     ))]
@@ -78,7 +78,7 @@ enum Command {
         command: InstanceCommand,
         /// The unique identifier of the Zenoh-Flow daemon to contact.
         #[arg(short = 'i', long = "id", verbatim_doc_comment)]
-        runtime_id: Option<RuntimeId>,
+        daemon_id: Option<RuntimeId>,
         /// The name of the Zenoh-Flow daemon to contact.
         ///
         /// If several daemons share the same name, `zfctl` will abort
@@ -123,10 +123,10 @@ async fn main() -> Result<()> {
     match zfctl.command {
         Command::Instance {
             command,
-            runtime_id,
+            daemon_id,
             daemon_name,
         } => {
-            let orchestrator_id = match (runtime_id, daemon_name) {
+            let orchestrator_id = match (daemon_id, daemon_name) {
                 (Some(id), _) => id,
                 (None, Some(name)) => get_runtime_by_name(&session, &name).await,
                 (None, None) => get_random_runtime(&session).await,

@@ -73,7 +73,7 @@ pub(crate) enum DaemonCommand {
     #[command(verbatim_doc_comment)]
     #[command(group(
         ArgGroup::new("exclusive")
-            .args(&["id", "name"])
+            .args(&["daemon_id", "daemon_name"])
             .required(true)
             .multiple(false)
     ))]
@@ -82,10 +82,10 @@ pub(crate) enum DaemonCommand {
         ///
         /// Note that if several daemons share the same name, the first to
         /// answer will be selected.
-        name: Option<String>,
+        daemon_name: Option<String>,
         /// The unique identifier of the Zenoh-Flow daemon to contact.
         #[arg(short = 'i', long = "id")]
-        id: Option<RuntimeId>,
+        daemon_id: Option<RuntimeId>,
     },
 }
 
@@ -155,8 +155,11 @@ impl DaemonCommand {
 
                 println!("{table}");
             }
-            DaemonCommand::Status { id, name } => {
-                let runtime_id = match (id, name) {
+            DaemonCommand::Status {
+                daemon_id,
+                daemon_name,
+            } => {
+                let runtime_id = match (daemon_id, daemon_name) {
                     (Some(id), _) => id,
                     (None, Some(name)) => get_runtime_by_name(&session, &name).await,
                     (None, None) => {
@@ -165,9 +168,9 @@ impl DaemonCommand {
                         //     any group.
                         // (2) The `group` macro has `multiple = false` which indicates that only a single entry for
                         //     any group is accepted.
-                        // (3) The `runtime_id` and `runtime_name` fields belong to the same group "runtime".
+                        // (3) The `daemon_id` and `daemon_name` fields belong to the same group "exclusive".
                         //
-                        // => A single entry for the group "runtime" is required (and mandatory).
+                        // => A single entry for the group "exclusive" is required (and mandatory).
                         unreachable!()
                     }
                 };
@@ -189,7 +192,7 @@ impl DaemonCommand {
                     .await
                     .map_err(|e| {
                         anyhow!(
-                            "Failed to query Zenoh-Flow runtime < {} >: {:?}",
+                            "Failed to query Zenoh-Flow daemon < {} >: {:?}",
                             runtime_id,
                             e
                         )
