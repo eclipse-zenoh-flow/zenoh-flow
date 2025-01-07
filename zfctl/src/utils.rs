@@ -18,14 +18,14 @@ use zenoh::{query::ConsolidationMode, Session};
 use zenoh_flow_commons::RuntimeId;
 use zenoh_flow_daemon::queries::{selector_all_runtimes, RuntimeInfo, RuntimesQuery};
 
-/// Returns the list of [RuntimeInfo] of the reachable Zenoh-Flow Runtime(s).
+/// Returns the list of [RuntimeInfo] of the reachable Zenoh-Flow Daemon(s).
 ///
 /// # Panic
 ///
 /// This function will panic if:
-/// - (internal error) the query to list the Zenoh-Flow Runtimes could not be serialised by `serde_json`,
+/// - (internal error) the query to list the Zenoh-Flow Daemons could not be serialised by `serde_json`,
 /// - the query on the Zenoh network failed,
-/// - no Zenoh-Flow Runtime is reachable.
+/// - no Zenoh-Flow Daemon is reachable.
 pub(crate) async fn get_all_runtimes(session: &Session) -> Vec<RuntimeInfo> {
     let value = serde_json::to_vec(&RuntimesQuery::List)
         .unwrap_or_else(|e| panic!("`serde_json` failed to serialize `RuntimeQuery::List`: {e:?}"));
@@ -33,10 +33,10 @@ pub(crate) async fn get_all_runtimes(session: &Session) -> Vec<RuntimeInfo> {
     let runtime_replies = session
         .get(selector_all_runtimes())
         .payload(value)
-        // We want to address all the Zenoh-Flow runtimes that are reachable on the Zenoh network.
+        // We want to address all the Zenoh-Flow daemons that are reachable on the Zenoh network.
         .consolidation(ConsolidationMode::None)
         .await
-        .unwrap_or_else(|e| panic!("Failed to query available runtimes:\n{:?}", e));
+        .unwrap_or_else(|e| panic!("Failed to query available daemons:\n{:?}", e));
 
     let mut runtimes = Vec::new();
     while let Ok(reply) = runtime_replies.recv_async().await {
@@ -56,7 +56,7 @@ pub(crate) async fn get_all_runtimes(session: &Session) -> Vec<RuntimeInfo> {
 
     if runtimes.is_empty() {
         panic!(
-            "No Zenoh-Flow runtime were detected. Have you checked if (i) they are up and (ii) \
+            "No Zenoh-Flow daemon were detected. Have you checked if (i) they are up and (ii) \
              reachable through Zenoh?"
         );
     }
@@ -64,13 +64,13 @@ pub(crate) async fn get_all_runtimes(session: &Session) -> Vec<RuntimeInfo> {
     runtimes
 }
 
-/// Returns the unique identifier of the Zenoh-Flow Runtime that has the provided `name`.
+/// Returns the unique identifier of the Zenoh-Flow Daemon that has the provided `name`.
 ///
 /// # Panic
 ///
 /// This function will panic if:
-/// - there is no Zenoh-Flow Runtime that has the provided name,
-/// - there are more than 1 Zenoh-Flow Runtime with the provided name.
+/// - there is no Zenoh-Flow Daemon that has the provided name,
+/// - there are more than 1 Zenoh-Flow Daemon with the provided name.
 pub(crate) async fn get_runtime_by_name(session: &Session, name: &str) -> RuntimeId {
     let runtimes = get_all_runtimes(session).await;
     let mut matching_runtimes = runtimes
@@ -79,14 +79,14 @@ pub(crate) async fn get_runtime_by_name(session: &Session, name: &str) -> Runtim
         .collect_vec();
 
     if matching_runtimes.is_empty() {
-        panic!("Found no Zenoh-Flow Runtime with name < {name} >");
+        panic!("Found no Zenoh-Flow Daemon with name < {name} >");
     } else if matching_runtimes.len() > 1 {
-        tracing::error!("Found multiple Zenoh-Flow Runtimes named < {name} >:");
+        tracing::error!("Found multiple Zenoh-Flow Daemons named < {name} >:");
         matching_runtimes.iter().for_each(|&r_info| {
             tracing::error!("- {} - (id) {}", r_info.name, r_info.id);
         });
         panic!(
-            "There are multiple Zenoh-Flow Runtimes named < {name} >, please use their 'id' \
+            "There are multiple Zenoh-Flow Daemons named < {name} >, please use their 'id' \
              instead"
         );
     } else {
@@ -94,14 +94,14 @@ pub(crate) async fn get_runtime_by_name(session: &Session, name: &str) -> Runtim
     }
 }
 
-/// Returns the unique identifier of a reachable Zenoh-Flow Runtime.
+/// Returns the unique identifier of a reachable Zenoh-Flow Daemon.
 ///
 /// # Panic
 ///
 /// This function will panic if:
-/// - (internal error) the query to list the Zenoh-Flow Runtimes could not be serialised by `serde_json`,
+/// - (internal error) the query to list the Zenoh-Flow Daemons could not be serialised by `serde_json`,
 /// - the query on the Zenoh network failed,
-/// - no Zenoh-Flow Runtime is reachable.
+/// - no Zenoh-Flow Daemon is reachable.
 pub(crate) async fn get_random_runtime(session: &Session) -> RuntimeId {
     let mut runtimes = get_all_runtimes(session).await;
     let orchestrator = runtimes.remove(rand::thread_rng().gen_range(0..runtimes.len()));

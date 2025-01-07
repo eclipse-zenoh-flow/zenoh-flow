@@ -42,12 +42,12 @@ pub(crate) enum InstanceCommand {
     ///       zfctl instance status <uuid>
     ///
     /// - This call will **not** start the data flow instance, only load on all
-    ///   the involved runtimes the nodes composing the data flow.
+    ///   the involved daemons the nodes composing the data flow.
     ///
-    /// - If Zenoh-Flow runtimes are specified in the data flow descriptor,
+    /// - If Zenoh-Flow daemons are specified in the data flow descriptor,
     ///   there is no need to contact them separately or even to make the
-    ///   `create` query on any of them. The Zenoh-Flow runtime orchestrating
-    ///   the creation will query the appropriate Zenoh-Flow runtimes.
+    ///   `create` query on any of them. The Zenoh-Flow daemon orchestrating
+    ///   the creation will query the appropriate Zenoh-Flow daemons.
     #[command(verbatim_doc_comment)]
     Create {
         /// The path, on your machine, of the data flow descriptor.
@@ -64,11 +64,11 @@ pub(crate) enum InstanceCommand {
     Delete { instance_id: Uuid },
     /// Obtain the status of the data flow instance.
     Status { instance_id: Uuid },
-    /// List all the data flow instances on the contacted Zenoh-Flow runtime
+    /// List all the data flow instances on the contacted Zenoh-Flow daemon
     List,
-    /// Start the data flow instance, on all the involved Zenoh-Flow runtimes.
+    /// Start the data flow instance, on all the involved Zenoh-Flow daemons.
     Start { instance_id: Uuid },
-    /// Abort the data flow instance, on all the involved Zenoh-Flow runtimes.
+    /// Abort the data flow instance, on all the involved Zenoh-Flow daemons.
     Abort { instance_id: Uuid },
 }
 
