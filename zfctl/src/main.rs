@@ -20,14 +20,15 @@ use daemon_command::DaemonCommand;
 
 mod run_local_command;
 use run_local_command::RunLocalCommand;
+use tracing::Instrument;
+use tracing_subscriber::EnvFilter;
 
 mod utils;
 use std::path::PathBuf;
 
-use anyhow::anyhow;
 use clap::{ArgGroup, Parser, Subcommand};
 use utils::{get_random_runtime, get_runtime_by_name};
-use zenoh_flow_commons::{Result, RuntimeId};
+use zenoh_flow_commons::RuntimeId;
 
 const ZENOH_FLOW_INTERNAL_ERROR: &str = r#"
 `zfctl` encountered a fatal internal error.
@@ -97,44 +98,79 @@ enum Command {
 }
 
 #[async_std::main]
-async fn main() -> Result<()> {
-    // TODO Configure tracing such that:
-    // - if the environment variable RUST_LOG is set, it is applied,
-    // let a = std::env::var(tracing_subscriber::EnvFilter::DEFAULT_ENV);
-    // - otherwise, provide a default that will only log INFO or above messages, for zfctl only.
-    let _ = tracing_subscriber::fmt::try_init();
+async fn main() {
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("zfctl=info,zenoh_flow=info"));
+    let subscriber = tracing_subscriber::fmt()
+        .with_env_filter(env_filter)
+        .with_target(false)
+        .finish();
+    let _ = tracing::subscriber::set_global_default(subscriber);
+
+    let span = tracing::info_span!("zfctl");
+    let _guard = span.enter();
 
     let zfctl = Zfctl::parse();
 
     let zenoh_config = match zfctl.zenoh_configuration {
-        Some(path) => zenoh::Config::from_file(path.clone()).map_err(|e| {
-            anyhow!(
-                "Failed to parse the Zenoh configuration from < {} >:\n{e:?}",
-                path.display()
-            )
-        })?,
+        Some(path) => match zenoh::Config::from_file(path.clone()) {
+            Ok(path) => path,
+            Err(e) => {
+                tracing::error!(
+                    "Failed to parse Zenoh configuration from < {} >: {e:?}",
+                    path.display()
+                );
+                return;
+            }
+        },
         None => zenoh::Config::default(),
     };
 
-    let session = zenoh::open(zenoh_config)
-        .await
-        .map_err(|e| anyhow!("Failed to open Zenoh session:\n{:?}", e))?;
+    async {
+        let session = match zenoh::open(zenoh_config).await {
+            Ok(session) => session,
+            Err(e) => {
+                tracing::error!("Failed to open Zenoh session: {e:?}");
+                return;
+            }
+        };
 
-    match zfctl.command {
-        Command::Instance {
-            command,
-            daemon_id,
-            daemon_name,
-        } => {
-            let orchestrator_id = match (daemon_id, daemon_name) {
-                (Some(id), _) => id,
-                (None, Some(name)) => get_runtime_by_name(&session, &name).await,
-                (None, None) => get_random_runtime(&session).await,
-            };
+        tracing::info!("Using ZID: {}", session.zid());
 
-            command.run(session, orchestrator_id).await
+        let result = match zfctl.command {
+            Command::Instance {
+                command,
+                daemon_id,
+                daemon_name,
+            } => {
+                let orchestrator_id = match (daemon_id, daemon_name) {
+                    (Some(id), _) => id,
+                    (None, Some(name)) => match get_runtime_by_name(&session, &name).await {
+                        Ok(id) => id,
+                        Err(e) => {
+                            tracing::error!("{e:?}");
+                            return;
+                        }
+                    },
+                    (None, None) => match get_random_runtime(&session).await {
+                        Ok(id) => id,
+                        Err(e) => {
+                            tracing::error!("{e:?}");
+                            return;
+                        }
+                    },
+                };
+
+                command.run(session, orchestrator_id).await
+            }
+            Command::Daemon(command) => command.run(session).await,
+            Command::RunLocal(command) => command.run(session).await,
+        };
+
+        if let Err(e) = result {
+            tracing::error!("{e:?}");
         }
-        Command::Daemon(command) => command.run(session).await,
-        Command::RunLocal(command) => command.run(session).await,
     }
+    .in_current_span()
+    .await;
 }

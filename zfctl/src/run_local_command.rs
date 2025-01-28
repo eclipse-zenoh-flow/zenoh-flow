@@ -36,8 +36,7 @@ impl RunLocalCommand {
                 .context(format!(
                     "Failed to load Loader configuration from < {} >",
                     &extensions_path.display()
-                ))
-                .unwrap();
+                ))?;
 
                 extensions
             }
@@ -56,42 +55,38 @@ impl RunLocalCommand {
         .context(format!(
             "Failed to load data flow descriptor from < {} >",
             &self.flow.display()
-        ))
-        .unwrap();
+        ))?;
 
-        let flattened_flow = FlattenedDataFlowDescriptor::try_flatten(data_flow, vars)
-            .context(format!(
+        let flattened_flow =
+            FlattenedDataFlowDescriptor::try_flatten(data_flow, vars).context(format!(
                 "Failed to flattened data flow extracted from < {} >",
                 &self.flow.display()
-            ))
-            .unwrap();
+            ))?;
 
         let runtime_builder = Runtime::builder("zenoh-flow-standalone-runtime")
+            .session(session)
             .add_extensions(extensions)
-            .expect("Failed to add extensions")
-            .session(session);
+            .context("Failed to add extensions")?;
 
         let runtime = runtime_builder
             .build()
             .await
-            .expect("Failed to build the Zenoh-Flow runtime");
+            .context("Failed to build the Zenoh-Flow runtime")?;
 
         let record = DataFlowRecord::try_new(&flattened_flow, runtime.id())
-            .context("Failed to create a Record from the flattened data flow descriptor")
-            .unwrap();
+            .context("Failed to create a Record from the flattened data flow descriptor")?;
 
         let instance_id = record.instance_id().clone();
         let record_name = record.name().clone();
         runtime
             .try_load_data_flow(record)
             .await
-            .context("Failed to load Record")
-            .unwrap();
+            .context("Failed to load Record")?;
 
         runtime
             .try_start_instance(&instance_id)
             .await
-            .unwrap_or_else(|e| panic!("Failed to start data flow < {} >: {:?}", &instance_id, e));
+            .context(format!("Failed to start data flow < {} >", &instance_id))?;
 
         let mut stdin = async_std::io::stdin();
         let mut input = [0_u8];
@@ -113,7 +108,7 @@ impl RunLocalCommand {
         runtime
             .try_delete_instance(&instance_id)
             .await
-            .unwrap_or_else(|e| panic!("Failed to delete data flow < {} >: {:?}", &instance_id, e));
+            .context(format!("Failed to delete data flow < {} >:", &instance_id))?;
 
         Ok(())
     }
