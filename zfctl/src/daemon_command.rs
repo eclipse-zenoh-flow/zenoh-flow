@@ -20,6 +20,7 @@ use clap::{ArgGroup, Subcommand};
 use comfy_table::{Row, Table};
 use signal_hook::consts::{SIGINT, SIGQUIT, SIGTERM};
 use signal_hook_async_std::Signals;
+use tracing::Instrument;
 use zenoh::Session;
 use zenoh_flow_commons::{try_parse_from_file, Result, RuntimeId, Vars};
 use zenoh_flow_daemon::{
@@ -91,60 +92,109 @@ pub(crate) enum DaemonCommand {
 
 impl DaemonCommand {
     pub async fn run(self, session: Session) -> Result<()> {
+        let span = tracing::info_span!(target: "zfctl", "daemon", name = tracing::field::Empty, zid = tracing::field::Empty);
+        let _guard = span.enter();
+
         match self {
             DaemonCommand::Start {
                 name,
                 configuration,
             } => {
-                let daemon = match configuration {
-                    Some(path) => {
-                        let (zenoh_flow_configuration, _) =
-                            try_parse_from_file::<ZenohFlowConfiguration>(&path, Vars::default())
-                                .unwrap_or_else(|e| {
-                                    panic!(
-                                        "Failed to parse a Zenoh-Flow Configuration from < {} \
-                                         >:\n{e:?}",
-                                        path.display()
-                                    )
-                                });
+                let (daemon, daemon_name, zid) =
+                    match configuration {
+                        Some(path) => {
+                            let zenoh_flow_configuration = match try_parse_from_file::<
+                                ZenohFlowConfiguration,
+                            >(
+                                &path, Vars::default()
+                            ) {
+                                Ok((configuration, _)) => configuration,
+                                Err(e) => {
+                                    anyhow::bail!(
+                                    "Failed to parse Zenoh-Flow configuration from < {} >: {e:?}",
+                                    path.display()
+                                );
+                                }
+                            };
 
-                        Daemon::spawn_from_config(session, zenoh_flow_configuration)
-                            .await
-                            .expect("Failed to spawn the Zenoh-Flow Daemon")
-                    }
-                    None => Daemon::spawn(
-                        Runtime::builder(name.unwrap())
-                            .session(session)
-                            .build()
-                            .await
-                            .expect("Failed to build the Zenoh-Flow Runtime"),
-                    )
-                    .await
-                    .expect("Failed to spawn the Zenoh-Flow Daemon"),
-                };
+                            let daemon_name = zenoh_flow_configuration.name.clone();
+                            let zid = session.zid();
+                            let daemon =
+                                match Daemon::spawn_from_config(session, zenoh_flow_configuration)
+                                    .await
+                                {
+                                    Ok(daemon) => daemon,
+                                    Err(e) => anyhow::bail!(
+                                "Failed to spawn Zenoh-Flow Daemon < {daemon_name} >: {e:?}",
+                            ),
+                                };
 
-                async_std::task::spawn(async move {
-                    let mut signals = Signals::new([SIGTERM, SIGINT, SIGQUIT])
-                        .expect("Failed to create SignalsInfo for: [SIGTERM, SIGINT, SIGQUIT]");
+                            (daemon, daemon_name, zid)
+                        }
+                        None => {
+                            // NOTE: We can safely unwrap here: in order to start a Zenoh-Flow Daemon,
+                            // either a name or a configuration must be provided.
+                            //
+                            // If that branch gets executed it means that a name was necessarily
+                            // provided (`clap` would complain otherwise).
+                            let daemon_name = name.unwrap();
+                            let zid = session.zid();
+                            let runtime = match Runtime::builder(&daemon_name)
+                                .session(session)
+                                .build()
+                                .await
+                            {
+                                Ok(runtime) => runtime,
+                                Err(e) => anyhow::bail!(
+                                "Failed to build Zenoh-Flow Runtime for < {daemon_name} >: {e:?}"
+                            ),
+                            };
 
-                    while let Some(signal) = signals.next().await {
-                        match signal {
-                            SIGTERM | SIGINT | SIGQUIT => {
-                                tracing::info!("Received termination signal, shutting down.");
-                                daemon.stop().await;
-                                break;
-                            }
+                            let daemon = match Daemon::spawn(runtime).await {
+                                Ok(daemon) => daemon,
+                                Err(e) => {
+                                    anyhow::bail!(
+                                    "Failed to spawn Zenoh-Flow Daemon < {daemon_name} >: {e:?}"
+                                )
+                                }
+                            };
 
-                            signal => {
-                                tracing::warn!("Ignoring signal ({signal})");
+                            (daemon, daemon_name, zid)
+                        }
+                    };
+
+                span.record("name", daemon_name);
+                span.record("zid", format!("{zid}"));
+
+                tracing::info!("Started Zenoh-Flow Daemon");
+
+                let current_span = span.clone();
+
+                async_std::task::spawn(
+                    async move {
+                        let mut signals = Signals::new([SIGTERM, SIGINT, SIGQUIT])
+                            .expect("Failed to create SignalsInfo for: [SIGTERM, SIGINT, SIGQUIT]");
+
+                        while let Some(signal) = signals.next().await {
+                            match signal {
+                                SIGTERM | SIGINT | SIGQUIT => {
+                                    tracing::info!("Received termination signal");
+                                    daemon.stop().await;
+                                    break;
+                                }
+
+                                signal => {
+                                    tracing::warn!("Ignoring signal ({signal})");
+                                }
                             }
                         }
                     }
-                })
+                    .instrument(current_span),
+                )
                 .await;
             }
             DaemonCommand::List => {
-                let runtimes = get_all_runtimes(&session).await;
+                let runtimes = get_all_runtimes(&session).await?;
 
                 let mut table = Table::new();
                 table.set_width(80);
@@ -161,7 +211,7 @@ impl DaemonCommand {
             } => {
                 let runtime_id = match (daemon_id, daemon_name) {
                     (Some(id), _) => id,
-                    (None, Some(name)) => get_runtime_by_name(&session, &name).await,
+                    (None, Some(name)) => get_runtime_by_name(&session, &name).await?,
                     (None, None) => {
                         // This code is indeed unreachable because:
                         // (1) The `group` macro has `required = true` which indicates that clap requires an entry for

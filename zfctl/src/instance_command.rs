@@ -154,13 +154,17 @@ Caused by:
                 };
 
                 match sample.result() {
-                    Ok(sample) => {
-                        tracing::info!(
-                            "If successful, the instance will have the id: {:?}",
-                            sample.payload().try_to_string()
-                        );
-                        println!("{:?}", sample.payload().try_to_string());
-                    }
+                    Ok(sample) => match sample.payload().try_to_string() {
+                        Ok(instance_id) => {
+                            tracing::info!("Instance: {instance_id}");
+                            tracing::info!(
+                                "To check its status:\n\tzfctl instance status {instance_id}",
+                            );
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to parse Instance ID: {e:?}");
+                        }
+                    },
                     Err(err) => tracing::error!("Failed to create instance: {:?}", err),
                 }
             }
