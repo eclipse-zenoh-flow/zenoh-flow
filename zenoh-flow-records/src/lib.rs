@@ -23,7 +23,7 @@
 //! # ⚠️ Internal usage
 //!
 //! This crate is (mostly) intended for internal usage within the
-//! [Zenoh-Flow](https://github.com/eclipse-zenoh/zenoh-flow) project.
+//! [Zenoh-Flow](https://github.com/eclipse-zenoh-flow/zenoh-flow) project.
 
 mod connectors;
 mod dataflow;
