@@ -142,6 +142,12 @@ impl From<ZenohId> for RuntimeId {
     }
 }
 
+impl From<RuntimeId> for ZenohId {
+    fn from(value: RuntimeId) -> Self {
+        value.0
+    }
+}
+
 impl FromStr for RuntimeId {
     type Err = anyhow::Error;
 

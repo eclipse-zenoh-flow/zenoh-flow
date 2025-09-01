@@ -60,16 +60,21 @@ url = { version = "2.2", features = ["serde"] }
 uuid = { version = "1.1", features = ["serde", "v4"] }
 # ⚠️ To update the version of Zenoh, first *manually* copy the `Cargo.lock` from
 # the targeted version, then run `cargo build` and finally commit the updates.
-zenoh = { version = "=1.1.0", features = ["unstable", "internal", "plugins"] }
-zenoh-config = { version = "=1.1.0" }
+zenoh = { git = "https://github.com/eclipse-zenoh/zenoh", features = [
+    "unstable",
+    "internal",
+    "plugins",
+] }
+zenoh-config = { git = "https://github.com/eclipse-zenoh/zenoh" }
+zenoh-plugin-trait = { git = "https://github.com/eclipse-zenoh/zenoh" }
+zenoh-keyexpr = { git = "https://github.com/eclipse-zenoh/zenoh" }
+
 zenoh-flow-commons = { path = "./zenoh-flow-commons" }
 zenoh-flow-daemon = { path = "./zenoh-flow-daemon" }
 zenoh-flow-descriptors = { path = "./zenoh-flow-descriptors" }
 zenoh-flow-nodes = { path = "./zenoh-flow-nodes" }
 zenoh-flow-records = { path = "./zenoh-flow-records" }
 zenoh-flow-runtime = { path = "./zenoh-flow-runtime" }
-zenoh-plugin-trait = { version = "=1.1.0" }
-zenoh-keyexpr = { version = "=1.1.0" }
 
 [profile.dev]
 debug = true
