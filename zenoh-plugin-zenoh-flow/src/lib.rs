@@ -12,7 +12,6 @@
 //   ZettaScale Zenoh Team, <zenoh@zettascale.tech>
 //
 
-use flume::Sender;
 use zenoh::internal::{
     plugins::{RunningPluginTrait, ZenohPlugin},
     zerror,
@@ -20,7 +19,7 @@ use zenoh::internal::{
 use zenoh_flow_daemon::daemon::*;
 use zenoh_plugin_trait::{plugin_long_version, plugin_version, Plugin, PluginControl};
 
-pub struct ZenohFlowPlugin(Sender<()>);
+pub struct ZenohFlowPlugin;
 
 pub const GIT_VERSION: &str = git_version::git_version!(prefix = "v", cargo_prefix = "v");
 
@@ -48,7 +47,7 @@ impl Plugin for ZenohFlowPlugin {
             .cloned()
             .ok_or_else(|| zerror!("Plugin '{}': missing configuration", name))?;
 
-        let (abort_tx, abort_rx) = flume::bounded(1);
+        let (_abort_tx, abort_rx) = flume::bounded::<()>(1);
         let zenoh_runtime = zenoh_runtime.clone();
         async_std::task::spawn(async move {
             let zenoh_session = zenoh::session::init(zenoh_runtime).await.unwrap();
@@ -77,7 +76,7 @@ impl Plugin for ZenohFlowPlugin {
             daemon.stop().await;
         });
 
-        Ok(Box::new(ZenohFlowPlugin(abort_tx)))
+        Ok(Box::new(ZenohFlowPlugin))
     }
 }
 

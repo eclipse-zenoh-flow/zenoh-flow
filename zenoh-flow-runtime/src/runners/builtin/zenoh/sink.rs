@@ -131,7 +131,7 @@ Caused by:
 }
 
 #[async_trait::async_trait]
-impl<'a> Node for ZenohSink<'a> {
+impl Node for ZenohSink<'_> {
     // If the node is aborted / paused while waiting for inputs, the execution will be interrupted while
     // `self.state.futs` is empty. If this happens then we need to fill again `futs`.
     async fn on_resume(&self) -> Result<()> {

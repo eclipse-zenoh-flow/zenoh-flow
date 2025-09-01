@@ -142,9 +142,9 @@ impl From<ZenohId> for RuntimeId {
     }
 }
 
-impl Into<ZenohId> for RuntimeId {
-    fn into(self) -> ZenohId {
-        self.0
+impl From<RuntimeId> for ZenohId {
+    fn from(value: RuntimeId) -> Self {
+        value.0
     }
 }
 

@@ -114,7 +114,7 @@ fn test_serde_json() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// PROTOBUF PROST
+// PROTOBUF PROST
 
 // This structure was generated using the `prost-build` crate. We copied & pasted it here such that
 // we do not have to include `prost-build` as a build dependency to Zenoh-Flow. Our only purpose is
