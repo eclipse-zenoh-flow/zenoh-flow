@@ -235,7 +235,7 @@ impl RuntimeBuilder {
                 if let Some(runtime_id) = self.runtime_id {
                     // NOTE: `set_id` will return the previous id in one was set before. We can safely ignore this
                     // result.
-                    let _ = zenoh_config.set_id(*runtime_id);
+                    let _ = zenoh_config.set_id(Some(runtime_id.into()));
                 }
 
                 zenoh::open(zenoh_config).await.map_err(|e| {

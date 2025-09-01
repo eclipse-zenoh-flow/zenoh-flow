@@ -142,6 +142,12 @@ impl From<ZenohId> for RuntimeId {
     }
 }
 
+impl Into<ZenohId> for RuntimeId {
+    fn into(self) -> ZenohId {
+        self.0
+    }
+}
+
 impl FromStr for RuntimeId {
     type Err = anyhow::Error;
 

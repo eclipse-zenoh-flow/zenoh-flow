@@ -130,6 +130,7 @@ mod tests {
 
     #[derive(Deserialize, Debug)]
     pub struct TestStruct {
+        #[allow(dead_code)]
         pub id: NodeId,
     }
 
